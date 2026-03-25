@@ -1,0 +1,36 @@
+name: Publish (lactationcurve)
+
+on:
+  workflow_run:
+    workflows: ["Version Bump"]
+    types:
+      - completed
+
+permissions:
+  id-token: write
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: main
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Build package
+        working-directory: packages/models/lactationcurve
+        run: uv build
+
+      - name: Publish to PyPI
+        working-directory: packages/models/lactationcurve
+        run: uv publish

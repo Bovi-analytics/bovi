@@ -1,0 +1,10 @@
+name: bovi
+description: Azure infrastructure for the Bovi dairy analytics platform
+runtime:
+  name: python
+  options:
+    toolchain: uv
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: azure-python

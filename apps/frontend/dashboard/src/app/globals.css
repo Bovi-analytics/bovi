@@ -1,0 +1,65 @@
+@import "@mantine/core/styles.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Bovi-Analytics brand colors:
+  #00588e → hsl(201 100% 28%)  — deep navy
+  #0067ac → hsl(204 100% 34%)  — mid blue (primary)
+  #02a3e4 → hsl(197  98% 45%)  — bright cyan (accent)
+*/
+
+/* Light theme */
+:root {
+  --background: 204 15% 97%;
+  --foreground: 201 40% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 201 40% 10%;
+  --primary: 204 100% 34%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 201 100% 28%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 204 15% 93%;
+  --muted-foreground: 201 20% 40%;
+  --accent: 197 98% 45%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 204 20% 88%;
+  --input: 204 20% 88%;
+  --ring: 204 100% 34%;
+  --radius: 0.75rem;
+}
+
+/* Dark theme */
+.dark {
+  --background: 201 40% 7%;
+  --foreground: 204 15% 95%;
+  --card: 201 35% 12%;
+  --card-foreground: 204 15% 95%;
+  --primary: 197 98% 45%;
+  --primary-foreground: 201 40% 7%;
+  --secondary: 204 100% 34%;
+  --secondary-foreground: 204 15% 95%;
+  --muted: 201 25% 15%;
+  --muted-foreground: 204 15% 68%;
+  --accent: 197 90% 52%;
+  --accent-foreground: 201 40% 7%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 204 15% 95%;
+  --border: 201 22% 20%;
+  --input: 201 22% 20%;
+  --ring: 197 98% 45%;
+  --radius: 0.75rem;
+}
+
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable both-edges;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+}

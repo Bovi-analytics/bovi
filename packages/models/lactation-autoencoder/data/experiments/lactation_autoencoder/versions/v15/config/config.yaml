@@ -1,0 +1,128 @@
+# Lactation Autoencoder Configuration
+experiment_name: lactation_autoencoder
+experiment_version: 15
+project: lactation autoencoder
+description: "Autoencoder for milk production time-series with hierarchical herd statistics"
+verbose: 1
+
+# --------------------------------------------------------------------------
+# Path Templates: Define reusable path "blueprints" for the project.
+# --------------------------------------------------------------------------
+path_templates:
+  local_weights:
+    template: "data/experiments/lactation_autoencoder/versions/v{experiment_version}/weights/{weights_file}"
+    uses: weights_file
+
+# Data pipeline
+dataloaders:
+  train:
+    # Data source
+    source:
+      type: lactation_pkl
+      json_root_dir: "data/experiments/lactation_autoencoder/input/train/json/"
+      herd_stats_dir: "data/experiments/lactation_autoencoder/input/train/pkl/"
+      file_pattern: "*.json"
+
+    # Transform pipeline (order matters!)
+    transforms:
+      # 1. Fill missing milk values (forward fill)
+      - name: imputation
+        params:
+          method: forward_fill
+          fields: ["milk"]
+
+      # 2. Convert event strings to integers
+      - name: event_tokenization
+
+      # 3. Normalize milk to 0-1 range
+      - name: milk_normalization
+        params:
+          max_milk: 80.0
+
+    # Framework and loader settings
+    framework: tensorflow
+    dataloader:
+      batch_size: 32
+      shuffle: true
+      num_workers: 4
+      prefetch_factor: 2
+      drop_last: false
+
+  validation:
+    source:
+      type: lactation_pkl
+      json_root_dir: "data/experiments/lactation_autoencoder/input/val/json/"
+      herd_stats_dir: "data/experiments/lactation_autoencoder/input/val/pkl/"
+
+    transforms:
+      - name: imputation
+        params:
+          method: forward_fill
+      - name: event_tokenization
+      - name: milk_normalization
+        params:
+          max_milk: 80.0
+
+    framework: tensorflow
+    dataloader:
+      batch_size: 32
+      shuffle: false
+      num_workers: 2
+
+  inference:
+    source:
+      type: lactation_pkl
+      json_root_dir: "data/experiments/lactation_autoencoder/input/inference/json/"
+      herd_stats_dir: "data/experiments/lactation_autoencoder/input/inference/pkl/"
+      file_pattern: "*.json"
+
+    transforms:
+      - name: imputation
+        params:
+          method: forward_fill
+          fields: ["milk"]
+      - name: event_tokenization
+      - name: milk_normalization
+        params:
+          max_milk: 80.0
+
+    framework: tensorflow
+    dataloader:
+      batch_size: 1
+      shuffle: false
+      num_workers: 0
+
+# Model settings
+models:
+  autoencoder:
+    type: keras_autoencoder
+    framework: tensorflow
+    template_vars:
+      weights_file:
+        default: "autoencoder"
+    default_weights_location: local
+
+    architecture:
+      input_dim: 304
+      latent_dim: 64
+      num_events: 15
+      num_herd_stats: 10
+
+# Unity Catalog (for future)
+unity_catalog:
+  catalog: "projects"
+  schema: "bovi_core"
+  model_name: "lactation_autoencoder"
+
+# Dataset settings
+dataset:
+  max_days: 304  # Maximum sequence length in days
+  keep_in_memory: true  # Cache JSON data in memory
+
+# Training settings (for reference)
+training:
+  epochs: 50
+  early_stopping_patience: 10
+  learning_rate: 0.001
+  loss: "mse"
+  optimizer: "adam"

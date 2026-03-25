@@ -1,0 +1,124 @@
+name: Deploy Azure Functions
+
+# TODO: Enable once Azure OIDC credentials are configured
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - "apps/backend/**"
+#       - "packages/infrastructure/**"
+#       - "packages/models/lactationcurve/src/**"
+#       - "packages/models/lactation-autoencoder/src/**"
+on: workflow_dispatch
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  PULUMI_STACK: dev
+  INFRA_DIR: packages/infrastructure/pulumi
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.filter.outputs.infra }}
+      apps: ${{ steps.filter.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            infra:
+              - "packages/infrastructure/**"
+            apps:
+              - "apps/backend/**"
+              - "packages/models/*/src/**"
+
+  infra:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install infrastructure dependencies
+        working-directory: ${{ env.INFRA_DIR }}
+        run: uv sync
+
+      - name: Pulumi up
+        uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: ${{ env.PULUMI_STACK }}
+          work-dir: ${{ env.INFRA_DIR }}
+          cloud-url: azblob://pulumi-state
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+
+  deploy:
+    needs: [detect-changes, infra]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.apps == 'true' &&
+      (needs.infra.result == 'skipped' || needs.infra.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Azure Functions Core Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y azure-functions-core-tools-4
+
+      - name: Get function app names from Pulumi
+        id: pulumi
+        working-directory: ${{ env.INFRA_DIR }}
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        run: |
+          uv sync
+          curl -fsSL https://get.pulumi.com | sh
+          export PATH="$HOME/.pulumi/bin:$PATH"
+          pulumi login azblob://pulumi-state
+          pulumi stack select ${{ env.PULUMI_STACK }}
+          echo "curves_app_name=$(pulumi stack output lactation_curves_app_name)" >> "$GITHUB_OUTPUT"
+          echo "autoencoder_app_name=$(pulumi stack output lactation_autoencoder_app_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Build lactationcurve wheel
+        working-directory: packages/models/lactationcurve
+        run: uv build
+
+      - name: Deploy lactation-curves
+        working-directory: apps/backend/models/lactation-curves
+        run: func azure functionapp publish "${{ steps.pulumi.outputs.curves_app_name }}" --python
+
+      - name: Deploy lactation-autoencoder
+        working-directory: apps/backend/models/lactation-autoencoder
+        run: func azure functionapp publish "${{ steps.pulumi.outputs.autoencoder_app_name }}" --python

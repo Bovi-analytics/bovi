@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+
+# uv
+uv.lock
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ruff
+.ruff_cache/
+
+# Type checking
+.basedpyright/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
+!.env.example
+!.env.dev.example
+!.env.local.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (dashboard)
+node_modules/
+.next/
+bun.lock
+
+# Azure Functions
+local.settings.json
+.python_packages/
+
+# Model weights — never commit
+*.pb
+*.h5
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.pickle
+variables/
+
+# Pulumi
+.pulumi/

@@ -1,0 +1,63 @@
+[project]
+name = "bovi"
+version = "0.1.0"
+description = "Bovi platform — ML framework, public models, APIs, and infrastructure for dairy analytics"
+authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
+requires-python = ">= 3.12, < 3.13"
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+    "packages/bovi-core",
+    "packages/models/*",
+    "packages/infrastructure/*",
+    "apps/backend/api",
+    "apps/backend/models/*",
+]
+
+[tool.uv.sources]
+bovi-core = { workspace = true }
+lactationcurve = { workspace = true }
+lactation-autoencoder = { workspace = true }
+bovi-yolo = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.0.0",
+    "ruff>=0.1.0",
+    "basedpyright>=1.38.2",
+    "pre-commit>=4.5.1",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.28.0",
+    "nbconvert>=7.17.0",
+    "ipykernel>=7.2.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.basedpyright]
+typeCheckingMode = "basic"
+pythonVersion = "3.12"
+pythonPlatform = "All"
+
+[tool.pytest.ini_options]
+import_mode = "importlib"
+testpaths = [
+    "packages/bovi-core/tests",
+    "packages/models/lactationcurve/tests",
+    "packages/models/lactation-autoencoder/tests",
+    "packages/models/bovi-yolo/tests",
+    "apps/backend/api/tests",
+    "apps/backend/models/lactation-curves/tests",
+    "apps/backend/models/lactation-autoencoder/tests",
+]

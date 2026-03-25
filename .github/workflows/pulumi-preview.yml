@@ -1,0 +1,53 @@
+name: Pulumi Preview
+
+# TODO: Enable once Azure OIDC credentials are configured
+# on:
+#   pull_request:
+#     branches:
+#       - dev
+#       - main
+#     paths:
+#       - "packages/infrastructure/**"
+on: workflow_dispatch
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  PYTHON_VERSION: "3.12"
+  PULUMI_STACK: dev
+  INFRA_DIR: packages/infrastructure/pulumi
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install infrastructure dependencies
+        working-directory: ${{ env.INFRA_DIR }}
+        run: uv sync
+
+      - name: Pulumi Preview
+        uses: pulumi/actions@v6
+        with:
+          command: preview
+          stack-name: ${{ env.PULUMI_STACK }}
+          work-dir: ${{ env.INFRA_DIR }}
+          comment-on-pr: true
+          cloud-url: azblob://pulumi-state
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}

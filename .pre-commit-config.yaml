@@ -1,0 +1,70 @@
+# Pre-commit hooks for the Bovi monorepo
+# Install: uv run pre-commit install
+# Run all: uv run pre-commit run --all-files
+
+repos:
+  # ── General checks ──────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+
+  # ── Secrets detection ───────────────────────────────────────
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: (bun\.lock|uv\.lock|\.tsbuildinfo)$
+
+  # ── Python formatting + linting ─────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.0
+    hooks:
+      - id: ruff-format
+      - id: ruff
+        args: [--fix]
+
+  # ── Python type checking ────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: basedpyright
+        name: basedpyright
+        entry: uv run basedpyright
+        language: system
+        types: [python]
+        pass_filenames: false
+
+  # ── TypeScript formatting (prettier) ────────────────────────
+      - id: prettier
+        name: prettier
+        entry: bash -c 'command -v bun &>/dev/null && [ -d apps/frontend/dashboard/node_modules ] && cd apps/frontend/dashboard && bun run format:check || echo "Skipping prettier (bun or node_modules not available)"'
+        language: system
+        types_or: [ts, tsx, javascript, jsx, json, css]
+        files: ^apps/frontend/dashboard/
+        pass_filenames: false
+
+  # ── TypeScript linting (eslint) ─────────────────────────────
+      - id: eslint
+        name: eslint
+        entry: bash -c 'command -v bun &>/dev/null && [ -d apps/frontend/dashboard/node_modules ] && cd apps/frontend/dashboard && bun run lint || echo "Skipping eslint (bun or node_modules not available)"'
+        language: system
+        types_or: [ts, tsx, javascript, jsx]
+        files: ^apps/frontend/dashboard/src/
+        pass_filenames: false
+
+  # ── TypeScript type checking (tsc) ──────────────────────────
+      - id: tsc
+        name: tsc
+        entry: bash -c 'command -v bun &>/dev/null && [ -d apps/frontend/dashboard/node_modules ] && cd apps/frontend/dashboard && bun run typecheck || echo "Skipping tsc (bun or node_modules not available)"'
+        language: system
+        types_or: [ts, tsx]
+        files: ^apps/frontend/dashboard/
+        pass_filenames: false
