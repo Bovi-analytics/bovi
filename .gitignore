@@ -61,9 +61,9 @@ local.settings.json
 *.pkl
 *.pickle
 variables/
-# pdoc generated output
-packages/models/*/site/
-packages/models/*/docs/
+# pdoc generated output (ignore contents but not the directory, so logo.png can be kept)
+packages/models/*/site/*
+packages/models/*/docs/*
 
 # Pulumi
 .pulumi/

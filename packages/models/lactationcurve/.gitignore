@@ -1,2 +1,5 @@
 # Allow pre-computed statistical data files (correlation matrix, grid data)
 !src/lactationcurve/characteristics/data/*.pkl
+
+# Allow the project logo used by pdoc
+!site/logo.png
