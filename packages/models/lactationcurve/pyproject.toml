@@ -1,6 +1,6 @@
 [project]
 name = "lactationcurve"
-version = "1.0.2"
+version = "1.0.3"
 license = "MIT"
 description = "Lactation curve fitting and analysis library"
 readme = "README.md"

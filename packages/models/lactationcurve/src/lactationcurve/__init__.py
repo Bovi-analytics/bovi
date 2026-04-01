@@ -119,7 +119,7 @@ If you use the `lactationcurve` package in your research, please consider citing
 
 *van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., &
 Hostens, M. (2026). Bovi-analytics/bovi:
-v.1.0.2. (v.1.0.2). Zenodo.
+v.1.0.3. (v.1.0.3). Zenodo.
 https://doi.org/10.5281/zenodo.18715145*
 
 
