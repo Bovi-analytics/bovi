@@ -1,6 +1,6 @@
 [project]
 name = "lactation-autoencoder"
-version = "0.1.0"
+version = "1.0.0"
 description = "Lactation autoencoder model — TensorFlow-based milk production time-series prediction"
 authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
 requires-python = ">= 3.12, < 3.13"
