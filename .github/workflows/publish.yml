@@ -28,9 +28,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Build package
-        working-directory: packages/models/lactationcurve
-        run: uv build
+        run: uv build --package lactationcurve
 
       - name: Publish to PyPI
-        working-directory: packages/models/lactationcurve
-        run: uv publish
+        run: uv publish dist/
