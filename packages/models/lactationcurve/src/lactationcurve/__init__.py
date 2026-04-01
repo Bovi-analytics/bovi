@@ -142,6 +142,8 @@ https://doi.org/10.7717/peerj.54*
 
 ## Current version of the package
 
+v.1.0.4
+
 """
 
 

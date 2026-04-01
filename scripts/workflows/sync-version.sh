@@ -46,8 +46,9 @@ sedi "s|lactationcurve: v\.$V|lactationcurve: v.$NEW|" "$README"
 sedi "s|(v\.$V)|(v.$NEW)|" "$README"
 sedi "s|version      = {$V}|version      = {$NEW}|" "$README"
 
-# __init__.py docstring
+# __init__.py docstring — citation line and standalone version in "Current version" section
 sedi "s|v\.$V\. (v\.$V)|v.$NEW. (v.$NEW)|" "$INIT"
+sedi "s|^v\.$V$|v.$NEW|" "$INIT"
 
 # Stage the updated files so semantic-release includes them in the release commit
 git add "$CITATION" "$README" "$INIT"
