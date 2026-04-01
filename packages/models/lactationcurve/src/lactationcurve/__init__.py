@@ -212,3 +212,6 @@ else:
     __version__ = "0+dev"
 
 __all__.append("__version__")
+
+# Tell pdoc not to list __version__ as a navigation item
+__pdoc__ = {"__version__": False}
