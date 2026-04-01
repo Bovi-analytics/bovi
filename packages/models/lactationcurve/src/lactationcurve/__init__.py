@@ -11,7 +11,7 @@ using the **ICAR guideline**.
 
 > **Initial authored:** 2025‑08‑12
 
-> **Updated:** 2026‑02‑24
+> **Updated:** 2026-04-01
 
 ---
 
@@ -140,9 +140,7 @@ https://doi.org/10.7717/peerj.54*
 
 ---
 
-## Current version of the package
-
-**Version:** v.1.0.6 | **Updated:** 2026-04-01
+## Version v.1.0.6
 
 """
 

@@ -47,10 +47,10 @@ sedi "s|lactationcurve: v\.$V|lactationcurve: v.$NEW|" "$README"
 sedi "s|(v\.$V)|(v.$NEW)|" "$README"
 sedi "s|version      = {$V}|version      = {$NEW}|" "$README"
 
-# __init__.py docstring — citation line and "Current version" section
+# __init__.py docstring — citation line, version heading, and "Updated:" date
 sedi "s|v\.$V\. (v\.$V)|v.$NEW. (v.$NEW)|" "$INIT"
-D='[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
-sedi "s#\*\*Version:\*\* v\.$V | \*\*Updated:\*\* $D#**Version:** v.$NEW | **Updated:** $TODAY#" "$INIT"
+sedi "s|## Version v\.$V|## Version v.$NEW|" "$INIT"
+sedi "s|> \*\*Updated:\*\* .*|> **Updated:** $TODAY|" "$INIT"
 
 # Stage the updated files so semantic-release includes them in the release commit
 git add "$CITATION" "$README" "$INIT"
