@@ -93,7 +93,7 @@ The package is organized into three main modules:
 
 If you use the `lactationcurve` package in your research, please consider citing it as follows:
 
-*van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., & Hostens, M. (2026). Bovi-analytics/lactation_curve_core: v.1.1.1. (v.1.1.1).*
+*van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., & Hostens, M. (2026). Bovi-analytics/lactation_curve_core: v.1.1.1. (v.1.0.0).*
 
 *Zenodo. https://doi.org/10.5281/zenodo.18715145*
 
@@ -106,7 +106,7 @@ BibTex:
 
   title        = {Bovi-analytics/lactation\_curve\_core: v.1.1.1},
 
-  version      = {1.1.1},
+  version      = {1.0.0},
 
   year         = {2026},
 
