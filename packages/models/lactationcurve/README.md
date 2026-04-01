@@ -93,14 +93,14 @@ The package is organized into three main modules:
 
 If you use the `lactationcurve` package in your research, please consider citing it as follows:
 
-*van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., & Hostens, M. (2026). Bovi-analytics/lactation_curve_core: v.1.1.1. (v.1.0.0).*
+*van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., & Hostens, M. (2026). Bovi-analytics/bovi: v.1.1.1. (v.1.0.0).*
 
 *Zenodo. https://doi.org/10.5281/zenodo.18715145*
 
 
 BibTex:
 
-@software{van_leerdam_2026_lactation_curve_core,
+@software{van_leerdam_2026_lactationcurve,
 
   author       = {van Leerdam, Meike Beatrijs and de Kok, D. and Osei-Tete, J. A. and Hostens, M.},
 
@@ -133,4 +133,4 @@ If you also use the Bayesian fitting functionality that relies on the MilkBot AP
 
 # License
 
-[MIT License](https://github.com/Bovi-analytics/lactation_curve_core/blob/master/LICENSE)
+[MIT License](https://github.com/Bovi-analytics/bovi/blob/master/LICENSE)
