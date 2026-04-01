@@ -1,0 +1,87 @@
+/* ===== Academic Bovi-Analytics Theme ===== */
+
+/* Core accent variables used by pdoc */
+:root {
+  --pdoc-accent-color: #053D6F;
+  --pdoc-accent-color-dark: #073362;
+}
+
+/* Body styling */
+body {
+  background-color: #FFF !important;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.6;
+  color: #222;
+}
+
+/* Headings – academic style */
+h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: #053D6F;
+  font-weight: 600;
+}
+
+h2,
+h3 {
+  color: #053D6F;
+  font-weight: 500;
+}
+
+/* Slight refinement for main title */
+h1 {
+  border-bottom: 2px solid #37B7EA;
+  padding-bottom: 0.3em;
+}
+
+/* Links */
+a {
+  color: #053D6F;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #073362;
+  text-decoration: underline;
+}
+
+/* Code blocks */
+code {
+  background-color: #EDF4FA;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+pre {
+  background-color: #EDF4FA;
+  border-left: 4px solid #37B7EA;
+  padding: 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+
+/* Footer */
+footer {
+  border-top: 1px solid #E2E8F0;
+  color: #3C80A9;
+  font-size: 0.9em;
+}
+
+/* Make function signatures stand out */
+.doc-function>.doc-heading {
+  font-weight: 600;
+  font-size: 1.1em;
+  color: #053D6F;
+}
+
+.doc-function {
+  margin-top: 1.8em;
+  padding-left: 1em;
+  border-left: 4px solid #37B7EA;
+}
+
+/* Subtle blue accent line on left */
+.doc-function {
+  border-left: 3px solid #37B7EA;
+  padding-left: 1em;
+}

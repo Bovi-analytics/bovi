@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the following reference."
+title: "lactationcurve"
+version: "1.1.1"
+doi: "10.5281/zenodo.18715145"
+date-released: "2026-02-20"
+type: software
+
+authors:
+  - family-names: "van Leerdam"
+    given-names: "Meike Beatrijs"
+  - family-names: "de Kok"
+    given-names: "Douwe"
+  - family-names: "Osei-Tete"
+    given-names: "Judith Aku."
+  - family-names: "Hostens"
+    given-names: "Miel"
+
+repository-code: "https://github.com/Bovi-analytics/bovi"
+url: "https://doi.org/10.5281/zenodo.18715145"
+
+preferred-citation:
+  type: software
+  authors:
+    - family-names: "van Leerdam"
+      given-names: "Meike Beatrijs"
+    - family-names: "de Kok"
+      given-names: "Douwe"
+    - family-names: "Osei-Tete"
+      given-names: "Judith Aku."
+    - family-names: "Hostens"
+      given-names: "Miel"
+  title: "Bovi-analytics/bovi lactationcurve: v.1.1.1"
+  version: "1.1.1"
+  doi: "10.5281/zenodo.18715145"
+  year: 2026
+  url: "https://doi.org/10.5281/zenodo.18715145"

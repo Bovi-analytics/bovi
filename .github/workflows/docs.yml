@@ -1,0 +1,69 @@
+name: Deploy Documentation (lactationcurve)
+
+on:
+  workflow_run:
+    workflows: ["Version Bump"]
+    types:
+      - completed
+  pull_request:
+    branches:
+      - main
+    paths:
+      - packages/models/lactationcurve/**
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || '' }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python 3.12 (via uv)
+        run: uv python install 3.12
+
+      - name: Install project with uv
+        working-directory: packages/models/lactationcurve
+        run: uv sync
+
+      - name: Generate documentation with pdoc
+        working-directory: packages/models/lactationcurve
+        run: |
+          uv run pdoc lactationcurve \
+            --output-dir site \
+            --docformat google \
+            --logo https://raw.githubusercontent.com/Bovi-analytics/bovi/main/packages/models/lactationcurve/site/logo.png \
+            --logo-link https://bovi-analytics.org \
+            --footer-text "Lactation Curve Package – Bovi-Analytics lab" \
+            --template-directory templates
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/models/lactationcurve/site
+
+  deploy:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    needs: build-docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

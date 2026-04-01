@@ -255,7 +255,7 @@ def standardize_lactation_columns(
     milking_yield_col: str | None = None,
     test_id_col: str | None = None,
     default_test_id=0,
-    max_dim: int = 305,
+    max_dim: int | str = 305,
 ) -> pd.DataFrame:
     """
     Standardize column names and structure for lactation data.
@@ -322,6 +322,9 @@ def standardize_lactation_columns(
     )
 
     # Filter DIM
-    df = pd.DataFrame(df[df["DaysInMilk"] <= max_dim])
+    if isinstance(max_dim, str) and max_dim.lower() == "max":
+        df = pd.DataFrame(df)
+    else:
+        df = pd.DataFrame(df[df["DaysInMilk"] <= int(max_dim)])
 
     return df
