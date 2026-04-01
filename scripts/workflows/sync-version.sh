@@ -31,7 +31,8 @@ if [ -z "$NEW" ]; then
     echo "ERROR: could not extract version from $PKG"
     exit 1
 fi
-echo "Syncing citation version to $NEW..."
+TODAY=$(date +%Y-%m-%d)
+echo "Syncing citation version to $NEW (updated $TODAY)..."
 
 # Pattern: version number in the form X.Y.Z (e.g. 0.1.0, 1.2.3)
 V='[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*'
@@ -46,9 +47,10 @@ sedi "s|lactationcurve: v\.$V|lactationcurve: v.$NEW|" "$README"
 sedi "s|(v\.$V)|(v.$NEW)|" "$README"
 sedi "s|version      = {$V}|version      = {$NEW}|" "$README"
 
-# __init__.py docstring — citation line and standalone version in "Current version" section
+# __init__.py docstring — citation line and "Current version" section
 sedi "s|v\.$V\. (v\.$V)|v.$NEW. (v.$NEW)|" "$INIT"
-sedi "s|^v\.$V$|v.$NEW|" "$INIT"
+D='[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+sedi "s#\*\*Version:\*\* v\.$V | \*\*Updated:\*\* $D#**Version:** v.$NEW | **Updated:** $TODAY#" "$INIT"
 
 # Stage the updated files so semantic-release includes them in the release commit
 git add "$CITATION" "$README" "$INIT"
