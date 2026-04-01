@@ -1,6 +1,6 @@
 [project]
 name = "bovi-yolo"
-version = "0.1.0"
+version = "1.0.0"
 description = "YOLO object detection model for dairy applications"
 authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
 requires-python = ">= 3.12, < 3.13"
