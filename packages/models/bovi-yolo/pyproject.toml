@@ -28,3 +28,13 @@ yolo = "bovi_yolo.predictors.yolo_predictor:YOLOPredictor"
 [tool.pytest.ini_options]
 pythonpath = ["src", "tests"]
 testpaths = ["tests"]
+
+[tool.semantic_release]
+version_toml = ["packages/models/bovi-yolo/pyproject.toml:project.version"]
+branch = "main"
+commit_message = "chore(release): {version} [skip ci]"
+commit_parser = "conventional-monorepo"
+tag_format = "bovi-yolo-v{version}"
+
+[tool.semantic_release.commit_parser_options]
+path_filters = ["packages/models/bovi-yolo"]

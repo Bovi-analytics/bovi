@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - packages/models/lactationcurve/**
+      - packages/models/lactation-autoencoder/**
+      - packages/models/bovi-yolo/**
 
 permissions:
   contents: write
@@ -46,3 +50,37 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: semantic-release --config packages/models/lactationcurve/pyproject.toml version --no-changelog --vcs-release --push
+
+      # ── lactation-autoencoder ────────────────────────────────────────────────
+      - name: Determine version bump (lactation-autoencoder)
+        id: check-autoencoder
+        run: |
+          OUTPUT=$(semantic-release --config packages/models/lactation-autoencoder/pyproject.toml --noop version --print 2>&1)
+          if echo "$OUTPUT" | grep -q "No release will be made"; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump version and tag (lactation-autoencoder)
+        if: steps.check-autoencoder.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: semantic-release --config packages/models/lactation-autoencoder/pyproject.toml version --no-changelog --vcs-release --push
+
+      # ── bovi-yolo ────────────────────────────────────────────────────────────
+      - name: Determine version bump (bovi-yolo)
+        id: check-yolo
+        run: |
+          OUTPUT=$(semantic-release --config packages/models/bovi-yolo/pyproject.toml --noop version --print 2>&1)
+          if echo "$OUTPUT" | grep -q "No release will be made"; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump version and tag (bovi-yolo)
+        if: steps.check-yolo.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: semantic-release --config packages/models/bovi-yolo/pyproject.toml version --no-changelog --vcs-release --push
