@@ -71,8 +71,12 @@ class HerdStatsEnrichmentTransform(UniversalTransform):
         Returns:
             Deserialized Python object.
         """
+        import warnings
+
         with open(path, "rb") as f:
-            return pickle.load(f, encoding="latin1")
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=DeprecationWarning)
+                return pickle.load(f, encoding="latin1")
 
     def _load_herd_stats(self) -> None:
         """Load all herd statistics pickle files."""
@@ -299,8 +303,12 @@ class EventTokenizationTransform(UniversalTransform):
         Returns:
             Event-to-index mapping dict.
         """
+        import warnings
+
         with open(path, "rb") as f:
-            return pickle.load(f, encoding="latin1")
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=DeprecationWarning)
+                return pickle.load(f, encoding="latin1")
 
     @override
     def __call__(self, data: dict[str, object]) -> dict[str, object]:
