@@ -5,6 +5,7 @@ import {
   CharacteristicResponseSchema,
   PredictResponseSchema,
   TestIntervalResponseSchema,
+  AutoencoderPredictResponseSchema,
 } from "@/types/api";
 import type {
   FitRequest,
@@ -15,6 +16,8 @@ import type {
   PredictResponse,
   TestIntervalRequest,
   TestIntervalResponse,
+  AutoencoderPredictRequest,
+  AutoencoderPredictResponse,
 } from "@/types/api";
 
 /* ------------------------------------------------------------------ */
@@ -42,21 +45,27 @@ async function apiFetch<T>(path: string, schema: z.ZodType<T>, body: unknown): P
 /* ------------------------------------------------------------------ */
 
 export async function fitModel(request: FitRequest): Promise<FitResponse> {
-  return apiFetch("/fit", FitResponseSchema, request);
+  return apiFetch("/curves/fit", FitResponseSchema, request);
 }
 
 export async function getCharacteristic(
   request: CharacteristicRequest
 ): Promise<CharacteristicResponse> {
-  return apiFetch("/characteristic", CharacteristicResponseSchema, request);
+  return apiFetch("/curves/characteristic", CharacteristicResponseSchema, request);
 }
 
 export async function predictMilkbot(request: PredictRequest): Promise<PredictResponse> {
-  return apiFetch("/predict", PredictResponseSchema, request);
+  return apiFetch("/curves/predict", PredictResponseSchema, request);
 }
 
 export async function getTestInterval(request: TestIntervalRequest): Promise<TestIntervalResponse> {
-  return apiFetch("/test-interval", TestIntervalResponseSchema, request);
+  return apiFetch("/curves/test-interval", TestIntervalResponseSchema, request);
+}
+
+export async function predictAutoencoder(
+  request: AutoencoderPredictRequest
+): Promise<AutoencoderPredictResponse> {
+  return apiFetch("/autoencoder/predict", AutoencoderPredictResponseSchema, request);
 }
 
 export async function healthCheck(): Promise<boolean> {
