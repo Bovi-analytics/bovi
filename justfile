@@ -9,6 +9,7 @@ export CORS_ORIGINS := "[\"http://localhost:" + env("PORT_DASHBOARD", "3000") + 
 # ── Workspace ────────────────────────────────────────────────
 sync:
     uv sync --all-packages
+    git config core.hooksPath .githooks
 
 lint:
     uv run ruff check --fix && uv run ruff format

@@ -22,15 +22,24 @@ Monorepo for the Bovi dairy analytics platform.
 ## Getting Started
 
 ```bash
-uv sync          # Install all Python dependencies
+just sync        # Install dependencies + set up pre-commit hooks
 just test        # Run all tests
-just run-api     # Start the central API
-just run-dashboard  # Start the dashboard (requires bun)
+just dev         # Start all services (API, models, dashboard)
 ```
+
+`just sync` automatically configures git to use the checked-in pre-commit hooks (`.githooks/`), which run linting, formatting, type checking, and secrets detection on every commit.
+
+> **Optional:** If you use [direnv](https://direnv.net/), hooks are set up automatically when you `cd` into the repo.
 
 ## Requirements
 
-- Python 3.12
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
-- [bun](https://bun.sh/) (for the dashboard)
-- [just](https://just.systems/) (task runner)
+- **Python 3.12**
+- **[uv](https://docs.astral.sh/uv/)** — Python package manager
+  - macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+  - Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
+- **[just](https://just.systems/)** — task runner ([install options](https://just.systems/man/en/packages.html))
+  - macOS: `brew install just`
+  - Windows: `winget install Casey.Just`, or download from [releases](https://github.com/casey/just/releases)
+- **[bun](https://bun.sh/)** — dashboard only
+  - macOS/Linux: `curl -fsSL https://bun.sh/install | bash`
+  - Windows: `powershell -c "irm bun.sh/install.ps1 | iex"`
