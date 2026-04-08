@@ -571,6 +571,8 @@ class Config:
             context.update(experiment_vars)
             context["model_name"] = model_config.get("vars", {}).get("model_name", model_name)
             context.update(model_config.get("vars", {}))
+            if "version" in model_config:
+                context["model_version"] = model_config["version"]
 
             if "template_vars" in model_config:
                 # Iterate through the data sources (e.g., 'weights_file', 'config_file')

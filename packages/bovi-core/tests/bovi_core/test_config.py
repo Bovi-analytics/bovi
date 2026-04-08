@@ -194,40 +194,28 @@ class TestTemplatingLogic:
     def test_basic_path_resolution(self, config_setup):
         """Test a standard, successful path resolution."""
         path = config_setup.experiment.models.yolo.weights_blob.best
-        expected = "elaborate_test_project/models/yolo/weights/yolo_best.pt"
-        if path != expected:
-            print(f"path: {path}")
-            print(f"expected: {expected}")
-        assert path == expected
+        expected_suffix = "elaborate_test_project/models/yolo/weights/yolo_best.pt"
+        assert str(path).endswith(expected_suffix), f"Expected path ending with '{expected_suffix}', got '{path}'"
 
     def test_model_variable_override(self, config_setup):
         """Test that a model's 'vars' section overrides the defaults."""
         path = config_setup.experiment.models.snn.config_path.default
         # Note: model_name should be "snn_override", not "snn"
-        expected = "elaborate_test_project/models/snn_override/config/snn_config.yml"
-        if path != expected:
-            print(f"path: {path}")
-            print(f"expected: {expected}")
-        assert path == expected
+        expected_suffix = "elaborate_test_project/models/snn_override/config/snn_config.yml"
+        assert str(path).endswith(expected_suffix), f"Expected path ending with '{expected_suffix}', got '{path}'"
 
     def test_multiple_templates_for_one_source(self, config_setup):
         """Test that multiple templates ('weights_blob', 'temp_weights') are generated from one source."""
         yolo_model = config_setup.experiment.models.yolo
 
-        # Check first template
+        # Check first template (relative path resolved to absolute)
         path1 = yolo_model.weights_blob.large
-        expected1 = "elaborate_test_project/models/yolo/weights/yolo_large.pt"
-        if path1 != expected1:
-            print(f"path1: {path1}")
-            print(f"expected1: {expected1}")
-        assert path1 == expected1
+        expected_suffix1 = "elaborate_test_project/models/yolo/weights/yolo_large.pt"
+        assert str(path1).endswith(expected_suffix1), f"Expected path ending with '{expected_suffix1}', got '{path1}'"
 
-        # Check second template
+        # Check second template (already absolute — starts with /)
         path2 = yolo_model.temp_weights.large
         expected2 = "/local_disk0/tmp/yolo/weights/yolo_large.pt"
-        if path2 != expected2:
-            print(f"path2: {path2}")
-            print(f"expected2: {expected2}")
         assert path2 == expected2
 
     def test_unresolved_template_variable_is_handled_safely(self, config_setup):
@@ -309,6 +297,55 @@ class TestTemplatingLogic:
         # The existing variables should be filled, the missing one should remain
         expected = "elaborate_test_project/data/yolo/{missing_var}"
         assert path == expected
+
+    def test_per_model_version_in_template(self, config_setup):
+        """Test that a model's 'version' field is available as {model_version} in templates."""
+        path_templates = {
+            "versioned_weights": {
+                "template": "data/versions/v{model_version}/weights/{weights_file}",
+                "uses": "weights_file",
+            }
+        }
+        test_models = {
+            "autoencoder": {
+                "version": 15,
+                "template_vars": {
+                    "weights_file": {"default": "autoencoder"},
+                },
+            }
+        }
+        project_vars = config_setup._flatten_config_node(config_setup.project)
+        processed = config_setup._process_templated_models(
+            test_models, path_templates, project_vars
+        )
+        path = processed["autoencoder"]["versioned_weights"]["default"]
+        assert "v15" in path
+        assert path.endswith("weights/autoencoder")
+
+    def test_per_model_version_different_per_model(self, config_setup):
+        """Test that different models can have different versions."""
+        path_templates = {
+            "versioned_weights": {
+                "template": "data/versions/v{model_version}/weights/{weights_file}",
+                "uses": "weights_file",
+            }
+        }
+        test_models = {
+            "model_a": {
+                "version": 10,
+                "template_vars": {"weights_file": {"default": "a"}},
+            },
+            "model_b": {
+                "version": 20,
+                "template_vars": {"weights_file": {"default": "b"}},
+            },
+        }
+        project_vars = config_setup._flatten_config_node(config_setup.project)
+        processed = config_setup._process_templated_models(
+            test_models, path_templates, project_vars
+        )
+        assert "v10" in processed["model_a"]["versioned_weights"]["default"]
+        assert "v20" in processed["model_b"]["versioned_weights"]["default"]
 
 
 # --- TEST SINGLETON PATTERN ---
