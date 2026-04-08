@@ -3,6 +3,7 @@
 # Import transforms to trigger TransformRegistry registration
 from lactation_autoencoder.dataloaders.transforms import (
     EventTokenizationTransform,
+    HerdStatsEnrichmentTransform,
     HerdStatsNormalizationTransform,
     MilkNormalizationTransform,
 )
@@ -15,6 +16,7 @@ from lactation_autoencoder.predictors import LactationPredictor, LactationPredic
 
 __all__ = [
     "EventTokenizationTransform",
+    "HerdStatsEnrichmentTransform",
     "MilkNormalizationTransform",
     "HerdStatsNormalizationTransform",
     "LactationAutoencoderModel",

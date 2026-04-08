@@ -5,9 +5,13 @@ import pickle
 
 import numpy as np
 import pytest
+from bovi_core.ml.dataloaders.sources import TransformedSource
 
 from lactation_autoencoder.dataloaders.datasets.lactation_dataset import LactationDataset
 from lactation_autoencoder.dataloaders.sources.lactation_pkl_source import LactationPKLSource
+from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
+    HerdStatsEnrichmentTransform,
+)
 
 
 @pytest.fixture
@@ -15,16 +19,6 @@ def herd_stats_dir(tmp_path):
     """Create mock herd statistics directory."""
     stats_dir = tmp_path / "herd_stats"
     stats_dir.mkdir()
-
-    # Create mock event mapping
-    event_to_idx = {
-        "milking": 0,
-        "vaccination": 1,
-        "treatment": 2,
-        "heat": 3,
-    }
-    with open(stats_dir / "event_to_idx_dict.pkl", "wb") as f:
-        pickle.dump(event_to_idx, f)
 
     # Create mock herd parameter index
     idx_to_herd_par = {i: f"param_{i}" for i in range(10)}
@@ -128,11 +122,10 @@ def json_data_dir(tmp_path):
 
 @pytest.fixture
 def source(json_data_dir, herd_stats_dir):
-    """Create LactationPKLSource."""
-    return LactationPKLSource(
-        json_root_dir=json_data_dir,
-        herd_stats_dir=herd_stats_dir,
-    )
+    """Create enriched source (raw source + herd stats enrichment transform)."""
+    raw_source = LactationPKLSource(json_root_dir=json_data_dir)
+    enrich = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
+    return TransformedSource(raw_source, [enrich])
 
 
 @pytest.fixture
@@ -410,10 +403,9 @@ class TestLactationDatasetBatching:
             with open(json_dir / f"animal_{i:03d}.json", "w") as f:
                 json.dump(lactation, f)
 
-        source = LactationPKLSource(
-            json_root_dir=json_dir,
-            herd_stats_dir=herd_stats_dir,
-        )
+        raw_source = LactationPKLSource(json_root_dir=json_dir)
+        enrich = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
+        source = TransformedSource(raw_source, [enrich])
         dataset = LactationDataset(source)
 
         # All samples should have same shape
