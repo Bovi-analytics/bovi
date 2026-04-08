@@ -108,9 +108,7 @@ class HerdStatsEnrichmentTransform(UniversalTransform):
             dict[str, npt.NDArray[np.float32] | dict[str, float]],
             self._load_pkl(self.herd_stats_dir / "herd_stat_means_per_parity.pkl"),
         )
-        logger.info(
-            f"  - Loaded parity means: {len(self.herd_stats_per_parity_global)} parities"
-        )
+        logger.info(f"  - Loaded parity means: {len(self.herd_stats_per_parity_global)} parities")
 
         # Global means (Level 4)
         self.herd_stats_global = cast(

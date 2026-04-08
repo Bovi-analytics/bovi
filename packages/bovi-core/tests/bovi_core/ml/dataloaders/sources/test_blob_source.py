@@ -1,7 +1,8 @@
 """Tests for BlobImageSource."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from bovi_core.ml.dataloaders.sources.blob_source import BlobImageSource
 
 
@@ -17,9 +18,7 @@ def test_blob_source_lists_blobs(mock_list, mock_config):
     """Test that BlobImageSource lists blobs using blob_utils"""
     mock_list.return_value = ["images/train/cat/cat1.jpg", "images/train/dog/dog1.jpg"]
 
-    source = BlobImageSource(
-        config=mock_config, prefix="images/train/", substring=".jpg"
-    )
+    source = BlobImageSource(config=mock_config, prefix="images/train/", substring=".jpg")
 
     assert len(source) == 2
     mock_list.assert_called_once_with(

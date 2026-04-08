@@ -1,7 +1,5 @@
 """Tests for config_utils module."""
 
-import pytest
-
 from bovi_core.utils.config_utils import extract_experiment_name_from_path
 
 

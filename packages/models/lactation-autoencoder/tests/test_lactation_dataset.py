@@ -6,7 +6,6 @@ import pickle
 import numpy as np
 import pytest
 from bovi_core.ml.dataloaders.sources import TransformedSource
-
 from lactation_autoencoder.dataloaders.datasets.lactation_dataset import LactationDataset
 from lactation_autoencoder.dataloaders.sources.lactation_pkl_source import LactationPKLSource
 from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (

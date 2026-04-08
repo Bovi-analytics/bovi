@@ -9,13 +9,12 @@ Tests cover:
 """
 
 import io
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
-
-from bovi_core.ml.dataloaders.base import Dataset
 from bovi_core.ml.dataloaders import ImageDataset
+from bovi_core.ml.dataloaders.base import Dataset
 
 
 class MockImageSource:
@@ -32,9 +31,9 @@ class MockImageSource:
         from PIL import Image
 
         # Create a simple RGB image
-        img = Image.new('RGB', (224, 224), color=(73, 109, 137))
+        img = Image.new("RGB", (224, 224), color=(73, 109, 137))
         img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='PNG')
+        img.save(img_byte_arr, format="PNG")
         return img_byte_arr.getvalue()
 
     def get_metadata(self, key):
@@ -107,11 +106,7 @@ class TestGetInputExample:
     def test_custom_indices(self, mock_dataset):
         """Test with custom indices"""
         indices = [5, 10, 15]
-        example = mock_dataset.get_input_example(
-            n_samples=3,
-            indices=indices,
-            batch=True
-        )
+        example = mock_dataset.get_input_example(n_samples=3, indices=indices, batch=True)
 
         assert example["index"].shape[0] == 3
         np.testing.assert_array_equal(example["index"], np.array(indices))
@@ -144,11 +139,7 @@ class TestGetInputExample:
         invalid_indices = [5, 100, 200]  # 100, 200 out of range
 
         with pytest.raises(ValueError, match="Index out of range"):
-            mock_dataset.get_input_example(
-                n_samples=3,
-                indices=invalid_indices,
-                batch=True
-            )
+            mock_dataset.get_input_example(n_samples=3, indices=invalid_indices, batch=True)
 
 
 class TestBatchSamples:
@@ -156,41 +147,26 @@ class TestBatchSamples:
 
     def test_batch_numpy_arrays(self, mock_dataset):
         """Test batching numpy arrays"""
-        samples = [
-            {"array": np.zeros((3, 4)), "id": i}
-            for i in range(3)
-        ]
+        samples = [{"array": np.zeros((3, 4)), "id": i} for i in range(3)]
 
         batched = mock_dataset._batch_samples(samples)
 
         assert batched["array"].shape == (3, 3, 4)
-        np.testing.assert_array_equal(
-            batched["array"],
-            np.zeros((3, 3, 4))
-        )
+        np.testing.assert_array_equal(batched["array"], np.zeros((3, 3, 4)))
 
     def test_batch_scalars(self, mock_dataset):
         """Test batching scalar values"""
-        samples = [
-            {"value": i, "float_val": float(i) * 0.5}
-            for i in range(3)
-        ]
+        samples = [{"value": i, "float_val": float(i) * 0.5} for i in range(3)]
 
         batched = mock_dataset._batch_samples(samples)
 
         assert isinstance(batched["value"], np.ndarray)
         np.testing.assert_array_equal(batched["value"], np.array([0, 1, 2]))
-        np.testing.assert_array_almost_equal(
-            batched["float_val"],
-            np.array([0.0, 0.5, 1.0])
-        )
+        np.testing.assert_array_almost_equal(batched["float_val"], np.array([0.0, 0.5, 1.0]))
 
     def test_batch_strings(self, mock_dataset):
         """Test batching strings (keeps as list)"""
-        samples = [
-            {"name": f"sample_{i}"}
-            for i in range(3)
-        ]
+        samples = [{"name": f"sample_{i}"} for i in range(3)]
 
         batched = mock_dataset._batch_samples(samples)
 
@@ -217,10 +193,7 @@ class TestBatchSamples:
 
     def test_batch_with_none_values(self, mock_dataset):
         """Test batching with None values"""
-        samples = [
-            {"data": np.ones((2,)), "optional": None if i % 2 == 0 else i}
-            for i in range(3)
-        ]
+        samples = [{"data": np.ones((2,)), "optional": None if i % 2 == 0 else i} for i in range(3)]
 
         batched = mock_dataset._batch_samples(samples)
 
@@ -230,10 +203,7 @@ class TestBatchSamples:
 
     def test_batch_all_none(self, mock_dataset):
         """Test batching all None values"""
-        samples = [
-            {"field": None}
-            for _ in range(3)
-        ]
+        samples = [{"field": None} for _ in range(3)]
 
         batched = mock_dataset._batch_samples(samples)
 
@@ -249,8 +219,7 @@ class TestGetMLflowSignature:
     """Tests for Dataset.get_mlflow_signature()"""
 
     @pytest.mark.skipif(
-        pytest.importorskip("mlflow", minversion=None) is None,
-        reason="mlflow not installed"
+        pytest.importorskip("mlflow", minversion=None) is None, reason="mlflow not installed"
     )
     def test_input_only_signature(self, mock_dataset):
         """Test generating input-only signature"""
@@ -259,11 +228,10 @@ class TestGetMLflowSignature:
         assert signature is not None
         assert signature.inputs is not None
         # Should have input schema
-        assert hasattr(signature.inputs, 'to_dict')
+        assert hasattr(signature.inputs, "to_dict")
 
     @pytest.mark.skipif(
-        pytest.importorskip("mlflow", minversion=None) is None,
-        reason="mlflow not installed"
+        pytest.importorskip("mlflow", minversion=None) is None, reason="mlflow not installed"
     )
     def test_signature_with_model(self, mock_dataset):
         """Test generating signature with model predictions"""
@@ -271,10 +239,7 @@ class TestGetMLflowSignature:
         mock_model = Mock()
         mock_model.predict.return_value = np.random.rand(5, 10)
 
-        signature = mock_dataset.get_mlflow_signature(
-            model=mock_model,
-            n_samples=5
-        )
+        signature = mock_dataset.get_mlflow_signature(model=mock_model, n_samples=5)
 
         assert signature is not None
         assert signature.inputs is not None
@@ -283,8 +248,7 @@ class TestGetMLflowSignature:
 
     def test_signature_missing_mlflow(self, mock_dataset):
         """Test error when mlflow not installed"""
-        with patch('mlflow.models.infer_signature',
-                   side_effect=ImportError("mlflow not found")):
+        with patch("mlflow.models.infer_signature", side_effect=ImportError("mlflow not found")):
             # Should raise ImportError
             with pytest.raises(ImportError):
                 mock_dataset.get_mlflow_signature()
@@ -349,7 +313,7 @@ class TestIntegration:
         assert "label" in example
 
         # Check types (images might be list if they can't be stacked)
-        assert hasattr(example["image"], '__len__')
+        assert hasattr(example["image"], "__len__")
         # If batched into array, check shape
-        if hasattr(example["image"], 'shape'):
+        if hasattr(example["image"], "shape"):
             assert example["image"].shape[0] == 3  # batch size

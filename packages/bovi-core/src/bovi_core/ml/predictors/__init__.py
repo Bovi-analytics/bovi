@@ -1,4 +1,5 @@
 """Base predictor classes and prediction result types."""
+
 from .prediction_interface import CallableModel, PredictionInterface
 from .predictor import Predictor
 from .results import (

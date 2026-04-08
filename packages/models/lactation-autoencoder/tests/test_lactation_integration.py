@@ -10,7 +10,6 @@ from bovi_core.ml.dataloaders.transforms.timeseries import (
     ImputationTransform,
     SequenceNormalizationTransform,
 )
-
 from lactation_autoencoder.dataloaders.datasets.lactation_dataset import LactationDataset
 from lactation_autoencoder.dataloaders.sources.lactation_pkl_source import LactationPKLSource
 from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
@@ -35,11 +34,20 @@ def complete_herd_stats_dir(tmp_path):
     # Herd stats per parity (Level 1) — parity keys are strings
     herd_stats_per_parity = {
         1001: {
-            "1": {f"param_{i}": v for i, v in enumerate([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0])},
-            "2": {f"param_{i}": v for i, v in enumerate([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5])},
+            "1": {
+                f"param_{i}": v
+                for i, v in enumerate([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0])
+            },
+            "2": {
+                f"param_{i}": v
+                for i, v in enumerate([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5])
+            },
         },
         1002: {
-            "1": {f"param_{i}": v for i, v in enumerate([2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0])},
+            "1": {
+                f"param_{i}": v
+                for i, v in enumerate([2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0])
+            },
         },
     }
     with open(stats_dir / "herd_stats_per_parity_dict.pkl", "wb") as f:
@@ -47,22 +55,37 @@ def complete_herd_stats_dir(tmp_path):
 
     # Herd stats means per herd (Level 2)
     herd_stats_per_herd = {
-        1001: {f"param_{i}": v for i, v in enumerate([1.25, 2.25, 3.25, 4.25, 5.25, 6.25, 7.25, 8.25, 9.25, 10.25])},
-        1002: {f"param_{i}": v for i, v in enumerate([2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0])},
+        1001: {
+            f"param_{i}": v
+            for i, v in enumerate([1.25, 2.25, 3.25, 4.25, 5.25, 6.25, 7.25, 8.25, 9.25, 10.25])
+        },
+        1002: {
+            f"param_{i}": v
+            for i, v in enumerate([2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0])
+        },
     }
     with open(stats_dir / "herd_stats_means_per_herd.pkl", "wb") as f:
         pickle.dump(herd_stats_per_herd, f)
 
     # Herd stats means per parity (Level 3) — string keys
     herd_stats_per_parity_global = {
-        "1": {f"param_{i}": v for i, v in enumerate([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5])},
-        "2": {f"param_{i}": v for i, v in enumerate([2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0])},
+        "1": {
+            f"param_{i}": v
+            for i, v in enumerate([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5])
+        },
+        "2": {
+            f"param_{i}": v
+            for i, v in enumerate([2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0])
+        },
     }
     with open(stats_dir / "herd_stat_means_per_parity.pkl", "wb") as f:
         pickle.dump(herd_stats_per_parity_global, f)
 
     # Global means (Level 4)
-    herd_stat_means_global = {f"param_{i}": v for i, v in enumerate([1.75, 2.75, 3.75, 4.75, 5.75, 6.75, 7.75, 8.75, 9.75, 10.75])}
+    herd_stat_means_global = {
+        f"param_{i}": v
+        for i, v in enumerate([1.75, 2.75, 3.75, 4.75, 5.75, 6.75, 7.75, 8.75, 9.75, 10.75])
+    }
     with open(stats_dir / "herd_stat_means_global.pkl", "wb") as f:
         pickle.dump(herd_stat_means_global, f)
 

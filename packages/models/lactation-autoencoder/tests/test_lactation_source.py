@@ -3,7 +3,6 @@
 import json
 
 import pytest
-
 from lactation_autoencoder.dataloaders.sources.lactation_pkl_source import LactationPKLSource
 
 

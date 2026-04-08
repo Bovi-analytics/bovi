@@ -14,9 +14,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
+    from mlflow.models import ModelSignature
+
     from bovi_core.config import Config
     from bovi_core.ml.models import Model
-    from mlflow.models import ModelSignature
 
     from .data_source import DataSource
 

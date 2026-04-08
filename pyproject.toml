@@ -54,15 +54,12 @@ pythonPlatform = "All"
 importmode = "importlib"
 pythonpath = [
     "packages/bovi-core/tests",
-    "apps/backend/models/lactation-curves",
     "apps/backend/models/lactation-autoencoder",
 ]
 testpaths = [
     "packages/bovi-core/tests",
     "packages/models/lactationcurve/tests",
     "packages/models/lactation-autoencoder/tests",
-    "packages/models/bovi-yolo/tests",
     "apps/backend/api/tests",
-    "apps/backend/models/lactation-curves/tests",
     "apps/backend/models/lactation-autoencoder/tests",
 ]

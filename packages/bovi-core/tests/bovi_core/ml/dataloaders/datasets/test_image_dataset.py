@@ -6,11 +6,9 @@ Tests the NumPy-First architecture where:
 """
 
 import numpy as np
-import pytest
-from PIL import Image
-
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
+from PIL import Image
 
 
 class TestImageDataset:
@@ -94,9 +92,7 @@ class TestImageDataset:
         gray_dir = tmp_path / "gray"
         gray_dir.mkdir()
 
-        gray_img = Image.fromarray(
-            np.random.randint(0, 255, (64, 64), dtype=np.uint8), mode="L"
-        )
+        gray_img = Image.fromarray(np.random.randint(0, 255, (64, 64), dtype=np.uint8), mode="L")
         gray_img.save(gray_dir / "test.jpg")
 
         source = LocalFileSource(gray_dir, file_pattern="*.jpg")

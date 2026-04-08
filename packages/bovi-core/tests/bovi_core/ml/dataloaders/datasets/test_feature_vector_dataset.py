@@ -1,12 +1,11 @@
 """Tests for FeatureVectorDataset base class."""
 
-import pytest
-import numpy as np
-from typing import Dict, Any, List, Union
-from pathlib import Path
+from typing import Any, Dict, List, Union
 
-from bovi_core.ml.dataloaders.datasets.feature_vector_dataset import FeatureVectorDataset
+import numpy as np
+import pytest
 from bovi_core.ml.dataloaders.base.data_source import DataSource
+from bovi_core.ml.dataloaders.datasets.feature_vector_dataset import FeatureVectorDataset
 
 
 class MockDataSource(DataSource):
@@ -15,11 +14,7 @@ class MockDataSource(DataSource):
     def __init__(self, num_samples: int = 10):
         self.num_samples = num_samples
         self._data = {
-            i: {
-                "value": float(i),
-                "squared": float(i ** 2),
-                "id": f"sample_{i}"
-            }
+            i: {"value": float(i), "squared": float(i**2), "id": f"sample_{i}"}
             for i in range(num_samples)
         }
 
@@ -78,11 +73,7 @@ class SequenceFeatureDataset(FeatureVectorDataset):
     def _get_features(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         base_value = raw_data["value"]
         # Create sequence: [base_value, base_value+1, base_value+2, ...]
-        sequence = np.arange(
-            base_value,
-            base_value + self.sequence_length,
-            dtype=np.float32
-        )
+        sequence = np.arange(base_value, base_value + self.sequence_length, dtype=np.float32)
         return {
             "time_series": sequence,
             "base_value": np.array([base_value], dtype=np.float32),
@@ -276,6 +267,7 @@ class TestFeatureVectorDatasetEdgeCases:
 
     def test_multiple_feature_types(self):
         """Test dataset with multiple feature types."""
+
         class MultiTypeDataset(FeatureVectorDataset):
             def _get_features(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
                 return {
@@ -302,6 +294,7 @@ class TestFeatureVectorDatasetMetadata:
 
     def test_metadata_optional(self):
         """Test dataset where metadata is not implemented."""
+
         class NoMetadataDataset(FeatureVectorDataset):
             def _get_features(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
                 return {"value": np.array([1.0], dtype=np.float32)}

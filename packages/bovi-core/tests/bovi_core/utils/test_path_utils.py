@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pytest
-
 from bovi_core.utils.path_utils import (
     _extract_version_number,
     get_experiment_paths,

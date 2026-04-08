@@ -4,14 +4,12 @@ import pickle
 
 import numpy as np
 import pytest
-
 from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
     EventTokenizationTransform,
     HerdStatsEnrichmentTransform,
     HerdStatsNormalizationTransform,
     MilkNormalizationTransform,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

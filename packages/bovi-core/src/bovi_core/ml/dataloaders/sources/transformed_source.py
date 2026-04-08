@@ -29,7 +29,9 @@ class TransformedSource:
         >>> from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry
         >>>
         >>> source = MyDataSource(...)
-        >>> transforms = TransformRegistry.from_config(config.experiment.dataloaders.train.transforms)
+        >>> transforms = TransformRegistry.from_config(
+        ...     config.experiment.dataloaders.train.transforms
+        ... )
         >>> transformed_source = TransformedSource(source, list(transforms.values()))
         >>> dataset = MyDataset(source=transformed_source, config=config)
 

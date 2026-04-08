@@ -16,9 +16,7 @@ from bovi_core.ml.dataloaders.sources import LocalFileSource
 if TYPE_CHECKING:
     from bovi_core.config import Config
 
-WEIGHTS_PATH = Path(
-    "data/experiments/yolo/versions/v1/weights/yolo12n.pt"
-)
+WEIGHTS_PATH = Path("data/experiments/yolo/versions/v1/weights/yolo12n.pt")
 
 
 def _weights_available() -> bool:
@@ -62,9 +60,7 @@ class TestSourceToDatasetPipeline:
 
 
 class TestTransformPipeline:
-    def test_validation_on_dataset_output(
-        self, temp_image_dir: Path
-    ) -> None:
+    def test_validation_on_dataset_output(self, temp_image_dir: Path) -> None:
         """Test ImageValidationTransform works on dataset output."""
         from bovi_yolo.dataloaders.datasets import YOLODataset
         from bovi_yolo.dataloaders.transforms import (
@@ -125,9 +121,7 @@ class TestConfigDrivenPipeline:
     reason="YOLO weights not available",
 )
 class TestEndToEndPipeline:
-    def test_full_pipeline(
-        self, yolo_config: Config, temp_image_dir: Path
-    ) -> None:
+    def test_full_pipeline(self, yolo_config: Config, temp_image_dir: Path) -> None:
         """Test full pipeline: source -> dataset -> model -> predict."""
         from bovi_yolo.dataloaders.datasets import YOLODataset
         from bovi_yolo.predictors import YOLOPredictor
@@ -156,9 +150,7 @@ class TestEndToEndPipeline:
         assert isinstance(result, YoloPredictionResult)
         assert result.num_predictions >= 0
 
-    def test_three_level_returns(
-        self, yolo_config: Config, temp_image_dir: Path
-    ) -> None:
+    def test_three_level_returns(self, yolo_config: Config, temp_image_dir: Path) -> None:
         """Test all three return formats work."""
         from bovi_yolo.dataloaders.datasets import YOLODataset
         from bovi_yolo.predictors import YOLOPredictor

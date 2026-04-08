@@ -26,17 +26,27 @@ class TestPredictEndpoint:
 
     def test_predict_with_all_params(self):
         milk = [25.0] * 200
-        response = client.post("/predict", json={
-            "milk": milk, "events": ["calving"] + ["pad"] * 199,
-            "parity": 2, "herd_id": 2942694, "imputation_method": "linear",
-        })
+        response = client.post(
+            "/predict",
+            json={
+                "milk": milk,
+                "events": ["calving"] + ["pad"] * 199,
+                "parity": 2,
+                "herd_id": 2942694,
+                "imputation_method": "linear",
+            },
+        )
         assert response.status_code == 200
         assert len(response.json()["predictions"]) == 304
 
     def test_predict_custom_herd_stats(self):
-        response = client.post("/predict", json={
-            "milk": [25.0] * 100, "herd_stats": [0.5] * 10,
-        })
+        response = client.post(
+            "/predict",
+            json={
+                "milk": [25.0] * 100,
+                "herd_stats": [0.5] * 10,
+            },
+        )
         assert response.status_code == 200
 
     def test_short_milk_padded(self):
@@ -48,7 +58,9 @@ class TestPredictEndpoint:
         assert client.post("/predict", json={"milk": []}).status_code == 422
 
     def test_bad_imputation_rejected(self):
-        response = client.post("/predict", json={"milk": [25.0] * 100, "imputation_method": "invalid"})
+        response = client.post(
+            "/predict", json={"milk": [25.0] * 100, "imputation_method": "invalid"}
+        )
         assert response.status_code == 422
 
     def test_wrong_herd_stats_length(self):
@@ -58,9 +70,12 @@ class TestPredictEndpoint:
 
 class TestBatchEndpoint:
     def test_batch_predict(self):
-        response = client.post("/predict/batch", json={
-            "items": [{"milk": [25.0] * 200, "parity": 1}, {"milk": [30.0] * 150, "parity": 2}],
-        })
+        response = client.post(
+            "/predict/batch",
+            json={
+                "items": [{"milk": [25.0] * 200, "parity": 1}, {"milk": [30.0] * 150, "parity": 2}],
+            },
+        )
         assert response.status_code == 200
         assert len(response.json()["results"]) == 2
         assert all(len(r["predictions"]) == 304 for r in response.json()["results"])

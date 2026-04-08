@@ -29,9 +29,7 @@ logger = logging.getLogger("lactation_autoencoder")
 
 config = Config(experiment_name="lactation_autoencoder", project_name="bovi")
 model = create_model(config, "autoencoder")
-transforms = TransformRegistry.from_config(
-    config.experiment.dataloaders.inference.transforms
-)
+transforms = TransformRegistry.from_config(config.experiment.dataloaders.inference.transforms)
 
 app = FastAPI(
     title="Lactation Autoencoder",
@@ -96,9 +94,7 @@ app.add_middleware(
 # Request / Response models
 # ---------------------------------------------------------------------------
 
-VALID_IMPUTATION_METHODS = Literal[
-    "forward_fill", "backward_fill", "linear", "zero", "mean"
-]
+VALID_IMPUTATION_METHODS = Literal["forward_fill", "backward_fill", "linear", "zero", "mean"]
 
 
 class AutoencoderPredictRequest(BaseModel):
@@ -115,18 +111,14 @@ class AutoencoderPredictRequest(BaseModel):
     )
     parity: int = Field(default=1, ge=1, le=12)
     herd_id: int | None = Field(default=None)
-    herd_stats: list[float] | None = Field(
-        default=None, min_length=10, max_length=10
-    )
+    herd_stats: list[float] | None = Field(default=None, min_length=10, max_length=10)
     imputation_method: VALID_IMPUTATION_METHODS = Field(default="forward_fill")
 
 
 class AutoencoderPredictResponse(BaseModel):
     """Response body for autoencoder prediction."""
 
-    predictions: list[float] = Field(
-        ..., description="Predicted milk yields (304 days)."
-    )
+    predictions: list[float] = Field(..., description="Predicted milk yields (304 days).")
     latent_vector: list[float] | None = Field(default=None)
 
 

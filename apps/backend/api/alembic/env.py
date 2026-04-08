@@ -4,11 +4,10 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlmodel import SQLModel
-
 from bovi_api.models import FittingResult  # noqa: F401 — registers table
 from bovi_api.settings import get_settings
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel import SQLModel
 
 config = context.config
 if config.config_file_name is not None:

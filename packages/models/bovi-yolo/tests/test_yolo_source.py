@@ -13,39 +13,29 @@ class TestYOLOImageSourceFromLocal:
         """Test from_local creates a LocalFileSource."""
         from bovi_yolo.dataloaders.sources import YOLOImageSource
 
-        source = YOLOImageSource.from_local(
-            temp_image_dir / "train" / "images"
-        )
+        source = YOLOImageSource.from_local(temp_image_dir / "train" / "images")
         assert isinstance(source, LocalFileSource)
 
     def test_source_length_matches_images(self, temp_image_dir: Path) -> None:
         """Test source length matches number of images."""
         from bovi_yolo.dataloaders.sources import YOLOImageSource
 
-        source = YOLOImageSource.from_local(
-            temp_image_dir / "train" / "images"
-        )
+        source = YOLOImageSource.from_local(temp_image_dir / "train" / "images")
         assert len(source) == 1
 
     def test_load_item_returns_bytes(self, temp_image_dir: Path) -> None:
         """Test load_item returns image bytes."""
         from bovi_yolo.dataloaders.sources import YOLOImageSource
 
-        source = YOLOImageSource.from_local(
-            temp_image_dir / "train" / "images"
-        )
+        source = YOLOImageSource.from_local(temp_image_dir / "train" / "images")
         item = source.load_item(0)
         assert item is not None
 
-    def test_get_metadata_returns_expected_keys(
-        self, temp_image_dir: Path
-    ) -> None:
+    def test_get_metadata_returns_expected_keys(self, temp_image_dir: Path) -> None:
         """Test get_metadata returns path and filename."""
         from bovi_yolo.dataloaders.sources import YOLOImageSource
 
-        source = YOLOImageSource.from_local(
-            temp_image_dir / "train" / "images"
-        )
+        source = YOLOImageSource.from_local(temp_image_dir / "train" / "images")
         metadata = source.get_metadata(0)
         assert "path" in metadata
         assert "filename" in metadata

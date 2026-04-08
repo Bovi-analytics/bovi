@@ -108,10 +108,9 @@ class TestYOLOModelFromConfig:
 class TestYOLOModelRegistry:
     def test_registered_in_model_registry(self) -> None:
         """Test YOLOModel is registered via @ModelRegistry.register."""
-        from bovi_core.ml import ModelRegistry
-
         # Import to trigger registration
         import bovi_yolo  # noqa: F401
+        from bovi_core.ml import ModelRegistry
 
         assert "yolo" in ModelRegistry._models
 

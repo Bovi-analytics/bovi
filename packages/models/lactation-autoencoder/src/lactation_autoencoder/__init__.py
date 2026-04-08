@@ -12,7 +12,7 @@ from lactation_autoencoder.dataloaders.transforms import (
 from lactation_autoencoder.models import LactationAutoencoderModel
 
 # Import predictor and result
-from lactation_autoencoder.predictors import LactationPredictor, LactationPredictionResult
+from lactation_autoencoder.predictors import LactationPredictionResult, LactationPredictor
 
 __all__ = [
     "EventTokenizationTransform",

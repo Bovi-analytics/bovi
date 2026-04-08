@@ -1,15 +1,11 @@
 import logging
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generic, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 
-import numpy as np
-import torch
 import torch.nn as nn
 from ultralytics import YOLO
 
 from bovi_core.config import Config
-from bovi_core.utils.path_utils import resolve_data_path
 
 if TYPE_CHECKING:
     from bovi_core.ml.dataloaders.base import Dataset
@@ -268,7 +264,8 @@ class Model(Generic[ModelType], ABC):
             pyfunc_wrapper_class: Optional pyfunc wrapper class for TensorFlow SavedModels.
                 Required for TF SavedModels to map semantic names to generic TF names.
             mlflow_experiment_name: MLflow experiment path for Databricks tracking.
-                If None, auto-generated as "/Users/{email}/{experiment_name}/{experiment_version}/run_{n}".
+                If None, auto-generated as
+                "/Users/{email}/{experiment_name}/{version}/run_{n}".
 
         Returns:
             mlflow.entities.model_registry.ModelVersion

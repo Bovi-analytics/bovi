@@ -156,13 +156,9 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 # ---------------------------------------------------------------------------
 
 DIM_DESC = (
-    "Days in milk (DIM) for each test-day recording. "
-    "Must have the same length as milkrecordings."
+    "Days in milk (DIM) for each test-day recording. Must have the same length as milkrecordings."
 )
-MILK_DESC = (
-    "Milk yield (kg) for each test-day recording. "
-    "Must have the same length as dim."
-)
+MILK_DESC = "Milk yield (kg) for each test-day recording. Must have the same length as dim."
 MODEL_DESC = (
     "Lactation curve model to fit."
     " Wood (3-param), Wilmink (4-param), Ali-Schaeffer (5-param),"
@@ -185,8 +181,7 @@ PERSISTENCY_DESC = (
     " 'literature': analytical formula (Wood/MilkBot only)."
 )
 LACTATION_LENGTH_DESC = (
-    "Lactation length in days for the calculation. "
-    "305 (default), or a custom integer."
+    "Lactation length in days for the calculation. 305 (default), or a custom integer."
 )
 TEST_IDS_DESC = (
     "Optional lactation/animal identifier per record."
