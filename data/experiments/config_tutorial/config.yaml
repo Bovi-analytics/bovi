@@ -1,0 +1,57 @@
+# Config Tutorial Experiment
+# This is a minimal example config for learning the bovi-core config system
+
+experiment_name: config_tutorial
+experiment_version: 1
+description: "Tutorial for learning the config system"
+verbose: 1
+
+# Data pipeline configuration
+dataloaders:
+  train:
+    # Data source
+    source:
+      type: local
+      path: "data/raw"
+
+    # Transform pipeline (order matters!)
+    transforms:
+      - name: resize
+        params:
+          size: [224, 224]
+
+      - name: normalize
+        params:
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+
+    # DataLoader settings
+    dataloader:
+      batch_size: 32
+      shuffle: true
+      num_workers: 4
+
+  validation:
+    source:
+      type: local
+      path: "data/val"
+
+    transforms:
+      - name: resize
+        params:
+          size: [224, 224]
+
+      - name: normalize
+        params:
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+
+    dataloader:
+      batch_size: 64
+      shuffle: false
+
+# Training configuration
+training:
+  epochs: 10
+  learning_rate: 0.001
+  optimizer: "adam"
