@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import type { ReactElement } from "react";
-import { Select, NumberInput, Collapse, Button } from "@mantine/core";
+import { Select, NumberInput, Collapse, Button, Tooltip } from "@mantine/core";
+import { Info } from "lucide-react";
 import { useDisclosure } from "@mantine/hooks";
 import { LactationCurveChart } from "@/components/charts/lactation-curve-chart";
 import { StatCard } from "@/app/(dashboard)/models/components/stat-card";
@@ -21,11 +22,11 @@ import type { ImputationMethod } from "@/types/api";
 /* ------------------------------------------------------------------ */
 
 const IMPUTATION_OPTIONS = [
-  { value: "forward_fill", label: "Forward fill" },
-  { value: "backward_fill", label: "Backward fill" },
-  { value: "linear", label: "Linear interpolation" },
-  { value: "zero", label: "Zero" },
-  { value: "mean", label: "Mean" },
+  { value: "forward_fill", label: "Forward fill", description: "Copy last known value forward through gaps" },
+  { value: "backward_fill", label: "Backward fill", description: "Copy next known value backward through gaps" },
+  { value: "linear", label: "Linear interpolation", description: "Draw a straight line between known values" },
+  { value: "zero", label: "Zero", description: "Fill gaps with 0 (no milk recorded)" },
+  { value: "mean", label: "Mean", description: "Fill gaps with average of known values" },
 ] as const;
 
 /* ------------------------------------------------------------------ */
@@ -187,7 +188,14 @@ export default function AutoencoderPage(): ReactElement {
 
             <div className="space-y-3">
               <NumberInput
-                label="Parity"
+                label={
+                  <span className="inline-flex items-center gap-1">
+                    Parity
+                    <Tooltip label="Lactation number: 1 = first lactation (heifer), 2+ = multiparous cow" withArrow multiline w={250}>
+                      <Info size={14} className="text-muted-foreground cursor-help" />
+                    </Tooltip>
+                  </span>
+                }
                 value={parity}
                 onChange={(val) => {
                   if (typeof val === "number") setParity(val);
@@ -198,17 +206,31 @@ export default function AutoencoderPage(): ReactElement {
               />
 
               <NumberInput
-                label="Herd ID (optional)"
+                label={
+                  <span className="inline-flex items-center gap-1">
+                    Herd ID
+                    <Tooltip label="Farm identifier for looking up herd-level statistics. Leave empty to use global averages." withArrow multiline w={250}>
+                      <Info size={14} className="text-muted-foreground cursor-help" />
+                    </Tooltip>
+                  </span>
+                }
                 value={herdId ?? ""}
                 onChange={(val) => {
                   setHerdId(typeof val === "number" ? val : undefined);
                 }}
                 size="sm"
-                placeholder="e.g. 2942694"
+                placeholder="Optional, e.g. 2942694"
               />
 
               <Select
-                label="Imputation method"
+                label={
+                  <span className="inline-flex items-center gap-1">
+                    Imputation method
+                    <Tooltip label="How to fill missing (null) values in the milk sequence before prediction" withArrow multiline w={250}>
+                      <Info size={14} className="text-muted-foreground cursor-help" />
+                    </Tooltip>
+                  </span>
+                }
                 data={IMPUTATION_OPTIONS.map((o) => ({
                   value: o.value,
                   label: o.label,

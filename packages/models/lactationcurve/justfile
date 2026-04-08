@@ -1,0 +1,12 @@
+# lactationcurve
+test:
+    uv run pytest tests/ -v
+
+build:
+    uv build
+
+publish:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    set -a && source ../../.env && set +a
+    rm -rf dist && uv build && uv publish

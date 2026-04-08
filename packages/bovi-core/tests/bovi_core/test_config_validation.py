@@ -321,15 +321,26 @@ class TestConfigValidationMessages:
         assert "Expected path:" in error_msg
         assert "nonexistent_xyz_123" in error_msg
 
-    def test_error_message_shows_available_experiments(self):
-        """Test that error messages list available experiments"""
+    def test_error_message_shows_available_experiments(self, tmp_path):
+        """Test that error messages list available experiments."""
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        pyproject = project_root / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\nname = \"test_project\"\n"
+            "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
+        )
+        # Create an existing experiment so it shows up in "Available experiments"
+        exp_dir = project_root / "data" / "experiments" / "first_yolo_experiment" / "versions" / "v1" / "config"
+        exp_dir.mkdir(parents=True)
+        (exp_dir / "config.yaml").write_text("experiment_name: first_yolo_experiment\nexperiment_version: 1\n")
+
+        Config._instance = None
         with pytest.raises(FileNotFoundError) as exc_info:
-            Config("does_not_exist_xyz")
+            Config("does_not_exist_xyz", project_file_path=str(pyproject))
 
         error_msg = str(exc_info.value)
-        # Should mention available experiments
         assert "Available experiments:" in error_msg
-        # first_yolo_experiment should be listed
         assert "first_yolo_experiment" in error_msg
 
     def test_mismatch_error_explains_both_names(self, tmp_path):
@@ -372,16 +383,25 @@ class TestConfigValidationMessages:
         assert "Folder name" in error_msg or "folder" in error_msg.lower()
         assert "config" in error_msg.lower() or "experiment_name" in error_msg
 
-    def test_error_lists_available_config_files(self):
-        """Test that error messages list available config files in experiment folder"""
+    def test_error_lists_available_config_files(self, tmp_path):
+        """Test that error messages list available config files in experiment folder."""
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        pyproject = project_root / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\nname = \"test_project\"\n"
+            "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
+        )
+        # Create experiment with config.yaml
+        config_dir = project_root / "data" / "experiments" / "first_yolo_experiment" / "versions" / "v1" / "config"
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.yaml").write_text("experiment_name: first_yolo_experiment\nexperiment_version: 1\n")
+
+        Config._instance = None
         with pytest.raises(FileNotFoundError) as exc_info:
-            # Try to load non-existent config file in existing experiment
-            Config("first_yolo_experiment", config_file_name="production.yaml")
+            Config("first_yolo_experiment", config_file_name="production.yaml", project_file_path=str(pyproject))
 
         error_msg = str(exc_info.value)
-        # Should show what we're looking for
         assert "production.yaml" in error_msg
-        # Should mention available config files
         assert "Available config files" in error_msg
-        # The actual config.yaml should be listed
         assert "config.yaml" in error_msg

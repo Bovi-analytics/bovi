@@ -26,7 +26,7 @@ def yolo_config() -> Config:
     from bovi_core.config import Config
 
     Config.reset()
-    return Config(experiment_name="yolo")
+    return Config(experiment_name="yolo", project_name="bovi-yolo")
 
 
 @pytest.fixture
