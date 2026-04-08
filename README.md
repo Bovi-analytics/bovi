@@ -25,7 +25,7 @@ Monorepo for the Bovi dairy analytics platform.
 uv sync          # Install all Python dependencies
 just test        # Run all tests
 just run-api     # Start the central API
-just run-dashboard  # Start the dashboard (requires bun) 
+just run-dashboard  # Start the dashboard (requires bun)
 ```
 
 ## Requirements
