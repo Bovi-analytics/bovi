@@ -287,9 +287,11 @@ class EventTokenizationTransform(UniversalTransform):
         if event_to_idx_path is not None:
             self.event_to_idx = self._load_pkl(Path(event_to_idx_path))
 
-    @staticmethod
-    def _load_pkl(path: Path) -> dict[str, int]:
+    def _load_pkl(self, path: Path) -> dict[str, int]:
         """Load a pickle file from local disk.
+
+        This method exists as a seam so it can later be replaced
+        with a loader that fetches from blob storage.
 
         Args:
             path: Local path to the pickle file.

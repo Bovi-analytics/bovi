@@ -73,15 +73,13 @@ class LactationDataset(FeatureVectorDataset, TorchDataset[LactationItem]):
         from bovi_core.ml.dataloaders.sources import TransformedSource
         from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry
 
-        source = LactationPKLSource(
-            json_root_dir="data/jsons/",
-            herd_stats_dir="data/json/"
-        )
+        source = LactationPKLSource(json_root_dir="data/jsons/")
 
-        # Create transforms
+        # Create transforms (enrichment first, then processing)
         transforms = [
+            TransformRegistry.create("herd_stats_enrichment", herd_stats_dir="data/pkl/"),
+            TransformRegistry.create("event_tokenization", event_to_idx_path="data/pkl/event_to_idx_dict.pkl"),
             TransformRegistry.create("imputation", method="forward_fill"),
-            TransformRegistry.create("event_tokenization"),
             TransformRegistry.create("milk_normalization", max_milk=80.0),
         ]
 
