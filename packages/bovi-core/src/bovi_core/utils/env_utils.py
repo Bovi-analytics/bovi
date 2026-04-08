@@ -64,8 +64,6 @@ def get_toml_data(project_file_path: str):
         raise RuntimeError(f"Error loading project file: {e}")
 
 
-
-
 @with_dbutils()
 def call_databricks_api(method, endpoint_url, json_payload=None, dbutils=None):
     """

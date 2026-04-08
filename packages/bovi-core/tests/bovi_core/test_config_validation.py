@@ -11,11 +11,7 @@ Tests cover:
 """
 
 import pytest
-import os
 import yaml
-from pathlib import Path
-from unittest.mock import Mock, patch
-
 from bovi_core.config import Config
 
 
@@ -56,28 +52,44 @@ class TestConfigExperimentNotFound:
         pyproject_path = project_root / "pyproject.toml"
         pyproject_path.write_text(
             "[project]\n"
-            "name = \"test_project\"\n"
-            "workspace_user = \"shared\"\n"
+            'name = "test_project"\n'
+            'workspace_user = "shared"\n'
             "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
         )
 
         # Create versioned config directory
-        config_dir = project_root / "data" / "experiments" / "multi_config_exp" / "versions" / "v1" / "config"
+        config_dir = (
+            project_root
+            / "data"
+            / "experiments"
+            / "multi_config_exp"
+            / "versions"
+            / "v1"
+            / "config"
+        )
         config_dir.mkdir(parents=True)
 
         # Create config.yaml with correct experiment_name
         config1 = config_dir / "config.yaml"
-        config1.write_text(yaml.dump({
-            "experiment_name": "multi_config_exp",  # Matches folder
-            "experiment_version": 1
-        }))
+        config1.write_text(
+            yaml.dump(
+                {
+                    "experiment_name": "multi_config_exp",  # Matches folder
+                    "experiment_version": 1,
+                }
+            )
+        )
 
         # Create dev.yaml with WRONG experiment_name
         config2 = config_dir / "dev.yaml"
-        config2.write_text(yaml.dump({
-            "experiment_name": "wrong_name",  # Does NOT match folder
-            "experiment_version": 2
-        }))
+        config2.write_text(
+            yaml.dump(
+                {
+                    "experiment_name": "wrong_name",  # Does NOT match folder
+                    "experiment_version": 2,
+                }
+            )
+        )
 
         # Reset singleton before each test
         Config._instance = None
@@ -123,21 +135,28 @@ class TestConfigValidationErrors:
         pyproject_path = project_root / "pyproject.toml"
         pyproject_path.write_text(
             "[project]\n"
-            "name = \"test_project\"\n"
-            "workspace_user = \"shared\"\n"
+            'name = "test_project"\n'
+            'workspace_user = "shared"\n'
             "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
         )
 
         # Create versioned config directory with mismatched name
-        config_dir = project_root / "data" / "experiments" / "test_folder_name" / "versions" / "v1" / "config"
+        config_dir = (
+            project_root
+            / "data"
+            / "experiments"
+            / "test_folder_name"
+            / "versions"
+            / "v1"
+            / "config"
+        )
         config_dir.mkdir(parents=True)
 
         config_file = config_dir / "config.yaml"
         # Config has different experiment_name than folder
-        config_file.write_text(yaml.dump({
-            "experiment_name": "different_config_name",
-            "experiment_version": 1
-        }))
+        config_file.write_text(
+            yaml.dump({"experiment_name": "different_config_name", "experiment_version": 1})
+        )
 
         with pytest.raises(ValueError) as exc_info:
             Config(
@@ -167,13 +186,15 @@ class TestConfigValidationErrors:
         pyproject_path = project_root / "pyproject.toml"
         pyproject_path.write_text(
             "[project]\n"
-            "name = \"test_project\"\n"
-            "workspace_user = \"shared\"\n"
+            'name = "test_project"\n'
+            'workspace_user = "shared"\n'
             "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
         )
 
         # Create versioned config directory with empty config
-        config_dir = project_root / "data" / "experiments" / "test_empty" / "versions" / "v1" / "config"
+        config_dir = (
+            project_root / "data" / "experiments" / "test_empty" / "versions" / "v1" / "config"
+        )
         config_dir.mkdir(parents=True)
 
         config_file = config_dir / "config.yaml"
@@ -196,13 +217,21 @@ class TestConfigValidationErrors:
         pyproject_path = project_root / "pyproject.toml"
         pyproject_path.write_text(
             "[project]\n"
-            "name = \"test_project\"\n"
-            "workspace_user = \"shared\"\n"
+            'name = "test_project"\n'
+            'workspace_user = "shared"\n'
             "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
         )
 
         # Create versioned config without experiment_name
-        config_dir = project_root / "data" / "experiments" / "test_missing_name" / "versions" / "v1" / "config"
+        config_dir = (
+            project_root
+            / "data"
+            / "experiments"
+            / "test_missing_name"
+            / "versions"
+            / "v1"
+            / "config"
+        )
         config_dir.mkdir(parents=True)
 
         config_file = config_dir / "config.yaml"
@@ -227,13 +256,21 @@ class TestConfigValidationErrors:
         pyproject_path = project_root / "pyproject.toml"
         pyproject_path.write_text(
             "[project]\n"
-            "name = \"test_project\"\n"
-            "workspace_user = \"shared\"\n"
+            'name = "test_project"\n'
+            'workspace_user = "shared"\n'
             "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
         )
 
         # Create versioned config without experiment_version
-        config_dir = project_root / "data" / "experiments" / "test_missing_ver" / "versions" / "v1" / "config"
+        config_dir = (
+            project_root
+            / "data"
+            / "experiments"
+            / "test_missing_ver"
+            / "versions"
+            / "v1"
+            / "config"
+        )
         config_dir.mkdir(parents=True)
 
         config_file = config_dir / "config.yaml"
@@ -266,20 +303,21 @@ class TestConfigSingleton:
         pyproject_path = project_root / "pyproject.toml"
         pyproject_path.write_text(
             "[project]\n"
-            "name = \"test_project\"\n"
-            "workspace_user = \"shared\"\n"
+            'name = "test_project"\n'
+            'workspace_user = "shared"\n'
             "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
         )
 
         # Create versioned config directory
-        config_dir = project_root / "data" / "experiments" / "test_singleton" / "versions" / "v1" / "config"
+        config_dir = (
+            project_root / "data" / "experiments" / "test_singleton" / "versions" / "v1" / "config"
+        )
         config_dir.mkdir(parents=True)
 
         config_file = config_dir / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "experiment_name": "test_singleton",
-            "experiment_version": 1
-        }))
+        config_file.write_text(
+            yaml.dump({"experiment_name": "test_singleton", "experiment_version": 1})
+        )
 
         # First config
         config1 = Config(
@@ -321,15 +359,36 @@ class TestConfigValidationMessages:
         assert "Expected path:" in error_msg
         assert "nonexistent_xyz_123" in error_msg
 
-    def test_error_message_shows_available_experiments(self):
-        """Test that error messages list available experiments"""
+    def test_error_message_shows_available_experiments(self, tmp_path):
+        """Test that error messages list available experiments."""
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        pyproject = project_root / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "test_project"\n'
+            "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
+        )
+        # Create an existing experiment so it shows up in "Available experiments"
+        exp_dir = (
+            project_root
+            / "data"
+            / "experiments"
+            / "first_yolo_experiment"
+            / "versions"
+            / "v1"
+            / "config"
+        )
+        exp_dir.mkdir(parents=True)
+        (exp_dir / "config.yaml").write_text(
+            "experiment_name: first_yolo_experiment\nexperiment_version: 1\n"
+        )
+
+        Config._instance = None
         with pytest.raises(FileNotFoundError) as exc_info:
-            Config("does_not_exist_xyz")
+            Config("does_not_exist_xyz", project_file_path=str(pyproject))
 
         error_msg = str(exc_info.value)
-        # Should mention available experiments
         assert "Available experiments:" in error_msg
-        # first_yolo_experiment should be listed
         assert "first_yolo_experiment" in error_msg
 
     def test_mismatch_error_explains_both_names(self, tmp_path):
@@ -341,19 +400,20 @@ class TestConfigValidationMessages:
         pyproject_path = project_root / "pyproject.toml"
         pyproject_path.write_text(
             "[project]\n"
-            "name = \"test_project\"\n"
-            "workspace_user = \"shared\"\n"
+            'name = "test_project"\n'
+            'workspace_user = "shared"\n'
             "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
         )
 
-        config_dir = project_root / "data" / "experiments" / "actual_folder" / "versions" / "v1" / "config"
+        config_dir = (
+            project_root / "data" / "experiments" / "actual_folder" / "versions" / "v1" / "config"
+        )
         config_dir.mkdir(parents=True)
 
         config_file = config_dir / "config.yaml"
-        config_file.write_text(yaml.dump({
-            "experiment_name": "wrong_name_in_config",
-            "experiment_version": 1
-        }))
+        config_file.write_text(
+            yaml.dump({"experiment_name": "wrong_name_in_config", "experiment_version": 1})
+        )
 
         with pytest.raises(ValueError) as exc_info:
             Config(
@@ -372,16 +432,39 @@ class TestConfigValidationMessages:
         assert "Folder name" in error_msg or "folder" in error_msg.lower()
         assert "config" in error_msg.lower() or "experiment_name" in error_msg
 
-    def test_error_lists_available_config_files(self):
-        """Test that error messages list available config files in experiment folder"""
+    def test_error_lists_available_config_files(self, tmp_path):
+        """Test that error messages list available config files in experiment folder."""
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        pyproject = project_root / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "test_project"\n'
+            "authors = [{ name = 'Test User', email = 'test@example.com' }]\n"
+        )
+        # Create experiment with config.yaml
+        config_dir = (
+            project_root
+            / "data"
+            / "experiments"
+            / "first_yolo_experiment"
+            / "versions"
+            / "v1"
+            / "config"
+        )
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.yaml").write_text(
+            "experiment_name: first_yolo_experiment\nexperiment_version: 1\n"
+        )
+
+        Config._instance = None
         with pytest.raises(FileNotFoundError) as exc_info:
-            # Try to load non-existent config file in existing experiment
-            Config("first_yolo_experiment", config_file_name="production.yaml")
+            Config(
+                "first_yolo_experiment",
+                config_file_name="production.yaml",
+                project_file_path=str(pyproject),
+            )
 
         error_msg = str(exc_info.value)
-        # Should show what we're looking for
         assert "production.yaml" in error_msg
-        # Should mention available config files
         assert "Available config files" in error_msg
-        # The actual config.yaml should be listed
         assert "config.yaml" in error_msg

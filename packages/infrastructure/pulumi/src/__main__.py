@@ -189,9 +189,11 @@ lactation_curves_app = web.WebApp(
         linux_fx_version="PYTHON|3.12",
         ftps_state=web.FtpsState.DISABLED,
         min_tls_version="1.2",
-        app_settings=_function_app_settings([
-            web.NameValuePairArgs(name="MILKBOT_KEY", value=milkbot_key),
-        ]),
+        app_settings=_function_app_settings(
+            [
+                web.NameValuePairArgs(name="MILKBOT_KEY", value=milkbot_key),
+            ]
+        ),
         cors=cors_settings,
     ),
     tags=tags,

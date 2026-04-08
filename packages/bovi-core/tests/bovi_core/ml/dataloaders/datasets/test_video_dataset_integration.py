@@ -12,7 +12,6 @@ import tempfile
 import cv2
 import numpy as np
 import pytest
-
 from bovi_core.ml.dataloaders.datasets.video_dataset import VideoDataset
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
 

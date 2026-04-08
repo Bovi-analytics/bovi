@@ -76,8 +76,7 @@ class TensorFlowSavedModelWrapper(mlflow.pyfunc.PythonModel, ABC):
         # Convert dict inputs to TensorFlow tensors with mapped names
         # Explicitly cast to float32 to match TensorFlow signature expectations
         tf_inputs = {
-            name_mapping.get(k, k): tf.constant(v, dtype=tf.float32)
-            for k, v in model_input.items()
+            name_mapping.get(k, k): tf.constant(v, dtype=tf.float32) for k, v in model_input.items()
         }
 
         # Run inference

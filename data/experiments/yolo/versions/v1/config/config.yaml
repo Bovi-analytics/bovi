@@ -1,0 +1,88 @@
+# YOLO Cow Detection Configuration
+experiment_name: yolo
+experiment_version: 1
+description: "YOLO cow detection - inference pipeline"
+verbose: 1
+
+# --------------------------------------------------------------------------
+# Path Templates: Define reusable path "blueprints" for the project.
+# --------------------------------------------------------------------------
+path_templates:
+  local_weights:
+    template: "data/experiments/yolo/versions/v{experiment_version}/weights/{weights_file}"
+    uses: weights_file
+  blob_weights:
+    template: "{project_name}/src/data/models/yolo/weights/{weights_file}"
+    uses: weights_file
+  temp_weights:
+    template: "/local_disk0/tmp/models/yolo/weights/{weights_file}"
+    uses: weights_file
+
+# Data pipeline
+dataloaders:
+  train:
+    source:
+      type: local
+      root_dir: "data/experiments/yolo/input/train/images/"
+      file_pattern: "*.jp*g"
+
+    transforms:
+      - name: image_validation
+        params:
+          min_size: 32
+          max_size: 8192
+          required_channels: 3
+
+    framework: pytorch
+
+  validation:
+    source:
+      type: local
+      root_dir: "data/experiments/yolo/input/val/images/"
+      file_pattern: "*.jp*g"
+
+    transforms:
+      - name: image_validation
+
+    framework: pytorch
+
+  inference:
+    source:
+      type: local
+      root_dir: "data/experiments/yolo/input/test/images/"
+      file_pattern: "*.jp*g"
+
+    transforms:
+      - name: image_validation
+
+    framework: pytorch
+    dataloader:
+      batch_size: 1
+      shuffle: false
+      num_workers: 0
+
+# Model settings
+models:
+  yolo:
+    type: yolo
+    framework: pytorch
+    template_vars:
+      weights_file:
+        default: "yolo12n.pt"
+        nano_12: "yolo12n.pt"
+        large_12: "yolo12l.pt"
+    default_weights_location: local
+    inference:
+      conf: 0.25
+      iou: 0.45
+      imgsz: 640
+
+# Unity Catalog (for future)
+unity_catalog:
+  catalog: "projects"
+  schema: "bovi_core"
+  model_name: "yolo_cow_detection"
+
+# Dataset settings
+dataset:
+  return_metadata: true

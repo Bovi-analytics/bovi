@@ -3,8 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from bovi_core.ml import ModelRegistry, PredictorRegistry, Model
-from bovi_core.config import Config
+from bovi_core.ml import Model, ModelRegistry, PredictorRegistry
 
 
 class DummyModel(Model):
@@ -264,9 +263,7 @@ def test_model_auto_discover_caches_failed_attempts(mock_eps):
     # entry_points was called for _discover (group+name) only once;
     # subsequent calls are from list_available() in the error message, which is fine.
     # The key assertion: _discover skipped the second time because name is in _discovered.
-    discover_calls = [
-        c for c in mock_eps.call_args_list if c.kwargs.get("name") == "missing_model"
-    ]
+    discover_calls = [c for c in mock_eps.call_args_list if c.kwargs.get("name") == "missing_model"]
     assert len(discover_calls) == 1
 
 

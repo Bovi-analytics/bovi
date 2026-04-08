@@ -25,7 +25,7 @@ autoencoder = "lactation_autoencoder.models.lactation_model:LactationAutoencoder
 autoencoder = "lactation_autoencoder.predictors.lactation_predictor:LactationPredictor"
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "tests"]
+pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.semantic_release]

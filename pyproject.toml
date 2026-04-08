@@ -51,13 +51,15 @@ pythonVersion = "3.12"
 pythonPlatform = "All"
 
 [tool.pytest.ini_options]
-import_mode = "importlib"
+importmode = "importlib"
+pythonpath = [
+    "packages/bovi-core/tests",
+    "apps/backend/models/lactation-autoencoder",
+]
 testpaths = [
     "packages/bovi-core/tests",
     "packages/models/lactationcurve/tests",
     "packages/models/lactation-autoencoder/tests",
-    "packages/models/bovi-yolo/tests",
     "apps/backend/api/tests",
-    "apps/backend/models/lactation-curves/tests",
     "apps/backend/models/lactation-autoencoder/tests",
 ]

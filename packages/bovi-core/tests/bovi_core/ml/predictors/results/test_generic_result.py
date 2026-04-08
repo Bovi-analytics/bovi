@@ -1,8 +1,6 @@
 """Tests for GenericPredictionResult class."""
 
 import numpy as np
-import pytest
-
 from bovi_core.ml.predictors.results import GenericPredictionResult
 
 
@@ -48,21 +46,14 @@ class TestGenericPredictionResult:
     def test_from_raw_with_metadata(self):
         """Test from_raw with additional metadata."""
         raw_output = np.array([1, 2, 3])
-        result = GenericPredictionResult.from_raw(
-            raw_output,
-            metadata={"model_name": "my_model"}
-        )
+        result = GenericPredictionResult.from_raw(raw_output, metadata={"model_name": "my_model"})
 
         assert result.metadata["model_name"] == "my_model"
 
     def test_from_raw_with_kwargs(self):
         """Test from_raw with kwargs that get added to metadata."""
         raw_output = np.array([1, 2, 3])
-        result = GenericPredictionResult.from_raw(
-            raw_output,
-            threshold=0.5,
-            model_version="v1.0"
-        )
+        result = GenericPredictionResult.from_raw(raw_output, threshold=0.5, model_version="v1.0")
 
         assert result.metadata["threshold"] == 0.5
         assert result.metadata["model_version"] == "v1.0"
@@ -149,10 +140,7 @@ class TestGenericPredictionResult:
         predictions = np.array([1, 2, 3])
         custom_metadata = {"custom_key": "custom_value"}
 
-        result = GenericPredictionResult(
-            predictions=predictions,
-            metadata=custom_metadata
-        )
+        result = GenericPredictionResult(predictions=predictions, metadata=custom_metadata)
 
         serialized = result.to_serializable()
         assert "custom_key" in serialized["metadata"]

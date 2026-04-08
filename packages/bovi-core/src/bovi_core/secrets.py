@@ -79,7 +79,8 @@ class SecretsManager:
             if mapped_key:
                 print(f"❌ Secret '{key_name}' not found!")
                 print(
-                    f"   📋 Mapping: '{key_name}' → '{mapped_key}' → Databricks secret '{databricks_key}'"
+                    f"   📋 Mapping: '{key_name}' → '{mapped_key}' "
+                    f"→ Databricks secret '{databricks_key}'"
                 )
                 print(
                     f"   💡 Add to Databricks secrets scope '{self.scope_name}': {databricks_key}"
@@ -87,14 +88,17 @@ class SecretsManager:
             else:
                 print(f"❌ Secret '{key_name}' not found!")
                 print(
-                    f"   📋 No mapping found in [tool.secrets]. Looking for Databricks secret '{databricks_key}'"
+                    "   📋 No mapping found in [tool.secrets]. "
+                    f"Looking for Databricks secret '{databricks_key}'"
                 )
                 print("   💡 Either:")
                 print(
-                    f"      1. Add to Databricks secrets scope '{self.scope_name}': {databricks_key}"
+                    f"      1. Add to Databricks secrets scope "
+                    f"'{self.scope_name}': {databricks_key}"
                 )
                 print(
-                    f'      2. Add mapping to pyproject.toml [tool.secrets]: {key_name} = "actual_secret_name"'
+                    f"      2. Add mapping to pyproject.toml "
+                    f'[tool.secrets]: {key_name} = "actual_secret_name"'
                 )
 
             if default is not None:
@@ -127,18 +131,21 @@ class SecretsManager:
             if mapped_key:
                 print(f"❌ Secret '{key_name}' not found!")
                 print(
-                    f"   📋 Mapping: '{key_name}' → '{mapped_key}' → environment variable '{env_key}'"
+                    f"   📋 Mapping: '{key_name}' → '{mapped_key}' "
+                    f"→ environment variable '{env_key}'"
                 )
                 print(f"   💡 Add to your .env file: {env_key}=your_secret_value_here")
             else:
                 print(f"❌ Secret '{key_name}' not found!")
                 print(
-                    f"   📋 No mapping found in [tool.secrets]. Looking for environment variable '{env_key}'"
+                    "   📋 No mapping found in [tool.secrets]. "
+                    f"Looking for environment variable '{env_key}'"
                 )
                 print("   💡 Either:")
                 print(f"      1. Add to .env file: {env_key}=your_secret_value_here")
                 print(
-                    f'      2. Add mapping to pyproject.toml [tool.secrets]: {key_name} = "actual_secret_name"'
+                    f"      2. Add mapping to pyproject.toml "
+                    f'[tool.secrets]: {key_name} = "actual_secret_name"'
                 )
 
         return secret_value

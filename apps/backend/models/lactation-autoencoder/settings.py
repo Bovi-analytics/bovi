@@ -7,15 +7,11 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Lactation autoencoder app configuration."""
+    """Deployment-only configuration. ML config is handled by bovi-core Config."""
 
-    model_blob_url: str = ""
-    herd_stats_blob_url: str = ""
-    model_path: str = ""
-    herd_stats_path: str = ""
     cors_origins: list[str] = ["http://localhost:3000"]
 
-    model_config = {"env_file": find_dotenv(), "env_file_encoding": "utf-8"}
+    model_config = {"env_file": find_dotenv(), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 @lru_cache

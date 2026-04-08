@@ -124,9 +124,7 @@ class TestRandomBrightnessContrast:
     """Test A.RandomBrightnessContrast (replaces RandomBrightnessContrastTransform)."""
 
     def test_modifies_values(self, sample_image):
-        transform = A.RandomBrightnessContrast(
-            brightness_limit=0.5, contrast_limit=0.5, p=1.0
-        )
+        transform = A.RandomBrightnessContrast(brightness_limit=0.5, contrast_limit=0.5, p=1.0)
         result = transform(image=sample_image)["image"]
         # Values should be modified (not equal to original)
         assert not np.array_equal(result, sample_image)
@@ -284,9 +282,7 @@ class TestTransformRegistry:
     def test_create_normalize(self, sample_image):
         from bovi_core.ml.dataloaders.transforms import TransformRegistry
 
-        transform = TransformRegistry.create(
-            "Normalize", mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]
-        )
+        transform = TransformRegistry.create("Normalize", mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
         result = transform(image=sample_image)["image"]
         assert result.dtype == np.float32
 
@@ -338,12 +334,9 @@ class TestTransformRegistry:
 class TestCrossFrameworkConsistency:
     """Test same transform works identically in PyTorch and TensorFlow loaders."""
 
-    def test_resize_same_output_pytorch_tensorflow(
-        self, image_source, mock_dataloader_config
-    ):
+    def test_resize_same_output_pytorch_tensorflow(self, image_source, mock_dataloader_config):
         """Same resize transform produces same results across frameworks."""
         import torch
-
         from bovi_core.ml.dataloaders.datasets import ImageDataset
         from bovi_core.ml.dataloaders.loaders import (
             PyTorchDataLoader,
@@ -393,12 +386,9 @@ class TestCrossFrameworkConsistency:
         # Values should be very close (may differ slightly due to float conversion)
         np.testing.assert_allclose(pt_image_hwc, tf_image_hwc, rtol=1e-4, atol=1e-4)
 
-    def test_normalize_same_output_pytorch_tensorflow(
-        self, image_source, mock_dataloader_config
-    ):
+    def test_normalize_same_output_pytorch_tensorflow(self, image_source, mock_dataloader_config):
         """Normalize transform produces consistent results across frameworks."""
         import torch
-
         from bovi_core.ml.dataloaders.datasets import ImageDataset
         from bovi_core.ml.dataloaders.loaders import (
             PyTorchDataLoader,

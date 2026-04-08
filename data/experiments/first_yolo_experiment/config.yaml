@@ -1,0 +1,81 @@
+# --------------------------------------------------------------------------
+# Path Templates: Define reusable path "blueprints" for the project.
+#
+# How it works:
+# 1. 'template': A string with placeholders like {project_name}, {model_name}.
+# 2. 'uses':     The key that links this template to a data source in a model.
+#                For example, 'uses: weights_file' means this template will be
+#                applied to any data defined under the 'weights_file' key
+#                in a model's 'template_vars' section.
+# --------------------------------------------------------------------------
+path_templates:
+  weights_blob:
+    template: "{project_name}/src/data/models/{model_name}/weights/{weights_file}"
+    uses: weights_file
+  temp_weights:
+    template: "/local_disk0/tmp/models/{model_name}/weights/{weights_file}"
+    uses: weights_file
+  workspace_weights:
+    template: "/Workspace/Users/douwedekok@gmail.com/projects/model_weights/{weights_file}"
+    uses: weights_file
+  local_weights:
+    template: "/Users/douwedekok/Work/Bovi/bovi-models-Douwe/data/weights/{model_name}/{weights_file}"
+    uses: weights_file
+  source_weights:
+    template: "{weights_file}"
+    uses: weights_file
+  config_path:
+    template: "{project_name}/src/data/models/{model_name}/config/{config_file}"
+    uses: config_file
+
+# --------------------------------------------------------------------------
+# Experiment Settings
+# --------------------------------------------------------------------------
+experiment_name: first_yolo_experiment
+experiment_version: 1
+description: "Multi-model experiment with YOLO, SNN, and other architectures"
+batch_size: 1
+verbose: 1
+
+# --------------------------------------------------------------------------
+# Model Configurations
+#
+# How it works:
+# - The top-level key ('yolo', 'snn') is automatically used as the {model_name}.
+# - 'template_vars': This section provides the data for the path templates.
+#   - The key ('weights_file', 'config_file') MUST match a 'uses' value
+#     from the 'path_templates' section above.
+#   - The system will then generate fully resolved paths for each entry.
+#   !! IMPORTANT !! when having names starting with a number, start with a
+#                   leter instead. Otherwise it cant be resolved!
+#
+#
+# Example: For 'yolo', the 'weights_file' data will be used to generate
+#          'weights_blob' and 'temp_weights' paths for 'best', 'large', etc.
+# --------------------------------------------------------------------------
+models:
+  yolo:
+    template_vars:
+      weights_file:
+        best: "yolov10_cow_best.pt"
+        large_11: "yolo11l.pt"
+        nano_12: "yolo12n.pt"
+        large_12: "yolo12l.pt"
+        xlarge_12: "yolo12x.pt"
+    default_weights_location: "blob"
+
+  snn:
+    # You can add model-specific variables that override globals.
+    vars:
+      model_name: "snn_special_build" # This will override the inferred 'snn' for this model's paths
+
+    template_vars:
+      weights_file:
+        best: "snn_cow_best.pt"
+        baseline: "snn_baseline.pt"
+      config_file:
+        default: "snn_config.yaml"
+    default_weights_location: "blob"
+
+# Test image for prediction
+test_image: "cow_behaviour_2025/src/data/images/test/cow_test.jpg"

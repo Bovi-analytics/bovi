@@ -21,6 +21,14 @@ export const FittingSchema = z.enum(["frequentist"]);
 
 export const PersistencyMethodSchema = z.enum(["derived", "literature"]);
 
+export const ImputationMethodSchema = z.enum([
+  "forward_fill",
+  "backward_fill",
+  "linear",
+  "zero",
+  "mean",
+]);
+
 /* Inferred types — use these in components and function signatures */
 export type Model = z.infer<typeof ModelSchema>;
 export type Characteristic = z.infer<typeof CharacteristicSchema>;
@@ -28,6 +36,7 @@ export type Breed = z.infer<typeof BreedSchema>;
 export type Continent = z.infer<typeof ContinentSchema>;
 export type Fitting = z.infer<typeof FittingSchema>;
 export type PersistencyMethod = z.infer<typeof PersistencyMethodSchema>;
+export type ImputationMethod = z.infer<typeof ImputationMethodSchema>;
 
 /* ------------------------------------------------------------------ */
 /*  Request schemas                                                    */
@@ -70,6 +79,15 @@ export const TestIntervalRequestSchema = z.object({
   test_ids: z.array(z.union([z.number(), z.string()])).optional(),
 });
 
+export const AutoencoderPredictRequestSchema = z.object({
+  milk: z.array(z.number().nullable()),
+  events: z.array(z.string()).optional(),
+  parity: z.number().int().min(1).max(12),
+  herd_id: z.number().int().optional(),
+  herd_stats: z.array(z.number()).length(10).optional(),
+  imputation_method: ImputationMethodSchema.optional(),
+});
+
 /* ------------------------------------------------------------------ */
 /*  Response schemas                                                   */
 /* ------------------------------------------------------------------ */
@@ -84,6 +102,11 @@ export const CharacteristicResponseSchema = z.object({
 
 export const PredictResponseSchema = z.object({
   predictions: z.array(z.number()),
+});
+
+export const AutoencoderPredictResponseSchema = z.object({
+  predictions: z.array(z.number()),
+  latent_vector: z.array(z.number()).nullable(),
 });
 
 export const TestIntervalResultSchema = z.object({
@@ -105,5 +128,7 @@ export type CharacteristicRequest = z.infer<typeof CharacteristicRequestSchema>;
 export type CharacteristicResponse = z.infer<typeof CharacteristicResponseSchema>;
 export type PredictRequest = z.infer<typeof PredictRequestSchema>;
 export type PredictResponse = z.infer<typeof PredictResponseSchema>;
+export type AutoencoderPredictRequest = z.infer<typeof AutoencoderPredictRequestSchema>;
+export type AutoencoderPredictResponse = z.infer<typeof AutoencoderPredictResponseSchema>;
 export type TestIntervalRequest = z.infer<typeof TestIntervalRequestSchema>;
 export type TestIntervalResponse = z.infer<typeof TestIntervalResponseSchema>;

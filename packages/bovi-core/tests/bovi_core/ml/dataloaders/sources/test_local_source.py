@@ -1,7 +1,6 @@
 """Tests for LocalFileSource."""
 
 import pytest
-from pathlib import Path
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
 
 

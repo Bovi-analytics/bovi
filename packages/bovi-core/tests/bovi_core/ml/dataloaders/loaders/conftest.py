@@ -1,7 +1,6 @@
 """Fixtures specific to loader tests."""
 
 import pytest
-
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
 
 

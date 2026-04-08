@@ -26,7 +26,7 @@ def yolo_config() -> Config:
     from bovi_core.config import Config
 
     Config.reset()
-    return Config(experiment_name="yolo")
+    return Config(experiment_name="yolo", project_name="bovi-yolo")
 
 
 @pytest.fixture
@@ -41,9 +41,7 @@ def temp_image_dir(tmp_path: Path) -> Path:
         split_dir.mkdir(parents=True)
 
         # Create a synthetic image per split
-        img = Image.fromarray(
-            np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
-        )
+        img = Image.fromarray(np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8))
         suffix = ".jpeg" if split == "train" else ".jpg"
         img.save(split_dir / f"cow_{split}{suffix}")
 
