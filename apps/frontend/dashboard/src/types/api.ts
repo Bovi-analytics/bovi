@@ -132,3 +132,45 @@ export type AutoencoderPredictRequest = z.infer<typeof AutoencoderPredictRequest
 export type AutoencoderPredictResponse = z.infer<typeof AutoencoderPredictResponseSchema>;
 export type TestIntervalRequest = z.infer<typeof TestIntervalRequestSchema>;
 export type TestIntervalResponse = z.infer<typeof TestIntervalResponseSchema>;
+
+/* ------------------------------------------------------------------ */
+/*  Herd profile schemas                                               */
+/* ------------------------------------------------------------------ */
+
+export const HerdProfileSchema = z.object({
+  id: z.number(),
+  name: z.string().max(100),
+  description: z.string().max(500),
+  achieved_21_milk: z.number().min(0).max(1),
+  achieved_305_milk: z.number().min(0).max(1),
+  achieved_75_milk: z.number().min(0).max(1),
+  achieved_milk: z.number().min(0).max(1),
+  days_dry: z.number().min(0).max(1),
+  days_in_milk: z.number().min(0).max(1),
+  days_open: z.number().min(0).max(1),
+  days_pregnant: z.number().min(0).max(1),
+  historic_calving_interval: z.number().min(0).max(1),
+  quality_sequence: z.number().min(0).max(1),
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
+});
+
+export const HerdProfileCreateSchema = HerdProfileSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+
+export const HerdProfileListSchema = z.array(HerdProfileSchema);
+
+export type HerdProfile = z.infer<typeof HerdProfileSchema>;
+export type HerdProfileCreate = z.infer<typeof HerdProfileCreateSchema>;
+
+export const HerdProfileUploadResponseSchema = z.object({
+  stats: z.record(z.string(), z.number()),
+  format_detected: z.enum(["aggregated", "individual"]),
+  row_count: z.number(),
+  warnings: z.array(z.string()),
+});
+
+export type HerdProfileUploadResponse = z.infer<typeof HerdProfileUploadResponseSchema>;
