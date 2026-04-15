@@ -4,7 +4,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-from bovi_api.models import FittingResult  # noqa: F401 — registers table
+from bovi_api.models import FittingResult, HerdProfile  # noqa: F401 — registers tables
 from bovi_api.settings import get_settings
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import SQLModel
