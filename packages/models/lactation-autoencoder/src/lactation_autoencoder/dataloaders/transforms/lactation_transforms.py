@@ -545,3 +545,58 @@ class HerdStatsNormalizationTransform(UniversalTransform):
             "method": self.method,
             "epsilon": self.epsilon,
         }
+
+
+class HerdStatsRangeNormalizationTransform(UniversalTransform):
+    """Convert raw herd stat values (domain units) to 0–1 using fixed domain ranges.
+
+    Not registered in TransformRegistry — used directly by the ingestion utility.
+    Do not confuse with HerdStatsNormalizationTransform which applies per-sample
+    z-score/minmax to already-normalized 0–1 values within a batch.
+
+    Args:
+        stat_ranges: Dict mapping canonical stat name to (min, max) raw domain range.
+
+    """
+
+    CANONICAL_ORDER: list[str] = [
+        "Achieved21Milk",
+        "Achieved305Milk",
+        "Achieved75Milk",
+        "AchievedMilk",
+        "DaysDry",
+        "DaysInMilk",
+        "DaysOpen",
+        "DaysPregnant",
+        "HistoricCalvingInterval",
+        "QualitySequence",
+    ]
+
+    def __init__(self, stat_ranges: dict[str, tuple[float, float]]) -> None:
+        self.stat_ranges = stat_ranges
+
+    @override
+    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+        """Normalize raw herd stats dict to 0–1.
+
+        Args:
+            data: Must contain ``"herd_stats_raw": dict[str, float]``.
+
+        Returns:
+            data with ``"herd_stats_normalized": dict[str, float]`` added.
+
+        """
+        raw: dict[str, float] = data["herd_stats_raw"]  # type: ignore[assignment]
+        normalized: dict[str, float] = {}
+        for name in self.CANONICAL_ORDER:
+            value = float(raw[name])
+            lo, hi = self.stat_ranges[name]
+            clipped = max(lo, min(hi, value))
+            normalized[name] = (clipped - lo) / (hi - lo) if hi > lo else 0.0
+        data["herd_stats_normalized"] = normalized
+        return data
+
+    @override
+    def get_params(self) -> dict[str, object]:
+        """Return parameters for reproducibility."""
+        return {"stat_ranges": self.stat_ranges}

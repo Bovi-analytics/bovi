@@ -648,3 +648,73 @@ class TestLactationTransformsEdgeCases:
         # Constant values should result in 0 or NaN after zscore
         herd_stats = result["features"]["herd_stats"]
         assert np.all((np.isnan(herd_stats)) | (herd_stats == 0.0))
+
+
+
+# ===========================================================================
+# HerdStatsRangeNormalizationTransform tests
+# ===========================================================================
+
+
+def test_herd_stats_range_normalization_midpoint():
+    """Value at range midpoint normalizes to 0.5."""
+    from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
+        HerdStatsRangeNormalizationTransform,
+    )
+
+    ranges = {
+        "Achieved21Milk": (0.0, 50.0),
+        "Achieved305Milk": (3000.0, 15000.0),
+        "Achieved75Milk": (0.0, 50.0),
+        "AchievedMilk": (3000.0, 20000.0),
+        "DaysDry": (0.0, 150.0),
+        "DaysInMilk": (0.0, 600.0),
+        "DaysOpen": (0.0, 300.0),
+        "DaysPregnant": (0.0, 283.0),
+        "HistoricCalvingInterval": (300.0, 600.0),
+        "QualitySequence": (0.0, 1.0),
+    }
+    transform = HerdStatsRangeNormalizationTransform(stat_ranges=ranges)
+    raw = {
+        "Achieved21Milk": 25.0,
+        "Achieved305Milk": 9000.0,
+        "Achieved75Milk": 25.0,
+        "AchievedMilk": 11500.0,
+        "DaysDry": 75.0,
+        "DaysInMilk": 300.0,
+        "DaysOpen": 150.0,
+        "DaysPregnant": 141.5,
+        "HistoricCalvingInterval": 450.0,
+        "QualitySequence": 0.5,
+    }
+    result = transform({"herd_stats_raw": raw})
+    for name, value in result["herd_stats_normalized"].items():
+        assert abs(value - 0.5) < 1e-6, f"{name}: expected 0.5, got {value}"
+
+
+def test_herd_stats_range_normalization_clamps():
+    """Values outside range are clamped to [0, 1]."""
+    from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
+        HerdStatsRangeNormalizationTransform,
+    )
+
+    ranges = {
+        k: (0.0, 1.0)
+        for k in [
+            "Achieved21Milk",
+            "Achieved305Milk",
+            "Achieved75Milk",
+            "AchievedMilk",
+            "DaysDry",
+            "DaysInMilk",
+            "DaysOpen",
+            "DaysPregnant",
+            "HistoricCalvingInterval",
+            "QualitySequence",
+        ]
+    }
+    transform = HerdStatsRangeNormalizationTransform(stat_ranges=ranges)
+    raw = {k: 999.0 for k in ranges}
+    result = transform({"herd_stats_raw": raw})
+    for value in result["herd_stats_normalized"].values():
+        assert value == 1.0
