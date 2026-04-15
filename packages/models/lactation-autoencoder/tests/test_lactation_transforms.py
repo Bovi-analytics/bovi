@@ -650,7 +650,6 @@ class TestLactationTransformsEdgeCases:
         assert np.all((np.isnan(herd_stats)) | (herd_stats == 0.0))
 
 
-
 # ===========================================================================
 # HerdStatsRangeNormalizationTransform tests
 # ===========================================================================
