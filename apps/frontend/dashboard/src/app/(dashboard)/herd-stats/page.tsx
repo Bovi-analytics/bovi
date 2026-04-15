@@ -1,5 +1,7 @@
 import type { ReactElement } from "react";
+import { Divider } from "@mantine/core";
 import { HerdProfileList } from "./components/herd-profile-list";
+import { HerdProfileUpload } from "./components/herd-profile-upload";
 
 export default function HerdStatsPage(): ReactElement {
   return (
@@ -12,6 +14,8 @@ export default function HerdStatsPage(): ReactElement {
         </p>
       </div>
       <HerdProfileList />
+      <Divider label="Import" labelPosition="left" />
+      <HerdProfileUpload />
     </div>
   );
 }
