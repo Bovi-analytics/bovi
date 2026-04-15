@@ -76,3 +76,44 @@ def test_invalid_stat_value_returns_422(client):
     invalid = {**VALID_PROFILE, "achieved_21_milk": 1.5}  # exceeds 1.0
     response = client.post("/herd-profiles/", json=invalid)
     assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# CSV preview endpoint
+# ---------------------------------------------------------------------------
+
+SAMPLE_CSV = (
+    b"Achieved21Milk,Achieved305Milk,Achieved75Milk,AchievedMilk,"
+    b"DaysDry,DaysInMilk,DaysOpen,DaysPregnant,HistoricCalvingInterval,QualitySequence\n"
+    b"25.0,9000.0,28.0,10000.0,60.0,180.0,100.0,150.0,420.0,0.8\n"
+)
+
+
+def test_csv_preview_returns_normalized_stats(client):
+    response = client.post(
+        "/herd-profiles/csv-preview",
+        files={"file": ("herd.csv", SAMPLE_CSV, "text/csv")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "stats" in data
+    assert data["format_detected"] == "aggregated"
+    assert data["row_count"] == 1
+    for value in data["stats"].values():
+        assert 0.0 <= value <= 1.0
+
+
+def test_csv_preview_rejects_non_csv_extension(client):
+    response = client.post(
+        "/herd-profiles/csv-preview",
+        files={"file": ("data.xlsx", b"PK\x03\x04", "application/octet-stream")},
+    )
+    assert response.status_code == 400
+
+
+def test_csv_preview_rejects_unrecognised_columns(client):
+    response = client.post(
+        "/herd-profiles/csv-preview",
+        files={"file": ("bad.csv", b"breed,farm\nHolstein,Farm1\n", "text/csv")},
+    )
+    assert response.status_code == 400

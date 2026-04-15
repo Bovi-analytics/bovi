@@ -1,14 +1,41 @@
 """CRUD endpoints for user-managed herd stat profiles."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from bovi_api.database import get_session
+from bovi_api.herd_stats_ingestion import normalize_herd_stats, parse_csv
 from bovi_api.models import HerdProfile, HerdProfileCreate, HerdProfileRead
 
 router = APIRouter(tags=["herd-profiles"])
+
+# Biological estimate ranges — calibrate from training data as needed
+_DEFAULT_STAT_RANGES: dict[str, tuple[float, float]] = {
+    "Achieved21Milk": (0.0, 50.0),
+    "Achieved305Milk": (3000.0, 15000.0),
+    "Achieved75Milk": (0.0, 50.0),
+    "AchievedMilk": (3000.0, 20000.0),
+    "DaysDry": (0.0, 150.0),
+    "DaysInMilk": (0.0, 600.0),
+    "DaysOpen": (0.0, 300.0),
+    "DaysPregnant": (0.0, 283.0),
+    "HistoricCalvingInterval": (300.0, 600.0),
+    "QualitySequence": (0.0, 1.0),
+}
+
+_MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+class HerdProfileUploadResponse(BaseModel):
+    """Preview of normalized herd stats parsed from a CSV upload. Not saved to DB."""
+
+    stats: dict[str, float]
+    format_detected: str
+    row_count: int
+    warnings: list[str]
 
 
 @router.get("/", response_model=list[HerdProfileRead])
@@ -39,6 +66,34 @@ async def create_herd_profile(
         )
     await session.refresh(db_profile)
     return db_profile
+
+
+@router.post("/csv-preview", response_model=HerdProfileUploadResponse)
+async def csv_preview(
+    file: UploadFile = File(...),
+) -> HerdProfileUploadResponse:
+    """Parse and normalize an uploaded CSV. Returns a preview; does NOT save to DB."""
+    filename = file.filename or ""
+    if not filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only .csv files are accepted.")
+
+    content = await file.read()
+    if len(content) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
+
+    try:
+        raw_stats, format_detected, row_count, warnings = parse_csv(content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    normalized = normalize_herd_stats(raw_stats, _DEFAULT_STAT_RANGES)
+
+    return HerdProfileUploadResponse(
+        stats=normalized,
+        format_detected=format_detected,
+        row_count=row_count,
+        warnings=warnings,
+    )
 
 
 @router.get("/{profile_id}", response_model=HerdProfileRead)
