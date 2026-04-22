@@ -75,7 +75,11 @@ class HerdProfile(HerdProfileBase, table=True):
     )
     updated_at: datetime | None = Field(
         default=None,
-        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=sa_func.now(),
+            onupdate=sa_func.now(),
+        ),
     )
 
 

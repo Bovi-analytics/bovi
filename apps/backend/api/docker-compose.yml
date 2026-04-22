@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bovi-api:local
+    container_name: bovi-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Override anything from the image's default env here.
+      DATABASE_URL: sqlite+aiosqlite:////data/bovi.db
+      CORS_ORIGINS: '["http://localhost:3000"]'
+    volumes:
+      # Named volume persists the SQLite file across container restarts,
+      # rebuilds, and `docker compose down`. Remove with `docker volume rm`.
+      - bovi-data:/data
+    restart: unless-stopped
+
+volumes:
+  bovi-data:

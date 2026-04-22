@@ -71,6 +71,23 @@ dev: stop run
 run-api:
     cd apps/backend/api && uv run python -m uvicorn bovi_api.app:app --reload --port $PORT_API
 
+# Apply DB migrations manually (the API also does this automatically on startup)
+db-migrate:
+    cd apps/backend/api && uv run alembic upgrade head
+
+# ── Containerised API (SQLite on a Docker volume) ────────────
+api-build:
+    cd apps/backend/api && docker compose build
+
+api-up:
+    cd apps/backend/api && docker compose up -d
+
+api-down:
+    cd apps/backend/api && docker compose down
+
+api-logs:
+    cd apps/backend/api && docker compose logs -f
+
 run-models:
     #!/usr/bin/env bash
     set -euo pipefail

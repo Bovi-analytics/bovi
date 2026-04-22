@@ -67,3 +67,8 @@ packages/models/*/docs/*
 
 # Pulumi
 .pulumi/
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
