@@ -2,14 +2,42 @@
 
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { Alert, Button, Group, Modal, Stack, Table, Text } from "@mantine/core";
-import { AlertCircle } from "lucide-react";
+import {
+  Accordion,
+  Alert,
+  Badge,
+  Button,
+  Code,
+  Group,
+  Modal,
+  Stack,
+  Table,
+  Text,
+} from "@mantine/core";
+import { AlertCircle, Download } from "lucide-react";
 import { HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
 import { statsToHerdProfileFields } from "@/lib/herd-profile-utils";
 import type { HerdProfileUploadResponse } from "@/types/api";
 import { HerdProfileForm } from "./herd-profile-form";
 import { useHerdProfileUpload } from "../hooks/use-herd-profile-upload";
 import { useCreateHerdProfile } from "../hooks/use-herd-profiles";
+
+function downloadCsvTemplate(): void {
+  const headers = HERD_STATS_METADATA.map((m) => m.name).join(",");
+  // Example row: midpoint of each raw range
+  const exampleRow = HERD_STATS_METADATA.map((m) => {
+    const mid = (m.rawMin + m.rawMax) / 2;
+    return Math.round(mid * 100) / 100;
+  }).join(",");
+  const csv = `${headers}\n${exampleRow}\n`;
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "herd_stats_template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function HerdProfileUpload(): ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,7 +50,7 @@ export function HerdProfileUpload(): ReactElement {
     const file = e.target.files?.[0];
     if (!file) return;
     uploadMutation.mutate(file, { onSuccess: setPreview });
-    e.target.value = ""; // allow re-upload of same file
+    e.target.value = "";
   }
 
   function getPreviewStatsArray(): number[] {
@@ -37,9 +65,72 @@ export function HerdProfileUpload(): ReactElement {
           Import from CSV
         </Text>
         <Text size="xs" c="dimmed">
-          Upload a CSV with herd stat columns. One-row CSVs are treated as aggregated; multi-row
-          CSVs are averaged per column. Values are normalized to 0–1 automatically.
+          Upload a CSV file with herd statistics in their natural units (kg, days). The system
+          normalises values automatically. Each row represents one cow or one time period — multiple
+          rows are averaged before saving. A single-row file is treated as an already-aggregated
+          herd summary.
         </Text>
+
+        <Accordion variant="contained">
+          <Accordion.Item value="format">
+            <Accordion.Control>
+              <Text size="xs" fw={500}>
+                Expected CSV format
+              </Text>
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Stack gap="xs">
+                <Text size="xs" c="dimmed">
+                  The CSV must contain a header row with the exact column names below. Column order
+                  does not matter. Missing columns will be filled with defaults.
+                </Text>
+                <Table striped withColumnBorders fz="xs">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Column name</Table.Th>
+                      <Table.Th>Description</Table.Th>
+                      <Table.Th>Unit</Table.Th>
+                      <Table.Th>Typical range</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {HERD_STATS_METADATA.map((meta) => (
+                      <Table.Tr key={meta.name}>
+                        <Table.Td>
+                          <Code>{meta.name}</Code>
+                        </Table.Td>
+                        <Table.Td>{meta.description}</Table.Td>
+                        <Table.Td>
+                          {meta.unit ? (
+                            <Badge size="xs" variant="light">
+                              {meta.unit}
+                            </Badge>
+                          ) : (
+                            <Text size="xs" c="dimmed">
+                              0–1 score
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          {meta.rawMin} – {meta.rawMax}
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  leftSection={<Download size={14} />}
+                  style={{ width: "fit-content" }}
+                  onClick={downloadCsvTemplate}
+                >
+                  Download CSV template
+                </Button>
+              </Stack>
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
 
         <input
           ref={inputRef}
@@ -74,11 +165,11 @@ export function HerdProfileUpload(): ReactElement {
                 {w}
               </Alert>
             ))}
-            <Table striped withColumnBorders>
+            <Table striped withColumnBorders fz="xs">
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Stat</Table.Th>
-                  <Table.Th>Normalized (0–1)</Table.Th>
+                  <Table.Th>Normalised (0–1)</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
