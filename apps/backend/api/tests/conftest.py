@@ -3,13 +3,12 @@
 import asyncio
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from bovi_api import app as app_module
 from bovi_api.app import create_app
 from bovi_api.database import get_session
-from bovi_api.models import HerdProfile
+from bovi_api.models import Challenge, HerdProfile, Submission
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
 @pytest.fixture()
@@ -25,9 +24,12 @@ def client(monkeypatch):
 
     async def _create_tables() -> None:
         async with engine.begin() as conn:
-            # Only create herd_profiles — FittingResult uses sa_type=None which
-            # SQLite cannot compile DDL for (works fine on PostgreSQL in production)
-            await conn.run_sync(HerdProfile.__table__.create)
+            # Only create the tables actually used in tests — FittingResult uses
+            # sa_type=None which SQLite cannot compile DDL for (works fine on
+            # PostgreSQL in production)
+            await conn.run_sync(HerdProfile.__table__.create)  # type: ignore[union-attr]
+            await conn.run_sync(Challenge.__table__.create)  # type: ignore[union-attr]
+            await conn.run_sync(Submission.__table__.create)  # type: ignore[union-attr]
 
     asyncio.run(_create_tables())
 

@@ -1,73 +1,66 @@
 """Integration tests for benchmark routes."""
 
-import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlmodel import SQLModel
+import asyncio
 
-from bovi_api.app import create_app
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from bovi_api.database import get_session
-
-DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
-
-@pytest.fixture(scope="module")
-def app():
-    return create_app()
-
-
-@pytest_asyncio.fixture
-async def client(app):
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
-        yield c
+from bovi_api.models import Challenge
 
 
 def test_list_challenges_empty(client):
     """GET /benchmark/challenges returns empty list when no challenges exist."""
-    import asyncio
-
-    async def _run():
-        response = await client.get("/benchmark/challenges")
-        assert response.status_code == 200
-        assert response.json() == []
-
-    asyncio.run(_run())
+    response = client.get("/benchmark/challenges")
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 def test_get_submission_not_found(client):
     """GET /benchmark/submissions/999 → 404."""
-    import asyncio
-    async def _run():
-        resp = await client.get("/benchmark/submissions/999")
-        assert resp.status_code == 404
-    asyncio.run(_run())
+    resp = client.get("/benchmark/submissions/999")
+    assert resp.status_code == 404
 
 
 def test_list_submissions_empty(client):
     """GET /benchmark/submissions → []."""
-    import asyncio
-    async def _run():
-        resp = await client.get("/benchmark/submissions")
-        assert resp.status_code == 200
-        assert resp.json() == []
-    asyncio.run(_run())
+    resp = client.get("/benchmark/submissions")
+    assert resp.status_code == 200
+    assert resp.json() == []
 
 
 def test_pad_b_upload_rejects_high_failure_rate(client):
-    """POST upload with >20% bad rows → 422."""
-    import asyncio
-    # 10 rows total, 9 invalid → 90% failure rate → should be rejected
+    """POST upload with >20% bad rows → 422.
+
+    Seeds a challenge directly via the override_get_session sessionmaker so that
+    the upload route gets past the "challenge not found" check and reaches the
+    threshold logic.
+    """
+    # Reuse the same session machinery the override does — find the engine
+    # by inspecting the dependency override on the test app.
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed() -> None:
+        # The override is an async generator; pull its session factory by calling it
+        async for session in override():
+            session.add(
+                Challenge(
+                    dataset="aurora",
+                    size="small",
+                    period="recent",
+                    cow_metadata={f"cow{i}": {"parity": 1, "dim": [50], "milk_kg": [25.0]} for i in range(10)},
+                    reference_yields={f"cow{i}": 8000.0 for i in range(10)},
+                )
+            )
+            await session.commit()
+            break
+
+    asyncio.run(_seed())
+
     csv_content = b"cow_id,yield_305day\n" + b"".join(
         f"cow{i},bad_value\n".encode() for i in range(9)
     ) + b"cow9,8000.0\n"
-    async def _run():
-        resp = await client.post(
-            "/benchmark/challenges/1/submissions/upload",
-            files={"file": ("results.csv", csv_content, "text/csv")},
-        )
-        assert resp.status_code == 422
-    asyncio.run(_run())
+    resp = client.post(
+        "/benchmark/challenges/1/submissions/upload",
+        files={"file": ("results.csv", csv_content, "text/csv")},
+    )
+    assert resp.status_code == 422

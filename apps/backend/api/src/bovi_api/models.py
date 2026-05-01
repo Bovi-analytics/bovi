@@ -16,13 +16,13 @@ class FittingResultBase(SQLModel):
     )
     source_app: str = Field(index=True, description="Which backend app produced this result")
     input_data: dict = Field(
-        default_factory=dict, description="The original request payload"
+        default_factory=dict, sa_column=Column(JSON), description="The original request payload"
     )
     output_data: dict = Field(
-        default_factory=dict, description="The prediction/fitting response"
+        default_factory=dict, sa_column=Column(JSON), description="The prediction/fitting response"
     )
     metadata_extra: dict = Field(
-        default_factory=dict, description="Additional metadata"
+        default_factory=dict, sa_column=Column(JSON), description="Additional metadata"
     )
 
 
@@ -109,7 +109,7 @@ class ChallengeBase(SQLModel):
 class Challenge(ChallengeBase, table=True):
     """A benchmark challenge: a sampled set of cows with pre-computed reference yields."""
 
-    __tablename__ = "challenges"
+    __tablename__: ClassVar[str] = "challenges"
 
     id: int | None = Field(default=None, primary_key=True)
     cow_metadata: dict = Field(
@@ -152,7 +152,7 @@ class SubmissionBase(SQLModel):
 class Submission(SubmissionBase, table=True):
     """A user's submission for a benchmark challenge."""
 
-    __tablename__ = "submissions"
+    __tablename__: ClassVar[str] = "submissions"
 
     id: int | None = Field(default=None, primary_key=True)
     challenge_id: int = Field(foreign_key="challenges.id")
