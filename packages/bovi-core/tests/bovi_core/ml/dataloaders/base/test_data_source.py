@@ -7,7 +7,7 @@ class MockDataSource(DataSource):
     """Mock implementation for testing"""
 
     def __init__(self):
-        self.data = {0: b"data0", 1: b"data1"}
+        self.data: dict[int | str, bytes] = {0: b"data0", 1: b"data1"}
 
     def __len__(self):
         return len(self.data)
@@ -18,7 +18,7 @@ class MockDataSource(DataSource):
     def get_metadata(self, key):
         return {"key": key, "size": len(self.data[key])}
 
-    def get_keys(self):
+    def get_keys(self) -> list[int | str]:
         return list(self.data.keys())
 
 

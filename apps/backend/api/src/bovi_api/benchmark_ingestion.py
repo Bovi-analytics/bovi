@@ -4,6 +4,19 @@ from __future__ import annotations
 
 import csv
 import io
+from typing import Literal, overload
+
+
+@overload
+def parse_submission_csv(
+    content: bytes, return_failed: Literal[False] = False
+) -> dict[str, float]: ...
+
+
+@overload
+def parse_submission_csv(
+    content: bytes, return_failed: Literal[True]
+) -> tuple[dict[str, float], list[str]]: ...
 
 
 def parse_submission_csv(

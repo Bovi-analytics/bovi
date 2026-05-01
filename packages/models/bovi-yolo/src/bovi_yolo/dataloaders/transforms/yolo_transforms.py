@@ -7,6 +7,7 @@ Ultralytics handles model-specific preprocessing internally.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import cv2
 import numpy as np
@@ -49,7 +50,7 @@ class ImageResizeTransform(UniversalTransform):
         self.keep_aspect_ratio = keep_aspect_ratio
 
     @override
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """Resize image in data dict.
 
         Args:
@@ -110,7 +111,7 @@ class ImageResizeTransform(UniversalTransform):
         return padded
 
     @override
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         """Return transform parameters."""
         return {
             "name": "image_resize",
@@ -154,7 +155,7 @@ class ImageValidationTransform(UniversalTransform):
         self.required_channels = required_channels
 
     @override
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """Validate image in data dict.
 
         Args:
@@ -199,7 +200,7 @@ class ImageValidationTransform(UniversalTransform):
         return data
 
     @override
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         """Return transform parameters."""
         return {
             "name": "image_validation",

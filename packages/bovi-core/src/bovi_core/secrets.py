@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from bovi_core.utils.dbfs_utils import with_dbutils
 
 if TYPE_CHECKING:
-    from pyspark.dbutils import DBUtils
+    from pyspark.dbutils import DBUtils  # type: ignore[import-not-found]
 
 
 class SecretsManager:

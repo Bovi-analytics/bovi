@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import pickle
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -73,9 +73,13 @@ class HerdStatsEnrichmentTransform(UniversalTransform):
         """
         import warnings
 
+        # Older pickles carry numpy dtype metadata with `align=0` (int) which
+        # triggers a VisibleDeprecationWarning in numpy >= 2.4. The pickle files
+        # are frozen artifacts, so silence the warning at load time.
         with open(path, "rb") as f:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=DeprecationWarning)
+                warnings.filterwarnings("ignore", category=np.exceptions.VisibleDeprecationWarning)
                 return pickle.load(f, encoding="latin1")
 
     def _load_herd_stats(self) -> None:
@@ -224,7 +228,7 @@ class HerdStatsEnrichmentTransform(UniversalTransform):
     # ------------------------------------------------------------------
 
     @override
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """Add herd_stats to data dict based on herd_id and parity.
 
         Args:
@@ -248,7 +252,7 @@ class HerdStatsEnrichmentTransform(UniversalTransform):
         return data
 
     @override
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         return {
             "name": "herd_stats_enrichment",
             "herd_stats_dir": str(self.herd_stats_dir),
@@ -303,13 +307,17 @@ class EventTokenizationTransform(UniversalTransform):
         """
         import warnings
 
+        # Older pickles carry numpy dtype metadata with `align=0` (int) which
+        # triggers a VisibleDeprecationWarning in numpy >= 2.4. The pickle files
+        # are frozen artifacts, so silence the warning at load time.
         with open(path, "rb") as f:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=DeprecationWarning)
+                warnings.filterwarnings("ignore", category=np.exceptions.VisibleDeprecationWarning)
                 return pickle.load(f, encoding="latin1")
 
     @override
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Apply event tokenization transform to data.
 
@@ -320,9 +328,9 @@ class EventTokenizationTransform(UniversalTransform):
             Transformed data dictionary with encoded events.
         """
         # Handle nested "features" structure (from LactationDataset)
-        features: dict[str, object] | None = None
+        features: dict[str, Any] | None = None
         if "features" in data:
-            features = cast(dict[str, object], data["features"])
+            features = cast(dict[str, Any], data["features"])
             if "events" not in features:
                 logger.warning("'events' field not found in data['features']")
                 return data
@@ -372,7 +380,7 @@ class EventTokenizationTransform(UniversalTransform):
         return data
 
     @override
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         return {
             "name": "event_tokenization",
             "unknown_event": self.unknown_event,
@@ -402,7 +410,7 @@ class MilkNormalizationTransform(UniversalTransform):
         self.max_milk = max_milk
 
     @override
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Apply milk normalization transform to data.
 
@@ -413,9 +421,9 @@ class MilkNormalizationTransform(UniversalTransform):
             Transformed data dictionary with normalized milk
         """
         # Handle nested "features" structure (from LactationDataset)
-        features: dict[str, object] | None = None
+        features: dict[str, Any] | None = None
         if "features" in data:
-            features = cast(dict[str, object], data["features"])
+            features = cast(dict[str, Any], data["features"])
             if "milk" not in features:
                 logger.warning("'milk' field not found in data['features']")
                 return data
@@ -451,7 +459,7 @@ class MilkNormalizationTransform(UniversalTransform):
         return data
 
     @override
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         return {
             "name": "milk_normalization",
             "max_milk": self.max_milk,
@@ -482,7 +490,7 @@ class HerdStatsNormalizationTransform(UniversalTransform):
         self.epsilon = epsilon
 
     @override
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Apply herd stats normalization transform to data.
 
@@ -493,9 +501,9 @@ class HerdStatsNormalizationTransform(UniversalTransform):
             Transformed data dictionary with normalized herd_stats
         """
         # Handle nested "features" structure (from LactationDataset)
-        features: dict[str, object] | None = None
+        features: dict[str, Any] | None = None
         if "features" in data:
-            features = cast(dict[str, object], data["features"])
+            features = cast(dict[str, Any], data["features"])
             if "herd_stats" not in features:
                 logger.warning("'herd_stats' field not found in data['features']")
                 return data
@@ -539,7 +547,7 @@ class HerdStatsNormalizationTransform(UniversalTransform):
         return data
 
     @override
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         return {
             "name": "herd_stats_normalization",
             "method": self.method,
@@ -576,7 +584,7 @@ class HerdStatsRangeNormalizationTransform(UniversalTransform):
         self.stat_ranges = stat_ranges
 
     @override
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """Normalize raw herd stats dict to 0–1.
 
         Args:
@@ -597,6 +605,6 @@ class HerdStatsRangeNormalizationTransform(UniversalTransform):
         return data
 
     @override
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         """Return parameters for reproducibility."""
         return {"stat_ranges": self.stat_ranges}

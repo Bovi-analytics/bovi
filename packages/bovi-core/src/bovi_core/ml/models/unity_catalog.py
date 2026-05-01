@@ -312,14 +312,16 @@ def register_to_unity_catalog(
                 import numpy as np
 
                 raw_input = dataset.get_input_example(n_samples=1, batch=True)
+                assert isinstance(raw_input, dict)
 
                 # Transform through predictor to get TensorFlow-ready shapes
-                if hasattr(model, "predictor") and hasattr(model.predictor, "_prepare_inputs"):
+                predictor = getattr(model, "predictor", None)
+                if predictor is not None and hasattr(predictor, "_prepare_inputs"):
                     # Convert batched dict to list for predictor
                     batch_size = next(iter(raw_input.values())).shape[0]
                     data_list = [{k: v[i] for k, v in raw_input.items()} for i in range(batch_size)]
                     # Apply transforms - this may return TensorFlow tensors
-                    transformed_inputs = model.predictor._prepare_inputs(data_list)
+                    transformed_inputs = predictor._prepare_inputs(data_list)
 
                     # Convert TensorFlow tensors to numpy arrays for MLflow compatibility
                     # MLflow requires numpy arrays (JSON serializable) for input_example
@@ -389,6 +391,7 @@ def register_to_unity_catalog(
         verbose=verbose,
         pyfunc_wrapper_class=pyfunc_wrapper_class,
     )
+    assert model_version is not None
 
     if verbose:
         print(f"   ✅ Registered model version: {model_version.version}")

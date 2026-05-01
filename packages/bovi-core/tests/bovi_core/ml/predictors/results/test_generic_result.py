@@ -13,6 +13,7 @@ class TestGenericPredictionResult:
         result = GenericPredictionResult(predictions=predictions)
 
         assert result.num_predictions == 2
+        assert isinstance(result.predictions, np.ndarray)
         assert np.array_equal(result.predictions, predictions)
 
     def test_dict_prediction(self):
@@ -33,6 +34,7 @@ class TestGenericPredictionResult:
         result = GenericPredictionResult.from_raw(raw_output)
 
         assert result.num_predictions == 2
+        assert isinstance(result.predictions, np.ndarray)
         assert np.array_equal(result.predictions, raw_output)
 
     def test_from_raw_dict(self):

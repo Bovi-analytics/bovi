@@ -49,6 +49,12 @@ indent-style = "space"
 typeCheckingMode = "basic"
 pythonVersion = "3.12"
 pythonPlatform = "All"
+exclude = [
+    "**/.venv",
+    "**/node_modules",
+    "**/notebooks/**",
+    "**/*.ipynb",
+]
 
 [tool.pytest.ini_options]
 importmode = "importlib"

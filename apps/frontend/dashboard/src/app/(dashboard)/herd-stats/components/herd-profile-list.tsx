@@ -12,9 +12,15 @@ import {
   useUpdateHerdProfile,
 } from "../hooks/use-herd-profiles";
 import type { HerdProfile, HerdProfileCreate } from "@/types/api";
+import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
+
+const PRESET_LABELS: Record<string, string> = { aurora: "Aurora Ridge", sunnyside: "Sunnyside" };
+const PERIOD_LABELS: Record<string, string> = { recent: "Recent", old: "Old", mixed: "Mixed" };
+const SIZE_LABELS: Record<string, string> = { small: "Small", medium: "Medium", large: "Large" };
 
 export function HerdProfileList(): ReactElement {
   const { data: profiles = [], isLoading } = useHerdProfiles();
+  const { activePreset } = useUploadedCows();
   const createMutation = useCreateHerdProfile();
   const updateMutation = useUpdateHerdProfile();
   const deleteMutation = useDeleteHerdProfile();
@@ -107,6 +113,16 @@ export function HerdProfileList(): ReactElement {
         size="xl"
       >
         <HerdProfileForm
+          defaultName={
+            activePreset
+              ? `${PRESET_LABELS[activePreset.dataset]} — ${PERIOD_LABELS[activePreset.period]} (${SIZE_LABELS[activePreset.size]})`
+              : undefined
+          }
+          defaultDescription={
+            activePreset
+              ? `Herd statistics derived from the ${PRESET_LABELS[activePreset.dataset]} preset dataset (${PERIOD_LABELS[activePreset.period].toLowerCase()} period, ${SIZE_LABELS[activePreset.size].toLowerCase()} sample).`
+              : undefined
+          }
           onSubmit={handleCreate}
           onCancel={() => setCreateOpen(false)}
           isLoading={createMutation.isPending}

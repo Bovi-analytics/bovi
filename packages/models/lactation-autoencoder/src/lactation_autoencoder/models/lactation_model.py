@@ -302,7 +302,7 @@ class LactationAutoencoderModel(Model[tf.Module]):
     def from_config(
         cls,
         config: Config,
-        predictor: LactationPredictor | None = None,
+        predictor: "LactationPredictor | None" = None,  # type: ignore[reportInvalidTypeForm]
         weights_path: str | None = None,
     ) -> LactationAutoencoderModel:
         """

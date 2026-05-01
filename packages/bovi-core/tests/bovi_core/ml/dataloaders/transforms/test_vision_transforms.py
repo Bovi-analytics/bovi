@@ -48,21 +48,21 @@ class TestNormalize:
 
     def test_normalize_imagenet(self, sample_image):
         transform = A.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225],
+            mean=(0.485, 0.456, 0.406),
+            std=(0.229, 0.224, 0.225),
         )
         result = transform(image=sample_image)["image"]
         assert result.dtype == np.float32
 
     def test_normalize_range(self, sample_image):
-        transform = A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        transform = A.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
         result = transform(image=sample_image)["image"]
         # Normalized values should be roughly in [-1, 1] range
         assert result.min() >= -3.0
         assert result.max() <= 3.0
 
     def test_normalize_preserves_shape(self, sample_image):
-        transform = A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        transform = A.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
         result = transform(image=sample_image)["image"]
         assert result.shape == sample_image.shape
 
@@ -210,7 +210,7 @@ class TestComposePipeline:
         transform = A.Compose(
             [
                 A.Resize(32, 32),
-                A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                A.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
             ]
         )
         result = transform(image=sample_image)["image"]
@@ -223,7 +223,7 @@ class TestComposePipeline:
                 A.Resize(48, 48),
                 A.RandomCrop(32, 32),
                 A.HorizontalFlip(p=0.5),
-                A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             ]
         )
         result = transform(image=sample_image)["image"]
@@ -282,7 +282,7 @@ class TestTransformRegistry:
     def test_create_normalize(self, sample_image):
         from bovi_core.ml.dataloaders.transforms import TransformRegistry
 
-        transform = TransformRegistry.create("Normalize", mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        transform = TransformRegistry.create("Normalize", mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
         result = transform(image=sample_image)["image"]
         assert result.dtype == np.float32
 
@@ -371,7 +371,9 @@ class TestCrossFrameworkConsistency:
             transform=transform,
             shuffle=False,
         )
-        tf_batch = next(iter(tf_loader.get_tensorflow_dataset()))
+        tf_dataset = tf_loader.get_tensorflow_dataset()
+        assert tf_dataset is not None
+        tf_batch = next(iter(tf_dataset))
         tf_image = tf_batch["image"].numpy()
 
         # Compare (transpose PyTorch CHW -> HWC for comparison)
@@ -399,7 +401,7 @@ class TestCrossFrameworkConsistency:
         transform = A.Compose(
             [
                 A.Resize(32, 32),
-                A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                A.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
             ]
         )
 
@@ -429,7 +431,9 @@ class TestCrossFrameworkConsistency:
             transform=transform,
             shuffle=False,
         )
-        tf_batch = next(iter(tf_loader.get_tensorflow_dataset()))
+        tf_dataset = tf_loader.get_tensorflow_dataset()
+        assert tf_dataset is not None
+        tf_batch = next(iter(tf_dataset))
         tf_image = tf_batch["image"].numpy()
 
         # Compare

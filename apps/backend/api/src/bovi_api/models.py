@@ -98,12 +98,16 @@ class HerdProfileRead(HerdProfileBase):
 
 # --- Benchmark models ---
 
+
 class ChallengeBase(SQLModel):
     """Shared fields for benchmark challenges."""
+
     dataset: str = Field(description="'aurora' or 'sunnyside'")
     size: str = Field(description="'small' or 'medium'")
     period: str = Field(description="'recent', 'old', or 'mixed'")
-    user_id: str | None = Field(default=None, description="Auth-ready; nullable until auth is added")
+    user_id: str | None = Field(
+        default=None, description="Auth-ready; nullable until auth is added"
+    )
 
 
 class Challenge(ChallengeBase, table=True):
@@ -128,18 +132,21 @@ class Challenge(ChallengeBase, table=True):
 
 class ChallengeRead(ChallengeBase):
     """API response for a challenge (excludes large internal blobs for list views)."""
+
     id: int
     created_at: datetime | None
 
 
 class ChallengeDetail(ChallengeRead):
     """Full challenge response including cow data (used for export and submission)."""
+
     cow_metadata: dict
     reference_yields: dict
 
 
 class SubmissionBase(SQLModel):
     """Shared fields for benchmark submissions."""
+
     submission_type: str = Field(description="'bovi_model' or 'own_method'")
     model_type: str | None = Field(default=None, description="e.g. 'tim', 'wood'")
     organization: str | None = Field(default=None)
@@ -181,6 +188,7 @@ class Submission(SubmissionBase, table=True):
 
 class SubmissionRead(SubmissionBase):
     """API response for a submission."""
+
     id: int
     challenge_id: int
     stats: dict

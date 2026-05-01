@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pyspark.dbutils import DBUtils
+    from pyspark.dbutils import DBUtils  # type: ignore[import-not-found]  # noqa: F401
 
 import numpy as np
 
@@ -39,8 +39,8 @@ def with_dbutils():
             # If the function expects dbutils and it's not in kwargs, add it
             if needs_dbutils and "dbutils" not in kwargs:
                 try:
-                    from pyspark.dbutils import DBUtils
-                    from pyspark.sql import SparkSession
+                    from pyspark.dbutils import DBUtils  # type: ignore[import-not-found]
+                    from pyspark.sql import SparkSession  # type: ignore[import-not-found]
 
                     spark = SparkSession.getActiveSession()
                     if spark:

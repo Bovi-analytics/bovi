@@ -101,7 +101,7 @@ def call_databricks_api(method, endpoint_url, json_payload=None, dbutils=None):
 def _get_workspace_url():
     """Get workspace URL directly from Spark"""
     try:
-        from pyspark.sql import SparkSession
+        from pyspark.sql import SparkSession  # type: ignore[import-not-found]
 
         spark = SparkSession.getActiveSession()
         if spark is None:

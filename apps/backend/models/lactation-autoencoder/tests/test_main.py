@@ -15,7 +15,7 @@ class TestHealthEndpoint:
 
 class TestPredictEndpoint:
     def test_predict_minimal(self):
-        milk = [None] * 304
+        milk: list[float | None] = [None] * 304
         for i in range(18):
             milk[i] = 15.0 + i * 1.5
         response = client.post("/predict", json={"milk": milk})

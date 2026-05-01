@@ -24,7 +24,7 @@ export function Sidebar(): ReactElement {
       {/* Navigation */}
       <nav className="mt-6 flex flex-col gap-1">
         {DASHBOARD_NAVIGATION.map((item) => {
-          const isActive = pathname.startsWith(item.href);
+          const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
 
           return (

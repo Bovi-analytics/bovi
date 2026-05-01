@@ -203,7 +203,7 @@ class PyTorchDataLoader(AbstractDataLoader):
 
         # Create DataLoader
         self._pytorch_loader = DataLoader(
-            dataset=self.dataset,
+            dataset=self.dataset,  # type: ignore[arg-type]
             batch_size=self.batch_size,
             shuffle=self.shuffle,
             num_workers=self.num_workers,

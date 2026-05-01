@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import type { ReactElement } from "react";
 import {
   ResponsiveContainer,
@@ -12,6 +13,9 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import { useWeightUnit } from "@/app/providers/unit-provider";
+import { convertWeight } from "@/lib/units";
+import type { WeightUnit } from "@/lib/units";
 
 /* ------------------------------------------------------------------ */
 /*  Type definitions for the chart's input data                        */
@@ -47,6 +51,25 @@ interface LactationCurveChartProps {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function convertPoints<T extends { readonly yield: number }>(
+  points: readonly T[],
+  unit: WeightUnit
+): T[] {
+  if (unit === "kg") return points as T[];
+  return points.map((p) => ({ ...p, yield: convertWeight(p.yield, unit) }));
+}
+
+function formatTooltipValue(value: number, unit: WeightUnit): string {
+  if (unit === "lbs") {
+    return value.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+  return value.toFixed(1);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -56,6 +79,16 @@ export function LactationCurveChart({
   annotations = [],
   height = 400,
 }: LactationCurveChartProps): ReactElement {
+  const { weightUnit } = useWeightUnit();
+  const yAxisLabel = weightUnit === "lbs" ? "Milk Yield (lbs/day)" : "Milk Yield (kg/day)";
+
+  const convertedCurves = useMemo(
+    () => curves.map((c) => ({ ...c, data: convertPoints(c.data, weightUnit) })),
+    [curves, weightUnit]
+  );
+  const convertedObs = useMemo(() => convertPoints(observations, weightUnit), [observations, weightUnit]);
+  const convertedAnnotations = useMemo(() => convertPoints(annotations, weightUnit), [annotations, weightUnit]);
+
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
@@ -74,7 +107,7 @@ export function LactationCurveChart({
           dataKey="yield"
           type="number"
           label={{
-            value: "Milk Yield (kg/day)",
+            value: yAxisLabel,
             angle: -90,
             position: "insideLeft",
             offset: 10,
@@ -91,15 +124,19 @@ export function LactationCurveChart({
             color: "hsl(var(--card-foreground))",
             fontSize: 12,
           }}
+          formatter={(value: number) => [
+            formatTooltipValue(value, weightUnit),
+            yAxisLabel,
+          ]}
         />
 
         <Legend verticalAlign="top" height={36} />
 
         {/* Fitted model curves — one Line per model */}
-        {curves.map((curve) => (
+        {convertedCurves.map((curve) => (
           <Line
             key={curve.name}
-            data={curve.data}
+            data={curve.data as CurvePoint[]}
             dataKey="yield"
             name={curve.name}
             stroke={curve.color}
@@ -110,9 +147,9 @@ export function LactationCurveChart({
         ))}
 
         {/* Raw observations — scatter points */}
-        {observations.length > 0 && (
+        {convertedObs.length > 0 && (
           <Scatter
-            data={[...observations]}
+            data={[...convertedObs]}
             dataKey="yield"
             name="Observations"
             fill="hsl(var(--foreground))"
@@ -121,9 +158,9 @@ export function LactationCurveChart({
         )}
 
         {/* Annotations — highlighted scatter points with labels */}
-        {annotations.length > 0 && (
+        {convertedAnnotations.length > 0 && (
           <Scatter
-            data={[...annotations]}
+            data={[...convertedAnnotations]}
             dataKey="yield"
             name="Annotations"
             fill="hsl(var(--accent))"

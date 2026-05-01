@@ -50,7 +50,7 @@ models:
     template_vars:
       weights_file:
         default: "autoencoder"
-  
+
   # Example: a second model in the same pipeline at a different version
   encoder_v2:
     version: 18
@@ -79,7 +79,7 @@ Module-level initialization (loaded once, reused per request):
    - `event_to_idx` mapping (for injection into request data before transforms)
    - `get_herd_stats(herd_id, parity)` with hierarchical fallback
    - `global_means` as default when nothing is provided
-   
+
    This is separate from `LactationPKLSource` which is designed for training (requires json_root_dir, builds file index). The API only needs the pkl lookup functionality.
 3. **Transforms** — `ImputationTransform`, `EventTokenizationTransform`, `MilkNormalizationTransform` initialized from config. The imputation method comes from the config YAML (default: `forward_fill`).
 4. **Model + Predictor** — `LactationPredictor(config=config)` + `LactationAutoencoderModel.from_config(config, predictor)` — TF SavedModel loaded once.
@@ -269,11 +269,11 @@ The frontend should:
    a) ImputationTransform(method="forward_fill")
       - null values in milk are filled by copying the last valid value forward
       - e.g. [15.0, 26.0, null, null] → [15.0, 26.0, 26.0, 26.0]
-      
+
    b) EventTokenizationTransform
       - "calving" → 2, "pad" → 0, "breeding" → 8, etc. (case-insensitive)
       - Result: events_encoded[304] of integers
-      
+
    c) MilkNormalizationTransform(max_milk=80.0)
       - milk / 80.0 → normalized to 0-1 range
       - e.g. 26.0 → 0.325

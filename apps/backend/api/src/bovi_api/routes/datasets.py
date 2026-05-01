@@ -74,7 +74,9 @@ def _get_blob_client(settings: Settings) -> BlobServiceClient:
     if not settings.connection_string:
         raise HTTPException(
             status_code=503,
-            detail="Azure Blob Storage is not configured on this server (CONNECTION_STRING missing).",
+            detail=(
+                "Azure Blob Storage is not configured on this server (CONNECTION_STRING missing)."
+            ),
         )
     return BlobServiceClient.from_connection_string(settings.connection_string)
 

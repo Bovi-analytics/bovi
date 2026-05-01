@@ -2,8 +2,6 @@
 
 import asyncio
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from bovi_api.database import get_session
 from bovi_api.models import Challenge
 
@@ -47,7 +45,9 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
                     dataset="aurora",
                     size="small",
                     period="recent",
-                    cow_metadata={f"cow{i}": {"parity": 1, "dim": [50], "milk_kg": [25.0]} for i in range(10)},
+                    cow_metadata={
+                        f"cow{i}": {"parity": 1, "dim": [50], "milk_kg": [25.0]} for i in range(10)
+                    },
                     reference_yields={f"cow{i}": 8000.0 for i in range(10)},
                 )
             )
@@ -56,9 +56,11 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
 
     asyncio.run(_seed())
 
-    csv_content = b"cow_id,yield_305day\n" + b"".join(
-        f"cow{i},bad_value\n".encode() for i in range(9)
-    ) + b"cow9,8000.0\n"
+    csv_content = (
+        b"cow_id,yield_305day\n"
+        + b"".join(f"cow{i},bad_value\n".encode() for i in range(9))
+        + b"cow9,8000.0\n"
+    )
     resp = client.post(
         "/benchmark/challenges/1/submissions/upload",
         files={"file": ("results.csv", csv_content, "text/csv")},

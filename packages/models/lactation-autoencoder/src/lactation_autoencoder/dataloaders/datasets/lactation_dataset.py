@@ -28,21 +28,26 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import numpy.typing as npt
-import torch
 from bovi_core.ml.dataloaders.base import DataSource
 from bovi_core.ml.dataloaders.datasets import FeatureVectorDataset
-from torch.utils.data import Dataset as TorchDataset
 from typing_extensions import override
 
 from lactation_autoencoder.types import LactationItem
 
 if TYPE_CHECKING:
+    import torch
     from bovi_core.config import Config
     from bovi_core.ml.models import Model
     from mlflow.models import ModelSignature
 
 
-class LactationDataset(FeatureVectorDataset, TorchDataset[LactationItem]):
+# Note: this dataset intentionally does NOT inherit from torch.utils.data.Dataset.
+# FeatureVectorDataset already implements __getitem__ / __len__, which is all
+# PyTorch's DataLoader requires for map-style datasets. Keeping the torch base
+# class off avoids forcing the whole bovi-core-ml stack to import torch, which
+# lets TensorFlow-only inference servers (like the Azure Function app) load
+# without PyTorch installed.
+class LactationDataset(FeatureVectorDataset):
     """
     Lactation autoencoder dataset with hierarchical herd statistics.
 
@@ -408,7 +413,7 @@ class LactationDataset(FeatureVectorDataset, TorchDataset[LactationItem]):
             return infer_signature(input_example, None)
 
 
-def collate_lactation_batch(batch: list[LactationItem]) -> dict[str, torch.Tensor]:
+def collate_lactation_batch(batch: list[LactationItem]) -> dict[str, "torch.Tensor"]:
     """
     Collate function for LactationDataset batches.
 
@@ -442,6 +447,8 @@ def collate_lactation_batch(batch: list[LactationItem]) -> dict[str, torch.Tenso
         ... )
 
     """
+    import torch
+
     features = [item["features"] for item in batch]
     milk = torch.stack([torch.tensor(f["milk"]) for f in features])
     events = torch.stack([torch.tensor(f["events"]) for f in features])

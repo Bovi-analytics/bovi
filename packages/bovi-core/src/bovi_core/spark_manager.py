@@ -3,10 +3,14 @@ Spark Session Manager - Clean singleton pattern for managing Spark and DBUtils i
 """
 
 import threading
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from pyspark.dbutils import DBUtils
-from pyspark.sql import SparkSession
+if TYPE_CHECKING:
+    from pyspark.dbutils import DBUtils  # type: ignore[import-not-found]
+    from pyspark.sql import SparkSession  # type: ignore[import-not-found]
+else:
+    from pyspark.dbutils import DBUtils
+    from pyspark.sql import SparkSession
 
 
 class SparkManager:

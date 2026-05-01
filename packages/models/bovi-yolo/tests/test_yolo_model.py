@@ -41,7 +41,7 @@ class TestYOLOModelLoading:
         from bovi_yolo.models import YOLOModel
 
         model = YOLOModel.__new__(YOLOModel)
-        model.model = None
+        model.model = None  # type: ignore[assignment]
 
         with pytest.raises(RuntimeError, match="Model not loaded"):
             model("test_input")

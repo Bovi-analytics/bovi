@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from bovi_core.ml.dataloaders.base.data_source import DataSource
 from typing_extensions import override
@@ -17,7 +18,7 @@ from typing_extensions import override
 logger = logging.getLogger(__name__)
 
 
-class LactationPKLSource(DataSource[dict[str, object]]):
+class LactationPKLSource(DataSource[dict[str, Any]]):
     """
     Load lactation data from JSON files.
 
@@ -34,7 +35,7 @@ class LactationPKLSource(DataSource[dict[str, object]]):
     file_pattern: str
     keep_in_memory: bool
     index: list[Path]
-    data_cache: dict[int, dict[str, object]] | None
+    data_cache: dict[int, dict[str, Any]] | None
 
     def __init__(
         self,
@@ -69,7 +70,7 @@ class LactationPKLSource(DataSource[dict[str, object]]):
         for json_file in json_files:
             try:
                 with open(json_file, "r") as f:
-                    data: dict[str, object] = json.load(f)
+                    data: dict[str, Any] = json.load(f)
 
                 # Capture index before appending
                 idx = len(self.index)
@@ -87,7 +88,7 @@ class LactationPKLSource(DataSource[dict[str, object]]):
         return len(self.index)
 
     @override
-    def load_item(self, key: int | str) -> dict[str, object]:
+    def load_item(self, key: int | str) -> dict[str, Any]:
         """
         Load raw data for a single lactation record.
 
@@ -118,7 +119,7 @@ class LactationPKLSource(DataSource[dict[str, object]]):
         return data
 
     @override
-    def get_metadata(self, key: int | str) -> dict[str, object]:
+    def get_metadata(self, key: int | str) -> dict[str, Any]:
         """Get metadata for an item."""
         if isinstance(key, int):
             json_file = self.index[key]

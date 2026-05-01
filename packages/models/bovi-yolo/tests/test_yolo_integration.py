@@ -138,7 +138,7 @@ class TestEndToEndPipeline:
         predictor = YOLOPredictor(config=yolo_config)
 
         # Load model directly via ultralytics
-        from ultralytics import YOLO
+        from ultralytics import YOLO  # type: ignore[reportPrivateImportUsage]
 
         yolo_model = YOLO(str(WEIGHTS_PATH))
         predictor.set_model_instance(yolo_model)
@@ -165,7 +165,7 @@ class TestEndToEndPipeline:
 
         predictor = YOLOPredictor(config=yolo_config)
 
-        from ultralytics import YOLO
+        from ultralytics import YOLO  # type: ignore[reportPrivateImportUsage]
 
         yolo_model = YOLO(str(WEIGHTS_PATH))
         predictor.set_model_instance(yolo_model)

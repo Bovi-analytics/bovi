@@ -1,15 +1,18 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 
 import numpy as np
-import torch
 from azure.storage.blob import ContainerClient
 
 from bovi_core.config import Config
 
 if TYPE_CHECKING:
-    from ml.models.model import Model
+    import torch
+
+    from bovi_core.ml.models.model import Model
 
 # TypeVar for the return type of predict method
 T = TypeVar("T")
@@ -54,7 +57,7 @@ class Predictor(ABC):
         self,
         data: Union[np.ndarray, List[np.ndarray], List[str]],
         prompt: Optional[Dict[str, Any]] = None,
-    ) -> T:
+    ) -> Any:
         """
         Perform prediction on the provided data.
 

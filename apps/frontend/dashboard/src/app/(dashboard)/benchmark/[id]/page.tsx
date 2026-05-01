@@ -24,8 +24,8 @@ export default function ChallengeDetailPage(): ReactElement {
           <h1 className="text-2xl font-semibold">Challenge #{challengeId}</h1>
         </Group>
         <Text size="sm" c="dimmed">
-          Submit your 305-day yield calculations using a Bovi model (Pad A) or upload your own CSV
-          (Pad B). Then download the comparison report.
+          Submit your 305-day yield calculations using a Bovi model, or upload results from your
+          own method as a CSV. Then download the comparison report.
         </Text>
       </Stack>
 

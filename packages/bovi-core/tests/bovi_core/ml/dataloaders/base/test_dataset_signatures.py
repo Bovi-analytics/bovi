@@ -14,10 +14,10 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 from bovi_core.ml.dataloaders import ImageDataset
-from bovi_core.ml.dataloaders.base import Dataset
+from bovi_core.ml.dataloaders.base import Dataset, DataSource
 
 
-class MockImageSource:
+class MockImageSource(DataSource[bytes]):
     """Mock image source for testing"""
 
     def __init__(self, size: int = 10):
@@ -39,7 +39,7 @@ class MockImageSource:
     def get_metadata(self, key):
         return {"label": key % 3, "path": f"image_{key}.jpg"}
 
-    def get_keys(self):
+    def get_keys(self) -> list[int | str]:
         return list(range(self.size))
 
 

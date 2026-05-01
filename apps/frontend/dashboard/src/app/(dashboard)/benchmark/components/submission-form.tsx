@@ -14,8 +14,8 @@ export function SubmissionForm({ challengeId, onSuccess }: Props): ReactElement 
   return (
     <Tabs defaultValue="bovi">
       <Tabs.List>
-        <Tabs.Tab value="bovi">Pad A — Bovi model</Tabs.Tab>
-        <Tabs.Tab value="upload">Pad B — Own method</Tabs.Tab>
+        <Tabs.Tab value="bovi">Bovi model</Tabs.Tab>
+        <Tabs.Tab value="upload">Own method (CSV)</Tabs.Tab>
       </Tabs.List>
       <Tabs.Panel value="bovi" pt="sm">
         <SubmissionFormBovi challengeId={challengeId} onSuccess={onSuccess} />

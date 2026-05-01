@@ -5,20 +5,39 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+import warnings
 from typing import Literal
 
-from bovi_core.config import Config
-from bovi_core.ml import create_model
-from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource
-from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry
-from bovi_core.ml.dataloaders.transforms.timeseries import ImputationTransform
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from lactation_autoencoder.dataloaders import LactationDataset
-from pydantic import BaseModel, Field
-from settings import Settings, get_settings
-from starlette.middleware.base import BaseHTTPMiddleware
+# MLflow emits a UserWarning about `Any` type hints from its OWN internal
+# response schemas during import. There's no way for us to make those hints
+# more specific — they're library-internal. A normal `filterwarnings` call
+# won't survive: langchain_core (pulled in transitively) calls
+# `warnings.resetwarnings()` during mlflow's import and wipes user filters.
+# Monkey-patching `showwarning` is the only reliable way to silence it,
+# since `showwarning` runs at display time after filter matching.
+_orig_showwarning = warnings.showwarning
+
+
+def _showwarning(message, category, filename, lineno, file=None, line=None):
+    if "Any type hint is inferred as AnyType" in str(message):
+        return
+    _orig_showwarning(message, category, filename, lineno, file, line)
+
+
+warnings.showwarning = _showwarning
+
+from bovi_core.config import Config  # noqa: E402
+from bovi_core.ml import create_model  # noqa: E402
+from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource  # noqa: E402
+from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry  # noqa: E402
+from bovi_core.ml.dataloaders.transforms.timeseries import ImputationTransform  # noqa: E402
+from fastapi import FastAPI, Request  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+from lactation_autoencoder.dataloaders import LactationDataset  # noqa: E402
+from pydantic import BaseModel, Field  # noqa: E402
+from settings import Settings, get_settings  # noqa: E402
+from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 
 settings: Settings = get_settings()
 logger = logging.getLogger("lactation_autoencoder")

@@ -13,7 +13,7 @@ Flavor = Literal["icar", "bovi", "all"]
 def _stats_table(pdf: FPDF, stats: dict, title: str) -> None:
     """Render a stats table for overall and per-parity breakdowns."""
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(0, 8, title, ln=True)
+    pdf.cell(0, 8, title, new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 9)
     headers = ["Group", "N", "Pearson", "RMSE (kg)", "MAE (kg)", "MAPE (%)"]
     col_widths = [30, 15, 25, 25, 25, 25]
@@ -74,12 +74,20 @@ def generate_report_pdf(
 
     # Title
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "Bovi Benchmark Report", ln=True)
+    pdf.cell(0, 10, "Bovi Benchmark Report", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 6, f"Dataset: {challenge_dataset} / {challenge_size}", ln=True)
-    pdf.cell(0, 6, f"Cows evaluated: {stats['overall']['n']}", ln=True)
+    pdf.cell(
+        0, 6, f"Dataset: {challenge_dataset} / {challenge_size}", new_x="LMARGIN", new_y="NEXT"
+    )
+    pdf.cell(0, 6, f"Cows evaluated: {stats['overall']['n']}", new_x="LMARGIN", new_y="NEXT")
     if stats.get("failed_count"):
-        pdf.cell(0, 6, f"Excluded (parse failures): {stats['failed_count']}", ln=True)
+        pdf.cell(
+            0,
+            6,
+            f"Excluded (parse failures): {stats['failed_count']}",
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
     pdf.ln(6)
 
     if flavor in ("icar", "all"):
@@ -88,6 +96,7 @@ def generate_report_pdf(
     if flavor in ("bovi", "all"):
         # Recompute stats for submitted vs bovi_yields
         from bovi_api.benchmark_stats import calculate_comparison_stats
+
         # Use a flat parities dict since we don't need parity split here
         flat_parities = {cid: 1 for cid in submitted_yields}
         bovi_stats = calculate_comparison_stats(submitted_yields, bovi_yields, flat_parities)

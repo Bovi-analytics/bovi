@@ -10,6 +10,8 @@ import type { HerdProfile, HerdProfileCreate } from "@/types/api";
 
 interface HerdProfileFormProps {
   readonly initial?: HerdProfile;
+  readonly defaultName?: string;
+  readonly defaultDescription?: string;
   readonly onSubmit: (data: HerdProfileCreate) => void;
   readonly onCancel: () => void;
   readonly isLoading: boolean;
@@ -17,12 +19,14 @@ interface HerdProfileFormProps {
 
 export function HerdProfileForm({
   initial,
+  defaultName,
+  defaultDescription,
   onSubmit,
   onCancel,
   isLoading,
 }: HerdProfileFormProps): ReactElement {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
+  const [name, setName] = useState(initial?.name ?? defaultName ?? "");
+  const [description, setDescription] = useState(initial?.description ?? defaultDescription ?? "");
   const [stats, setStats] = useState<number[]>(
     initial ? herdProfileToStats(initial) : [...DEFAULT_HERD_STATS]
   );

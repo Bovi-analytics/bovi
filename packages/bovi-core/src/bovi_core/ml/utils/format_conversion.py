@@ -6,7 +6,6 @@ expected formats based on metadata.
 
 from typing import Any, Dict, Optional
 
-import cv2
 import numpy as np
 
 
@@ -116,6 +115,8 @@ def convert_color_format(image: np.ndarray, from_format: str, to_format: str) ->
 
     from_format = from_format.lower()
     to_format = to_format.lower()
+
+    import cv2
 
     if from_format == "bgr" and to_format == "rgb":
         return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)

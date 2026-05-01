@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 import mlflow.pyfunc
 
 
-class PyTorchModelWrapper(mlflow.pyfunc.PythonModel):
+class PyTorchModelWrapper(mlflow.pyfunc.PythonModel):  # type: ignore[reportPrivateImportUsage]
     """
     Pyfunc wrapper for PyTorch models.
 

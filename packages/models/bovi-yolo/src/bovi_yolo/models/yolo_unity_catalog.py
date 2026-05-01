@@ -25,7 +25,7 @@ class YOLOModelWrapper(PyTorchModelWrapper):
         Args:
             context: MLflow PythonModelContext with artifacts.
         """
-        from ultralytics import YOLO
+        from ultralytics import YOLO  # type: ignore[reportPrivateImportUsage]
 
         model_path = context.artifacts["model_path"]
         self.model = YOLO(model_path)

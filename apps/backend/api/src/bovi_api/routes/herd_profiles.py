@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from bovi_api.database import get_session
 from bovi_api.herd_stats_ingestion import normalize_herd_stats, parse_csv
@@ -29,13 +29,26 @@ _DEFAULT_STAT_RANGES: dict[str, tuple[float, float]] = {
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
+class CowRecordPayload(BaseModel):
+    """Per-cow test-day records for client-side reuse in the Curves tab."""
+
+    cow_id: str
+    parity: int | None
+    dim: list[int]
+    milk_kg: list[float]
+
+
 class HerdProfileUploadResponse(BaseModel):
     """Preview of normalized herd stats parsed from a CSV upload. Not saved to DB."""
 
     stats: dict[str, float]
+    raw_stats: dict[str, float]
     format_detected: str
     row_count: int
     warnings: list[str]
+    cow_count: int | None = None
+    detected_parity: int | None = None
+    cows: list[CowRecordPayload] = []
 
 
 @router.get("/", response_model=list[HerdProfileRead])
@@ -43,9 +56,7 @@ async def list_herd_profiles(
     session: AsyncSession = Depends(get_session),
 ) -> list[HerdProfile]:
     """List all herd profiles, newest first."""
-    result = await session.execute(
-        select(HerdProfile).order_by(HerdProfile.created_at.desc())
-    )
+    result = await session.execute(select(HerdProfile).order_by(col(HerdProfile.created_at).desc()))
     return list(result.scalars().all())
 
 
@@ -82,17 +93,29 @@ async def csv_preview(
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
 
     try:
-        raw_stats, format_detected, row_count, warnings = parse_csv(content)
+        result = parse_csv(content)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    normalized = normalize_herd_stats(raw_stats, _DEFAULT_STAT_RANGES)
+    normalized = normalize_herd_stats(result.raw_stats, _DEFAULT_STAT_RANGES)
 
     return HerdProfileUploadResponse(
         stats=normalized,
-        format_detected=format_detected,
-        row_count=row_count,
-        warnings=warnings,
+        raw_stats=result.raw_stats,
+        format_detected=result.format_detected,
+        row_count=result.row_count,
+        warnings=result.warnings,
+        cow_count=result.cow_count,
+        detected_parity=result.detected_parity,
+        cows=[
+            CowRecordPayload(
+                cow_id=c.cow_id,
+                parity=c.parity,
+                dim=c.dim,
+                milk_kg=c.milk_kg,
+            )
+            for c in (result.cows or [])
+        ],
     )
 
 

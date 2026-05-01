@@ -1,21 +1,13 @@
 """Transformed source wrapper for lazy transform application."""
 
-from typing import Any, Protocol
+from __future__ import annotations
+
+from typing import Any
+
+from bovi_core.ml.dataloaders.base.data_source import DataSource
 
 
-class DataSource(Protocol):
-    """Protocol for data sources that can be wrapped with transforms."""
-
-    def __len__(self) -> int:
-        """Return the number of items in the source."""
-        ...
-
-    def load_item(self, index: int) -> dict[str, Any]:
-        """Load a single item by index."""
-        ...
-
-
-class TransformedSource:
+class TransformedSource(DataSource[dict[str, Any]]):
     """
     Wrapper that applies transforms when loading items.
 
@@ -37,7 +29,7 @@ class TransformedSource:
 
     """
 
-    def __init__(self, source: DataSource, transforms: list[Any]) -> None:
+    def __init__(self, source: DataSource[dict[str, Any]], transforms: list[Any]) -> None:
         """
         Initialize transformed source.
 
@@ -53,21 +45,29 @@ class TransformedSource:
         """Return number of items in source."""
         return len(self.source)
 
-    def load_item(self, index: int) -> dict[str, Any]:
+    def load_item(self, key: int | str) -> dict[str, Any]:
         """
         Load item and apply transforms.
 
         Args:
-            index: Item index
+            key: Item index or identifier.
 
         Returns:
-            Transformed data dict
+            Transformed data dict.
 
         """
-        data = self.source.load_item(index)
+        data = self.source.load_item(key)
         for transform in self.transforms:
             data = transform(data)
         return data
+
+    def get_metadata(self, key: int | str) -> dict[str, object]:
+        """Delegate metadata lookup to the wrapped source."""
+        return self.source.get_metadata(key)
+
+    def get_keys(self) -> list[int | str]:
+        """Delegate key enumeration to the wrapped source."""
+        return self.source.get_keys()
 
     def __getattr__(self, name: str) -> Any:
         """Delegate unknown attributes to wrapped source."""

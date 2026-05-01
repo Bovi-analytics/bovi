@@ -41,8 +41,13 @@ def calculate_comparison_stats(
         rmse = math.sqrt(mean_squared_error(ref, sub))
         mae = mean_absolute_error(ref, sub)
         mape = sum(abs((r - s) / r) for s, r in zip(sub, ref) if r != 0) / len(pairs) * 100
-        return {"pearson": corr, "rmse": round(rmse, 3),
-                "mae": round(mae, 3), "mape": round(mape, 3), "n": len(pairs)}
+        return {
+            "pearson": corr,
+            "rmse": round(rmse, 3),
+            "mae": round(mae, 3),
+            "mape": round(mape, 3),
+            "n": len(pairs),
+        }
 
     all_pairs = [(submitted[cid], reference[cid]) for cid in common]
 

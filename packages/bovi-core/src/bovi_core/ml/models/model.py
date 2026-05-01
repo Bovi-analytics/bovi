@@ -1,9 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
-
-import torch.nn as nn
-from ultralytics import YOLO
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 from bovi_core.config import Config
 
@@ -13,8 +10,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Define the base types that models can be
-ModelType = TypeVar("ModelType", bound=Union[nn.Module, YOLO, Any])
+# Define the base types that models can be. Bound is Any at runtime so that
+# bovi-core stays slim — torch/ultralytics are not imported here. Framework-specific
+# subclasses narrow the type via their own generic parameter.
+ModelType = TypeVar("ModelType", bound=Any)
 
 
 class Model(Generic[ModelType], ABC):
@@ -48,6 +47,9 @@ class Model(Generic[ModelType], ABC):
 
     # Prediction interface
     predictor: "PredictionInterface"
+
+    # MLflow signature (set after registration)
+    _signature: Any
 
     def __init__(
         self,

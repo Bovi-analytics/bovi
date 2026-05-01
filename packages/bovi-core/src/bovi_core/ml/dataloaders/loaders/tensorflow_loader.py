@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Callable, Iterator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -85,7 +85,7 @@ class TensorFlowDataLoader(AbstractDataLoader):
     """
 
     # Type annotations for instance attributes
-    transform: Callable[..., dict[str, object]] | None
+    transform: Callable[..., dict[str, Any]] | None
     _output_shapes: dict[str, tuple[int | None, ...]]
     batch_size: int
     shuffle: bool
@@ -100,7 +100,7 @@ class TensorFlowDataLoader(AbstractDataLoader):
         config: Config,
         split: str = "train",
         model_name: str | None = None,
-        transform: Callable[..., dict[str, object]] | None = None,
+        transform: Callable[..., dict[str, Any]] | None = None,
         batch_size: int | None = None,
         shuffle: bool | None = None,
         buffer_size: int = 1000,
@@ -213,10 +213,10 @@ class TensorFlowDataLoader(AbstractDataLoader):
 
         logger.debug(f"Inferred output shapes: {self._output_shapes}")
 
-    def _generator(self) -> Iterator[dict[str, object]]:
+    def _generator(self) -> Iterator[dict[str, Any]]:
         """Generator function for tf.data.Dataset."""
         for i in range(len(self.dataset)):
-            sample: dict[str, object] = self.dataset[i]
+            sample: dict[str, Any] = self.dataset[i]
 
             # Apply transform if provided
             if self.transform is not None and "image" in sample:
@@ -238,7 +238,7 @@ class TensorFlowDataLoader(AbstractDataLoader):
 
         # Infer output signature from shapes
         if len(self.dataset) > 0:
-            sample: dict[str, object] = self.dataset[0]
+            sample: dict[str, Any] = self.dataset[0]
 
             # Apply transform for signature inference
             if self.transform is not None and "image" in sample:
@@ -262,7 +262,7 @@ class TensorFlowDataLoader(AbstractDataLoader):
                         if value.dtype in [np.float32, np.float64]
                         else tf.dtypes.as_dtype(value.dtype)
                     )
-                    output_signature[key] = tf.TensorSpec(shape=shape, dtype=dtype)
+                    output_signature[key] = tf.TensorSpec(shape=shape or (), dtype=dtype)
                 elif isinstance(value, (int, np.integer)):
                     output_signature[key] = tf.TensorSpec(shape=(), dtype=tf.int64)
                 elif isinstance(value, (float, np.floating)):
@@ -304,7 +304,7 @@ class TensorFlowDataLoader(AbstractDataLoader):
         """
         return None
 
-    def get_tensorflow_dataset(self) -> object | None:
+    def get_tensorflow_dataset(self) -> Any | None:
         """
         Return TensorFlow Dataset instance.
 
@@ -322,7 +322,7 @@ class TensorFlowDataLoader(AbstractDataLoader):
         """
         return None
 
-    def __iter__(self) -> Iterator[dict[str, object]]:
+    def __iter__(self) -> Iterator[dict[str, Any]]:
         """Iterate over batches."""
         if self._tf_dataset is None:
             raise RuntimeError("TensorFlow Dataset not initialized")
@@ -343,7 +343,7 @@ class TensorFlowDataLoader(AbstractDataLoader):
         return len(self.dataset)
 
     @property
-    def element_spec(self) -> object | None:
+    def element_spec(self) -> Any | None:
         """Return the element spec of the dataset (for debugging shapes)."""
         if self._tf_dataset is None:
             return None

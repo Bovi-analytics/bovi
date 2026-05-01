@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     lactation_autoencoder_url: str = "http://localhost:8002"
     database_url: str = ""
     cors_origins: list[str] = ["http://localhost:3000"]
+    connection_string: str | None = (
+        None  # Azure Storage connection string (CONNECTION_STRING env var)
+    )
 
     model_config = {"env_file": find_dotenv(), "env_file_encoding": "utf-8", "extra": "ignore"}
 

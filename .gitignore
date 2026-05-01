@@ -72,3 +72,6 @@ packages/models/*/docs/*
 *.db
 *.db-shm
 *.db-wal
+
+# Data
+data/cow_data

@@ -7,7 +7,7 @@ import csv
 import io
 import json
 import logging
-from typing import Annotated, Literal
+from typing import Literal
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -27,7 +27,7 @@ from bovi_api.models import (
     Submission,
     SubmissionRead,
 )
-from bovi_api.routes.datasets import DatasetKey, PeriodKey, SizeKey, fetch_preset_cows
+from bovi_api.routes.datasets import DatasetKey, PeriodKey, fetch_preset_cows
 from bovi_api.routes.proxy import _get_client
 from bovi_api.settings import Settings, get_settings
 
@@ -83,15 +83,28 @@ async def _call_tim(
         resp.raise_for_status()
     except httpx.RequestError as exc:
         logger.exception("TIM proxy error: %s", exc)
-        raise HTTPException(status_code=502, detail="Upstream lactation-curves service unavailable.")
+        raise HTTPException(
+            status_code=502, detail="Upstream lactation-curves service unavailable."
+        )
 
     data = resp.json()
-    # The Function App returns [{test_id, yield_305day}, ...] or {test_id: yield}
-    # Normalise both formats to {cow_id: float}
-    if isinstance(data, list):
-        return {item["test_id"]: item["yield_305day"] for item in data}
-    # dict format
-    return {str(k): float(v) for k, v in data.items()}
+    # Curves API returns {"results": [{"test_id", "total_305_yield"}, ...]}.
+    # Also tolerate a bare list or {cow_id: yield} dict for forward-compat.
+    if isinstance(data, dict) and "results" in data:
+        items = data["results"]
+    elif isinstance(data, list):
+        items = data
+    else:
+        return {str(k): float(v) for k, v in data.items()}
+
+    out: dict[str, float] = {}
+    for item in items:
+        cow_id = item.get("test_id") or item.get("cow_id")
+        yield_val = item.get("total_305_yield", item.get("yield_305day"))
+        if cow_id is None or yield_val is None:
+            continue
+        out[str(cow_id)] = float(yield_val)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +125,7 @@ async def create_challenge(
     settings: Settings = Depends(get_settings),
 ) -> Challenge:
     """Create a challenge by sampling cows from a preset dataset and computing reference yields."""
-    # fetch_preset_cows is synchronous (Azure Blob SDK); run in executor to avoid blocking the event loop
+    # fetch_preset_cows is synchronous (Azure Blob SDK); run in executor to avoid blocking
     loop = asyncio.get_running_loop()
     preset = await loop.run_in_executor(
         None, fetch_preset_cows, body.dataset, body.size, body.period, settings
@@ -207,7 +220,9 @@ class SubmissionBodviModel(BaseModel):
     notes: str | None = None
 
 
-@router.post("/challenges/{challenge_id}/submissions", response_model=SubmissionRead, status_code=201)
+@router.post(
+    "/challenges/{challenge_id}/submissions", response_model=SubmissionRead, status_code=201
+)
 async def create_submission_bovi(
     challenge_id: int,
     body: SubmissionBodviModel,
@@ -284,7 +299,10 @@ async def create_submission_upload(
     if total > 0 and len(failed_ids) / total > _FAILURE_THRESHOLD:
         raise HTTPException(
             status_code=422,
-            detail=f"Too many invalid rows: {len(failed_ids)}/{total} failed (>{int(_FAILURE_THRESHOLD*100)}% threshold).",
+            detail=(
+                f"Too many invalid rows: {len(failed_ids)}/{total} failed "
+                f"(>{int(_FAILURE_THRESHOLD * 100)}% threshold)."
+            ),
         )
 
     # Auto-compute bovi TIM yields for report flavors 2 and 3

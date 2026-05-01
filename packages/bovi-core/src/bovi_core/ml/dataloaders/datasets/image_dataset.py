@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from PIL import Image
@@ -58,7 +58,7 @@ class ImageDataset(Dataset):
         """Number of images in dataset."""
         return len(self.source)
 
-    def __getitem__(self, index: int) -> dict[str, object]:
+    def __getitem__(self, index: int) -> dict[str, Any]:
         """
         Get image by index.
 
