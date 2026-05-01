@@ -1,8 +1,9 @@
 """SQLModel models — single source of truth for DB tables AND Pydantic schemas."""
 
 from datetime import datetime
+from typing import ClassVar
 
-from sqlalchemy import Column, DateTime, UniqueConstraint
+from sqlalchemy import JSON, Column, DateTime, UniqueConstraint
 from sqlalchemy import func as sa_func
 from sqlmodel import Field, SQLModel
 
@@ -15,20 +16,20 @@ class FittingResultBase(SQLModel):
     )
     source_app: str = Field(index=True, description="Which backend app produced this result")
     input_data: dict = Field(
-        default_factory=dict, sa_type=None, description="The original request payload"
+        default_factory=dict, description="The original request payload"
     )
     output_data: dict = Field(
-        default_factory=dict, sa_type=None, description="The prediction/fitting response"
+        default_factory=dict, description="The prediction/fitting response"
     )
     metadata_extra: dict = Field(
-        default_factory=dict, sa_type=None, description="Additional metadata"
+        default_factory=dict, description="Additional metadata"
     )
 
 
 class FittingResult(FittingResultBase, table=True):
     """Database table for fitting results."""
 
-    __tablename__ = "fitting_results"
+    __tablename__: ClassVar[str] = "fitting_results"
 
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime | None = Field(default=None, sa_column_kwargs={"server_default": "now()"})
@@ -65,7 +66,7 @@ class HerdProfileBase(SQLModel):
 class HerdProfile(HerdProfileBase, table=True):
     """Database table for user-managed herd stat profiles."""
 
-    __tablename__ = "herd_profiles"
+    __tablename__: ClassVar[str] = "herd_profiles"
     __table_args__ = (UniqueConstraint("name", name="uq_herd_profile_name"),)
 
     id: int | None = Field(default=None, primary_key=True)
@@ -93,3 +94,95 @@ class HerdProfileRead(HerdProfileBase):
     id: int
     created_at: datetime | None  # None only when DB does not fill server default (e.g. SQLite)
     updated_at: datetime | None
+
+
+# --- Benchmark models ---
+
+class ChallengeBase(SQLModel):
+    """Shared fields for benchmark challenges."""
+    dataset: str = Field(description="'aurora' or 'sunnyside'")
+    size: str = Field(description="'small' or 'medium'")
+    period: str = Field(description="'recent', 'old', or 'mixed'")
+    user_id: str | None = Field(default=None, description="Auth-ready; nullable until auth is added")
+
+
+class Challenge(ChallengeBase, table=True):
+    """A benchmark challenge: a sampled set of cows with pre-computed reference yields."""
+
+    __tablename__ = "challenges"
+
+    id: int | None = Field(default=None, primary_key=True)
+    cow_metadata: dict = Field(
+        sa_column=Column(JSON),
+        description="{cow_id: {parity, dim[], milk_kg[]}} — test-day records per cow",
+    )
+    reference_yields: dict = Field(
+        sa_column=Column(JSON),
+        description="{cow_id: float} — TIM-calculated 305-day reference yields",
+    )
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
+
+
+class ChallengeRead(ChallengeBase):
+    """API response for a challenge (excludes large internal blobs for list views)."""
+    id: int
+    created_at: datetime | None
+
+
+class ChallengeDetail(ChallengeRead):
+    """Full challenge response including cow data (used for export and submission)."""
+    cow_metadata: dict
+    reference_yields: dict
+
+
+class SubmissionBase(SQLModel):
+    """Shared fields for benchmark submissions."""
+    submission_type: str = Field(description="'bovi_model' or 'own_method'")
+    model_type: str | None = Field(default=None, description="e.g. 'tim', 'wood'")
+    organization: str | None = Field(default=None)
+    country: str | None = Field(default=None)
+    calculation_method: str | None = Field(default=None)
+    notes: str | None = Field(default=None)
+    user_id: str | None = Field(default=None)
+
+
+class Submission(SubmissionBase, table=True):
+    """A user's submission for a benchmark challenge."""
+
+    __tablename__ = "submissions"
+
+    id: int | None = Field(default=None, primary_key=True)
+    challenge_id: int = Field(foreign_key="challenges.id")
+    submitted_yields: dict = Field(
+        sa_column=Column(JSON),
+        description="{cow_id: float} — user-submitted or bovi-calculated yields",
+    )
+    bovi_yields: dict = Field(
+        sa_column=Column(JSON),
+        description="{cow_id: float} — TIM yields for report flavors 2 and 3",
+    )
+    stats: dict = Field(
+        sa_column=Column(JSON),
+        description="Comparison statistics (Pearson, RMSE, MAE, MAPE per parity)",
+    )
+    failed_cow_ids: list = Field(
+        sa_column=Column(JSON),
+        default_factory=list,
+        description="Cow IDs excluded from stats due to parse/compute failure",
+    )
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
+
+
+class SubmissionRead(SubmissionBase):
+    """API response for a submission."""
+    id: int
+    challenge_id: int
+    stats: dict
+    failed_cow_ids: list
+    created_at: datetime | None
