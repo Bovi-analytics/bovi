@@ -36,3 +36,38 @@ def test_list_challenges_empty(client):
         assert response.json() == []
 
     asyncio.run(_run())
+
+
+def test_get_submission_not_found(client):
+    """GET /benchmark/submissions/999 → 404."""
+    import asyncio
+    async def _run():
+        resp = await client.get("/benchmark/submissions/999")
+        assert resp.status_code == 404
+    asyncio.run(_run())
+
+
+def test_list_submissions_empty(client):
+    """GET /benchmark/submissions → []."""
+    import asyncio
+    async def _run():
+        resp = await client.get("/benchmark/submissions")
+        assert resp.status_code == 200
+        assert resp.json() == []
+    asyncio.run(_run())
+
+
+def test_pad_b_upload_rejects_high_failure_rate(client):
+    """POST upload with >20% bad rows → 422."""
+    import asyncio
+    # 10 rows total, 9 invalid → 90% failure rate → should be rejected
+    csv_content = b"cow_id,yield_305day\n" + b"".join(
+        f"cow{i},bad_value\n".encode() for i in range(9)
+    ) + b"cow9,8000.0\n"
+    async def _run():
+        resp = await client.post(
+            "/benchmark/challenges/1/submissions/upload",
+            files={"file": ("results.csv", csv_content, "text/csv")},
+        )
+        assert resp.status_code == 422
+    asyncio.run(_run())
