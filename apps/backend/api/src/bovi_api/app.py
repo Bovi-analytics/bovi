@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from bovi_api.database import dispose_engine
-from bovi_api.routes import health, herd_profiles, proxy, results
+from bovi_api.routes import benchmark, datasets, health, herd_profiles, proxy, results
 from bovi_api.settings import get_settings
 
 
@@ -56,6 +56,8 @@ def create_app() -> FastAPI:
     app.include_router(proxy.router)
     app.include_router(results.router)
     app.include_router(herd_profiles.router, prefix="/herd-profiles")
+    app.include_router(datasets.router)
+    app.include_router(benchmark.router)
 
     return app
 
