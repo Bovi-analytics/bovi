@@ -14,9 +14,10 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from bovi_api.benchmark_ingestion import parse_submission_csv
+from bovi_api.benchmark_pdf import Flavor, generate_report_pdf
 from bovi_api.benchmark_stats import calculate_comparison_stats
 from bovi_api.database import get_session
 from bovi_api.models import (
@@ -149,7 +150,7 @@ async def list_challenges(
 ) -> list[Challenge]:
     """List all challenges, newest first."""
     result = await session.execute(
-        select(Challenge).order_by(Challenge.created_at.desc()).limit(100)
+        select(Challenge).order_by(col(Challenge.created_at).desc()).limit(100)
     )
     return list(result.scalars().all())
 
@@ -316,7 +317,7 @@ async def list_submissions(
 ) -> list[Submission]:
     """List all submissions, newest first."""
     result = await session.execute(
-        select(Submission).order_by(Submission.created_at.desc()).limit(100)
+        select(Submission).order_by(col(Submission.created_at).desc()).limit(100)
     )
     return list(result.scalars().all())
 
@@ -331,3 +332,37 @@ async def get_submission(
     if sub is None:
         raise HTTPException(status_code=404, detail="Submission not found")
     return sub
+
+
+@router.get("/submissions/{submission_id}/report")
+async def download_report(
+    submission_id: int,
+    flavor: Flavor = "all",
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    """Download a PDF report for a submission."""
+    sub = await session.get(Submission, submission_id)
+    if sub is None:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    challenge = await session.get(Challenge, sub.challenge_id)
+    if challenge is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    pdf_bytes = generate_report_pdf(
+        stats=sub.stats,
+        submitted_yields=sub.submitted_yields,
+        reference_yields=challenge.reference_yields,
+        bovi_yields=sub.bovi_yields,
+        flavor=flavor,
+        challenge_dataset=challenge.dataset,
+        challenge_size=challenge.size,
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=benchmark_report_{submission_id}.pdf"
+        },
+    )
