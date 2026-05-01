@@ -166,11 +166,114 @@ export const HerdProfileListSchema = z.array(HerdProfileSchema);
 export type HerdProfile = z.infer<typeof HerdProfileSchema>;
 export type HerdProfileCreate = z.infer<typeof HerdProfileCreateSchema>;
 
+export const CowRecordSchema = z.object({
+  cow_id: z.string(),
+  parity: z.number().nullable(),
+  dim: z.array(z.number()),
+  milk_kg: z.array(z.number()),
+});
+
+export type CowRecord = z.infer<typeof CowRecordSchema>;
+
 export const HerdProfileUploadResponseSchema = z.object({
   stats: z.record(z.string(), z.number()),
-  format_detected: z.enum(["aggregated", "individual"]),
+  raw_stats: z.record(z.string(), z.number()),
+  format_detected: z.enum(["aggregated", "icar_test_day", "dairycom_test_day"]),
   row_count: z.number(),
   warnings: z.array(z.string()),
+  cow_count: z.number().nullable().optional(),
+  detected_parity: z.number().nullable().optional(),
+  cows: z.array(CowRecordSchema).default([]),
 });
 
 export type HerdProfileUploadResponse = z.infer<typeof HerdProfileUploadResponseSchema>;
+
+/* ------------------------------------------------------------------ */
+/*  Preset cow-dataset schemas                                         */
+/* ------------------------------------------------------------------ */
+
+export const PresetDatasetKeySchema = z.enum(["aurora", "sunnyside"]);
+export const PresetSizeKeySchema = z.enum(["small", "medium", "large"]);
+export const PresetPeriodKeySchema = z.enum(["recent", "old", "mixed"]);
+
+export const PresetCowSchema = z.object({
+  cow_id: z.string(),
+  display_name: z.string(),
+  parity: z.number().nullable(),
+  dim: z.array(z.number()),
+  milk_kg: z.array(z.number()),
+});
+
+export const PresetDatasetResponseSchema = z.object({
+  dataset: z.string(),
+  size: z.string(),
+  period: z.string(),
+  cow_count: z.number(),
+  cows: z.array(PresetCowSchema),
+});
+
+export type PresetDatasetKey = z.infer<typeof PresetDatasetKeySchema>;
+export type PresetSizeKey = z.infer<typeof PresetSizeKeySchema>;
+export type PresetPeriodKey = z.infer<typeof PresetPeriodKeySchema>;
+export type PresetCow = z.infer<typeof PresetCowSchema>;
+export type PresetDatasetResponse = z.infer<typeof PresetDatasetResponseSchema>;
+
+/* ------------------------------------------------------------------ */
+/*  Benchmark — Challenges                                             */
+/* ------------------------------------------------------------------ */
+
+export const ChallengeReadSchema = z.object({
+  id: z.number(),
+  dataset: z.string(),
+  size: z.string(),
+  period: z.string(),
+  user_id: z.string().nullable(),
+  created_at: z.string().nullable(),
+});
+export type ChallengeRead = z.infer<typeof ChallengeReadSchema>;
+
+export const ChallengeListSchema = z.array(ChallengeReadSchema);
+
+export const ChallengeCreateSchema = z.object({
+  dataset: z.enum(["aurora", "sunnyside"]),
+  size: z.enum(["small", "medium"]),
+  period: z.enum(["recent", "old", "mixed"]),
+});
+export type ChallengeCreate = z.infer<typeof ChallengeCreateSchema>;
+
+/* ------------------------------------------------------------------ */
+/*  Benchmark — Submissions                                            */
+/* ------------------------------------------------------------------ */
+
+export const ParityStatsSchema = z.object({
+  pearson: z.number().nullable(),
+  rmse: z.number().nullable(),
+  mae: z.number().nullable(),
+  mape: z.number().nullable(),
+  n: z.number(),
+});
+
+export const ComparisonStatsSchema = z.object({
+  overall: ParityStatsSchema,
+  by_parity: z.record(z.string(), ParityStatsSchema),
+  failed_count: z.number(),
+});
+export type ComparisonStats = z.infer<typeof ComparisonStatsSchema>;
+
+export const SubmissionReadSchema = z.object({
+  id: z.number(),
+  challenge_id: z.number(),
+  submission_type: z.string(),
+  model_type: z.string().nullable(),
+  organization: z.string().nullable(),
+  country: z.string().nullable(),
+  calculation_method: z.string().nullable(),
+  notes: z.string().nullable(),
+  user_id: z.string().nullable(),
+  stats: ComparisonStatsSchema,
+  failed_cow_ids: z.array(z.string()),
+  created_at: z.string().nullable(),
+});
+export type SubmissionRead = z.infer<typeof SubmissionReadSchema>;
+
+export const SubmissionListSchema = z.array(SubmissionReadSchema);

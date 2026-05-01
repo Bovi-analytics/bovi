@@ -7,8 +7,13 @@ import {
   HerdProfileListSchema,
   HerdProfileSchema,
   HerdProfileUploadResponseSchema,
+  PresetDatasetResponseSchema,
   PredictResponseSchema,
   TestIntervalResponseSchema,
+  ChallengeListSchema,
+  ChallengeReadSchema,
+  SubmissionListSchema,
+  SubmissionReadSchema,
 } from "@/types/api";
 import type {
   AutoencoderPredictRequest,
@@ -20,10 +25,17 @@ import type {
   HerdProfile,
   HerdProfileCreate,
   HerdProfileUploadResponse,
+  PresetDatasetKey,
+  PresetDatasetResponse,
+  PresetPeriodKey,
+  PresetSizeKey,
   PredictRequest,
   PredictResponse,
   TestIntervalRequest,
   TestIntervalResponse,
+  ChallengeCreate,
+  ChallengeRead,
+  SubmissionRead,
 } from "@/types/api";
 
 /* ------------------------------------------------------------------ */
@@ -138,6 +150,14 @@ export async function deleteHerdProfile(id: number): Promise<void> {
   return apiDelete(`/herd-profiles/${id}`);
 }
 
+export async function getPresetDataset(
+  dataset: PresetDatasetKey,
+  size: PresetSizeKey,
+  period: PresetPeriodKey
+): Promise<PresetDatasetResponse> {
+  return apiGet(`/datasets/presets/${dataset}/${size}/${period}`, PresetDatasetResponseSchema);
+}
+
 export async function uploadHerdProfileCsv(file: File): Promise<HerdProfileUploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
@@ -152,4 +172,66 @@ export async function uploadHerdProfileCsv(file: File): Promise<HerdProfileUploa
   }
   const data: unknown = await response.json();
   return HerdProfileUploadResponseSchema.parse(data);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Benchmark — Challenges                                             */
+/* ------------------------------------------------------------------ */
+
+export async function createChallenge(data: ChallengeCreate): Promise<ChallengeRead> {
+  return apiFetch("/benchmark/challenges", ChallengeReadSchema, data);
+}
+
+export async function listChallenges(): Promise<ChallengeRead[]> {
+  return apiGet("/benchmark/challenges", ChallengeListSchema);
+}
+
+export async function getChallenge(id: number): Promise<ChallengeRead> {
+  return apiGet(`/benchmark/challenges/${id}`, ChallengeReadSchema);
+}
+
+export function exportChallengeUrl(id: number): string {
+  return `${getApiBaseUrl()}/benchmark/challenges/${id}/export`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Benchmark — Submissions                                            */
+/* ------------------------------------------------------------------ */
+
+export async function submitBoviModel(
+  challengeId: number,
+  data: { submission_type: "bovi_model"; model_type: string; organization?: string; country?: string; notes?: string }
+): Promise<SubmissionRead> {
+  return apiFetch(`/benchmark/challenges/${challengeId}/submissions`, SubmissionReadSchema, data);
+}
+
+export async function submitOwnMethod(
+  challengeId: number,
+  file: File,
+  meta: { organization?: string; country?: string; calculation_method?: string; notes?: string }
+): Promise<SubmissionRead> {
+  const formData = new FormData();
+  formData.append("file", file);
+  Object.entries(meta).forEach(([k, v]) => { if (v) formData.append(k, v); });
+  const response = await fetch(`${getApiBaseUrl()}/benchmark/challenges/${challengeId}/submissions/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(`Upload error ${response.status}: ${JSON.stringify(error)}`);
+  }
+  return SubmissionReadSchema.parse(await response.json());
+}
+
+export async function listSubmissions(): Promise<SubmissionRead[]> {
+  return apiGet("/benchmark/submissions", SubmissionListSchema);
+}
+
+export async function getSubmission(id: number): Promise<SubmissionRead> {
+  return apiGet(`/benchmark/submissions/${id}`, SubmissionReadSchema);
+}
+
+export function downloadReportUrl(id: number, flavor: "icar" | "bovi" | "all" = "all"): string {
+  return `${getApiBaseUrl()}/benchmark/submissions/${id}/report?flavor=${flavor}`;
 }
