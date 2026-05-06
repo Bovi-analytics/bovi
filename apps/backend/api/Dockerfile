@@ -17,11 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY pyproject.toml ./
-RUN uv pip install --system .
-
 COPY src ./src
-COPY alembic ./alembic
-COPY alembic.ini ./
+
+RUN uv pip install --system .
 
 # SQLite file lives on a mounted volume.
 ENV DATABASE_URL=sqlite+aiosqlite:////data/bovi.db

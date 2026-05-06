@@ -12,12 +12,13 @@ from bovi_api.database import dispose_engine
 from bovi_api.routes import benchmark, datasets, health, herd_profiles, proxy, results
 from bovi_api.settings import get_settings
 
+_ALEMBIC_DIR = Path(__file__).parent / "alembic"
+
 
 def _run_migrations() -> None:
     """Apply Alembic migrations up to head. Idempotent - safe to call on every startup."""
-    api_root = Path(__file__).resolve().parents[2]
-    cfg = Config(str(api_root / "alembic.ini"))
-    cfg.set_main_option("script_location", str(api_root / "alembic"))
+    cfg = Config()
+    cfg.set_main_option("script_location", str(_ALEMBIC_DIR))
     command.upgrade(cfg, "head")
 
 
