@@ -77,9 +77,7 @@ class TestYoloPredictionResultBasic:
 
 
 class TestYoloPredictionResultBoxFormats:
-    def test_xyxy_format(
-        self, sample_boxes: npt.NDArray[np.float64]
-    ) -> None:
+    def test_xyxy_format(self, sample_boxes: npt.NDArray[np.float64]) -> None:
         """Test xyxy box format returns input boxes."""
         from bovi_yolo.predictors.results import YoloPredictionResult
 
@@ -87,9 +85,7 @@ class TestYoloPredictionResultBoxFormats:
         xyxy = result.get_boxes_xyxy()
         assert np.array_equal(xyxy, sample_boxes)
 
-    def test_xywh_format(
-        self, sample_boxes: npt.NDArray[np.float64]
-    ) -> None:
+    def test_xywh_format(self, sample_boxes: npt.NDArray[np.float64]) -> None:
         """Test xywh conversion (center_x, center_y, width, height)."""
         from bovi_yolo.predictors.results import YoloPredictionResult
 
@@ -102,9 +98,7 @@ class TestYoloPredictionResultBoxFormats:
         assert np.isclose(xywh[0, 2], 200.0)
         assert np.isclose(xywh[0, 3], 200.0)
 
-    def test_ltwh_format(
-        self, sample_boxes: npt.NDArray[np.float64]
-    ) -> None:
+    def test_ltwh_format(self, sample_boxes: npt.NDArray[np.float64]) -> None:
         """Test ltwh conversion (left, top, width, height)."""
         from bovi_yolo.predictors.results import YoloPredictionResult
 
@@ -306,9 +300,7 @@ class TestYoloPredictionResultVisualization:
         """Test draw_on_image raises when no image available."""
         from bovi_yolo.predictors.results import YoloPredictionResult
 
-        result = YoloPredictionResult(
-            boxes=np.array([[10, 10, 100, 100]])
-        )
+        result = YoloPredictionResult(boxes=np.array([[10, 10, 100, 100]]))
         with pytest.raises(ValueError, match="No image"):
             result.draw_on_image()
 

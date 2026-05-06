@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from bovi_core.ml.dataloaders.datasets import ImageDataset
@@ -57,7 +57,7 @@ class YOLODataset(ImageDataset):
         logger.info("YOLODataset: %d images", len(self.source))
 
     @override
-    def __getitem__(self, index: int) -> dict[str, object]:
+    def __getitem__(self, index: int) -> dict[str, Any]:
         """Get image by index with metadata always included.
 
         For YOLO's ``{split}/images/{file}`` layout, the label is set

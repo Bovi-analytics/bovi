@@ -1,0 +1,8 @@
+# Lactation Curves Function App
+port := env("PORT_CURVES", "8001")
+
+run:
+    uv run python -m uvicorn main:app --reload --port {{port}}
+
+test:
+    uv run pytest tests/ -v

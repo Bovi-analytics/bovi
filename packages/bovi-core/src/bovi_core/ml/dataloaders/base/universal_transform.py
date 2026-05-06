@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class UniversalTransform(ABC):
@@ -30,7 +31,7 @@ class UniversalTransform(ABC):
     """
 
     @abstractmethod
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Apply transform to data dict.
 

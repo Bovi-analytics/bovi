@@ -1,9 +1,7 @@
 """Tests for time-series transforms."""
 
-import pytest
 import numpy as np
-from typing import Dict, Any
-
+import pytest
 from bovi_core.ml.dataloaders.transforms.timeseries import (
     ImputationTransform,
     SequenceNormalizationTransform,
@@ -19,9 +17,7 @@ class TestImputationTransform:
     def sequence_with_nan(self):
         """Create sequence with NaN values."""
         data = {
-            "features": {
-                "time_series": np.array([1.0, np.nan, 3.0, np.nan, 5.0], dtype=np.float32)
-            }
+            "features": {"time_series": np.array([1.0, np.nan, 3.0, np.nan, 5.0], dtype=np.float32)}
         }
         return data
 
@@ -30,10 +26,7 @@ class TestImputationTransform:
         """Create sequence with multiple NaNs."""
         data = {
             "features": {
-                "time_series": np.array(
-                    [1.0, np.nan, np.nan, 4.0, 5.0, np.nan],
-                    dtype=np.float32
-                )
+                "time_series": np.array([1.0, np.nan, np.nan, 4.0, 5.0, np.nan], dtype=np.float32)
             }
         }
         return data
@@ -72,11 +65,7 @@ class TestImputationTransform:
 
     def test_mean_imputation(self):
         """Test mean fill imputation."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, np.nan, 5.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, np.nan, 5.0], dtype=np.float32)}}
         transform = ImputationTransform(method="mean")
         result = transform(data)
 
@@ -86,11 +75,7 @@ class TestImputationTransform:
 
     def test_no_nans_forward_fill(self):
         """Test forward fill on sequence with no NaNs."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0, 3.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0, 3.0], dtype=np.float32)}}
         transform = ImputationTransform(method="forward_fill")
         result = transform(data)
 
@@ -99,11 +84,7 @@ class TestImputationTransform:
 
     def test_all_nans_forward_fill(self):
         """Test forward fill when all values are NaN."""
-        data = {
-            "features": {
-                "time_series": np.array([np.nan, np.nan, np.nan], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([np.nan, np.nan, np.nan], dtype=np.float32)}}
         transform = ImputationTransform(method="forward_fill")
         result = transform(data)
 
@@ -132,11 +113,7 @@ class TestSequenceNormalizationTransform:
     @pytest.fixture
     def sequence_data(self):
         """Create test sequence data."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)}}
         return data
 
     def test_zscore_normalization(self, sequence_data):
@@ -161,11 +138,7 @@ class TestSequenceNormalizationTransform:
 
     def test_maxabs_normalization(self):
         """Test maxabs normalization."""
-        data = {
-            "features": {
-                "time_series": np.array([-5.0, -2.0, 3.0, 4.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([-5.0, -2.0, 3.0, 4.0], dtype=np.float32)}}
         transform = SequenceNormalizationTransform(method="maxabs")
         result = transform(data)
 
@@ -176,9 +149,7 @@ class TestSequenceNormalizationTransform:
     def test_scale_normalization(self):
         """Test scale normalization (divides by scalar)."""
         data = {
-            "features": {
-                "time_series": np.array([10.0, 20.0, 30.0, 40.0, 50.0], dtype=np.float32)
-            }
+            "features": {"time_series": np.array([10.0, 20.0, 30.0, 40.0, 50.0], dtype=np.float32)}
         }
         transform = SequenceNormalizationTransform(method="scale", scale=10.0)
         result = transform(data)
@@ -190,11 +161,7 @@ class TestSequenceNormalizationTransform:
 
     def test_normalization_with_constant_sequence(self):
         """Test normalization with constant sequence."""
-        data = {
-            "features": {
-                "time_series": np.array([3.0, 3.0, 3.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([3.0, 3.0, 3.0], dtype=np.float32)}}
         transform = SequenceNormalizationTransform(method="zscore")
         result = transform(data)
 
@@ -208,7 +175,10 @@ class TestSequenceNormalizationTransform:
         transform = SequenceNormalizationTransform(method="zscore")
         result = transform(sequence_data)
 
-        assert result["features"]["time_series"].shape == sequence_data["features"]["time_series"].shape
+        assert (
+            result["features"]["time_series"].shape
+            == sequence_data["features"]["time_series"].shape
+        )
 
     def test_transform_registry(self):
         """Test transform is properly registered."""
@@ -223,11 +193,7 @@ class TestSequencePaddingTransform:
 
     def test_pad_short_sequence(self):
         """Test padding a short sequence."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0], dtype=np.float32)}}
         transform = SequencePaddingTransform(
             max_length=5, field="time_series", mode="post", pad_value=0.0
         )
@@ -238,11 +204,7 @@ class TestSequencePaddingTransform:
 
     def test_truncate_long_sequence(self):
         """Test truncating a long sequence."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)}}
         transform = SequencePaddingTransform(
             max_length=3, field="time_series", mode="post", pad_value=0.0
         )
@@ -253,11 +215,7 @@ class TestSequencePaddingTransform:
 
     def test_pad_pre_mode(self):
         """Test padding with pre mode (pad at beginning)."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0], dtype=np.float32)}}
         transform = SequencePaddingTransform(
             max_length=5, field="time_series", mode="pre", pad_value=0.0
         )
@@ -268,11 +226,7 @@ class TestSequencePaddingTransform:
 
     def test_exact_length_no_change(self):
         """Test sequence with exact length doesn't change."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0, 3.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0, 3.0], dtype=np.float32)}}
         transform = SequencePaddingTransform(
             max_length=3, field="time_series", mode="post", pad_value=0.0
         )
@@ -283,11 +237,7 @@ class TestSequencePaddingTransform:
 
     def test_custom_pad_value(self):
         """Test padding with custom pad value."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0], dtype=np.float32)}}
         transform = SequencePaddingTransform(
             max_length=4, field="time_series", mode="post", pad_value=-1.0
         )
@@ -316,11 +266,7 @@ class TestWindowingTransform:
 
     def test_truncate_to_window_size(self):
         """Test that windowing truncates to window_size."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)}}
         transform = WindowingTransform(window_size=3, stride=1)
         result = transform(data)
 
@@ -345,11 +291,7 @@ class TestWindowingTransform:
 
     def test_window_larger_than_sequence(self):
         """Test when window size is larger than sequence - no change."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0], dtype=np.float32)}}
         transform = WindowingTransform(window_size=5, stride=1)
         result = transform(data)
 
@@ -359,11 +301,7 @@ class TestWindowingTransform:
 
     def test_exact_window_size(self):
         """Test when sequence is exactly window_size."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0, 3.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0, 3.0], dtype=np.float32)}}
         transform = WindowingTransform(window_size=3, stride=1)
         result = transform(data)
 
@@ -383,11 +321,7 @@ class TestTimeSeriesTransformIntegration:
 
     def test_imputation_then_normalization(self):
         """Test pipeline of imputation then normalization."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, np.nan, 3.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, np.nan, 3.0], dtype=np.float32)}}
 
         # Impute
         impute = ImputationTransform(method="linear")
@@ -405,11 +339,7 @@ class TestTimeSeriesTransformIntegration:
 
     def test_padding_then_windowing(self):
         """Test pipeline of padding then windowing."""
-        data = {
-            "features": {
-                "time_series": np.array([1.0, 2.0], dtype=np.float32)
-            }
-        }
+        data = {"features": {"time_series": np.array([1.0, 2.0], dtype=np.float32)}}
 
         # Pad to length 5
         pad = SequencePaddingTransform(
@@ -431,9 +361,7 @@ class TestTimeSeriesTransformIntegration:
     def test_full_pipeline(self):
         """Test full pipeline: impute -> normalize -> pad -> window."""
         data = {
-            "features": {
-                "time_series": np.array([1.0, np.nan, 3.0, np.nan, 5.0], dtype=np.float32)
-            }
+            "features": {"time_series": np.array([1.0, np.nan, 3.0, np.nan, 5.0], dtype=np.float32)}
         }
 
         # Impute

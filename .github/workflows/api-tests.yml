@@ -21,7 +21,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --all-packages
 
       - name: Start lactation-curves API and run tests
         working-directory: apps/backend/models/lactation-curves

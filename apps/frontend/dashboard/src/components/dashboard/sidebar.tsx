@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactElement } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,19 +13,22 @@ export function Sidebar(): ReactElement {
   return (
     <aside className="sticky top-0 hidden h-screen w-52 shrink-0 border-r border-border/40 bg-card/80 p-3 text-sm text-muted-foreground md:flex md:flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 px-3 py-2">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-            Bovi-Analytics
-          </p>
-          <h2 className="text-base font-semibold text-foreground">Lactation Curves</h2>
-        </div>
+      <div className="flex flex-col gap-3 px-3 py-2">
+        <Image
+          src="/bovi-logo.png"
+          alt="Bovi-Analytics"
+          width={2255}
+          height={699}
+          priority
+          className="h-auto w-full max-w-[160px]"
+        />
+        <h2 className="text-base font-semibold text-foreground">Lactation Curves</h2>
       </div>
 
       {/* Navigation */}
       <nav className="mt-6 flex flex-col gap-1">
         {DASHBOARD_NAVIGATION.map((item) => {
-          const isActive = pathname.startsWith(item.href);
+          const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
 
           return (

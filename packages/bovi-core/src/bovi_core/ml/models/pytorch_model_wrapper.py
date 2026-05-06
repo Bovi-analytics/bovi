@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 import mlflow.pyfunc
 
 
-class PyTorchModelWrapper(mlflow.pyfunc.PythonModel):
+class PyTorchModelWrapper(mlflow.pyfunc.PythonModel):  # type: ignore[reportPrivateImportUsage]
     """
     Pyfunc wrapper for PyTorch models.
 
@@ -63,9 +63,7 @@ class PyTorchModelWrapper(mlflow.pyfunc.PythonModel):
             input_tensor = torch.tensor(model_input.values, dtype=torch.float32)
         elif isinstance(model_input, dict):
             # Dict input - convert each value to tensor
-            input_tensor = {
-                k: torch.tensor(v, dtype=torch.float32) for k, v in model_input.items()
-            }
+            input_tensor = {k: torch.tensor(v, dtype=torch.float32) for k, v in model_input.items()}
         else:
             # Assume numpy array or already tensor
             input_tensor = torch.tensor(model_input, dtype=torch.float32)

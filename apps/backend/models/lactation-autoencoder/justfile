@@ -1,0 +1,8 @@
+# Lactation Autoencoder Function App
+port := env("PORT_AUTOENCODER", "8002")
+
+run:
+    uv run python -m uvicorn main:app --reload --port {{port}}
+
+test:
+    uv run pytest tests/ -v

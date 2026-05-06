@@ -1,0 +1,96 @@
+[project]
+name = "bovi-models-douwe"
+version = "0.1.0"
+description = "Douwe's repository for creating ML models like yolo and lactation curves estimation"
+authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
+requires-python = ">= 3.11, < 3.12"
+dependencies = [
+    "bovi-core",
+    "pytest>=8.4.1",
+    "pytest-mock>=3.0.0",
+    "ruff>=0.1.0",
+    "ipython>=8.0.0",
+    "ipykernel==6.29.5",
+    "pyyaml>=6.0.0",
+    "python-dotenv>=1.0.0",
+    "numpy>=1.26.0",
+    "opencv-python>=4.10.0",
+    "databricks-connect>=15.4,<15.5",
+    "databricks-dlt>=0.1.0",
+    "requests>=2.32.3",
+    "azure-storage-blob>=12.26.0",
+    "torch>=2.7.1",
+    "ultralytics>=8.3.170",
+    "mlflow[databricks]>=3.1.4",
+    "databricks-sdk[notebook]>=0.60.0",
+    "pre-commit>=4.3.0",
+    "debugpy>=1.6.3",
+    "databricks>=0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-mock>=3.0.0",
+    "ruff>=0.1.0",
+    "ipython>=8.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/models"]
+
+[tool.uv.sources]
+bovi-core = { path = "../bovi-core", editable = true }
+
+# Secrets mapping: config_key = "secret_name"
+# Local: secret_name → SECRET_NAME in .env file
+# Databricks: secret_name stored in secrets scope
+[tool.secrets]
+gh_key = "github_pat"
+db_key = "databricks_pat"
+storage_account_key = "storage_account_key"
+
+[tool.blob_storage]
+storage_account_name = "playbehavior"
+container_name = "playbehavior"
+mount_point = "/mnt/playbehavior"
+
+[tool.databricks]
+cluster_name = "douwe_small_dev_cluster"
+workspace_host = "https://adb-65044996157806.6.azuredatabricks.net/"
+
+[tool.environments.databricks]
+secrets_scope = "douwe_development_secrets" # Change this to the secrets scope you want to use
+use_databricks_secrets = true
+
+[tool.environments.local]
+use_local_env = true
+env_file = ".env"
+
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]

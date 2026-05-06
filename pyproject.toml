@@ -13,6 +13,7 @@ members = [
     "packages/infrastructure/*",
     "apps/backend/api",
     "apps/backend/models/*",
+    "apps/infrastructure",
 ]
 
 [tool.uv.sources]
@@ -20,13 +21,14 @@ bovi-core = { workspace = true }
 lactationcurve = { workspace = true }
 lactation-autoencoder = { workspace = true }
 bovi-yolo = { workspace = true }
+bovi-infrastructure = { workspace = true }
 
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",
     "pytest-mock>=3.0.0",
     "ruff>=0.1.0",
-    "basedpyright>=1.38.2",
+    "basedpyright==1.39.3",
     "pre-commit>=4.5.1",
     "python-dotenv>=1.0.0",
     "httpx>=0.28.0",
@@ -49,15 +51,26 @@ indent-style = "space"
 typeCheckingMode = "basic"
 pythonVersion = "3.12"
 pythonPlatform = "All"
+# torch's type stubs don't expose tensor/as_tensor/float32/device/uint8 via __all__,
+# but PyTorch's documented public API uses them — disable the false positives.
+reportPrivateImportUsage = "none"
+exclude = [
+    "**/.venv",
+    "**/node_modules",
+    "**/notebooks/**",
+    "**/*.ipynb",
+]
 
 [tool.pytest.ini_options]
-import_mode = "importlib"
+importmode = "importlib"
+pythonpath = [
+    "packages/bovi-core/tests",
+    "apps/backend/models/lactation-autoencoder",
+]
 testpaths = [
     "packages/bovi-core/tests",
     "packages/models/lactationcurve/tests",
     "packages/models/lactation-autoencoder/tests",
-    "packages/models/bovi-yolo/tests",
     "apps/backend/api/tests",
-    "apps/backend/models/lactation-curves/tests",
     "apps/backend/models/lactation-autoencoder/tests",
 ]

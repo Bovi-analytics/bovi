@@ -1,32 +1,35 @@
-name: Deploy Azure Functions
+name: Deploy
 
-# TODO: Enable once Azure OIDC credentials are configured
-# on:
-#   push:
-#     branches:
-#       - main
-#     paths:
-#       - "apps/backend/**"
-#       - "packages/infrastructure/**"
-#       - "packages/models/lactationcurve/src/**"
-#       - "packages/models/lactation-autoencoder/src/**"
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/backend/**"
+      - "apps/infrastructure/**"
+      - "packages/infrastructure/**"
+      - "packages/models/lactationcurve/src/**"
+      - "packages/models/lactation-autoencoder/src/**"
+  workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
+  packages: write
 
 env:
   PYTHON_VERSION: "3.12"
   PULUMI_STACK: dev
-  INFRA_DIR: packages/infrastructure/pulumi
+  INFRA_DIR: apps/infrastructure
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/bovi-api
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
       infra: ${{ steps.filter.outputs.infra }}
-      apps: ${{ steps.filter.outputs.apps }}
+      api: ${{ steps.filter.outputs.api }}
+      functions: ${{ steps.filter.outputs.functions }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -34,14 +37,46 @@ jobs:
         with:
           filters: |
             infra:
+              - "apps/infrastructure/**"
               - "packages/infrastructure/**"
-            apps:
-              - "apps/backend/**"
-              - "packages/models/*/src/**"
+            api:
+              - "apps/backend/api/**"
+            functions:
+              - "apps/backend/models/**"
+              - "packages/models/lactationcurve/src/**"
+              - "packages/models/lactation-autoencoder/src/**"
+
+  build-api-image:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/backend/api
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   infra:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.infra == 'true'
+    needs: [detect-changes, build-api-image]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.infra == 'true' || needs.detect-changes.outputs.api == 'true') &&
+      (needs.build-api-image.result == 'skipped' || needs.build-api-image.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,11 +106,22 @@ jobs:
           AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
 
-  deploy:
+      - name: Restart Container App to pull new API image
+        if: needs.detect-changes.outputs.api == 'true'
+        run: |
+          az containerapp revision restart \
+            --name bovi-api-${{ env.PULUMI_STACK }} \
+            --resource-group Bovi-Analytics-Tools \
+            --revision $(az containerapp revision list \
+              --name bovi-api-${{ env.PULUMI_STACK }} \
+              --resource-group Bovi-Analytics-Tools \
+              --query "[0].name" -o tsv)
+
+  deploy-functions:
     needs: [detect-changes, infra]
     if: |
       always() &&
-      needs.detect-changes.outputs.apps == 'true' &&
+      needs.detect-changes.outputs.functions == 'true' &&
       (needs.infra.result == 'skipped' || needs.infra.result == 'success')
     runs-on: ubuntu-latest
     steps:
@@ -95,30 +141,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y azure-functions-core-tools-4
 
-      - name: Get function app names from Pulumi
-        id: pulumi
-        working-directory: ${{ env.INFRA_DIR }}
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
-          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
-        run: |
-          uv sync
-          curl -fsSL https://get.pulumi.com | sh
-          export PATH="$HOME/.pulumi/bin:$PATH"
-          pulumi login azblob://pulumi-state
-          pulumi stack select ${{ env.PULUMI_STACK }}
-          echo "curves_app_name=$(pulumi stack output lactation_curves_app_name)" >> "$GITHUB_OUTPUT"
-          echo "autoencoder_app_name=$(pulumi stack output lactation_autoencoder_app_name)" >> "$GITHUB_OUTPUT"
-
       - name: Build lactationcurve wheel
         working-directory: packages/models/lactationcurve
         run: uv build
 
       - name: Deploy lactation-curves
         working-directory: apps/backend/models/lactation-curves
-        run: func azure functionapp publish "${{ steps.pulumi.outputs.curves_app_name }}" --python
+        run: func azure functionapp publish "curves-${{ env.PULUMI_STACK }}" --python
 
       - name: Deploy lactation-autoencoder
         working-directory: apps/backend/models/lactation-autoencoder
-        run: func azure functionapp publish "${{ steps.pulumi.outputs.autoencoder_app_name }}" --python
+        run: func azure functionapp publish "autoencoder-${{ env.PULUMI_STACK }}" --python

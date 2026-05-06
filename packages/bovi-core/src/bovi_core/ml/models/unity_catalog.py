@@ -23,7 +23,8 @@ def _get_next_experiment_run(
 
     Args:
         experiment_base_path: Base path without run number
-            (e.g., "/Users/email@example.com/projects/bovi-models-template/data/experiments/lactation_autoencoder/versions/1")
+            (e.g., "/Users/email@example.com/projects/
+            bovi-models-template/.../lactation_autoencoder/versions/1")
         verbose: Print debug information
 
     Returns:
@@ -74,7 +75,8 @@ def _generate_mlflow_experiment_name(
     """
     Generate MLflow experiment name from config.
 
-    Format: /Users/{email}/projects/{project_name}/data/experiments/{experiment_name}/versions/{version}/run_{n}
+    Format: /Users/{email}/projects/{project_name}/data/
+    experiments/{experiment_name}/versions/{version}/run_{n}
 
     Args:
         config: Config instance with project and run settings (must have author_name, author_email)
@@ -99,8 +101,13 @@ def _generate_mlflow_experiment_name(
     experiment_version = getattr(config.experiment, "experiment_version", "v1")
 
     # Build base path (without run number)
-    # Format: /Users/{email}/projects/{project_name}/data/experiments/{experiment_name}/versions/{version}
-    experiment_base_path = f"/Users/{author_email}/projects/{project_name}/data/experiments/{experiment_name}/versions/{experiment_version}"
+    # Format: /Users/{email}/projects/{project_name}/data/
+    # experiments/{experiment_name}/versions/{version}
+    experiment_base_path = (
+        f"/Users/{author_email}/projects/{project_name}"
+        f"/data/experiments/{experiment_name}"
+        f"/versions/{experiment_version}"
+    )
 
     # Get next run number
     run_number = _get_next_experiment_run(experiment_base_path, verbose=verbose)
@@ -211,7 +218,8 @@ def register_to_unity_catalog(
         pyfunc_wrapper_class: Optional pyfunc wrapper class for TensorFlow SavedModels.
             Required for TF SavedModels to map semantic names to generic TF names.
         mlflow_experiment_name: MLflow experiment path for Databricks tracking.
-            If None, auto-generated as "/Users/{email}/projects/{project_name}/data/experiments/{experiment_name}/versions/{version}/run_{n}"
+            If None, auto-generated as "/Users/{email}/projects/
+            {project_name}/.../versions/{version}/run_{n}"
             where email and project_name come from config, and run number auto-increments.
             Parent directories are created automatically, and staging artifacts are cleaned up
             after successful registration to Unity Catalog.
@@ -304,14 +312,16 @@ def register_to_unity_catalog(
                 import numpy as np
 
                 raw_input = dataset.get_input_example(n_samples=1, batch=True)
+                assert isinstance(raw_input, dict)
 
                 # Transform through predictor to get TensorFlow-ready shapes
-                if hasattr(model, "predictor") and hasattr(model.predictor, "_prepare_inputs"):
+                predictor = getattr(model, "predictor", None)
+                if predictor is not None and hasattr(predictor, "_prepare_inputs"):
                     # Convert batched dict to list for predictor
                     batch_size = next(iter(raw_input.values())).shape[0]
                     data_list = [{k: v[i] for k, v in raw_input.items()} for i in range(batch_size)]
                     # Apply transforms - this may return TensorFlow tensors
-                    transformed_inputs = model.predictor._prepare_inputs(data_list)
+                    transformed_inputs = predictor._prepare_inputs(data_list)
 
                     # Convert TensorFlow tensors to numpy arrays for MLflow compatibility
                     # MLflow requires numpy arrays (JSON serializable) for input_example
@@ -381,6 +391,7 @@ def register_to_unity_catalog(
         verbose=verbose,
         pyfunc_wrapper_class=pyfunc_wrapper_class,
     )
+    assert model_version is not None
 
     if verbose:
         print(f"   ✅ Registered model version: {model_version.version}")
@@ -567,7 +578,10 @@ def _get_config_artifact_path(model: "Model") -> Optional[str]:
     Returns:
         Path to config file, or None if not available
     """
-    if hasattr(model.config.experiment, "config_file_path") and model.config.experiment.config_file_path:
+    if (
+        hasattr(model.config.experiment, "config_file_path")
+        and model.config.experiment.config_file_path
+    ):
         return str(model.config.experiment.config_file_path)
     return None
 
@@ -582,7 +596,10 @@ def _get_pyproject_artifact_path(model: "Model") -> Optional[str]:
     Returns:
         Path to pyproject.toml file, or None if not available
     """
-    if hasattr(model.config.project, "pyproject_file_path") and model.config.project.pyproject_file_path:
+    if (
+        hasattr(model.config.project, "pyproject_file_path")
+        and model.config.project.pyproject_file_path
+    ):
         return str(model.config.project.pyproject_file_path)
     return None
 

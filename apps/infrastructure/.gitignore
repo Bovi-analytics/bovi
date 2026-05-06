@@ -1,0 +1,10 @@
+*.pyc
+__pycache__/
+venv/
+.venv/
+
+# Env files with secrets (keep .example files)
+.env
+.env.*
+!.env.example
+!.env.*.example

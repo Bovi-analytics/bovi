@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Checked-in pre-commit hook — runs automatically via core.hooksPath
+# No tools to install, no setup steps to remember.
+
+if command -v uv &>/dev/null; then
+    uv run pre-commit run --hook-stage pre-commit
+else
+    echo "WARNING: uv not found — skipping pre-commit hooks."
+    echo "Install uv: https://docs.astral.sh/uv/getting-started/installation/"
+fi

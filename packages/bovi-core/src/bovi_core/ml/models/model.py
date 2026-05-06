@@ -1,15 +1,8 @@
 import logging
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generic, List, Optional, TypeVar, Union
-
-import numpy as np
-import torch
-import torch.nn as nn
-from ultralytics import YOLO
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 from bovi_core.config import Config
-from bovi_core.utils.path_utils import resolve_data_path
 
 if TYPE_CHECKING:
     from bovi_core.ml.dataloaders.base import Dataset
@@ -17,8 +10,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Define the base types that models can be
-ModelType = TypeVar("ModelType", bound=Union[nn.Module, YOLO, Any])
+# Define the base types that models can be. Bound is Any at runtime so that
+# bovi-core stays slim — torch/ultralytics are not imported here. Framework-specific
+# subclasses narrow the type via their own generic parameter.
+ModelType = TypeVar("ModelType", bound=Any)
 
 
 class Model(Generic[ModelType], ABC):
@@ -52,6 +47,9 @@ class Model(Generic[ModelType], ABC):
 
     # Prediction interface
     predictor: "PredictionInterface"
+
+    # MLflow signature (set after registration)
+    _signature: Any
 
     def __init__(
         self,
@@ -268,7 +266,8 @@ class Model(Generic[ModelType], ABC):
             pyfunc_wrapper_class: Optional pyfunc wrapper class for TensorFlow SavedModels.
                 Required for TF SavedModels to map semantic names to generic TF names.
             mlflow_experiment_name: MLflow experiment path for Databricks tracking.
-                If None, auto-generated as "/Users/{email}/{experiment_name}/{experiment_version}/run_{n}".
+                If None, auto-generated as
+                "/Users/{email}/{experiment_name}/{version}/run_{n}".
 
         Returns:
             mlflow.entities.model_registry.ModelVersion

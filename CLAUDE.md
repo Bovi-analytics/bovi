@@ -22,19 +22,24 @@ Dashboard → Central API → PostgreSQL + proxies to model Function Apps (inter
 
 ## Commands
 
+### Workspace (from repo root)
 ```bash
-uv sync --all-packages           # Install all workspace dependencies
-uv run pytest                    # Run all tests
-uv run ruff check --fix && uv run ruff format  # Lint and format
+just sync                        # Install all workspace dependencies
+just test                        # Run all tests across all packages
+just lint                        # Lint and format all code
 just run-api                     # Run central API locally
 just run-dashboard               # Run dashboard locally (bun)
-just test-core                   # Test bovi-core only
-just test-lactationcurve         # Test lactationcurve only
-just test-autoencoder            # Test autoencoder library only
-just test-yolo                   # Test bovi-yolo only
-just test-api                    # Test central API only
-just test-lactation-curves-app   # Test lactation-curves Function App
-just test-autoencoder-app        # Test autoencoder Function App
+```
+
+### Per-package (cd into the package directory first)
+```bash
+cd packages/bovi-core && just test
+cd packages/models/bovi-yolo && just test
+cd packages/models/lactationcurve && just test
+cd packages/models/lactationcurve && just build
+cd packages/models/lactationcurve && just publish
+cd apps/backend/api && just test
+cd apps/backend/models/lactation-curves && just test
 ```
 
 ## Architecture

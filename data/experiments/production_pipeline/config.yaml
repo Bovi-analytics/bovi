@@ -1,0 +1,88 @@
+# Production Pipeline Example
+# A more complex, realistic config showing the power of the config system
+
+experiment_name: production_pipeline
+experiment_version: 2
+description: "Production data pipeline with transforms"
+verbose: 1
+
+# Data pipeline configuration
+dataloaders:
+  train:
+    # Data source
+    source:
+      type: lactation_pkl
+      json_root_dir: "data/experiments/production/json/"
+      herd_stats_dir: "data/experiments/production/pkl/"
+      file_pattern: "*.json"
+
+    # Transform pipeline (order matters!)
+    transforms:
+      # 1. Fill missing values
+      - name: imputation
+        params:
+          method: forward_fill
+          fields: ["milk"]
+
+      # 2. Convert event strings to integers
+      - name: event_tokenization
+
+      # 3. Normalize milk to 0-1 range
+      - name: milk_normalization
+        params:
+          max_milk: 80.0
+
+      # 4. Pad sequences to fixed length
+      - name: padding
+        params:
+          max_length: 304
+
+    # Framework and loader settings
+    framework: tensorflow
+    dataloader:
+      batch_size: 32
+      shuffle: true
+      num_workers: 4
+      prefetch_factor: 2
+      drop_last: false
+
+  validation:
+    source:
+      type: lactation_pkl
+      json_root_dir: "data/experiments/production/json/"
+      herd_stats_dir: "data/experiments/production/pkl/"
+
+    transforms:
+      - name: imputation
+        params:
+          method: forward_fill
+
+      - name: event_tokenization
+
+      - name: milk_normalization
+        params:
+          max_milk: 80.0
+
+    framework: tensorflow
+    dataloader:
+      batch_size: 64
+      shuffle: false
+      num_workers: 2
+
+# Model configuration
+models:
+  autoencoder:
+    type: keras_autoencoder
+    framework: tensorflow
+    architecture:
+      input_dim: 304
+      latent_dim: 64
+      num_events: 15
+
+# Training configuration
+training:
+  epochs: 50
+  early_stopping_patience: 10
+  learning_rate: 0.001
+  optimizer: "adam"
+  loss: "mse"

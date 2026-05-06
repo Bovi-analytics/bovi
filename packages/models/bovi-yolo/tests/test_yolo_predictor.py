@@ -21,9 +21,7 @@ class TestYOLOPredictorInitialization:
         predictor = YOLOPredictor(config=yolo_config)
         assert predictor.model_instance is None
 
-    def test_model_instance_not_set_raises(
-        self, yolo_config: Config
-    ) -> None:
+    def test_model_instance_not_set_raises(self, yolo_config: Config) -> None:
         """Test predict raises when model not set."""
         from bovi_yolo.predictors import PredictionError, YOLOPredictor
 
@@ -82,9 +80,7 @@ class TestYOLOPredictorPredict:
         mock_result = MagicMock()
         mock_result.orig_img = sample_image
         mock_boxes = MagicMock()
-        mock_boxes.xyxy.cpu().numpy.return_value = np.array(
-            [[10, 10, 100, 100]]
-        )
+        mock_boxes.xyxy.cpu().numpy.return_value = np.array([[10, 10, 100, 100]])
         mock_boxes.cls.cpu().numpy.return_value = np.array([0])
         mock_boxes.conf.cpu().numpy.return_value = np.array([0.95])
         mock_result.boxes = mock_boxes
@@ -113,9 +109,7 @@ class TestYOLOPredictorPredict:
         mock_result = MagicMock()
         mock_result.orig_img = sample_image
         mock_boxes = MagicMock()
-        mock_boxes.xyxy.cpu().numpy.return_value = np.array(
-            [[10, 10, 100, 100]]
-        )
+        mock_boxes.xyxy.cpu().numpy.return_value = np.array([[10, 10, 100, 100]])
         mock_boxes.cls.cpu().numpy.return_value = np.array([0])
         mock_boxes.conf.cpu().numpy.return_value = np.array([0.95])
         mock_result.boxes = mock_boxes

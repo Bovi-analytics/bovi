@@ -9,14 +9,15 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 if TYPE_CHECKING:
+    from mlflow.models import ModelSignature
+
     from bovi_core.config import Config
     from bovi_core.ml.models import Model
-    from mlflow.models import ModelSignature
 
     from .data_source import DataSource
 
@@ -51,7 +52,7 @@ class Dataset(ABC):
         pass
 
     @abstractmethod
-    def __getitem__(self, index: int) -> dict[str, object]:
+    def __getitem__(self, index: int) -> dict[str, Any]:
         """
         Get item by index.
 
@@ -64,7 +65,7 @@ class Dataset(ABC):
         pass
 
     @property
-    def metadata(self) -> dict[str, object]:
+    def metadata(self) -> dict[str, Any]:
         """Dataset-level metadata."""
         return {
             "length": len(self),
@@ -81,7 +82,7 @@ class Dataset(ABC):
         n_samples: int = 1,
         batch: bool = True,
         indices: list[int] | None = None,
-    ) -> dict[str, object] | list[dict[str, object]]:
+    ) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Generate input example for MLflow signature inference.
 
@@ -142,7 +143,7 @@ class Dataset(ABC):
         # Batch samples together
         return self._batch_samples(samples)
 
-    def _batch_samples(self, samples: list[dict[str, object]]) -> dict[str, object]:
+    def _batch_samples(self, samples: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Batch multiple sample dicts into single batched dict.
 
@@ -174,7 +175,7 @@ class Dataset(ABC):
         if not samples:
             return {}
 
-        batched: dict[str, object] = {}
+        batched: dict[str, Any] = {}
         keys = samples[0].keys()
 
         for key in keys:
@@ -234,7 +235,7 @@ class Dataset(ABC):
         self,
         model: Model[object] | None = None,
         n_samples: int = 5,
-        predict_kwargs: dict[str, object] | None = None,
+        predict_kwargs: dict[str, Any] | None = None,
     ) -> ModelSignature:
         """
         Generate MLflow signature from dataset samples.
@@ -310,7 +311,7 @@ class Dataset(ABC):
             )
             return infer_signature(input_example, None)
 
-    def get_signature_info(self) -> dict[str, object]:
+    def get_signature_info(self) -> dict[str, Any]:
         """
         Get information about the dataset schema for debugging.
 

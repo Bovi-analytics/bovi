@@ -1,4 +1,8 @@
+"use client";
+
 import type { ReactElement } from "react";
+import { useWeightUnit } from "@/app/providers/unit-provider";
+import { formatWeight, getUnitLabel } from "@/lib/units";
 
 const CHARACTERISTIC_META: Record<string, { label: string; unit: string }> = {
   peak_yield: { label: "Peak Yield", unit: "kg/day" },
@@ -6,6 +10,9 @@ const CHARACTERISTIC_META: Record<string, { label: string; unit: string }> = {
   cumulative_milk_yield: { label: "Cumulative Yield", unit: "kg" },
   persistency: { label: "Persistency", unit: "" },
 };
+
+/** Characteristics whose values represent a weight (need conversion). */
+const WEIGHT_CHARACTERISTICS = new Set(["peak_yield", "cumulative_milk_yield"]);
 
 interface StatCardProps {
   readonly name: string;
@@ -15,6 +22,12 @@ interface StatCardProps {
 
 export function StatCard({ name, value, isLoading }: StatCardProps): ReactElement {
   const meta = CHARACTERISTIC_META[name] ?? { label: name, unit: "" };
+  const { weightUnit } = useWeightUnit();
+
+  const isWeight = WEIGHT_CHARACTERISTICS.has(name);
+  const displayUnit = isWeight ? getUnitLabel(meta.unit, weightUnit) : meta.unit;
+  const displayValue =
+    value !== null && isWeight ? formatWeight(value, weightUnit) : value?.toFixed(1) ?? null;
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
@@ -22,15 +35,15 @@ export function StatCard({ name, value, isLoading }: StatCardProps): ReactElemen
       <div className="mt-2">
         {isLoading ? (
           <p className="text-2xl font-bold text-muted-foreground/50">…</p>
-        ) : value !== null ? (
+        ) : displayValue !== null ? (
           <p className="text-2xl font-bold text-foreground">
-            {value.toFixed(1)}
-            {meta.unit && (
-              <span className="ml-1 text-sm font-normal text-muted-foreground">{meta.unit}</span>
+            {displayValue}
+            {displayUnit && (
+              <span className="ml-1 text-sm font-normal text-muted-foreground">{displayUnit}</span>
             )}
           </p>
         ) : (
-          <p className="text-2xl font-bold text-destructive">—</p>
+          <p className="text-2xl font-bold text-destructive">-</p>
         )}
       </div>
     </div>

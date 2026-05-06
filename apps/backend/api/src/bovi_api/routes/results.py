@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from bovi_api.database import get_session
 from bovi_api.models import FittingResult, FittingResultCreate, FittingResultRead
@@ -51,6 +51,6 @@ async def list_results(
     if source_app:
         query = query.where(FittingResult.source_app == source_app)
 
-    query = query.order_by(FittingResult.created_at.desc()).offset(offset).limit(limit)
-    results = await session.exec(query)
-    return list(results.all())
+    query = query.order_by(col(FittingResult.created_at).desc()).offset(offset).limit(limit)
+    result = await session.execute(query)
+    return list(result.scalars().all())

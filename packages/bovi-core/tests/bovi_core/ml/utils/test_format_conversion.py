@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from bovi_core.ml.utils.format_conversion import (
     convert_box_format,
     convert_color_format,
@@ -81,11 +80,7 @@ class TestConvertBoxFormat:
 
     def test_multiple_boxes(self):
         """Test conversion with multiple boxes."""
-        boxes_xyxy = np.array([
-            [10, 20, 100, 200],
-            [50, 60, 150, 160],
-            [30, 40, 120, 140]
-        ])
+        boxes_xyxy = np.array([[10, 20, 100, 200], [50, 60, 150, 160], [30, 40, 120, 140]])
         boxes_xywh = convert_box_format(boxes_xyxy, "xyxy", "xywh")
 
         assert boxes_xywh.shape == (3, 4)
@@ -129,10 +124,13 @@ class TestConvertColorFormat:
     def test_bgr_to_rgb(self):
         """Test conversion from BGR to RGB."""
         # Create a simple image with known BGR values
-        bgr_image = np.array([
-            [[255, 0, 0], [0, 255, 0]],  # Blue, Green
-            [[0, 0, 255], [128, 128, 128]]  # Red, Gray
-        ], dtype=np.uint8)
+        bgr_image = np.array(
+            [
+                [[255, 0, 0], [0, 255, 0]],  # Blue, Green
+                [[0, 0, 255], [128, 128, 128]],  # Red, Gray
+            ],
+            dtype=np.uint8,
+        )
 
         rgb_image = convert_color_format(bgr_image, "bgr", "rgb")
 
@@ -145,10 +143,13 @@ class TestConvertColorFormat:
 
     def test_rgb_to_bgr(self):
         """Test conversion from RGB to BGR."""
-        rgb_image = np.array([
-            [[255, 0, 0], [0, 255, 0]],  # Red, Green
-            [[0, 0, 255], [128, 128, 128]]  # Blue, Gray
-        ], dtype=np.uint8)
+        rgb_image = np.array(
+            [
+                [[255, 0, 0], [0, 255, 0]],  # Red, Green
+                [[0, 0, 255], [128, 128, 128]],  # Blue, Gray
+            ],
+            dtype=np.uint8,
+        )
 
         bgr_image = convert_color_format(rgb_image, "rgb", "bgr")
 
@@ -208,7 +209,7 @@ class TestStandardizeBaseOutput:
             "metadata": {
                 "model_type": "yolo",
                 "box_format": "xyxy",
-            }
+            },
         }
 
         result = standardize_base_output(base_dict, target_box_format="xywh")
@@ -223,10 +224,7 @@ class TestStandardizeBaseOutput:
 
     def test_no_conversion_if_same_format(self):
         """Test that no conversion happens if already in target format."""
-        base_dict = {
-            "boxes_xyxy": [[10, 20, 100, 200]],
-            "metadata": {"box_format": "xyxy"}
-        }
+        base_dict = {"boxes_xyxy": [[10, 20, 100, 200]], "metadata": {"box_format": "xyxy"}}
 
         result = standardize_base_output(base_dict, target_box_format="xyxy")
 
@@ -235,10 +233,7 @@ class TestStandardizeBaseOutput:
 
     def test_no_conversion_if_target_none(self):
         """Test that no conversion happens if target is None."""
-        base_dict = {
-            "boxes_xyxy": [[10, 20, 100, 200]],
-            "metadata": {"box_format": "xyxy"}
-        }
+        base_dict = {"boxes_xyxy": [[10, 20, 100, 200]], "metadata": {"box_format": "xyxy"}}
 
         result = standardize_base_output(base_dict, target_box_format=None)
 
@@ -262,16 +257,10 @@ class TestStandardizeBaseOutput:
         """Test that color format conversion is noted but not performed."""
         base_dict = {
             "boxes_xyxy": [[10, 20, 100, 200]],
-            "metadata": {
-                "box_format": "xyxy",
-                "color_format": "bgr"
-            }
+            "metadata": {"box_format": "xyxy", "color_format": "bgr"},
         }
 
-        result = standardize_base_output(
-            base_dict,
-            target_color_format="rgb"
-        )
+        result = standardize_base_output(base_dict, target_color_format="rgb")
 
         # Should note that conversion is needed
         assert result["metadata"]["target_color_format"] == "rgb"

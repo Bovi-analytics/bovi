@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 # We need to ensure we can import the class we're testing
@@ -21,7 +19,7 @@ class TestConfigInitialization:
         assert config.environment == "local"  # Pytest runs in a local env
 
     def test_file_not_found_errors(self, tmp_path):
-        """Test that the system raises appropriate errors for missing files and invalid parameters."""
+        """Test appropriate errors for missing files and invalid params."""
         Config._instance = None
 
         # Test missing run file (auto-resolved from experiment name, but experiment doesn't exist)
@@ -64,7 +62,9 @@ class TestConfigInitialization:
         # Test neither experiment_name nor config_file_path provided
         project_file_path = tmp_path / "pyproject.toml"
         project_file_path.write_text(MOCK_PYPROJECT_TOML_ELABORATE)
-        with pytest.raises(ValueError, match="experiment_name or config_file_path must be provided"):
+        with pytest.raises(
+            ValueError, match="experiment_name or config_file_path must be provided"
+        ):
             Config(project_file_path=project_file_path)
 
     def test_successful_initialization_with_experiment_name(self, tmp_path):
@@ -89,7 +89,7 @@ class TestConfigInitialization:
         assert config.experiment is not None
 
     def test_successful_initialization_with_config_file_path_only(self, tmp_path):
-        """Test successful initialization using only config_file_path (experiment_name extracted)."""
+        """Test init using only config_file_path (experiment_name extracted)."""
         Config._instance = None
 
         # Create project structure
@@ -101,7 +101,9 @@ class TestConfigInitialization:
         exp_dir.mkdir()
         config_file = exp_dir / "config.yaml"
         # Use inline config with matching experiment_name
-        config_file.write_text("experiment_name: extracted_exp\nexperiment_version: 1\nbatch_size: 32")
+        config_file.write_text(
+            "experiment_name: extracted_exp\nexperiment_version: 1\nbatch_size: 32"
+        )
 
         # Should successfully initialize and extract experiment_name from path
         config = Config(config_file_path=config_file, project_file_path=project_file_path)
@@ -148,10 +150,10 @@ class TestAttributeAccessAndImmutability:
         config = config_setup
 
         # Test that all path attributes exist and are strings
-        assert hasattr(config.project, 'src_dir')
-        assert hasattr(config.project, 'notebooks_dir')
-        assert hasattr(config.project, 'data_dir')
-        assert hasattr(config.project, 'project_root')
+        assert hasattr(config.project, "src_dir")
+        assert hasattr(config.project, "notebooks_dir")
+        assert hasattr(config.project, "data_dir")
+        assert hasattr(config.project, "project_root")
 
         # Test that paths are non-empty strings
         assert isinstance(config.project.src_dir, str) and config.project.src_dir
@@ -160,8 +162,8 @@ class TestAttributeAccessAndImmutability:
         assert isinstance(config.project.project_root, str) and config.project.project_root
 
         # Test that data_dir ends with 'data' (following same pattern as notebooks_dir)
-        assert config.project.data_dir.endswith('data')
-        assert config.project.notebooks_dir.endswith('notebooks')
+        assert config.project.data_dir.endswith("data")
+        assert config.project.notebooks_dir.endswith("notebooks")
 
     def test_project_config_is_immutable(self, config_setup):
         """CRITICAL: Test that we cannot overwrite project-level configuration."""
@@ -194,40 +196,34 @@ class TestTemplatingLogic:
     def test_basic_path_resolution(self, config_setup):
         """Test a standard, successful path resolution."""
         path = config_setup.experiment.models.yolo.weights_blob.best
-        expected = "elaborate_test_project/models/yolo/weights/yolo_best.pt"
-        if path != expected:
-            print(f"path: {path}")
-            print(f"expected: {expected}")
-        assert path == expected
+        expected_suffix = "elaborate_test_project/models/yolo/weights/yolo_best.pt"
+        assert str(path).endswith(expected_suffix), (
+            f"Expected path ending with '{expected_suffix}', got '{path}'"
+        )
 
     def test_model_variable_override(self, config_setup):
         """Test that a model's 'vars' section overrides the defaults."""
         path = config_setup.experiment.models.snn.config_path.default
         # Note: model_name should be "snn_override", not "snn"
-        expected = "elaborate_test_project/models/snn_override/config/snn_config.yml"
-        if path != expected:
-            print(f"path: {path}")
-            print(f"expected: {expected}")
-        assert path == expected
+        expected_suffix = "elaborate_test_project/models/snn_override/config/snn_config.yml"
+        assert str(path).endswith(expected_suffix), (
+            f"Expected path ending with '{expected_suffix}', got '{path}'"
+        )
 
     def test_multiple_templates_for_one_source(self, config_setup):
-        """Test that multiple templates ('weights_blob', 'temp_weights') are generated from one source."""
+        """Test multiple templates are generated from one source."""
         yolo_model = config_setup.experiment.models.yolo
 
-        # Check first template
+        # Check first template (relative path resolved to absolute)
         path1 = yolo_model.weights_blob.large
-        expected1 = "elaborate_test_project/models/yolo/weights/yolo_large.pt"
-        if path1 != expected1:
-            print(f"path1: {path1}")
-            print(f"expected1: {expected1}")
-        assert path1 == expected1
+        expected_suffix1 = "elaborate_test_project/models/yolo/weights/yolo_large.pt"
+        assert str(path1).endswith(expected_suffix1), (
+            f"Expected path ending with '{expected_suffix1}', got '{path1}'"
+        )
 
-        # Check second template
+        # Check second template (already absolute — starts with /)
         path2 = yolo_model.temp_weights.large
         expected2 = "/local_disk0/tmp/yolo/weights/yolo_large.pt"
-        if path2 != expected2:
-            print(f"path2: {path2}")
-            print(f"expected2: {expected2}")
         assert path2 == expected2
 
     def test_unresolved_template_variable_is_handled_safely(self, config_setup):
@@ -309,6 +305,55 @@ class TestTemplatingLogic:
         # The existing variables should be filled, the missing one should remain
         expected = "elaborate_test_project/data/yolo/{missing_var}"
         assert path == expected
+
+    def test_per_model_version_in_template(self, config_setup):
+        """Test that a model's 'version' field is available as {model_version} in templates."""
+        path_templates = {
+            "versioned_weights": {
+                "template": "data/versions/v{model_version}/weights/{weights_file}",
+                "uses": "weights_file",
+            }
+        }
+        test_models = {
+            "autoencoder": {
+                "version": 15,
+                "template_vars": {
+                    "weights_file": {"default": "autoencoder"},
+                },
+            }
+        }
+        project_vars = config_setup._flatten_config_node(config_setup.project)
+        processed = config_setup._process_templated_models(
+            test_models, path_templates, project_vars
+        )
+        path = processed["autoencoder"]["versioned_weights"]["default"]
+        assert "v15" in path
+        assert path.endswith("weights/autoencoder")
+
+    def test_per_model_version_different_per_model(self, config_setup):
+        """Test that different models can have different versions."""
+        path_templates = {
+            "versioned_weights": {
+                "template": "data/versions/v{model_version}/weights/{weights_file}",
+                "uses": "weights_file",
+            }
+        }
+        test_models = {
+            "model_a": {
+                "version": 10,
+                "template_vars": {"weights_file": {"default": "a"}},
+            },
+            "model_b": {
+                "version": 20,
+                "template_vars": {"weights_file": {"default": "b"}},
+            },
+        }
+        project_vars = config_setup._flatten_config_node(config_setup.project)
+        processed = config_setup._process_templated_models(
+            test_models, path_templates, project_vars
+        )
+        assert "v10" in processed["model_a"]["versioned_weights"]["default"]
+        assert "v20" in processed["model_b"]["versioned_weights"]["default"]
 
 
 # --- TEST SINGLETON PATTERN ---

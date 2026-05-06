@@ -297,7 +297,7 @@ def ISLC(
         )
         rows.append({"TestId": test_id, "305_milk_yield": cumulative_yield})
 
-    return pd.DataFrame(rows, columns=["305_milk_yield", "TestId"])
+    return pd.DataFrame(rows, columns=pd.Index(["305_milk_yield", "TestId"]))
 
 
 def ISLC_ICAR(
@@ -403,7 +403,7 @@ def ISLC_ICAR(
 
         rows.append({"TestId": test_id, "lactation_milk_yield": cumulative_yield})
 
-    return pd.DataFrame(rows, columns=["lactation_milk_yield", "TestId"])
+    return pd.DataFrame(rows, columns=pd.Index(["lactation_milk_yield", "TestId"]))
 
 
 def ISLC_ICAR_method(
@@ -648,7 +648,7 @@ def interpolation_standard_lc(
         rows.append(row)
 
     if not rows:
-        return pd.DataFrame(columns=[*group.columns, "GridDay", "MilkYieldInterp"])
+        return pd.DataFrame(columns=pd.Index([*group.columns, "GridDay", "MilkYieldInterp"]))
 
     return pd.DataFrame(rows)
 

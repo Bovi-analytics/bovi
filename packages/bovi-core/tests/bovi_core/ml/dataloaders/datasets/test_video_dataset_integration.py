@@ -12,7 +12,6 @@ import tempfile
 import cv2
 import numpy as np
 import pytest
-
 from bovi_core.ml.dataloaders.datasets.video_dataset import VideoDataset
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
 
@@ -31,7 +30,7 @@ def sample_video_file():
 
     width, height = 100, 100
     fps = 10
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore[attr-defined]
     out = cv2.VideoWriter(path, fourcc, fps, (width, height))
 
     for i in range(10):

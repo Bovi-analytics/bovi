@@ -10,8 +10,7 @@ NumPy-First Architecture:
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .adapters import FrameworkAdapter
 from .base import AbstractDataLoader, Dataset, DataSource, UniversalTransform
@@ -29,7 +28,7 @@ def create_dataloader(
     model_name: str,
     split: str = "train",
     framework: str = "pytorch",
-    **override_params: object,
+    **override_params: Any,
 ) -> AbstractDataLoader:
     """
     Create dataloader from config for specific model and split.
@@ -95,10 +94,15 @@ def create_dataloader(
     # Create dataset (NO transforms - returns raw NumPy)
     dataset = _create_dataset(source, config, dataloader_config)
 
-    # Build transform pipeline if configured
-    transform: Callable[..., dict[str, object]] | None = None
+    # Build transform pipeline if configured. build_vision_pipeline returns
+    # an albumentations Compose, which is callable but typed as object here
+    # to avoid a hard dependency on albumentations in bovi-core.
+    transform: Any = None
     if hasattr(dataloader_config, "transforms") and dataloader_config.transforms:
-        transform = build_vision_pipeline(dataloader_config.transforms)
+        pipeline = build_vision_pipeline(dataloader_config.transforms)
+        if not callable(pipeline):
+            raise TypeError("build_vision_pipeline must return a callable")
+        transform = pipeline
 
     # Create loader WITH transform
     if framework == "pytorch":
@@ -143,26 +147,12 @@ def _create_source(source_config: object, config: Config) -> DataSource:
         # Azure Blob Storage source
         return BlobImageSource(
             config=config,
-            container=getattr(source_config, "container", ""),
             prefix=getattr(source_config, "prefix", ""),
-            file_pattern=getattr(source_config, "file_pattern", "*.jpg"),
-        )
-
-    elif source_type == "unity_catalog_table":
-        # Unity Catalog Parquet source
-        from .sources.unity_catalog_source import UnityCatalogParquetSource
-
-        return UnityCatalogParquetSource(
-            config=config,
-            catalog=getattr(source_config, "catalog", ""),
-            schema=getattr(source_config, "schema", ""),
-            table=getattr(source_config, "table", ""),
+            substring=getattr(source_config, "substring", ""),
         )
 
     else:
-        raise ValueError(
-            f"Unknown source type: {source_type}. Supported: local, blob, unity_catalog_table"
-        )
+        raise ValueError(f"Unknown source type: {source_type}. Supported: local, blob")
 
 
 def _create_dataset(source: DataSource, config: Config, dataloader_config: object) -> Dataset:

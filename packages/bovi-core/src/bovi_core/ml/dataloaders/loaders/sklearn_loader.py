@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Iterator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -161,7 +161,7 @@ class SklearnDataLoader(AbstractDataLoader):
         """
         return None
 
-    def get_sklearn_iterator(self) -> Iterator[dict[str, object]]:
+    def get_sklearn_iterator(self) -> Iterator[dict[str, Any]]:
         """
         Return simple iterator.
 
@@ -170,7 +170,7 @@ class SklearnDataLoader(AbstractDataLoader):
         """
         return iter(self)
 
-    def __iter__(self) -> Iterator[dict[str, object]]:
+    def __iter__(self) -> Iterator[dict[str, Any]]:
         """
         Iterate over batches.
 
@@ -195,7 +195,7 @@ class SklearnDataLoader(AbstractDataLoader):
             # Get keys from first item
             keys = batch_items[0].keys()
 
-            collated: dict[str, object] = {}
+            collated: dict[str, Any] = {}
             for key in keys:
                 items = [item[key] for item in batch_items]
 
@@ -242,7 +242,7 @@ class SklearnDataLoader(AbstractDataLoader):
         """Total number of samples."""
         return len(self.dataset)
 
-    def get_all_data(self) -> dict[str, object]:
+    def get_all_data(self) -> dict[str, Any]:
         """
         Load all data into memory at once.
 
@@ -260,7 +260,7 @@ class SklearnDataLoader(AbstractDataLoader):
         # Get keys from first item
         keys = all_items[0].keys()
 
-        result: dict[str, object] = {}
+        result: dict[str, Any] = {}
         for key in keys:
             items = [item[key] for item in all_items]
 

@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from bovi_core.ml.dataloaders.base import DataSource
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
 

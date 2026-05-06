@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 from bovi_core.ml import Model, ModelRegistry
 from typing_extensions import override
-from ultralytics import YOLO
+from ultralytics import YOLO  # type: ignore[reportPrivateImportUsage]
 
 if TYPE_CHECKING:
     from bovi_core.config import Config
@@ -165,7 +165,7 @@ class YOLOModel(Model[YOLO]):
         device = get_device()
 
         try:
-            loaded_model = mlflow.pytorch.load_model(self.weights_path)
+            loaded_model = mlflow.pytorch.load_model(self.weights_path)  # type: ignore[reportPrivateImportUsage]
             self.model = YOLO()
             self.model.model = loaded_model
             self.model.model = self.model.model.to(device)
@@ -352,7 +352,7 @@ class YOLOModel(Model[YOLO]):
     def from_config(
         cls,
         config: Config,
-        predictor: YOLOPredictor | None = None,
+        predictor: "YOLOPredictor | None" = None,  # type: ignore[reportInvalidTypeForm]
         weights_path: str | None = None,
     ) -> YOLOModel:
         """Create YOLOModel from Config object.

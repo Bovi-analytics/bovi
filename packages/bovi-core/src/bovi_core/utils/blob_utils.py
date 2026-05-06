@@ -1,14 +1,13 @@
 import json
 from typing import TYPE_CHECKING, List, Optional
 
-import cv2
 import numpy as np
 
 # TYPE_CHECKING is True during static type checking but False at runtime.
 # This allows us to import DBUtils for type annotations without causing
 # ImportError when pyspark is not available (e.g., in local development).
 if TYPE_CHECKING:
-    from pyspark.dbutils import DBUtils
+    from pyspark.dbutils import DBUtils  # type: ignore[import-not-found]
 
 
 import bovi_core.utils.dbfs_utils as dbfs_utils
@@ -182,8 +181,12 @@ def get_file_blob(blob_path: str, config: Config, verbose: int = 0) -> bytes:
 
 
 @with_config
-def get_image_stream(blob_path: str, config: Config, mode=cv2.IMREAD_COLOR, verbose: int = 0):
+def get_image_stream(blob_path: str, config: Config, mode: int | None = None, verbose: int = 0):
     """Downloads a blob and decodes it as an image."""
+    import cv2
+
+    if mode is None:
+        mode = cv2.IMREAD_COLOR
     stream = get_file_blob(blob_path, config=config, verbose=verbose)
     np_img_data = np.frombuffer(stream, np.uint8)
     try:
@@ -207,6 +210,8 @@ def get_json_stream(blob_path: str, config: Config) -> dict:
 @with_config
 def save_image_to_blob(image, blob_path: str, config: Config, verbose: int = 0):
     """Encodes an image and uploads it to a blob."""
+    import cv2
+
     container_client = config.container_client
     _, img_encoded = cv2.imencode(".png", image)
     blob_client = container_client.get_blob_client(blob=blob_path)

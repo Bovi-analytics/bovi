@@ -2,8 +2,9 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from testdata.mock_project import MOCK_PYPROJECT_TOML_ELABORATE
 from bovi_core.config import Config
+from testdata.mock_project import MOCK_PYPROJECT_TOML_ELABORATE
+
 # Import moved inside functions to work with pytest pythonpath configuration
 
 
@@ -13,8 +14,21 @@ def get_project_structure(project_root: Path):
         "src": project_root / "src",
         "bovi_core": project_root / "src" / "bovi_core",
         "experiments": project_root / "data" / "experiments" / "mock_exp",
-        "config_dir": project_root / "data" / "experiments" / "mock_exp" / "versions" / "v1" / "config",
-        "config_file": project_root / "data" / "experiments" / "mock_exp" / "versions" / "v1" / "config" / "config.yaml",
+        "config_dir": project_root
+        / "data"
+        / "experiments"
+        / "mock_exp"
+        / "versions"
+        / "v1"
+        / "config",
+        "config_file": project_root
+        / "data"
+        / "experiments"
+        / "mock_exp"
+        / "versions"
+        / "v1"
+        / "config"
+        / "config.yaml",
     }
 
 
@@ -50,6 +64,7 @@ def create_config_in_experiments(create_toml_at_root):
 
     # Create config file
     from testdata.mock_config import MOCK_CONFIG_YAML_ELABORATE
+
     structure["config_file"].write_text(MOCK_CONFIG_YAML_ELABORATE)
 
     return project_root
@@ -130,7 +145,10 @@ def config_setup(mock_project_root, monkeypatch):
     Config._instance = None
 
     # Initialize config with the paths to the temporary files
-    config = Config(config_file_path=str(structure["config_file"]), project_file_path=str(project_root / "pyproject.toml"))
+    config = Config(
+        config_file_path=str(structure["config_file"]),
+        project_file_path=str(project_root / "pyproject.toml"),
+    )
     return config
 
 

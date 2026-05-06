@@ -17,9 +17,7 @@ class TestImageValidationTransform:
         assert transform.max_size == 8192
         assert transform.required_channels == 3
 
-    def test_valid_image_passes(
-        self, sample_image: npt.NDArray[np.uint8]
-    ) -> None:
+    def test_valid_image_passes(self, sample_image: npt.NDArray[np.uint8]) -> None:
         """Test valid RGB image passes validation."""
         from bovi_yolo.dataloaders.transforms import ImageValidationTransform
 
@@ -87,9 +85,7 @@ class TestImageValidationTransform:
         """Test custom initialization parameters."""
         from bovi_yolo.dataloaders.transforms import ImageValidationTransform
 
-        transform = ImageValidationTransform(
-            min_size=64, max_size=1024, required_channels=1
-        )
+        transform = ImageValidationTransform(min_size=64, max_size=1024, required_channels=1)
         assert transform.min_size == 64
         assert transform.max_size == 1024
         assert transform.required_channels == 1
@@ -104,9 +100,7 @@ class TestImageValidationTransform:
         assert params["min_size"] == 64
         assert params["max_size"] == 4096
 
-    def test_preserves_other_data_keys(
-        self, sample_image: npt.NDArray[np.uint8]
-    ) -> None:
+    def test_preserves_other_data_keys(self, sample_image: npt.NDArray[np.uint8]) -> None:
         """Test validation preserves other keys in data dict."""
         from bovi_yolo.dataloaders.transforms import ImageValidationTransform
 
@@ -136,27 +130,19 @@ class TestImageResizeTransform:
         assert transform.target_size == (640, 640)
         assert transform.keep_aspect_ratio is True
 
-    def test_resize_without_aspect_ratio(
-        self, sample_image: npt.NDArray[np.uint8]
-    ) -> None:
+    def test_resize_without_aspect_ratio(self, sample_image: npt.NDArray[np.uint8]) -> None:
         """Test resize without keeping aspect ratio."""
         from bovi_yolo.dataloaders.transforms import ImageResizeTransform
 
-        transform = ImageResizeTransform(
-            target_size=(320, 320), keep_aspect_ratio=False
-        )
+        transform = ImageResizeTransform(target_size=(320, 320), keep_aspect_ratio=False)
         result = transform({"image": sample_image})
         assert result["image"].shape == (320, 320, 3)
 
-    def test_resize_with_aspect_ratio(
-        self, sample_image: npt.NDArray[np.uint8]
-    ) -> None:
+    def test_resize_with_aspect_ratio(self, sample_image: npt.NDArray[np.uint8]) -> None:
         """Test resize with aspect ratio preservation and padding."""
         from bovi_yolo.dataloaders.transforms import ImageResizeTransform
 
-        transform = ImageResizeTransform(
-            target_size=(640, 640), keep_aspect_ratio=True
-        )
+        transform = ImageResizeTransform(target_size=(640, 640), keep_aspect_ratio=True)
         result = transform({"image": sample_image})
         assert result["image"].shape == (640, 640, 3)
 
@@ -166,9 +152,7 @@ class TestImageResizeTransform:
 
         # Create a small image that will need padding
         image = np.zeros((100, 200, 3), dtype=np.uint8)
-        transform = ImageResizeTransform(
-            target_size=(640, 640), keep_aspect_ratio=True
-        )
+        transform = ImageResizeTransform(target_size=(640, 640), keep_aspect_ratio=True)
         result = transform({"image": image})
 
         # Check corner pixels (should be padded with 114)
@@ -194,17 +178,13 @@ class TestImageResizeTransform:
         """Test get_params returns correct dict."""
         from bovi_yolo.dataloaders.transforms import ImageResizeTransform
 
-        transform = ImageResizeTransform(
-            target_size=(320, 320), keep_aspect_ratio=False
-        )
+        transform = ImageResizeTransform(target_size=(320, 320), keep_aspect_ratio=False)
         params = transform.get_params()
         assert params["name"] == "image_resize"
         assert params["target_size"] == (320, 320)
         assert params["keep_aspect_ratio"] is False
 
-    def test_preserves_dtype(
-        self, sample_image: npt.NDArray[np.uint8]
-    ) -> None:
+    def test_preserves_dtype(self, sample_image: npt.NDArray[np.uint8]) -> None:
         """Test resize preserves uint8 dtype."""
         from bovi_yolo.dataloaders.transforms import ImageResizeTransform
 

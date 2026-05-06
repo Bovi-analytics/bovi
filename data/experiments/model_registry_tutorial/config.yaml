@@ -1,0 +1,58 @@
+# Model Registry Tutorial Configuration
+# This config demonstrates how to set up model paths for the registry system
+
+experiment_name: model_registry_tutorial
+experiment_version: 1
+verbose: 0
+
+# Model configurations
+models:
+  # DummyClassifier configuration
+  dummy_classifier:
+    # Template variables for path resolution
+    template_vars:
+      weights_file:
+        random: "dummy_random.pt"
+        trained: "dummy_trained.pt"
+
+    # Default weights location
+    default_weights_location: "temp"
+
+    # Temporary weights (for testing)
+    temp_weights:
+      random: "/tmp/dummy_random.pt"
+      trained: "/tmp/dummy_trained.pt"
+
+    # Local weights
+    local_weights:
+      best: "/Users/douwedekok/Work/Bovi/bovi-models-template/data/weights/dummy_classifier/best.pt"
+
+  # YOLO configuration (example)
+  yolo:
+    template_vars:
+      weights_file:
+        nano: "yolo11n.pt"
+        small: "yolo11s.pt"
+        medium: "yolo11m.pt"
+        large: "yolo11l.pt"
+        best: "yolo_best.pt"
+
+    default_weights_location: "local"
+
+    # Local weights
+    local_weights:
+      nano: "/Users/douwedekok/Work/Bovi/bovi-models-template/data/weights/yolo/yolo11n.pt"
+      small: "/Users/douwedekok/Work/Bovi/bovi-models-template/data/weights/yolo/yolo11s.pt"
+      medium: "/Users/douwedekok/Work/Bovi/bovi-models-template/data/weights/yolo/yolo11m.pt"
+      large: "/Users/douwedekok/Work/Bovi/bovi-models-template/data/weights/yolo/yolo11l.pt"
+      best: "/Users/douwedekok/Work/Bovi/bovi-models-template/data/weights/yolo/yolo_best.pt"
+
+# Path templates (for advanced use)
+path_templates:
+  local_weights:
+    template: "/Users/douwedekok/Work/Bovi/bovi-models-template/data/weights/{model_name}/{weights_file}"
+    uses: weights_file
+
+  temp_weights:
+    template: "/tmp/{model_name}_{weights_file}"
+    uses: weights_file

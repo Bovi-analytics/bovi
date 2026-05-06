@@ -6,12 +6,10 @@ Tests the NumPy-First architecture where:
 """
 
 import numpy as np
-import pytest
-from PIL import Image
-
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
 from bovi_core.ml.dataloaders.loaders.sklearn_loader import SklearnDataLoader
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
+from PIL import Image
 
 # Fixtures used from conftest:
 # - image_dataset_large (from loaders/conftest.py)

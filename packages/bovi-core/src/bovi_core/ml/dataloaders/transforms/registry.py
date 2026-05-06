@@ -14,8 +14,11 @@ import inspect
 import logging
 from collections import OrderedDict
 from collections.abc import Callable
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
+
+_TransformT = TypeVar("_TransformT", bound=type)
 
 
 class TransformParameterError(Exception):
@@ -99,7 +102,7 @@ class TransformRegistry:
     @classmethod
     def register(
         cls, name: str, factory: Callable[..., object] | None = None
-    ) -> Callable[[type[object]], type[object]]:
+    ) -> Callable[[_TransformT], _TransformT]:
         """
         Register a transform class.
 
@@ -119,7 +122,7 @@ class TransformRegistry:
             Decorator function.
         """
 
-        def decorator(transform_class: type[object]) -> type[object]:
+        def decorator(transform_class: _TransformT) -> _TransformT:
             if name in cls._transforms:
                 logger.warning(f"Transform '{name}' already registered. Overwriting.")
 
@@ -132,7 +135,7 @@ class TransformRegistry:
 
         if factory is not None:
             cls._factories[name] = factory
-            return lambda x: x
+            return lambda x: x  # type: ignore[return-value]
 
         return decorator
 
@@ -204,7 +207,7 @@ class TransformRegistry:
         return cls._transforms[name]
 
     @classmethod
-    def create(cls, name: str, **params: object) -> object:
+    def create(cls, name: str, **params: object) -> Any:
         """
         Create a transform instance.
 
@@ -239,9 +242,7 @@ class TransformRegistry:
             raise TransformParameterError(name, type(transform_class), e, params) from e
 
     @classmethod
-    def build_vision_pipeline(
-        cls, configs: list[dict[str, object]], **compose_kwargs: object
-    ) -> object:
+    def build_vision_pipeline(cls, configs: list[dict[str, object]], **compose_kwargs: Any) -> Any:
         """
         Build Albumentations Compose from config list.
 
@@ -260,7 +261,7 @@ class TransformRegistry:
                 "Install with: pip install albumentations"
             )
 
-        transforms: list[object] = []
+        transforms: list[Any] = []
         for cfg in configs:
             name = str(cfg["name"])
             params_value = cfg.get("params", {})

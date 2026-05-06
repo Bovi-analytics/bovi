@@ -4,10 +4,8 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from PIL import Image
-
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
-
+from PIL import Image
 
 # --- Config Mock (used by all loaders) ---
 
@@ -68,7 +66,7 @@ def temp_image_dir(tmp_path):
     # Create 64x64 RGB images
     for i, dir_path in enumerate([cat_dir, cat_dir, dog_dir]):
         img = Image.fromarray(np.random.randint(0, 255, (64, 64, 3), dtype=np.uint8))
-        img.save(dir_path / f"img{i+1}.jpg")
+        img.save(dir_path / f"img{i + 1}.jpg")
 
     return tmp_path
 

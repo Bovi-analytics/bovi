@@ -6,13 +6,10 @@ expected formats based on metadata.
 
 from typing import Any, Dict, Optional
 
-import cv2
 import numpy as np
 
 
-def convert_box_format(
-    boxes: np.ndarray, from_format: str, to_format: str
-) -> np.ndarray:
+def convert_box_format(boxes: np.ndarray, from_format: str, to_format: str) -> np.ndarray:
     """
     Convert bounding boxes between different formats.
 
@@ -66,8 +63,7 @@ def convert_box_format(
         xyxy = result
     else:
         raise ValueError(
-            f"Unsupported source format: {from_format}. "
-            f"Must be one of: 'xyxy', 'xywh', 'ltwh'"
+            f"Unsupported source format: {from_format}. Must be one of: 'xyxy', 'xywh', 'ltwh'"
         )
 
     # Convert from xyxy to target format
@@ -91,14 +87,11 @@ def convert_box_format(
         return output
     else:
         raise ValueError(
-            f"Unsupported target format: {to_format}. "
-            f"Must be one of: 'xyxy', 'xywh', 'ltwh'"
+            f"Unsupported target format: {to_format}. Must be one of: 'xyxy', 'xywh', 'ltwh'"
         )
 
 
-def convert_color_format(
-    image: np.ndarray, from_format: str, to_format: str
-) -> np.ndarray:
+def convert_color_format(image: np.ndarray, from_format: str, to_format: str) -> np.ndarray:
     """
     Convert image color format between RGB and BGR.
 
@@ -122,6 +115,8 @@ def convert_color_format(
 
     from_format = from_format.lower()
     to_format = to_format.lower()
+
+    import cv2
 
     if from_format == "bgr" and to_format == "rgb":
         return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -174,18 +169,12 @@ def standardize_base_output(
     result["metadata"] = metadata.copy()
 
     # Convert boxes if needed
-    if (
-        target_box_format
-        and current_box_format
-        and target_box_format != current_box_format
-    ):
+    if target_box_format and current_box_format and target_box_format != current_box_format:
         # Find the box key (could be boxes_xyxy, boxes_xywh, etc.)
         box_key = f"boxes_{current_box_format}"
         if box_key in base_dict and base_dict[box_key] is not None:
             boxes = np.array(base_dict[box_key])
-            converted = convert_box_format(
-                boxes, current_box_format, target_box_format
-            )
+            converted = convert_box_format(boxes, current_box_format, target_box_format)
             # Add new key with target format
             result[f"boxes_{target_box_format}"] = converted.tolist()
             # Update metadata

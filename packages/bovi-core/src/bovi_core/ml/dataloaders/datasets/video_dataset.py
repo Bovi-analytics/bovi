@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -166,7 +166,7 @@ class VideoDataset(Dataset):
             # Clean up temp file
             os.unlink(tmp_path)
 
-    def __getitem__(self, index: int) -> dict[str, object]:
+    def __getitem__(self, index: int) -> dict[str, Any]:
         """
         Get video by index.
 

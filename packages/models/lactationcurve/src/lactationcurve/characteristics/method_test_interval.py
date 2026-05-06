@@ -119,7 +119,7 @@ def test_interval_method(
         total_yield = MY0 + total_intermediate + MYend
         result.append((lactation, total_yield))
 
-    return pd.DataFrame(result, columns=["TestId", "Total305Yield"])
+    return pd.DataFrame(result, columns=pd.Index(["TestId", "Total305Yield"]))
 
 
 # to prevent pytest from trying to collect this function as a test

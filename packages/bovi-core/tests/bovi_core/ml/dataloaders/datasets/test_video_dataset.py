@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-
 from bovi_core.ml.dataloaders.datasets.video_dataset import VideoDataset
 
 # MockVideoSource is imported from conftest.py
@@ -39,7 +38,9 @@ class TestVideoDataset:
             VideoDataset(mock_video_source, sample_strategy="invalid")
 
     @patch("bovi_core.ml.dataloaders.datasets.video_dataset.VideoDataset._extract_frames")
-    def test_dataset_getitem_returns_numpy(self, mock_extract, mock_video_source, mock_numpy_frames):
+    def test_dataset_getitem_returns_numpy(
+        self, mock_extract, mock_video_source, mock_numpy_frames
+    ):
         """Test that getitem returns NumPy arrays (not PIL)."""
         # Stack frames into (T, H, W, C) array
         mock_extract.return_value = np.stack(mock_numpy_frames[:16], axis=0)
@@ -55,7 +56,9 @@ class TestVideoDataset:
         assert item["frames"].dtype == np.uint8
 
     @patch("bovi_core.ml.dataloaders.datasets.video_dataset.VideoDataset._extract_frames")
-    def test_dataset_getitem_with_metadata(self, mock_extract, mock_video_source, mock_numpy_frames):
+    def test_dataset_getitem_with_metadata(
+        self, mock_extract, mock_video_source, mock_numpy_frames
+    ):
         """Test getitem with metadata."""
         mock_extract.return_value = np.stack(mock_numpy_frames[:16], axis=0)
 

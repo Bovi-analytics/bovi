@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 import mlflow.pyfunc
 
 
-class KerasModelWrapper(mlflow.pyfunc.PythonModel):
+class KerasModelWrapper(mlflow.pyfunc.PythonModel):  # type: ignore[reportPrivateImportUsage]
     """
     Pyfunc wrapper for Keras models.
 

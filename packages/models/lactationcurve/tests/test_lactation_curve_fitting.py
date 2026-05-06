@@ -79,7 +79,7 @@ def milkbot_api_key() -> str:
     load_dotenv(find_dotenv())
     key = os.getenv("milkbot_key")
     if not key:
-        raise ValueError("milkbot_key not found in environment. Check your .env file.")
+        pytest.skip("milkbot_key not found in environment")
     return key
 
 

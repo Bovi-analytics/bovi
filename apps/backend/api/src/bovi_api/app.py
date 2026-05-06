@@ -1,13 +1,31 @@
 """FastAPI application factory."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from bovi_api.database import dispose_engine
-from bovi_api.routes import health, proxy, results
+from bovi_api.routes import benchmark, datasets, health, herd_profiles, proxy, results
 from bovi_api.settings import get_settings
+
+_ALEMBIC_DIR = Path(__file__).parent / "alembic"
+
+
+def _run_migrations() -> None:
+    """Apply Alembic migrations up to head. Idempotent - safe to call on every startup.
+
+    Skips when no database is configured (e.g. test collection in CI before
+    fixtures replace the engine).
+    """
+    if not get_settings().database_url:
+        return
+    cfg = Config()
+    cfg.set_main_option("script_location", str(_ALEMBIC_DIR))
+    command.upgrade(cfg, "head")
 
 
 @asynccontextmanager
@@ -21,6 +39,11 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     settings = get_settings()
+
+    # Run migrations synchronously at app-construction time, before uvicorn's
+    # event loop starts. Alembic's env.py uses asyncio.run() internally, which
+    # can't be called from inside an already-running loop.
+    _run_migrations()
 
     app = FastAPI(
         title="Bovi API",
@@ -39,6 +62,9 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(proxy.router)
     app.include_router(results.router)
+    app.include_router(herd_profiles.router, prefix="/herd-profiles")
+    app.include_router(datasets.router)
+    app.include_router(benchmark.router)
 
     return app
 

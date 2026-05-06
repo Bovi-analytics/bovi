@@ -28,21 +28,26 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import numpy.typing as npt
-import torch
 from bovi_core.ml.dataloaders.base import DataSource
 from bovi_core.ml.dataloaders.datasets import FeatureVectorDataset
-from torch.utils.data import Dataset as TorchDataset
 from typing_extensions import override
 
 from lactation_autoencoder.types import LactationItem
 
 if TYPE_CHECKING:
+    import torch
     from bovi_core.config import Config
     from bovi_core.ml.models import Model
     from mlflow.models import ModelSignature
 
 
-class LactationDataset(FeatureVectorDataset, TorchDataset[LactationItem]):
+# Note: this dataset intentionally does NOT inherit from torch.utils.data.Dataset.
+# FeatureVectorDataset already implements __getitem__ / __len__, which is all
+# PyTorch's DataLoader requires for map-style datasets. Keeping the torch base
+# class off avoids forcing the whole bovi-core-ml stack to import torch, which
+# lets TensorFlow-only inference servers (like the Azure Function app) load
+# without PyTorch installed.
+class LactationDataset(FeatureVectorDataset):
     """
     Lactation autoencoder dataset with hierarchical herd statistics.
 
@@ -73,15 +78,16 @@ class LactationDataset(FeatureVectorDataset, TorchDataset[LactationItem]):
         from bovi_core.ml.dataloaders.sources import TransformedSource
         from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry
 
-        source = LactationPKLSource(
-            json_root_dir="data/jsons/",
-            herd_stats_dir="data/json/"
-        )
+        source = LactationPKLSource(json_root_dir="data/jsons/")
 
-        # Create transforms
+        # Create transforms (enrichment first, then processing)
         transforms = [
+            TransformRegistry.create("herd_stats_enrichment", herd_stats_dir="data/pkl/"),
+            TransformRegistry.create(
+                "event_tokenization",
+                event_to_idx_path="data/pkl/event_to_idx_dict.pkl",
+            ),
             TransformRegistry.create("imputation", method="forward_fill"),
-            TransformRegistry.create("event_tokenization"),
             TransformRegistry.create("milk_normalization", max_milk=80.0),
         ]
 
@@ -258,9 +264,7 @@ class LactationDataset(FeatureVectorDataset, TorchDataset[LactationItem]):
 
         return tokenized
 
-    def _pad_sequence(
-        self, seq: npt.NDArray[np.generic], max_len: int
-    ) -> npt.NDArray[np.generic]:
+    def _pad_sequence(self, seq: npt.NDArray[np.generic], max_len: int) -> npt.NDArray[np.generic]:
         """
         Pad or truncate sequence to max_len.
 
@@ -320,10 +324,10 @@ class LactationDataset(FeatureVectorDataset, TorchDataset[LactationItem]):
         if batch:
             # Parent batched the features dict into a list
             # We need to reconstruct batched arrays
-            features = parent_example.get('features') if isinstance(parent_example, dict) else None
+            features = parent_example.get("features") if isinstance(parent_example, dict) else None
             if isinstance(parent_example, dict) and isinstance(features, list):
                 # Batch the feature dicts ourselves
-                feature_dicts = cast(list[dict[str, object]], parent_example['features'])
+                feature_dicts = cast(list[dict[str, object]], parent_example["features"])
 
                 # Stack each feature across samples
                 batched_features: dict[str, object] = {}
@@ -333,18 +337,18 @@ class LactationDataset(FeatureVectorDataset, TorchDataset[LactationItem]):
                     batched_features[key] = np.stack(arrays, axis=0)
 
                 return batched_features
-            elif isinstance(parent_example, dict) and 'features' in parent_example:
+            elif isinstance(parent_example, dict) and "features" in parent_example:
                 # Already a dict (single sample case)
-                return cast(dict[str, object], parent_example['features'])
+                return cast(dict[str, object], parent_example["features"])
             else:
                 return parent_example
         else:
             # Unbatched - return features dict from single sample
-            if isinstance(parent_example, dict) and 'features' in parent_example:
-                return cast(dict[str, object], parent_example['features'])
+            if isinstance(parent_example, dict) and "features" in parent_example:
+                return cast(dict[str, object], parent_example["features"])
             elif isinstance(parent_example, list) and parent_example:
                 # List of samples - extract features from first
-                return cast(dict[str, object], parent_example[0]['features'])
+                return cast(dict[str, object], parent_example[0]["features"])
             else:
                 return parent_example
 
@@ -392,14 +396,11 @@ class LactationDataset(FeatureVectorDataset, TorchDataset[LactationItem]):
             predict_kwargs = predict_kwargs or {}
 
             # Request base format for MLflow signature
-            prediction_result = model.predict(
-                input_example,
-                return_format="base",
-                **predict_kwargs
-            )
+            prediction_result = model.predict(input_example, return_format="base", **predict_kwargs)
 
             # Convert to serializable format
             from bovi_core.ml.utils.signature_utils import output_to_serializable
+
             predictions = output_to_serializable(prediction_result)
 
             return infer_signature(input_example, predictions)
@@ -407,13 +408,12 @@ class LactationDataset(FeatureVectorDataset, TorchDataset[LactationItem]):
         except Exception as e:
             # Fall back to input-only signature
             import logging
-            logging.warning(
-                f"Signature generation failed: {e}. Using input-only signature."
-            )
+
+            logging.warning(f"Signature generation failed: {e}. Using input-only signature.")
             return infer_signature(input_example, None)
 
 
-def collate_lactation_batch(batch: list[LactationItem]) -> dict[str, torch.Tensor]:
+def collate_lactation_batch(batch: list[LactationItem]) -> dict[str, "torch.Tensor"]:
     """
     Collate function for LactationDataset batches.
 
@@ -436,7 +436,9 @@ def collate_lactation_batch(batch: list[LactationItem]) -> dict[str, torch.Tenso
 
     Example:
         >>> from torch.utils.data import DataLoader
-        >>> from lactation_autoencoder.dataloaders.datasets import LactationDataset, collate_lactation_batch
+        >>> from lactation_autoencoder.dataloaders.datasets import (
+        ...     LactationDataset, collate_lactation_batch
+        ... )
         >>>
         >>> loader = DataLoader(
         ...     dataset,
@@ -445,6 +447,8 @@ def collate_lactation_batch(batch: list[LactationItem]) -> dict[str, torch.Tenso
         ... )
 
     """
+    import torch
+
     features = [item["features"] for item in batch]
     milk = torch.stack([torch.tensor(f["milk"]) for f in features])
     events = torch.stack([torch.tensor(f["events"]) for f in features])

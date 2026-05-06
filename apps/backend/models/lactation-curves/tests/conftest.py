@@ -43,9 +43,8 @@ def api() -> Generator[httpx.Client, None, None]:
         with httpx.Client(base_url=base_url, timeout=30) as client:
             yield client
     else:
-        from starlette.testclient import TestClient
-
         from main import app
+        from starlette.testclient import TestClient
 
         with TestClient(app, base_url="http://testserver") as client:
             yield client

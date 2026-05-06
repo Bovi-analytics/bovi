@@ -2,7 +2,6 @@ import os
 from unittest.mock import MagicMock
 
 import pytest
-
 from bovi_core.config import ConfigNode
 
 # Import the classes we need to test and to mock with
@@ -57,8 +56,8 @@ def mock_config_with_secrets_mapping():
             "secrets": {
                 "gh_key": "github_pat",
                 "db_key": "databricks_pat",
-                "storage_account_key": "storage_account_key"
-            }
+                "storage_account_key": "storage_account_key",
+            },
         }
     }
     config = ConfigNode(config_data)
@@ -66,7 +65,7 @@ def mock_config_with_secrets_mapping():
     config._raw_secrets_mapping = {
         "gh_key": "github_pat",
         "db_key": "databricks_pat",
-        "storage_account_key": "storage_account_key"
+        "storage_account_key": "storage_account_key",
     }
     return config
 
@@ -144,7 +143,9 @@ class TestSecretRetrieval:
             try:
                 secret_value = dbutils.secrets.get(scope=self.scope_name, key=key_name)
                 print(
-                    f"✅ Retrieved secret '{key_name}' from scope '{self.scope_name}' (length: {len(secret_value) if secret_value else 0})"
+                    f"✅ Retrieved secret '{key_name}' from scope "
+                    f"'{self.scope_name}' "
+                    f"(length: {len(secret_value) if secret_value else 0})"
                 )
                 return secret_value
             except Exception as e:
@@ -154,7 +155,9 @@ class TestSecretRetrieval:
                 env_key = key_name.upper().replace("-", "_")
                 fallback_value = os.environ.get(env_key, default)
                 print(
-                    f"Using environment variable fallback: {env_key} = {'[AVAILABLE]' if fallback_value else '[NOT FOUND]'}"
+                    f"Using environment variable fallback: "
+                    f"{env_key} = "
+                    f"{'[AVAILABLE]' if fallback_value else '[NOT FOUND]'}"
                 )
                 return fallback_value
 
@@ -186,7 +189,9 @@ class TestSecretRetrieval:
             try:
                 secret_value = dbutils.secrets.get(scope=self.scope_name, key=key_name)
                 print(
-                    f"✅ Retrieved secret '{key_name}' from scope '{self.scope_name}' (length: {len(secret_value) if secret_value else 0})"
+                    f"✅ Retrieved secret '{key_name}' from scope "
+                    f"'{self.scope_name}' "
+                    f"(length: {len(secret_value) if secret_value else 0})"
                 )
                 return secret_value
             except Exception as e:
@@ -196,7 +201,9 @@ class TestSecretRetrieval:
                 env_key = key_name.upper().replace("-", "_")
                 fallback_value = os.environ.get(env_key, default)
                 print(
-                    f"Using environment variable fallback: {env_key} = {'[AVAILABLE]' if fallback_value else '[NOT FOUND]'}"
+                    f"Using environment variable fallback: "
+                    f"{env_key} = "
+                    f"{'[AVAILABLE]' if fallback_value else '[NOT FOUND]'}"
                 )
                 return fallback_value
 
@@ -240,7 +247,9 @@ class TestSecretRetrieval:
             try:
                 secret_value = dbutils.secrets.get(scope=self.scope_name, key=key_name)
                 print(
-                    f"✅ Retrieved secret '{key_name}' from scope '{self.scope_name}' (length: {len(secret_value) if secret_value else 0})"
+                    f"✅ Retrieved secret '{key_name}' from scope "
+                    f"'{self.scope_name}' "
+                    f"(length: {len(secret_value) if secret_value else 0})"
                 )
                 return secret_value
             except Exception as e:
@@ -251,7 +260,9 @@ class TestSecretRetrieval:
                 # Use the mocked os.environ.get which returns None, then fall back to the default
                 fallback_value = mock_os_get(env_key, default)
                 print(
-                    f"Using environment variable fallback: {env_key} = {'[AVAILABLE]' if fallback_value else '[NOT FOUND]'}"
+                    f"Using environment variable fallback: "
+                    f"{env_key} = "
+                    f"{'[AVAILABLE]' if fallback_value else '[NOT FOUND]'}"
                 )
                 return fallback_value
 
@@ -385,7 +396,9 @@ class TestSecretsMapping:
         mock_os_get.assert_called_once_with("GITHUB_PAT", None)
         assert secret == "test_github_token_123"
 
-    def test_local_secret_with_mapping_not_found(self, mocker, mock_config_with_secrets_mapping, capsys):
+    def test_local_secret_with_mapping_not_found(
+        self, mocker, mock_config_with_secrets_mapping, capsys
+    ):
         """Test error message shows the mapping path when secret not found."""
         # Mock os.environ to return None (not found)
         mock_os_get = mocker.patch("os.environ.get", return_value=None)
@@ -421,7 +434,7 @@ class TestSecretsMapping:
         manager = SecretsManager(environment="databricks", config=mock_config_with_secrets_mapping)
 
         # Mock the config.experiment for verbose logging
-        manager.config.experiment = type('MockExperiment', (), {'verbose': 0})()
+        manager.config.experiment = type("MockExperiment", (), {"verbose": 0})()
 
         secret = manager._get_databricks_secret("gh_key", dbutils=mock_dbutils)
 
@@ -444,7 +457,9 @@ class TestSecretsSecurity:
             try:
                 secret_value = dbutils.secrets.get(scope=self.scope_name, key=key_name)
                 print(
-                    f"✅ Retrieved secret '{key_name}' from scope '{self.scope_name}' (length: {len(secret_value) if secret_value else 0})"
+                    f"✅ Retrieved secret '{key_name}' from scope "
+                    f"'{self.scope_name}' "
+                    f"(length: {len(secret_value) if secret_value else 0})"
                 )
                 return secret_value
             except Exception as e:
@@ -454,7 +469,9 @@ class TestSecretsSecurity:
                 env_key = key_name.upper().replace("-", "_")
                 fallback_value = os.environ.get(env_key, default)
                 print(
-                    f"Using environment variable fallback: {env_key} = {'[AVAILABLE]' if fallback_value else '[NOT FOUND]'}"
+                    f"Using environment variable fallback: "
+                    f"{env_key} = "
+                    f"{'[AVAILABLE]' if fallback_value else '[NOT FOUND]'}"
                 )
                 return fallback_value
 
@@ -493,7 +510,9 @@ class TestSecretsSecurity:
             try:
                 secret_value = dbutils.secrets.get(scope=self.scope_name, key=key_name)
                 print(
-                    f"✅ Retrieved secret '{key_name}' from scope '{self.scope_name}' (length: {len(secret_value) if secret_value else 0})"
+                    f"✅ Retrieved secret '{key_name}' from scope "
+                    f"'{self.scope_name}' "
+                    f"(length: {len(secret_value) if secret_value else 0})"
                 )
                 return secret_value
             except Exception as e:
@@ -503,7 +522,9 @@ class TestSecretsSecurity:
                 env_key = key_name.upper().replace("-", "_")
                 fallback_value = os.environ.get(env_key, default)
                 print(
-                    f"Using environment variable fallback: {env_key} = {'[AVAILABLE]' if fallback_value else '[NOT FOUND]'}"
+                    f"Using environment variable fallback: "
+                    f"{env_key} = "
+                    f"{'[AVAILABLE]' if fallback_value else '[NOT FOUND]'}"
                 )
                 return fallback_value
 
@@ -536,12 +557,8 @@ class TestSecretsSecurity:
     def test_add_secret_never_logs_secret_value(self, mocker, mock_config, capsys):
         """Test that add_secret never logs the actual secret value being added."""
         # Mock successful operations
-        mock_create_scope = mocker.patch(
-            "bovi_core.utils.env_utils.create_secret_scope", return_value=True
-        )
-        mock_add_to_scope = mocker.patch(
-            "bovi_core.utils.env_utils.add_secret_to_scope", return_value=True
-        )
+        mocker.patch("bovi_core.utils.env_utils.create_secret_scope", return_value=True)
+        mocker.patch("bovi_core.utils.env_utils.add_secret_to_scope", return_value=True)
 
         manager = SecretsManager(environment="databricks", config=mock_config)
         result = manager.add_secret("sensitive-key", "very-sensitive-password-456")

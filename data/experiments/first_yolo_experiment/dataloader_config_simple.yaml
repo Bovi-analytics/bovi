@@ -1,0 +1,42 @@
+# ============================================================================
+# MINIMAL Dataloader Configuration Example
+# ============================================================================
+# This is the simplest possible dataloader config.
+# Just define: source location + transforms + basic settings
+
+experiment_name: first_yolo_experiment
+experiment_version: "1.0.0"
+description: "Minimal dataloader example for learning"
+
+# Define a single model with minimal dataloader config
+models:
+  yolo:
+    dataloaders:
+      train:
+        # WHERE is your data?
+        source:
+          type: local                                    # Load from local filesystem
+          root_dir: "data/images"                       # Relative to project root
+          file_pattern: "*.jp*g"                        # Match .jpg and .jpeg files
+          recursive: true                               # Search in subdirectories
+
+        # HOW to transform the data?
+        transforms:
+          - name: resize
+            params:
+              size: [256, 256]                          # Resize to 256x256
+
+          - name: normalize
+            params:
+              mean: [0.485, 0.456, 0.406]              # ImageNet mean
+              std: [0.229, 0.224, 0.225]               # ImageNet std
+
+        # Framework settings
+        framework: pytorch
+        transform_backend: albumentations               # Fast for images
+
+        # Dataloader settings (optional - these are good defaults)
+        dataloader:
+          batch_size: 8
+          num_workers: 2
+          shuffle: true

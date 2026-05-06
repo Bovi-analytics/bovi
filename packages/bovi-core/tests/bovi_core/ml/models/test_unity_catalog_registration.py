@@ -11,15 +11,15 @@ Note: Integration tests for register_to_unity_catalog() should be run
 in a Databricks environment with proper credentials configured.
 """
 
-from unittest.mock import Mock, MagicMock, patch
-import pytest
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from bovi_core.ml.models import Model
 from bovi_core.ml.models.unity_catalog import (
-    _generate_uc_model_name,
-    _resolve_alias_version,
     _generate_model_tags,
+    _generate_uc_model_name,
     _get_framework,
+    _resolve_alias_version,
 )
 
 
@@ -74,10 +74,7 @@ class TestGenerateUCModelName:
     def test_auto_generate_name(self, mock_model):
         """Test auto-generating model name from config."""
         name = _generate_uc_model_name(
-            model=mock_model,
-            catalog="projects",
-            schema="bovi_core",
-            model_name=None
+            model=mock_model, catalog="projects", schema="bovi_core", model_name=None
         )
 
         assert name == "projects.bovi_core.test_project_test_model"
@@ -85,10 +82,7 @@ class TestGenerateUCModelName:
     def test_custom_name(self, mock_model):
         """Test with custom model name."""
         name = _generate_uc_model_name(
-            model=mock_model,
-            catalog="prod",
-            schema="models",
-            model_name="custom_model"
+            model=mock_model, catalog="prod", schema="models", model_name="custom_model"
         )
 
         assert name == "prod.models.custom_model"
@@ -96,10 +90,7 @@ class TestGenerateUCModelName:
     def test_different_catalog_schema(self, mock_model):
         """Test with different catalog and schema."""
         name = _generate_uc_model_name(
-            model=mock_model,
-            catalog="production",
-            schema="ml_models",
-            model_name="detector"
+            model=mock_model, catalog="production", schema="ml_models", model_name="detector"
         )
 
         assert name == "production.ml_models.detector"
@@ -108,21 +99,18 @@ class TestGenerateUCModelName:
 class TestResolveAliasVersion:
     """Tests for _resolve_alias_version()."""
 
-    @patch('mlflow.MlflowClient')
+    @patch("mlflow.MlflowClient")
     def test_alias_not_exists(self, mock_mlflow_client):
         """Test when alias doesn't exist."""
         client = MagicMock()
         mock_mlflow_client.return_value = client
         client.search_model_versions.return_value = []
 
-        result = _resolve_alias_version(
-            "projects.bovi_core.model",
-            "v1.0"
-        )
+        result = _resolve_alias_version("projects.bovi_core.model", "v1.0")
 
         assert result == "v1.0"
 
-    @patch('mlflow.MlflowClient')
+    @patch("mlflow.MlflowClient")
     def test_alias_exists_increments_version(self, mock_mlflow_client):
         """Test auto-incrementing when alias exists."""
         client = MagicMock()
@@ -133,15 +121,12 @@ class TestResolveAliasVersion:
         version.aliases = ["v1.0"]
         client.search_model_versions.return_value = [version]
 
-        result = _resolve_alias_version(
-            "projects.bovi_core.model",
-            "v1.0"
-        )
+        result = _resolve_alias_version("projects.bovi_core.model", "v1.0")
 
         # Should increment to v1.1
         assert result == "v1.1"
 
-    @patch('mlflow.MlflowClient')
+    @patch("mlflow.MlflowClient")
     def test_alias_without_version_number(self, mock_mlflow_client):
         """Test alias without version number."""
         client = MagicMock()
@@ -151,25 +136,19 @@ class TestResolveAliasVersion:
         version.aliases = ["Champion"]
         client.search_model_versions.return_value = [version]
 
-        result = _resolve_alias_version(
-            "projects.bovi_core.model",
-            "Champion"
-        )
+        result = _resolve_alias_version("projects.bovi_core.model", "Champion")
 
         # Should append _v2
         assert result == "Champion_v2"
 
-    @patch('mlflow.MlflowClient')
+    @patch("mlflow.MlflowClient")
     def test_model_not_exists(self, mock_mlflow_client):
         """Test when model doesn't exist in UC."""
         client = MagicMock()
         mock_mlflow_client.return_value = client
         client.search_model_versions.side_effect = Exception("Model not found")
 
-        result = _resolve_alias_version(
-            "projects.bovi_core.new_model",
-            "v1.0"
-        )
+        result = _resolve_alias_version("projects.bovi_core.new_model", "v1.0")
 
         # Should return original alias
         assert result == "v1.0"

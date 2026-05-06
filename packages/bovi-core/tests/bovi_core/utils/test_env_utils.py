@@ -18,10 +18,16 @@ def test_detect_environment_is_databricks(mocker):
 
 def test_detect_environment_is_databricks_connect(mocker):
     """Test that 'vscode_remote' is detected for Databricks Connect."""
-    # Remove DATABRICKS_RUNTIME_VERSION if it exists, and set SPARK_REMOTE
-    mocker.patch.dict(os.environ, {"SPARK_REMOTE": "127.0.0.1"}, clear=False)
+    # Remove DATABRICKS_RUNTIME_VERSION if it exists, and set both SPARK_REMOTE + DATABRICKS_HOST
+    mocker.patch.dict(
+        os.environ,
+        {"SPARK_REMOTE": "127.0.0.1", "DATABRICKS_HOST": "https://example.databricks.com"},
+        clear=False,
+    )
     if "DATABRICKS_RUNTIME_VERSION" in os.environ:
         del os.environ["DATABRICKS_RUNTIME_VERSION"]
+    # Also mock os.path.exists to avoid /dbfs false positive
+    mocker.patch("os.path.exists", return_value=False)
     assert detect_environment() == "vscode_remote"
 
 

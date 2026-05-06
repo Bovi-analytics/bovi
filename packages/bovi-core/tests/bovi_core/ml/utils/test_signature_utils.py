@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from bovi_core.ml.predictors.results import (
     GenericPredictionResult,
 )
@@ -29,7 +28,7 @@ class TestOutputToSerializable:
         base_dict = {
             "boxes_xyxy": [[10, 20, 100, 200]],
             "scores": [0.95],
-            "metadata": {"model_type": "yolo"}
+            "metadata": {"model_type": "yolo"},
         }
 
         serialized = output_to_serializable(base_dict)
@@ -39,10 +38,7 @@ class TestOutputToSerializable:
 
     def test_with_dict_no_metadata(self):
         """Test with dict without metadata."""
-        output_dict = {
-            "predictions": [[0.1, 0.9]],
-            "labels": [1]
-        }
+        output_dict = {"predictions": [[0.1, 0.9]], "labels": [1]}
 
         serialized = output_to_serializable(output_dict)
 
@@ -135,6 +131,7 @@ class TestOutputToSerializable:
 
     def test_with_invalid_type(self):
         """Test error on unsupported type."""
+
         class CustomClass:
             pass
 

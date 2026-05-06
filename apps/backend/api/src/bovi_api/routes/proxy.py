@@ -90,3 +90,9 @@ async def proxy_curves_test_interval(request: Request) -> JSONResponse:
 async def proxy_autoencoder_predict(request: Request) -> JSONResponse:
     """Proxy: predict full lactation curve via autoencoder."""
     return await _proxy_post(settings.lactation_autoencoder_url, "/predict", request)
+
+
+@router.post("/autoencoder/predict/batch")
+async def proxy_autoencoder_predict_batch(request: Request) -> JSONResponse:
+    """Proxy: batch predict lactation curves via autoencoder."""
+    return await _proxy_post(settings.lactation_autoencoder_url, "/predict/batch", request)

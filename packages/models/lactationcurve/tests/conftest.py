@@ -12,7 +12,7 @@ def milkbot_key() -> str:
     """Return the MilkBot API key from environment."""
     key = os.getenv("milkbot_key")
     if not key:
-        raise ValueError("milkbot_key not found in environment. Check your .env file.")
+        pytest.skip("milkbot_key not found in environment")
     return key
 
 

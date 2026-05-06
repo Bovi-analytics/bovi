@@ -207,7 +207,14 @@ class Config:
         # is a new instance
         pass
 
-    def _initialize(self, experiment_name, config_file_name, config_file_path, project_file_path, project_name=None):
+    def _initialize(
+        self,
+        experiment_name,
+        config_file_name,
+        config_file_path,
+        project_file_path,
+        project_name=None,
+    ):
         print("🔧 Initializing Config...")
 
         # Initialize file tracker for change detection
@@ -221,7 +228,8 @@ class Config:
                 raise ValueError("experiment_name or config_file_path must be provided")
             else:
                 print(
-                    f"🔍 No experiment_name passed, resolving from config_file_path: {config_file_path}"
+                    "🔍 No experiment_name passed, resolving "
+                    f"from config_file_path: {config_file_path}"
                 )
                 experiment_name = extract_experiment_name_from_path(config_file_path)
                 if experiment_name is None:
@@ -311,12 +319,18 @@ class Config:
         if config_file_path:
             if not os.path.exists(config_file_path):
                 experiments_dir = os.path.join(project_root_path, "data", "experiments")
-                # Look for config files in the versioned config directory (parent of config_file_path)
+                # Look for config files in the versioned config directory
+                # (parent of config_file_path)
                 config_dir = str(Path(config_file_path).parent)
                 available_configs = (
                     self._list_available_configs(config_dir)
                     if os.path.exists(config_dir)
                     else "Config directory does not exist"
+                )
+                available_exps = (
+                    self._list_available_experiments(experiments_dir)
+                    if os.path.exists(experiments_dir)
+                    else "None found"
                 )
                 raise FileNotFoundError(
                     f"❌ Run config file not found for '{experiment_name}':\n"
@@ -325,7 +339,7 @@ class Config:
                     f"   Make sure the directory structure exists:\n"
                     f"   data/experiments/{experiment_name}/{config_file_name}\n\n"
                     f"   Available config files in '{experiment_name}': {available_configs}\n"
-                    f"   Available experiments: {self._list_available_experiments(experiments_dir) if os.path.exists(experiments_dir) else 'None found'}"
+                    f"   Available experiments: {available_exps}"
                 )
             try:
                 with open(config_file_path, "r") as f:
@@ -571,6 +585,8 @@ class Config:
             context.update(experiment_vars)
             context["model_name"] = model_config.get("vars", {}).get("model_name", model_name)
             context.update(model_config.get("vars", {}))
+            if "version" in model_config:
+                context["model_version"] = model_config["version"]
 
             if "template_vars" in model_config:
                 # Iterate through the data sources (e.g., 'weights_file', 'config_file')

@@ -10,6 +10,7 @@ All transforms are STATELESS - they process data per-sample without requiring fi
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import numpy as np
 
@@ -53,11 +54,11 @@ class ImputationTransform(UniversalTransform):
         self.method = method
         self.fields = fields
 
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """Apply imputation to data dict."""
         return self._apply_imputation(data)
 
-    def _apply_imputation(self, data: dict[str, object]) -> dict[str, object]:
+    def _apply_imputation(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Apply imputation to specified fields.
 
@@ -170,7 +171,7 @@ class ImputationTransform(UniversalTransform):
         arr[mask] = np.interp(idx[mask], idx[~mask], arr[~mask])
         return arr
 
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         """
         Get transform parameters.
 
@@ -225,11 +226,11 @@ class SequenceNormalizationTransform(UniversalTransform):
         self.scale = scale
         self.per_sequence = per_sequence
 
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """Apply normalization to data dict."""
         return self._apply_normalization(data)
 
-    def _apply_normalization(self, data: dict[str, object]) -> dict[str, object]:
+    def _apply_normalization(self, data: dict[str, Any]) -> dict[str, Any]:
         """Apply normalization to specified fields."""
         data = data.copy()
 
@@ -283,7 +284,7 @@ class SequenceNormalizationTransform(UniversalTransform):
 
         return arr
 
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         """
         Get transform parameters.
 
@@ -334,11 +335,11 @@ class SequencePaddingTransform(UniversalTransform):
         self.pad_value = pad_value
         self.mode = mode
 
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """Apply padding to data dict."""
         return self._apply_padding(data)
 
-    def _apply_padding(self, data: dict[str, object]) -> dict[str, object]:
+    def _apply_padding(self, data: dict[str, Any]) -> dict[str, Any]:
         """Apply padding to specified field."""
         data = data.copy()
 
@@ -371,7 +372,7 @@ class SequencePaddingTransform(UniversalTransform):
 
             return np.pad(arr, pad_config, constant_values=self.pad_value)
 
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         """
         Get transform parameters.
 
@@ -416,11 +417,11 @@ class WindowingTransform(UniversalTransform):
         self.stride = stride
         self.field = field
 
-    def __call__(self, data: dict[str, object]) -> dict[str, object]:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         """Apply windowing to data dict."""
         return self._apply_windowing(data)
 
-    def _apply_windowing(self, data: dict[str, object]) -> dict[str, object]:
+    def _apply_windowing(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Apply windowing.
 
@@ -446,7 +447,7 @@ class WindowingTransform(UniversalTransform):
 
         return data
 
-    def get_params(self) -> dict[str, object]:
+    def get_params(self) -> dict[str, Any]:
         """
         Get transform parameters.
 

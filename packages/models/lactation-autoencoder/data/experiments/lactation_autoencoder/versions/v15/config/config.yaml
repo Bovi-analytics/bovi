@@ -126,3 +126,15 @@ training:
   learning_rate: 0.001
   loss: "mse"
   optimizer: "adam"
+
+herd_stats_ranges:
+  Achieved21Milk:          [0.0, 50.0]
+  Achieved305Milk:         [3000.0, 15000.0]
+  Achieved75Milk:          [0.0, 50.0]
+  AchievedMilk:            [3000.0, 20000.0]
+  DaysDry:                 [0.0, 150.0]
+  DaysInMilk:              [0.0, 600.0]
+  DaysOpen:                [0.0, 300.0]
+  DaysPregnant:            [0.0, 283.0]
+  HistoricCalvingInterval: [300.0, 600.0]
+  QualitySequence:         [0.0, 1.0]

@@ -1,0 +1,113 @@
+# ============================================================================
+# ADVANCED Dataloader Configuration Example
+# ============================================================================
+# This shows a more complete setup with:
+# - Multiple splits (train/val/test)
+# - Data augmentation for training
+# - Different settings per split
+
+experiment_name: first_yolo_experiment
+experiment_version: "1.0.0"
+description: "Advanced dataloader with augmentation and multiple splits"
+
+models:
+  yolo:
+    dataloaders:
+      # -----------------------------------------------------------------------
+      # TRAINING SET - with data augmentation
+      # -----------------------------------------------------------------------
+      train:
+        source:
+          type: local
+          root_dir: "data/images/train"                # Train subfolder (relative to project root)
+          file_pattern: "*.jp*g"
+          recursive: true
+
+        transforms:
+          # Resize
+          - name: resize
+            params:
+              size: [640, 640]                          # YOLO uses 640x640
+
+          # Data augmentation (only for training!)
+          - name: random_horizontal_flip
+            params:
+              probability: 0.5                          # 50% chance to flip
+
+          - name: random_brightness_contrast
+            params:
+              brightness_limit: 0.2                           # Vary brightness ±20%
+              contrast_limit: 0.2                             # Vary contrast ±20%
+              probability: 0.1                           # Vary saturation ±10%
+
+          # Normalize (always last!)
+          - name: normalize
+            params:
+              mean: [0.485, 0.456, 0.406]
+              std: [0.229, 0.224, 0.225]
+
+        framework: pytorch
+        transform_backend: albumentations
+
+        dataloader:
+          batch_size: 16
+          num_workers: 4
+          shuffle: true                                 # Shuffle training data
+          pin_memory: true                              # Faster GPU transfer
+
+      # -----------------------------------------------------------------------
+      # VALIDATION SET - no augmentation
+      # -----------------------------------------------------------------------
+      val:
+        source:
+          type: local
+          root_dir: "data/images/val"                  # Val subfolder (relative to project root)
+          file_pattern: "*.jp*g"
+          recursive: true
+
+        transforms:
+          # Only resize and normalize - NO augmentation!
+          - name: resize
+            params:
+              size: [640, 640]
+
+          - name: normalize
+            params:
+              mean: [0.485, 0.456, 0.406]
+              std: [0.229, 0.224, 0.225]
+
+        framework: pytorch
+        transform_backend: albumentations
+
+        dataloader:
+          batch_size: 16
+          num_workers: 2
+          shuffle: false                                # Don't shuffle validation
+
+      # -----------------------------------------------------------------------
+      # TEST SET - same as validation
+      # -----------------------------------------------------------------------
+      test:
+        source:
+          type: local
+          root_dir: "data/images/test"                 # Test subfolder (relative to project root)
+          file_pattern: "*.jp*g"
+          recursive: true
+
+        transforms:
+          - name: resize
+            params:
+              size: [640, 640]
+
+          - name: normalize
+            params:
+              mean: [0.485, 0.456, 0.406]
+              std: [0.229, 0.224, 0.225]
+
+        framework: pytorch
+        transform_backend: albumentations
+
+        dataloader:
+          batch_size: 32                                # Larger batch for test
+          num_workers: 2
+          shuffle: false

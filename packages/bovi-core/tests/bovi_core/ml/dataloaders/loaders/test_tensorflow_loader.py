@@ -7,20 +7,16 @@ Tests the NumPy-First architecture where:
 """
 
 import numpy as np
-import pytest
-from PIL import Image
-
-from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
-from bovi_core.ml.dataloaders.loaders.tensorflow_loader import TensorFlowDataLoader
-from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
 
 # Fixtures used from conftest:
 # - image_dataset_large (from loaders/conftest.py)
 # - mock_dataloader_config (from dataloaders/conftest.py)
 # - albumentations_resize_transform (from loaders/conftest.py)
-
-
 import tensorflow as tf
+from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
+from bovi_core.ml.dataloaders.loaders.tensorflow_loader import TensorFlowDataLoader
+from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
+from PIL import Image
 
 
 class TestTensorFlowDataLoader:
@@ -65,7 +61,6 @@ class TestTensorFlowDataLoader:
 
     def test_loader_iteration_without_transform(self, image_dataset_large, mock_dataloader_config):
         """Test iterating over loader without transform."""
-        import tensorflow as tf
 
         loader = TensorFlowDataLoader(
             image_dataset_large, config=mock_dataloader_config, split="train", batch_size=8
@@ -87,7 +82,6 @@ class TestTensorFlowDataLoader:
         self, image_dataset_large, mock_dataloader_config, albumentations_resize_transform
     ):
         """Test iterating over loader WITH Albumentations transform."""
-        import tensorflow as tf
 
         loader = TensorFlowDataLoader(
             image_dataset_large,
@@ -126,7 +120,6 @@ class TestTensorFlowDataLoader:
 
     def test_loader_get_tensorflow_dataset(self, image_dataset_large, mock_dataloader_config):
         """Test get_tensorflow_dataset returns Dataset."""
-        import tensorflow as tf
 
         loader = TensorFlowDataLoader(
             image_dataset_large, config=mock_dataloader_config, split="train"
@@ -169,7 +162,11 @@ class TestTensorFlowDataLoader:
     def test_loader_cache(self, image_dataset_large, mock_dataloader_config):
         """Test caching parameter."""
         loader = TensorFlowDataLoader(
-            image_dataset_large, config=mock_dataloader_config, split="train", batch_size=8, cache=True
+            image_dataset_large,
+            config=mock_dataloader_config,
+            split="train",
+            batch_size=8,
+            cache=True,
         )
 
         assert loader.cache is True
