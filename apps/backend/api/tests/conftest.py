@@ -24,7 +24,7 @@ def client(monkeypatch):
 
     async def _create_tables() -> None:
         async with engine.begin() as conn:
-            # Only create the tables actually used in tests — FittingResult uses
+            # Only create the tables actually used in tests - FittingResult uses
             # sa_type=None which SQLite cannot compile DDL for (works fine on
             # PostgreSQL in production)
             await conn.run_sync(HerdProfile.__table__.create)  # type: ignore[union-attr]

@@ -61,7 +61,7 @@ export function PresetHerdPicker(): ReactElement {
       <Text size="sm" fw={500}>
         Preset farm datasets
       </Text>
-      <Text size="xs" c="dimmed">
+      <Text size="xs">
         Pick a real farm dataset as the active herd. The selected cows will be available in the
         Curves tab for individual lactation analysis.
       </Text>
@@ -86,7 +86,7 @@ export function PresetHerdPicker(): ReactElement {
                 <Text size="sm" fw={600}>
                   {opt.label}
                 </Text>
-                <Text size="xs" c="dimmed">
+                <Text size="xs">
                   {opt.description}
                 </Text>
               </Paper>
@@ -99,7 +99,7 @@ export function PresetHerdPicker(): ReactElement {
         <Stack gap="xs">
           <Group gap="xl" align="flex-start">
             <Stack gap={4}>
-              <Text size="xs" c="dimmed">
+              <Text size="xs">
                 Sample size
               </Text>
               <SegmentedControl
@@ -110,7 +110,7 @@ export function PresetHerdPicker(): ReactElement {
               />
             </Stack>
             <Stack gap={4}>
-              <Text size="xs" c="dimmed">
+              <Text size="xs">
                 Time period
               </Text>
               <SegmentedControl
@@ -131,7 +131,7 @@ export function PresetHerdPicker(): ReactElement {
           </Group>
           {isError && (
             <Alert icon={<AlertCircle size={14} />} color="red" p="xs">
-              Dataset unavailable — make sure CONNECTION_STRING is configured and the preprocessing
+              Dataset unavailable - make sure CONNECTION_STRING is configured and the preprocessing
               script has been run.
             </Alert>
           )}

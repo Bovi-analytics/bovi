@@ -9,6 +9,7 @@ export CORS_ORIGINS := "[\"http://localhost:" + env("PORT_DASHBOARD", "3000") + 
 # ── Workspace ────────────────────────────────────────────────
 sync:
     uv sync --all-packages
+    cd apps/infrastructure && uv sync
     git config core.hooksPath .githooks
 
 lint:
@@ -105,7 +106,7 @@ run-dashboard:
 
 # ── Infrastructure ──────────────────────────────────────────
 preview-infra:
-    cd packages/infrastructure/pulumi && pulumi preview
+    cd apps/infrastructure && pulumi preview
 
 deploy-infra:
-    cd packages/infrastructure/pulumi && pulumi up
+    cd apps/infrastructure && pulumi up

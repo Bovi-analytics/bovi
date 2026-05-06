@@ -12,9 +12,15 @@ from typing import Annotated, Literal
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from bovi_api.herd_stats_ingestion import (
+    DEFAULT_STAT_RANGES,
+    CowRecord,
+    aggregate_test_day_records,
+    normalize_herd_stats,
+)
 from bovi_api.settings import Settings, get_settings
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
@@ -22,9 +28,9 @@ router = APIRouter(prefix="/datasets", tags=["datasets"])
 _CONTAINER = "icarwebsite"
 _BLOB_PREFIX = "preset-datasets"
 
-DatasetKey = Literal["aurora", "sunnyside"]
-SizeKey = Literal["small", "medium", "large"]
-PeriodKey = Literal["recent", "old", "mixed"]
+DatasetKey = Literal["aurora", "sunnyside", "icar"]
+SizeKey = Literal["small", "medium", "large", "full"]
+PeriodKey = Literal["recent", "old", "mixed", "all"]
 
 _MANIFEST: dict[str, dict] = {
     "aurora": {
@@ -68,6 +74,7 @@ class PresetDatasetResponse(BaseModel):
     period: str
     cow_count: int
     cows: list[PresetCow]
+    actual_yields: dict[str, float] | None = None
 
 
 def _get_blob_client(settings: Settings) -> BlobServiceClient:
@@ -87,7 +94,7 @@ def fetch_preset_cows(
     period: PeriodKey,
     settings: Settings,
 ) -> PresetDatasetResponse:
-    """Fetch cow data from Azure Blob — shared by routes and benchmark logic.
+    """Fetch cow data from Azure Blob - shared by routes and benchmark logic.
 
     Args:
         dataset (DatasetKey): Preset dataset identifier (e.g. "aurora", "sunnyside").
@@ -102,7 +109,10 @@ def fetch_preset_cows(
         HTTPException: 404 if the preset blob does not exist; 503 if blob storage is not configured.
 
     """
-    blob_path = f"{_BLOB_PREFIX}/{dataset}/{size}_{period}.json"
+    if dataset == "icar":
+        blob_path = f"{_BLOB_PREFIX}/icar/full.json"
+    else:
+        blob_path = f"{_BLOB_PREFIX}/{dataset}/{size}_{period}.json"
     client = _get_blob_client(settings)
     try:
         data = client.get_blob_client(_CONTAINER, blob_path).download_blob().readall()
@@ -130,3 +140,66 @@ def get_preset(
 ) -> PresetDatasetResponse:
     """Fetch a pre-generated cow-dataset JSON blob from Azure Blob Storage."""
     return fetch_preset_cows(dataset, size, period, settings)
+
+
+class PresetHerdStatsResponse(BaseModel):
+    """Aggregated herd stats computed from a preset dataset slice."""
+
+    dataset: str
+    size: str
+    period: str
+    parity: int | None
+    cow_count: int
+    raw_stats: dict[str, float]
+    stats: dict[str, float]
+    warnings: list[str]
+
+
+@router.get(
+    "/presets/{dataset}/{size}/{period}/herd-stats",
+    response_model=PresetHerdStatsResponse,
+)
+def get_preset_herd_stats(
+    dataset: DatasetKey,
+    size: SizeKey,
+    period: PeriodKey,
+    settings: Annotated[Settings, Depends(get_settings)],
+    parity: Annotated[int | None, Query(ge=1, le=12)] = None,
+) -> PresetHerdStatsResponse:
+    """Compute the canonical 10 herd stats from a preset dataset.
+
+    Slices the preset dataset (optionally by parity), aggregates per-cow
+    test-day records into herd-level means using the same logic as the CSV
+    ingestion path, and returns both the raw values and normalized [0, 1]
+    values suitable for the autoencoder ``herd_stats`` field.
+    """
+    preset = fetch_preset_cows(dataset, size, period, settings)
+
+    cows = [
+        CowRecord(cow_id=c.cow_id, parity=c.parity, dim=c.dim, milk_kg=c.milk_kg)
+        for c in preset.cows
+        if parity is None or c.parity == parity
+    ]
+    if not cows:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"No cows in {dataset}/{size}/{period}"
+                + (f" with parity={parity}" if parity is not None else "")
+                + "."
+            ),
+        )
+
+    raw_stats, warnings = aggregate_test_day_records(cows)
+    normalized = normalize_herd_stats(raw_stats, DEFAULT_STAT_RANGES)
+
+    return PresetHerdStatsResponse(
+        dataset=dataset,
+        size=size,
+        period=period,
+        parity=parity,
+        cow_count=len(cows),
+        raw_stats=raw_stats,
+        stats=normalized,
+        warnings=warnings,
+    )

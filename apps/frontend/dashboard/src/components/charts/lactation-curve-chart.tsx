@@ -132,7 +132,7 @@ export function LactationCurveChart({
 
         <Legend verticalAlign="top" height={36} />
 
-        {/* Fitted model curves — one Line per model */}
+        {/* Fitted model curves - one Line per model */}
         {convertedCurves.map((curve) => (
           <Line
             key={curve.name}
@@ -146,7 +146,7 @@ export function LactationCurveChart({
           />
         ))}
 
-        {/* Raw observations — scatter points */}
+        {/* Raw observations - scatter points */}
         {convertedObs.length > 0 && (
           <Scatter
             data={[...convertedObs]}
@@ -157,7 +157,7 @@ export function LactationCurveChart({
           />
         )}
 
-        {/* Annotations — highlighted scatter points with labels */}
+        {/* Annotations - highlighted scatter points with labels */}
         {convertedAnnotations.length > 0 && (
           <Scatter
             data={[...convertedAnnotations]}

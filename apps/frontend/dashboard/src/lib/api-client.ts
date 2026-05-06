@@ -8,6 +8,7 @@ import {
   HerdProfileSchema,
   HerdProfileUploadResponseSchema,
   PresetDatasetResponseSchema,
+  PresetHerdStatsResponseSchema,
   PredictResponseSchema,
   TestIntervalResponseSchema,
   ChallengeListSchema,
@@ -18,6 +19,7 @@ import {
 import type {
   AutoencoderPredictRequest,
   AutoencoderPredictResponse,
+  BenchmarkModel,
   CharacteristicRequest,
   CharacteristicResponse,
   FitRequest,
@@ -27,13 +29,14 @@ import type {
   HerdProfileUploadResponse,
   PresetDatasetKey,
   PresetDatasetResponse,
+  PresetHerdStatsResponse,
   PresetPeriodKey,
   PresetSizeKey,
   PredictRequest,
   PredictResponse,
   TestIntervalRequest,
   TestIntervalResponse,
-  ChallengeCreate,
+  ChallengeCreatePreset,
   ChallengeRead,
   SubmissionRead,
 } from "@/types/api";
@@ -158,13 +161,26 @@ export async function getPresetDataset(
   return apiGet(`/datasets/presets/${dataset}/${size}/${period}`, PresetDatasetResponseSchema);
 }
 
+export async function getPresetHerdStats(
+  dataset: PresetDatasetKey,
+  size: PresetSizeKey,
+  period: PresetPeriodKey,
+  parity?: number
+): Promise<PresetHerdStatsResponse> {
+  const query = parity !== undefined ? `?parity=${parity}` : "";
+  return apiGet(
+    `/datasets/presets/${dataset}/${size}/${period}/herd-stats${query}`,
+    PresetHerdStatsResponseSchema
+  );
+}
+
 export async function uploadHerdProfileCsv(file: File): Promise<HerdProfileUploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
   const response = await fetch(`${getApiBaseUrl()}/herd-profiles/csv-preview`, {
     method: "POST",
     body: formData,
-    // No Content-Type header — browser sets multipart boundary automatically
+    // No Content-Type header - browser sets multipart boundary automatically
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -175,11 +191,31 @@ export async function uploadHerdProfileCsv(file: File): Promise<HerdProfileUploa
 }
 
 /* ------------------------------------------------------------------ */
-/*  Benchmark — Challenges                                             */
+/*  Benchmark - Challenges                                             */
 /* ------------------------------------------------------------------ */
 
-export async function createChallenge(data: ChallengeCreate): Promise<ChallengeRead> {
+export async function createChallengePreset(data: ChallengeCreatePreset): Promise<ChallengeRead> {
   return apiFetch("/benchmark/challenges", ChallengeReadSchema, data);
+}
+
+export async function createChallengeUpload(
+  name: string,
+  testDayCsv: File,
+  actualYieldsCsv: File
+): Promise<ChallengeRead> {
+  const formData = new FormData();
+  formData.append("name", name);
+  formData.append("test_day_csv", testDayCsv);
+  formData.append("actual_yields_csv", actualYieldsCsv);
+  const response = await fetch(`${getApiBaseUrl()}/benchmark/challenges/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(`Upload error ${response.status}: ${JSON.stringify(error)}`);
+  }
+  return ChallengeReadSchema.parse(await response.json());
 }
 
 export async function listChallenges(): Promise<ChallengeRead[]> {
@@ -195,24 +231,40 @@ export function exportChallengeUrl(id: number): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Benchmark — Submissions                                            */
+/*  Benchmark - Submissions                                            */
 /* ------------------------------------------------------------------ */
 
 export async function submitBoviModel(
   challengeId: number,
-  data: { submission_type: "bovi_model"; model_type: string; organization?: string; country?: string; notes?: string }
+  data: {
+    challenger: BenchmarkModel;
+    benchmark: BenchmarkModel;
+    organization?: string;
+    country?: string;
+    notes?: string;
+  }
 ): Promise<SubmissionRead> {
-  return apiFetch(`/benchmark/challenges/${challengeId}/submissions`, SubmissionReadSchema, data);
+  return apiFetch(
+    `/benchmark/challenges/${challengeId}/submissions`,
+    SubmissionReadSchema,
+    { submission_type: "bovi_model", ...data }
+  );
 }
 
 export async function submitOwnMethod(
   challengeId: number,
   file: File,
-  meta: { organization?: string; country?: string; calculation_method?: string; notes?: string }
+  meta: {
+    benchmark: BenchmarkModel;
+    organization?: string;
+    country?: string;
+    calculation_method?: string;
+    notes?: string;
+  }
 ): Promise<SubmissionRead> {
   const formData = new FormData();
   formData.append("file", file);
-  Object.entries(meta).forEach(([k, v]) => { if (v) formData.append(k, v); });
+  Object.entries(meta).forEach(([k, v]) => { if (v) formData.append(k, String(v)); });
   const response = await fetch(`${getApiBaseUrl()}/benchmark/challenges/${challengeId}/submissions/upload`, {
     method: "POST",
     body: formData,
@@ -232,6 +284,6 @@ export async function getSubmission(id: number): Promise<SubmissionRead> {
   return apiGet(`/benchmark/submissions/${id}`, SubmissionReadSchema);
 }
 
-export function downloadReportUrl(id: number, flavor: "icar" | "bovi" | "all" = "all"): string {
-  return `${getApiBaseUrl()}/benchmark/submissions/${id}/report?flavor=${flavor}`;
+export function downloadReportUrl(id: number): string {
+  return `${getApiBaseUrl()}/benchmark/submissions/${id}/report`;
 }

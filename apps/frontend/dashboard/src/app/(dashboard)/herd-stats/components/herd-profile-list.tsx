@@ -43,7 +43,7 @@ export function HerdProfileList(): ReactElement {
     }
   }
 
-  if (isLoading) return <Text c="dimmed">Loading profiles…</Text>;
+  if (isLoading) return <Text>Loading profiles…</Text>;
 
   return (
     <>
@@ -56,7 +56,7 @@ export function HerdProfileList(): ReactElement {
         </Group>
 
         {profiles.length === 0 ? (
-          <Text c="dimmed" size="sm">
+          <Text size="sm">
             No profiles yet. Create one to save a set of herd statistics.
           </Text>
         ) : (
@@ -73,11 +73,11 @@ export function HerdProfileList(): ReactElement {
               {profiles.map((profile) => (
                 <Table.Tr key={profile.id}>
                   <Table.Td>{profile.name}</Table.Td>
-                  <Table.Td c="dimmed">{profile.description || "—"}</Table.Td>
+                  <Table.Td>{profile.description || "-"}</Table.Td>
                   <Table.Td>
                     {profile.created_at
                       ? new Date(profile.created_at).toLocaleDateString()
-                      : "—"}
+                      : "-"}
                   </Table.Td>
                   <Table.Td>
                     <Group gap="xs" justify="flex-end">
@@ -115,7 +115,7 @@ export function HerdProfileList(): ReactElement {
         <HerdProfileForm
           defaultName={
             activePreset
-              ? `${PRESET_LABELS[activePreset.dataset]} — ${PERIOD_LABELS[activePreset.period]} (${SIZE_LABELS[activePreset.size]})`
+              ? `${PRESET_LABELS[activePreset.dataset]} - ${PERIOD_LABELS[activePreset.period]} (${SIZE_LABELS[activePreset.size]})`
               : undefined
           }
           defaultDescription={

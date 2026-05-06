@@ -64,7 +64,7 @@ export function UploadedCowsProvider({ children }: UploadedCowsProviderProps): R
         setDatasetState(parsed);
       }
     } catch {
-      // Corrupt state — ignore and start fresh.
+      // Corrupt state - ignore and start fresh.
       localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
@@ -86,7 +86,7 @@ export function UploadedCowsProvider({ children }: UploadedCowsProviderProps): R
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
     } catch {
-      // Quota or other storage error — keep the dataset in memory anyway.
+      // Quota or other storage error - keep the dataset in memory anyway.
     }
     setDatasetState(d);
   }, []);

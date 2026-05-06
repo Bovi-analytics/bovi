@@ -36,19 +36,20 @@
 /* Dark theme */
 .dark {
   --background: 201 40% 7%;
-  --foreground: 204 15% 95%;
+  --foreground: 204 15% 96%;
   --card: 201 35% 12%;
-  --card-foreground: 204 15% 95%;
+  --card-foreground: 204 15% 96%;
   --primary: 197 98% 45%;
   --primary-foreground: 201 40% 7%;
   --secondary: 204 100% 34%;
-  --secondary-foreground: 204 15% 95%;
+  --secondary-foreground: 204 15% 96%;
   --muted: 201 25% 15%;
-  --muted-foreground: 204 15% 68%;
+  /* Bumped from 68% -> 82% for readability on dark navy backgrounds */
+  --muted-foreground: 204 18% 82%;
   --accent: 197 90% 52%;
   --accent-foreground: 201 40% 7%;
   --destructive: 0 84% 60%;
-  --destructive-foreground: 204 15% 95%;
+  --destructive-foreground: 204 15% 96%;
   --border: 201 22% 20%;
   --input: 201 22% 20%;
   --ring: 197 98% 45%;
@@ -62,4 +63,56 @@ html {
 
 body {
   @apply bg-background text-foreground antialiased;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Mantine dark-mode brand tint                                       */
+/*  Make Mantine surfaces (Paper, Card, Modal, Popover, Tabs, …)       */
+/*  follow the bovi navy palette instead of Mantine's default gray.    */
+/* ------------------------------------------------------------------ */
+[data-mantine-color-scheme="dark"] {
+  --mantine-color-body: hsl(var(--background));
+  --mantine-color-default: hsl(var(--card));
+  --mantine-color-default-hover: hsl(var(--muted));
+  --mantine-color-default-border: hsl(var(--border));
+  --mantine-color-default-color: hsl(var(--card-foreground));
+  /* Override the dark scale used by Paper, Card, Modal, Tabs, etc. */
+  --mantine-color-dark-9: hsl(201 45% 5%);
+  --mantine-color-dark-8: hsl(201 42% 8%);
+  --mantine-color-dark-7: hsl(var(--background));
+  --mantine-color-dark-6: hsl(var(--card));
+  --mantine-color-dark-5: hsl(201 30% 18%);
+  --mantine-color-dark-4: hsl(var(--border));
+  /* Lighten Mantine's "dimmed" text so c="dimmed" stays readable on navy. */
+  --mantine-color-dimmed: hsl(var(--muted-foreground));
+  --mantine-color-placeholder: hsl(204 15% 65%);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Typography scale (design-standard)                                 */
+/*  Tailwind defaults already give us a clean modular scale; this just */
+/*  pins the page H1/H2/H3 sizing so every page agrees on hierarchy.   */
+/*    H1 (page title)     -> 1.875rem / 30px, bold                     */
+/*    H2 (section)        -> 1.25rem  / 20px, semibold                 */
+/*    H3 (card title)     -> 1rem     / 16px, semibold                 */
+/*    body                -> 0.875rem / 14px                           */
+/*    caption / meta      -> 0.75rem  / 12px                           */
+/* ------------------------------------------------------------------ */
+
+/* Force Paper/Card backgrounds onto the brand navy in dark mode,
+   regardless of which CSS var the component reads from. */
+.dark .mantine-Paper-root,
+[data-mantine-color-scheme="dark"] .mantine-Paper-root {
+  --paper-bg: hsl(var(--card));
+  --paper-border-color: hsl(var(--border));
+  background-color: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.dark .mantine-Card-root,
+[data-mantine-color-scheme="dark"] .mantine-Card-root {
+  --card-bg: hsl(var(--card));
+  --card-border-color: hsl(var(--border));
+  background-color: hsl(var(--card));
+  border-color: hsl(var(--border));
 }

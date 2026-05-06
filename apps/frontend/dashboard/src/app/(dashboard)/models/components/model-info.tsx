@@ -33,7 +33,7 @@ export function ModelInfo({ model, fittedValues }: ModelInfoProps): ReactElement
               <td className="py-2 text-muted-foreground">{param.description}</td>
               {fittedValues && (
                 <td className="py-2 text-right font-mono text-foreground">
-                  {fittedValues[param.name]?.toFixed(4) ?? "—"}
+                  {fittedValues[param.name]?.toFixed(4) ?? "-"}
                 </td>
               )}
             </tr>

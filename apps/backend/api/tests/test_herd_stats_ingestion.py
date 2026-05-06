@@ -166,7 +166,7 @@ def test_parse_icar_detects_format_and_aggregates():
     assert "Achieved21Milk" in result.raw_stats
     # DaysInMilk: max per cow (70, 66) → mean = 68
     assert result.raw_stats["DaysInMilk"] == pytest.approx(68.0)
-    # Achieved305Milk estimated via trapezoid — just sanity-check it is a large number
+    # Achieved305Milk estimated via trapezoid - just sanity-check it is a large number
     assert result.raw_stats["Achieved305Milk"] > 0
 
 
@@ -222,7 +222,7 @@ def test_real_icar_dataset():
     assert result.format_detected == "icar_test_day"
     assert result.cow_count == 407
     assert result.detected_parity is not None and 1 <= result.detected_parity <= 7
-    # Cumulative lactation yield per cow (kg) — real herds fall 5k–15k
+    # Cumulative lactation yield per cow (kg) - real herds fall 5k–15k
     assert 3000 < result.raw_stats["AchievedMilk"] < 20000
     assert 5000 < result.raw_stats["Achieved305Milk"] < 15000
     # Per-cow records returned alongside aggregates

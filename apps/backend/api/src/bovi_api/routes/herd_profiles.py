@@ -7,24 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
 from bovi_api.database import get_session
-from bovi_api.herd_stats_ingestion import normalize_herd_stats, parse_csv
+from bovi_api.herd_stats_ingestion import DEFAULT_STAT_RANGES, normalize_herd_stats, parse_csv
 from bovi_api.models import HerdProfile, HerdProfileCreate, HerdProfileRead
 
 router = APIRouter(tags=["herd-profiles"])
-
-# Biological estimate ranges — calibrate from training data as needed
-_DEFAULT_STAT_RANGES: dict[str, tuple[float, float]] = {
-    "Achieved21Milk": (0.0, 50.0),
-    "Achieved305Milk": (3000.0, 15000.0),
-    "Achieved75Milk": (0.0, 50.0),
-    "AchievedMilk": (3000.0, 20000.0),
-    "DaysDry": (0.0, 150.0),
-    "DaysInMilk": (0.0, 600.0),
-    "DaysOpen": (0.0, 300.0),
-    "DaysPregnant": (0.0, 283.0),
-    "HistoricCalvingInterval": (300.0, 600.0),
-    "QualitySequence": (0.0, 1.0),
-}
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
@@ -97,7 +83,7 @@ async def csv_preview(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    normalized = normalize_herd_stats(result.raw_stats, _DEFAULT_STAT_RANGES)
+    normalized = normalize_herd_stats(result.raw_stats, DEFAULT_STAT_RANGES)
 
     return HerdProfileUploadResponse(
         stats=normalized,

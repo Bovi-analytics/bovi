@@ -10,7 +10,7 @@ from typing import Literal
 
 # MLflow emits a UserWarning about `Any` type hints from its OWN internal
 # response schemas during import. There's no way for us to make those hints
-# more specific — they're library-internal. A normal `filterwarnings` call
+# more specific - they're library-internal. A normal `filterwarnings` call
 # won't survive: langchain_core (pulled in transitively) calls
 # `warnings.resetwarnings()` during mlflow's import and wipes user filters.
 # Monkey-patching `showwarning` is the only reliable way to silence it,

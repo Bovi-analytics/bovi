@@ -23,7 +23,7 @@ export function ClassicalInputPanel({
   return (
     <>
       <div className="rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-3 text-sm font-medium text-muted-foreground">Classical models</h3>
+        <h3 className="mb-3 text-base font-semibold text-foreground">Classical models</h3>
         <div className="space-y-2">
           {ALL_MODELS.map((m) => (
             <div key={m.id} className="flex items-center justify-between">

@@ -1,4 +1,4 @@
-"""SQLModel models — single source of truth for DB tables AND Pydantic schemas."""
+"""SQLModel models - single source of truth for DB tables AND Pydantic schemas."""
 
 from datetime import datetime
 from typing import ClassVar
@@ -102,9 +102,9 @@ class HerdProfileRead(HerdProfileBase):
 class ChallengeBase(SQLModel):
     """Shared fields for benchmark challenges."""
 
-    dataset: str = Field(description="'aurora' or 'sunnyside'")
-    size: str = Field(description="'small' or 'medium'")
-    period: str = Field(description="'recent', 'old', or 'mixed'")
+    dataset: str = Field(description="'icar' or 'upload'")
+    size: str = Field(default="full", description="'full' for ICAR, 'custom' for upload")
+    period: str = Field(default="all", description="'all' for ICAR, 'custom' for upload")
     user_id: str | None = Field(
         default=None, description="Auth-ready; nullable until auth is added"
     )
@@ -118,11 +118,25 @@ class Challenge(ChallengeBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     cow_metadata: dict = Field(
         sa_column=Column(JSON),
-        description="{cow_id: {parity, dim[], milk_kg[]}} — test-day records per cow",
+        description="{cow_id: {parity, dim[], milk_kg[]}} - test-day records per cow",
     )
-    reference_yields: dict = Field(
-        sa_column=Column(JSON),
-        description="{cow_id: float} — TIM-calculated 305-day reference yields",
+    reference_yields: dict | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+        description="Legacy: TIM-calculated 305-day reference yields. Unused in v2 challenges.",
+    )
+    actual_yields: dict | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+        description="{cow_id: float} - actual cumulative yield (ground truth).",
+    )
+    name: str | None = Field(
+        default=None,
+        description="Optional cohort name (used for upload-mode challenges).",
+    )
+    source: str | None = Field(
+        default=None,
+        description="'preset' or 'upload' - where the cohort came from.",
     )
     created_at: datetime | None = Field(
         default=None,
@@ -135,20 +149,26 @@ class ChallengeRead(ChallengeBase):
 
     id: int
     created_at: datetime | None
+    name: str | None = None
+    source: str | None = None
 
 
 class ChallengeDetail(ChallengeRead):
     """Full challenge response including cow data (used for export and submission)."""
 
     cow_metadata: dict
-    reference_yields: dict
+    reference_yields: dict | None = None
+    actual_yields: dict | None = None
 
 
 class SubmissionBase(SQLModel):
     """Shared fields for benchmark submissions."""
 
     submission_type: str = Field(description="'bovi_model' or 'own_method'")
-    model_type: str | None = Field(default=None, description="e.g. 'tim', 'wood'")
+    model_type: str | None = Field(default=None, description="Challenger model: 'tim', 'wood', ...")
+    benchmark_model: str | None = Field(
+        default=None, description="Server-run benchmark model the challenger is compared against."
+    )
     organization: str | None = Field(default=None)
     country: str | None = Field(default=None)
     calculation_method: str | None = Field(default=None)
@@ -165,11 +185,11 @@ class Submission(SubmissionBase, table=True):
     challenge_id: int = Field(foreign_key="challenges.id")
     submitted_yields: dict = Field(
         sa_column=Column(JSON),
-        description="{cow_id: float} — user-submitted or bovi-calculated yields",
+        description="{cow_id: float} - user-submitted or bovi-calculated yields",
     )
     bovi_yields: dict = Field(
         sa_column=Column(JSON),
-        description="{cow_id: float} — TIM yields for report flavors 2 and 3",
+        description="{cow_id: float} - server-run benchmark-model yields.",
     )
     stats: dict = Field(
         sa_column=Column(JSON),

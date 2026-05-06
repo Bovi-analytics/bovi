@@ -9,17 +9,24 @@ interface Props {
   challenge: ChallengeRead;
 }
 
+const DATASET_LABEL: Record<string, string> = {
+  icar: "ICAR cohort",
+  upload: "Custom upload",
+};
+
 export function ChallengeCard({ challenge }: Props): ReactElement {
   const router = useRouter();
+  const title = challenge.name ?? `Challenge #${challenge.id}`;
+  const datasetLabel = DATASET_LABEL[challenge.dataset] ?? challenge.dataset;
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Stack gap="xs">
         <Group justify="space-between">
-          <Text fw={600} size="sm">Challenge #{challenge.id}</Text>
-          <Badge size="xs" variant="light">{challenge.dataset}</Badge>
+          <Text fw={600} size="sm">{title}</Text>
+          <Badge size="xs" variant="light">{datasetLabel}</Badge>
         </Group>
         <Text size="xs" c="dimmed">
-          {challenge.size} · {challenge.period}
+          #{challenge.id}
           {challenge.created_at
             ? ` · ${new Date(challenge.created_at).toLocaleDateString()}`
             : ""}

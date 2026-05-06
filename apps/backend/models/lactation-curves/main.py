@@ -1,4 +1,4 @@
-"""Lactation curves Azure Function App — classical fitting and milkbot endpoints."""
+"""Lactation curves Azure Function App - classical fitting and milkbot endpoints."""
 
 import logging
 import time

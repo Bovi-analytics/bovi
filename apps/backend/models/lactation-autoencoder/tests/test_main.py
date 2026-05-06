@@ -1,4 +1,4 @@
-"""API endpoint tests — HTTP contract only."""
+"""API endpoint tests - HTTP contract only."""
 
 from fastapi.testclient import TestClient
 from main import app

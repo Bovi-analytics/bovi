@@ -59,7 +59,7 @@ export function HerdProfileForm({
         minRows={2}
       />
       <div>
-        <p className="mb-3 text-xs text-muted-foreground">All values normalized 0–1.</p>
+        <p className="mb-3 text-xs text-foreground">All values normalized 0–1.</p>
         <HerdStatsForm values={stats} onChange={setStats} />
       </div>
       <Group justify="flex-end">

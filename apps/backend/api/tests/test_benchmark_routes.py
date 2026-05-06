@@ -33,7 +33,7 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
     the upload route gets past the "challenge not found" check and reaches the
     threshold logic.
     """
-    # Reuse the same session machinery the override does — find the engine
+    # Reuse the same session machinery the override does - find the engine
     # by inspecting the dependency override on the test app.
     override = client.app.dependency_overrides[get_session]
 
@@ -42,13 +42,16 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
         async for session in override():
             session.add(
                 Challenge(
-                    dataset="aurora",
-                    size="small",
-                    period="recent",
+                    dataset="icar",
+                    size="full",
+                    period="all",
+                    source="preset",
+                    name="seed",
                     cow_metadata={
                         f"cow{i}": {"parity": 1, "dim": [50], "milk_kg": [25.0]} for i in range(10)
                     },
-                    reference_yields={f"cow{i}": 8000.0 for i in range(10)},
+                    reference_yields=None,
+                    actual_yields={f"cow{i}": 8000.0 for i in range(10)},
                 )
             )
             await session.commit()

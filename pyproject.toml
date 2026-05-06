@@ -13,6 +13,7 @@ members = [
     "packages/infrastructure/*",
     "apps/backend/api",
     "apps/backend/models/*",
+    "apps/infrastructure",
 ]
 
 [tool.uv.sources]
@@ -20,6 +21,7 @@ bovi-core = { workspace = true }
 lactationcurve = { workspace = true }
 lactation-autoencoder = { workspace = true }
 bovi-yolo = { workspace = true }
+bovi-infrastructure = { workspace = true }
 
 [dependency-groups]
 dev = [

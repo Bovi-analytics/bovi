@@ -17,17 +17,17 @@ function SectionHeader({
   description: string;
 }): ReactElement {
   return (
-    <Stack gap={4}>
+    <Stack gap={6}>
       <Group gap="sm" align="center">
-        <Icon size={16} className="text-muted-foreground" />
-        <Text fw={600} size="sm">
+        <Icon size={18} className="text-primary" />
+        <Text fw={700} size="md">
           {title}
         </Text>
         <Badge size="xs" variant="light" color="violet">
           {badge}
         </Badge>
       </Group>
-      <Text size="xs" c="dimmed">
+      <Text size="sm">
         {description}
       </Text>
     </Stack>
@@ -39,26 +39,26 @@ export default function HerdStatsPage(): ReactElement {
     <div className="space-y-8 p-6">
       <div>
         <h1 className="text-2xl font-semibold">Herd Data</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-foreground">
           Two types of data live here: cow-level records for curve fitting, and herd-level
           statistics for the autoencoder. Most users only need the first.
         </p>
       </div>
 
-      {/* Section 1 — cow data for classical models */}
+      {/* Section 1 - cow data for classical models */}
       <div className="space-y-4">
         <SectionHeader
           icon={FlaskConical}
           title="Cow data"
           badge="for Classical Models"
-          description="Individual cow records — one measurement per test day. Load a preset farm dataset or upload your own CSV. Used by the classical curve models (Wood, Wilmink, etc.)."
+          description="Individual cow records - one measurement per test day. Load a preset farm dataset or upload your own CSV. Used by the classical curve models (Wood, Wilmink, etc.)."
         />
         <DataSourcePicker />
       </div>
 
       <div className="border-t border-border" />
 
-      {/* Section 2 — herd profiles for autoencoder */}
+      {/* Section 2 - herd profiles for autoencoder */}
       <div className="space-y-4">
         <SectionHeader
           icon={Cpu}

@@ -8,7 +8,7 @@ nesting ``asyncio.run`` inside an already-running event loop.
 from logging.config import fileConfig
 
 from alembic import context
-from bovi_api.models import FittingResult, HerdProfile  # noqa: F401 — registers tables
+from bovi_api.models import FittingResult, HerdProfile  # noqa: F401 - registers tables
 from bovi_api.settings import get_settings
 from sqlalchemy import create_engine
 from sqlmodel import SQLModel

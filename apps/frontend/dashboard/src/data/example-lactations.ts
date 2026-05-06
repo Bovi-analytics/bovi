@@ -16,14 +16,14 @@ export interface ExampleLactation {
 /**
  * Example datasets.
  *
- * - `source: "synthetic"` — illustrative lactations, hand-crafted for teaching purposes.
- * - `source: "icar"` — one cow per parity bucket, extracted from Meike's ICAR test-day
+ * - `source: "synthetic"` - illustrative lactations, hand-crafted for teaching purposes.
+ * - `source: "icar"` - one cow per parity bucket, extracted from Meike's ICAR test-day
  *   dataset (`data/cow_data/TestDataSet(in).csv`). Real test-day records in kg.
  */
 export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   {
     id: "parity1",
-    label: "Parity 1 — First lactation",
+    label: "Parity 1 - First lactation",
     description: "A typical first-lactation Holstein with 8 test-day recordings.",
     parity: 1,
     breed: "H",
@@ -33,7 +33,7 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "parity2",
-    label: "Parity 2 — Second lactation",
+    label: "Parity 2 - Second lactation",
     description: "A second-lactation Holstein with higher peak yield and typical decline.",
     parity: 2,
     breed: "H",
@@ -43,7 +43,7 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "parity4_high",
-    label: "Parity 4 — High yield",
+    label: "Parity 4 - High yield",
     description: "A high-yielding fourth-lactation cow peaking near 50 kg/day.",
     parity: 4,
     breed: "H",
@@ -53,7 +53,7 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "icar-2348",
-    label: "ICAR cow 2348 — parity 1",
+    label: "ICAR cow 2348 - parity 1",
     description: "Real ICAR test-day records: first-lactation heifer, 11 measurements, peak ~34 kg.",
     parity: 1,
     breed: "H",
@@ -63,7 +63,7 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "icar-2212",
-    label: "ICAR cow 2212 — parity 2",
+    label: "ICAR cow 2212 - parity 2",
     description: "Real ICAR test-day records: second-lactation cow, pronounced peak near 48 kg.",
     parity: 2,
     breed: "H",
@@ -73,7 +73,7 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "icar-1900",
-    label: "ICAR cow 1900 — parity 4",
+    label: "ICAR cow 1900 - parity 4",
     description: "Real ICAR test-day records: mature cow, late peak reaching 56 kg on the third test.",
     parity: 4,
     breed: "H",
@@ -83,7 +83,7 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "icar-1863",
-    label: "ICAR cow 1863 — parity 5",
+    label: "ICAR cow 1863 - parity 5",
     description: "Real ICAR test-day records: fifth-parity cow with a noisier yield profile.",
     parity: 5,
     breed: "H",
@@ -93,7 +93,7 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "icar-1483",
-    label: "ICAR cow 1483 — parity 7",
+    label: "ICAR cow 1483 - parity 7",
     description: "Real ICAR test-day records: aged high-yielder peaking at 53 kg then declining sharply.",
     parity: 7,
     breed: "H",

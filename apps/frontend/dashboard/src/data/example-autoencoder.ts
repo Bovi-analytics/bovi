@@ -3,7 +3,6 @@ export interface ExampleAutoencoderData {
   readonly label: string;
   readonly description: string;
   readonly parity: number;
-  readonly herdId?: number;
   readonly milk: readonly (number | null)[];
   readonly events?: readonly string[];
 }
@@ -22,7 +21,6 @@ export const EXAMPLE_AUTOENCODER_DATA: readonly ExampleAutoencoderData[] = [
     description:
       "A full parity-2 lactation. Daily values from a Wood curve with parameters fitted to Meike's ICAR parity-2 cohort (a=24.67, b=0.206, c=0.00338): peak ~47 kg around DIM 61, 305-day cumulative ~12 000 kg, plus realistic daily noise (σ≈1.5 kg).",
     parity: 2,
-    herdId: 2942694,
     milk: [
       24.6, 30.3, 32.5, 31.6, 33.3, 34.2, 36.8, 36.8, 38.8, 35.6,
       41.3, 39.4, 41.1, 40.3, 40.4, 42.1, 43.0, 41.8, 42.2, 43.8,
@@ -62,7 +60,6 @@ export const EXAMPLE_AUTOENCODER_DATA: readonly ExampleAutoencoderData[] = [
     label: "Partial lactation (gaps in recording)",
     description: "Real-world data with sensor gaps: missing days 18-51 and 160-239. The model reconstructs the full curve.",
     parity: 2,
-    herdId: 2942694,
     milk: [
       15.0, 26.0, 26.0, 26.0, 31.0, 35.0, 37.0, 37.0, 38.0, 38.0,
       39.0, 39.0, 40.0, 43.0, 41.0, 42.0, 43.0, 43.0, null, null,

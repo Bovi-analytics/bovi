@@ -37,7 +37,7 @@ function CellValue({
     return <span className="text-muted-foreground/50">...</span>;
   }
   if (value === null) {
-    return <span className="text-muted-foreground">—</span>;
+    return <span className="text-muted-foreground">-</span>;
   }
 
   const displayValue = isWeight ? formatWeight(value, weightUnit) : value.toFixed(1);

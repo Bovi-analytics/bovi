@@ -122,7 +122,7 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
   icar_test_day: {
     label: "Milk recordings",
     blurb:
-      "One row per cow per recording date — the raw export you get from milk recording software. We calculate herd averages from these records automatically. Also extracts individual cow data for use on the Curves tab.",
+      "One row per cow per recording date - the raw export you get from milk recording software. We calculate herd averages from these records automatically. Also extracts individual cow data for use on the Curves tab.",
     columns: [
       { name: "TestId", description: "Unique cow identifier", required: true },
       { name: "DaysInMilk", description: "Days since calving", required: true },
@@ -190,20 +190,20 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
   }
 
   return (
-    <Stack gap="md">
-      <Stack gap="xs">
-        <Text size="xs" c="dimmed">Sample size</Text>
+    <Stack gap="lg">
+      <Stack gap={6}>
+        <Text size="sm" fw={600}>Sample size</Text>
         <SegmentedControl
-          size="xs"
+          size="sm"
           value={selectedSize}
           onChange={(v) => setSelectedSize(v as PresetSizeKey)}
           data={SIZE_OPTIONS}
         />
       </Stack>
-      <Stack gap="xs">
-        <Text size="xs" c="dimmed">Time period</Text>
+      <Stack gap={6}>
+        <Text size="sm" fw={600}>Time period</Text>
         <SegmentedControl
-          size="xs"
+          size="sm"
           value={selectedPeriod}
           onChange={(v) => setSelectedPeriod(v as PresetPeriodKey)}
           data={PERIOD_OPTIONS}
@@ -211,17 +211,16 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
       </Stack>
 
       <Group gap="sm" align="center">
-        {isLoading && <Loader size="xs" />}
+        {isLoading && <Loader size="sm" />}
         {presetData && !isLoading && (
-          <Badge color="violet" variant="light">
+          <Badge color="violet" variant="light" size="lg">
             {presetData.cow_count.toLocaleString()} cows
           </Badge>
         )}
         {!isActive && (
           <Button
-            size="sm"
+            size="md"
             color="violet"
-            variant="outline"
             onClick={activate}
             disabled={isLoading || !presetData}
           >
@@ -231,15 +230,15 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
       </Group>
 
       {isActive && (
-        <Alert color="violet" variant="light" p="sm">
+        <Alert color="violet" variant="light">
           <Group justify="space-between" align="center">
             <Text size="sm">
-              Dataset active — {presetData?.cow_count.toLocaleString()} cows ready.
+              Dataset active - {presetData?.cow_count.toLocaleString()} cows ready.
             </Text>
             <Button
               component={Link}
               href="/curves"
-              size="xs"
+              size="sm"
               color="violet"
               rightSection={<ChevronRight size={14} />}
             >
@@ -250,8 +249,8 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
       )}
 
       {isError && (
-        <Alert icon={<AlertCircle size={14} />} color="red" p="xs">
-          Dataset unavailable — make sure CONNECTION_STRING is configured and the preprocessing
+        <Alert icon={<AlertCircle size={16} />} color="red">
+          Dataset unavailable - make sure CONNECTION_STRING is configured and the preprocessing
           script has been run.
         </Alert>
       )}
@@ -319,11 +318,11 @@ function UploadPanel(): ReactElement {
   };
 
   return (
-    <Stack gap="md">
-      <Stack gap="xs">
-        <Text size="xs" c="dimmed">File format</Text>
+    <Stack gap="lg">
+      <Stack gap={6}>
+        <Text size="sm" fw={600}>File format</Text>
         <SegmentedControl
-          size="xs"
+          size="sm"
           value={selectedFormat}
           onChange={(v) => setSelectedFormat(v as FormatKey)}
           data={(Object.keys(FORMATS) as FormatKey[]).map((k) => ({
@@ -331,17 +330,17 @@ function UploadPanel(): ReactElement {
             label: FORMATS[k].label,
           }))}
         />
-        <Text size="xs" c="dimmed">{activeFormat.blurb}</Text>
+        <Text size="sm" mt={4}>{activeFormat.blurb}</Text>
       </Stack>
 
       <Accordion variant="contained">
         <Accordion.Item value="columns">
           <Accordion.Control>
-            <Text size="xs" fw={500}>Expected columns</Text>
+            <Text size="sm" fw={600}>Expected columns</Text>
           </Accordion.Control>
           <Accordion.Panel>
-            <Stack gap="xs">
-              <Table striped withColumnBorders fz="xs">
+            <Stack gap="sm">
+              <Table striped withColumnBorders fz="sm">
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Column</Table.Th>
@@ -356,9 +355,9 @@ function UploadPanel(): ReactElement {
                       <Table.Td>{c.description}</Table.Td>
                       <Table.Td>
                         {c.required ? (
-                          <Badge size="xs" color="red" variant="light">required</Badge>
+                          <Badge size="sm" color="red" variant="light">required</Badge>
                         ) : (
-                          <Text size="xs" c="dimmed">optional</Text>
+                          <Text size="sm">optional</Text>
                         )}
                       </Table.Td>
                     </Table.Tr>
@@ -366,8 +365,8 @@ function UploadPanel(): ReactElement {
                 </Table.Tbody>
               </Table>
               <Button
-                size="xs"
-                variant="subtle"
+                size="sm"
+                variant="light"
                 leftSection={<Download size={14} />}
                 style={{ width: "fit-content" }}
                 onClick={() => downloadText(activeFormat.template(), activeFormat.templateName)}
@@ -387,8 +386,7 @@ function UploadPanel(): ReactElement {
         onChange={handleFileChange}
       />
       <Button
-        variant="outline"
-        size="sm"
+        size="md"
         onClick={() => inputRef.current?.click()}
         loading={uploadMutation.isPending}
         style={{ width: "fit-content" }}
@@ -412,7 +410,7 @@ function UploadPanel(): ReactElement {
           )}
           <Group gap="xs">
             <Badge variant="light">{FORMAT_LABELS[preview.format_detected]}</Badge>
-            <Text size="xs" c="dimmed">
+            <Text size="xs">
               {preview.row_count.toLocaleString()} row(s)
               {preview.cow_count != null && ` · ${preview.cow_count} cows`}
               {preview.detected_parity != null && ` · dominant parity ${preview.detected_parity}`}
@@ -448,14 +446,14 @@ function UploadPanel(): ReactElement {
                       {raw !== undefined ? (
                         `${raw.toFixed(rawDigits)}${unit ? ` ${unit}` : ""}`
                       ) : (
-                        <Text size="xs" c="dimmed">—</Text>
+                        <Text size="xs">-</Text>
                       )}
                     </Table.Td>
                     <Table.Td>
                       {filled ? (
                         preview.stats[meta.name]?.toFixed(3)
                       ) : (
-                        <Text size="xs" c="dimmed">slider default</Text>
+                        <Text size="xs">slider default</Text>
                       )}
                     </Table.Td>
                   </Table.Tr>
@@ -523,18 +521,21 @@ export function DataSourcePicker(): ReactElement {
     return null;
   });
 
-  // Keep active source in sync when context changes from outside (e.g. page reload)
+  // Keep active source in sync when the active preset changes from outside
+  // (e.g. set on another page). Only depends on activePreset.dataset so a local
+  // tile click is not immediately undone — the user can preview a different
+  // preset (e.g. Aurora) before activating it.
   useEffect(() => {
-    if (activePreset && activeSource !== activePreset.dataset) {
+    if (activePreset) {
       setActiveSource(activePreset.dataset);
     }
-  }, [activePreset, activeSource]);
+  }, [activePreset?.dataset]);
 
   return (
     <Stack gap="md">
       <div>
-        <Text size="sm" fw={500}>Data source</Text>
-        <Text size="xs" c="dimmed" mt={2}>
+        <Text size="md" fw={700}>Data source</Text>
+        <Text size="sm" mt={4}>
           Pick a preset farm dataset or upload your own file to start analyzing lactation curves.
         </Text>
       </div>
@@ -561,8 +562,8 @@ export function DataSourcePicker(): ReactElement {
                   transition: "border-color 0.12s",
                 }}
               >
-                <Text size="sm" fw={600}>{opt.label}</Text>
-                <Text size="xs" c="dimmed" mt={2}>{opt.description}</Text>
+                <Text size="md" fw={700}>{opt.label}</Text>
+                <Text size="sm" mt={4}>{opt.description}</Text>
               </Paper>
             </UnstyledButton>
           );

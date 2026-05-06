@@ -43,7 +43,7 @@ export function StatCard({ name, value, isLoading }: StatCardProps): ReactElemen
             )}
           </p>
         ) : (
-          <p className="text-2xl font-bold text-destructive">—</p>
+          <p className="text-2xl font-bold text-destructive">-</p>
         )}
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /* ------------------------------------------------------------------ */
-/*  Shared enums — mirror the FastAPI Literal types exactly            */
+/*  Shared enums - mirror the FastAPI Literal types exactly            */
 /* ------------------------------------------------------------------ */
 
 export const ModelSchema = z.enum(["wood", "wilmink", "ali_schaeffer", "fischer", "milkbot"]);
@@ -29,7 +29,7 @@ export const ImputationMethodSchema = z.enum([
   "mean",
 ]);
 
-/* Inferred types — use these in components and function signatures */
+/* Inferred types - use these in components and function signatures */
 export type Model = z.infer<typeof ModelSchema>;
 export type Characteristic = z.infer<typeof CharacteristicSchema>;
 export type Breed = z.infer<typeof BreedSchema>;
@@ -212,14 +212,26 @@ export const PresetDatasetResponseSchema = z.object({
   cows: z.array(PresetCowSchema),
 });
 
+export const PresetHerdStatsResponseSchema = z.object({
+  dataset: z.string(),
+  size: z.string(),
+  period: z.string(),
+  parity: z.number().nullable(),
+  cow_count: z.number(),
+  raw_stats: z.record(z.string(), z.number()),
+  stats: z.record(z.string(), z.number()),
+  warnings: z.array(z.string()),
+});
+
 export type PresetDatasetKey = z.infer<typeof PresetDatasetKeySchema>;
 export type PresetSizeKey = z.infer<typeof PresetSizeKeySchema>;
 export type PresetPeriodKey = z.infer<typeof PresetPeriodKeySchema>;
 export type PresetCow = z.infer<typeof PresetCowSchema>;
 export type PresetDatasetResponse = z.infer<typeof PresetDatasetResponseSchema>;
+export type PresetHerdStatsResponse = z.infer<typeof PresetHerdStatsResponseSchema>;
 
 /* ------------------------------------------------------------------ */
-/*  Benchmark — Challenges                                             */
+/*  Benchmark - Challenges                                             */
 /* ------------------------------------------------------------------ */
 
 export const ChallengeReadSchema = z.object({
@@ -227,6 +239,8 @@ export const ChallengeReadSchema = z.object({
   dataset: z.string(),
   size: z.string(),
   period: z.string(),
+  name: z.string().nullable().optional(),
+  source: z.string().nullable().optional(),
   user_id: z.string().nullable(),
   created_at: z.string().nullable(),
 });
@@ -234,15 +248,15 @@ export type ChallengeRead = z.infer<typeof ChallengeReadSchema>;
 
 export const ChallengeListSchema = z.array(ChallengeReadSchema);
 
-export const ChallengeCreateSchema = z.object({
-  dataset: z.enum(["aurora", "sunnyside"]),
-  size: z.enum(["small", "medium"]),
-  period: z.enum(["recent", "old", "mixed"]),
+export const ChallengeCreatePresetSchema = z.object({
+  source: z.literal("preset").default("preset"),
+  preset: z.literal("icar").default("icar"),
+  name: z.string().optional(),
 });
-export type ChallengeCreate = z.infer<typeof ChallengeCreateSchema>;
+export type ChallengeCreatePreset = z.infer<typeof ChallengeCreatePresetSchema>;
 
 /* ------------------------------------------------------------------ */
-/*  Benchmark — Submissions                                            */
+/*  Benchmark - Submissions                                            */
 /* ------------------------------------------------------------------ */
 
 export const ParityStatsSchema = z.object({
@@ -253,10 +267,23 @@ export const ParityStatsSchema = z.object({
   n: z.number(),
 });
 
-export const ComparisonStatsSchema = z.object({
+export const VsBlockSchema = z.object({
   overall: ParityStatsSchema,
   by_parity: z.record(z.string(), ParityStatsSchema),
+});
+export type ParityStats = z.infer<typeof ParityStatsSchema>;
+export type VsBlock = z.infer<typeof VsBlockSchema>;
+
+export const ComparisonStatsSchema = z.object({
+  version: z.number().optional(),
+  challenger_vs_aly: VsBlockSchema.optional(),
+  benchmark_vs_aly: VsBlockSchema.optional(),
+  challenger_vs_benchmark: VsBlockSchema.optional(),
   failed_count: z.number(),
+  // legacy fields (v1)
+  overall: ParityStatsSchema.optional(),
+  by_parity: z.record(z.string(), ParityStatsSchema).optional(),
+  vs_aly: VsBlockSchema.optional(),
 });
 export type ComparisonStats = z.infer<typeof ComparisonStatsSchema>;
 
@@ -265,6 +292,7 @@ export const SubmissionReadSchema = z.object({
   challenge_id: z.number(),
   submission_type: z.string(),
   model_type: z.string().nullable(),
+  benchmark_model: z.string().nullable().optional(),
   organization: z.string().nullable(),
   country: z.string().nullable(),
   calculation_method: z.string().nullable(),
@@ -275,5 +303,16 @@ export const SubmissionReadSchema = z.object({
   created_at: z.string().nullable(),
 });
 export type SubmissionRead = z.infer<typeof SubmissionReadSchema>;
+
+export const BenchmarkModelSchema = z.enum([
+  "wood",
+  "wilmink",
+  "ali_schaeffer",
+  "fischer",
+  "milkbot",
+  "autoencoder",
+  "tim",
+]);
+export type BenchmarkModel = z.infer<typeof BenchmarkModelSchema>;
 
 export const SubmissionListSchema = z.array(SubmissionReadSchema);

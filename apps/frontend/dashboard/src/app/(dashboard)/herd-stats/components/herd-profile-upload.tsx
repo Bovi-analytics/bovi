@@ -85,7 +85,7 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
       { name: "DailyMilkingYield", description: "Daily milk yield in kg", required: true },
       {
         name: "Parity",
-        description: "Lactation number — used to pick the dominant parity across the herd",
+        description: "Lactation number - used to pick the dominant parity across the herd",
         required: false,
       },
       { name: "EventType", description: "Only rows with value MilkRecording are kept", required: false },
@@ -193,7 +193,7 @@ export function HerdProfileUpload(): ReactElement {
         <Text size="sm" fw={500}>
           Import from CSV
         </Text>
-        <Text size="xs" c="dimmed">
+        <Text size="xs">
           Pick the format that matches your export, then upload the file. We auto-detect the
           format server-side and aggregate per-cow records when needed. The detection hint below
           drives the example template and the format docs only.
@@ -209,7 +209,7 @@ export function HerdProfileUpload(): ReactElement {
           }))}
         />
 
-        <Text size="xs" c="dimmed">
+        <Text size="xs">
           {activeFormat.blurb}
         </Text>
 
@@ -217,7 +217,7 @@ export function HerdProfileUpload(): ReactElement {
           <Accordion.Item value="format">
             <Accordion.Control>
               <Text size="xs" fw={500}>
-                {activeFormat.label} — expected columns
+                {activeFormat.label} - expected columns
               </Text>
             </Accordion.Control>
             <Accordion.Panel>
@@ -243,7 +243,7 @@ export function HerdProfileUpload(): ReactElement {
                               required
                             </Badge>
                           ) : (
-                            <Text size="xs" c="dimmed">
+                            <Text size="xs">
                               optional
                             </Text>
                           )}
@@ -294,13 +294,13 @@ export function HerdProfileUpload(): ReactElement {
             {detectedMismatch && (
               <Alert icon={<AlertCircle size={14} />} color="blue">
                 Detected format: <Code>{FORMAT_LABELS[preview.format_detected]}</Code>. Switched
-                from <Code>{FORMAT_LABELS[selectedFormat]}</Code> — preview below uses the detected
+                from <Code>{FORMAT_LABELS[selectedFormat]}</Code> - preview below uses the detected
                 format.
               </Alert>
             )}
             <Group gap="xs">
               <Badge variant="light">{FORMAT_LABELS[preview.format_detected]}</Badge>
-              <Text size="xs" c="dimmed">
+              <Text size="xs">
                 {preview.row_count.toLocaleString()} row(s) processed
                 {preview.cow_count != null && ` · ${preview.cow_count} cows`}
                 {preview.detected_parity != null &&
@@ -319,7 +319,7 @@ export function HerdProfileUpload(): ReactElement {
                 <Link href="/curves" style={{ textDecoration: "underline" }}>
                   Curves tab
                 </Link>{" "}
-                — pick individual cows from the "Uploaded" group or use the random-cow button.
+                - pick individual cows from the "Uploaded" group or use the random-cow button.
               </Alert>
             )}
             <Table striped withColumnBorders fz="xs">
@@ -343,8 +343,8 @@ export function HerdProfileUpload(): ReactElement {
                         {raw !== undefined ? (
                           `${raw.toFixed(rawDigits)}${unit ? ` ${unit}` : ""}`
                         ) : (
-                          <Text size="xs" c="dimmed">
-                            —
+                          <Text size="xs">
+                            -
                           </Text>
                         )}
                       </Table.Td>
@@ -352,7 +352,7 @@ export function HerdProfileUpload(): ReactElement {
                         {filled ? (
                           preview.stats[meta.name]?.toFixed(3)
                         ) : (
-                          <Text size="xs" c="dimmed">
+                          <Text size="xs">
                             slider default
                           </Text>
                         )}

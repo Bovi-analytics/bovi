@@ -1,1 +1,1 @@
-"""Bovi Central API — gateway, persistence, and monitoring."""
+"""Bovi Central API - gateway, persistence, and monitoring."""

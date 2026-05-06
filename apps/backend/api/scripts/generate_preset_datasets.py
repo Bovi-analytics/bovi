@@ -210,6 +210,120 @@ def _generate_blob(
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
+def _build_icar_preset(client: BlobServiceClient) -> bytes:
+    """Build the ICAR preset blob with cows + actual ground-truth yields.
+
+    Reads dataset/TestDataSet.csv (sparse test-day records) and
+    dataset/ActualMilkYields.csv (daily-meter ground truth) from the
+    icarwebsite container, joins on TestId, and emits cohort + actual_yields.
+    """
+    print("\n=== ICAR ===")
+    test_df = _read_blob_csv(client, "dataset/TestDataSet.csv")
+    aly_df = _read_blob_csv(client, "dataset/ActualMilkYields.csv")
+
+    # Identify columns flexibly (case-insensitive)
+    cols = {c.lower(): c for c in test_df.columns}
+    id_col = cols.get("testid") or cols.get("cow_id") or cols.get("id")
+    parity_col = cols.get("parity") or cols.get("lact")
+    dim_col = cols.get("dim") or cols.get("daysinmilk")
+    milk_col = cols.get("dailymilkingyield") or cols.get("milk")
+    if not all([id_col, parity_col, dim_col, milk_col]):
+        raise RuntimeError(
+            f"TestDataSet.csv missing expected columns. Got: {list(test_df.columns)}"
+        )
+
+    test_df[dim_col] = pd.to_numeric(test_df[dim_col], errors="coerce")
+    test_df[milk_col] = pd.to_numeric(
+        test_df[milk_col].astype(str).str.replace(",", ".", regex=False),
+        errors="coerce",
+    )
+    test_df[parity_col] = pd.to_numeric(test_df[parity_col], errors="coerce")
+    test_df = test_df.dropna(subset=[id_col, dim_col, milk_col])
+    test_df = cast(pd.DataFrame, test_df[test_df[dim_col] >= 0])
+    test_df = cast(pd.DataFrame, test_df[test_df[milk_col] > 0])
+
+    # Normalise: floats like "1483.0" -> "1483".
+    def _norm(v: object) -> str:
+        try:
+            f = float(v)  # type: ignore[arg-type]
+            if f.is_integer():
+                return str(int(f))
+        except (TypeError, ValueError):
+            pass
+        return str(v).strip()
+
+    test_df["_id"] = test_df[id_col].apply(_norm)
+    test_df["_parity"] = test_df[parity_col].astype("Int64")
+
+    cows: list[dict] = []
+    for group_key, group in test_df.groupby(["_id", "_parity"], sort=False):
+        cow_id, parity_val = cast(tuple[str, object], group_key)
+        group_sorted = group.sort_values(dim_col)
+        parity_int: int | None = (
+            int(cast(int, parity_val)) if not bool(pd.isna(parity_val)) else None
+        )
+        cows.append(
+            {
+                "cow_id": str(cow_id),
+                "display_name": f"Cow {cow_id} - parity {parity_int}",
+                "parity": parity_int,
+                "dim": group_sorted[dim_col].astype(int).tolist(),
+                "milk_kg": [round(float(v), 2) for v in group_sorted[milk_col].tolist()],
+            }
+        )
+
+    # Parse actual yields keyed by TestId
+    aly_cols = {c.lower(): c for c in aly_df.columns}
+    aly_id = aly_cols.get("testid") or aly_cols.get("cow_id") or aly_cols.get("id")
+    aly_val = (
+        aly_cols.get("totalactualproduction")
+        or aly_cols.get("actualproduction")
+        or aly_cols.get("yield_305day")
+        or aly_cols.get("total_305_yield")
+    )
+    if not aly_id or not aly_val:
+        raise RuntimeError(
+            f"ActualMilkYields.csv missing expected columns. Got: {list(aly_df.columns)}"
+        )
+
+    aly_df[aly_val] = pd.to_numeric(
+        aly_df[aly_val].astype(str).str.replace(",", ".", regex=False), errors="coerce"
+    )
+    aly_df = aly_df.dropna(subset=[aly_id, aly_val])
+
+    def _norm_id(v: object) -> str:
+        # Normalise ids that may parse as float (e.g. 1483.0) back to "1483".
+        try:
+            f = float(v)  # type: ignore[arg-type]
+            if f.is_integer():
+                return str(int(f))
+        except (TypeError, ValueError):
+            pass
+        return str(v).strip()
+
+    actual_yields: dict[str, float] = {
+        _norm_id(row[aly_id]): round(float(row[aly_val]), 2) for _, row in aly_df.iterrows()
+    }
+
+    # Keep only cows that have an ALY
+    cows_with_aly = [c for c in cows if c["cow_id"] in actual_yields]
+    print(
+        f"  Built ICAR cohort: {len(cows_with_aly):,} cows with ALY "
+        f"(dropped {len(cows) - len(cows_with_aly)} without)."
+    )
+
+    payload = {
+        "dataset": "icar",
+        "size": "full",
+        "period": "all",
+        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+        "cow_count": len(cows_with_aly),
+        "cows": cows_with_aly,
+        "actual_yields": {c["cow_id"]: actual_yields[c["cow_id"]] for c in cows_with_aly},
+    }
+    return json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+
 def main(dry_run: bool = False) -> None:
     conn_str = os.environ.get("CONNECTION_STRING")
     if not conn_str:
@@ -231,11 +345,22 @@ def main(dry_run: bool = False) -> None:
                 dest_path = f"preset-datasets/{dataset_key}/{size_key}_{period}.json"
                 cow_count = json.loads(blob_data)["cow_count"]
                 kb = len(blob_data) / 1024
-                print(f"    {size_key:6s}: {cow_count:5,} cows, {kb:.0f} KB → {dest_path}")
+                print(f"    {size_key:6s}: {cow_count:5,} cows, {kb:.0f} KB -> {dest_path}")
                 if not dry_run:
                     client.get_blob_client(CONTAINER, dest_path).upload_blob(
                         blob_data, overwrite=True, content_type="application/json"
                     )
+
+    # ICAR — single blob with cows + actual_yields
+    icar_blob = _build_icar_preset(client)
+    icar_path = "preset-datasets/icar/full.json"
+    icar_kb = len(icar_blob) / 1024
+    icar_count = json.loads(icar_blob)["cow_count"]
+    print(f"  ICAR: {icar_count:,} cows, {icar_kb:.0f} KB -> {icar_path}")
+    if not dry_run:
+        client.get_blob_client(CONTAINER, icar_path).upload_blob(
+            icar_blob, overwrite=True, content_type="application/json"
+        )
 
     if dry_run:
         print("\n[dry-run] No blobs were uploaded.")
