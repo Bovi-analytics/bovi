@@ -2,12 +2,12 @@
 
 Three input formats are supported, auto-detected from the header row:
 
-1. ``aggregated`` — one row per herd profile, columns named after canonical
+1. ``aggregated`` - one row per herd profile, columns named after canonical
    stats (e.g. ``Achieved305Milk``, ``DaysInMilk``). The original format.
-2. ``icar_test_day`` — one row per cow per milk recording, as produced by the
+2. ``icar_test_day`` - one row per cow per milk recording, as produced by the
    ICAR platform. Required columns: ``TestId``, ``DaysInMilk``,
    ``DailyMilkingYield`` (and optionally ``Parity``, ``EventType``).
-3. ``dairycom_test_day`` — DairyCom (Cornell-style) export with European
+3. ``dairycom_test_day`` - DairyCom (Cornell-style) export with European
    decimals (``,``) and milk in **lbs**. Required columns: ``ID``, ``DIM``,
    ``MILK`` (and optionally ``305ME`` with the 305-d mature equivalent).
 
@@ -57,6 +57,20 @@ _ALIASES.update(
 )
 
 LBS_TO_KG = 0.45359237
+
+# Biological estimate ranges used to map raw stats to [0, 1] for the autoencoder.
+DEFAULT_STAT_RANGES: dict[str, tuple[float, float]] = {
+    "Achieved21Milk": (0.0, 50.0),
+    "Achieved305Milk": (3000.0, 15000.0),
+    "Achieved75Milk": (0.0, 50.0),
+    "AchievedMilk": (3000.0, 20000.0),
+    "DaysDry": (0.0, 150.0),
+    "DaysInMilk": (0.0, 600.0),
+    "DaysOpen": (0.0, 300.0),
+    "DaysPregnant": (0.0, 283.0),
+    "HistoricCalvingInterval": (300.0, 600.0),
+    "QualitySequence": (0.0, 1.0),
+}
 
 # Windows used to sample test-day yield around DIM 21 and DIM 75
 _DIM_21_WINDOW = 7
@@ -205,14 +219,14 @@ def parse_csv(content: bytes, max_rows: int = 200_000) -> IngestionResult:
 
     """
     if _is_binary_content(content):
-        raise ValueError("Not a valid CSV file — binary content detected")
+        raise ValueError("Not a valid CSV file - binary content detected")
 
     text = content.decode("utf-8", errors="replace")
     # Strip UTF-8 BOM if present
     if text.startswith("﻿"):
         text = text[1:]
     if not text.strip():
-        raise ValueError("Not a valid CSV file — empty file")
+        raise ValueError("Not a valid CSV file - empty file")
 
     delimiter = _sniff_delimiter(text[:4096])
     try:
@@ -223,9 +237,9 @@ def parse_csv(content: bytes, max_rows: int = 200_000) -> IngestionResult:
         raise ValueError("Not a valid CSV file") from exc
 
     if not header:
-        raise ValueError("Not a valid CSV file — header row is empty")
+        raise ValueError("Not a valid CSV file - header row is empty")
     if not data_rows:
-        raise ValueError("Not a valid CSV file — no data rows found")
+        raise ValueError("Not a valid CSV file - no data rows found")
 
     fmt = _detect_format(header)
 
@@ -296,6 +310,35 @@ def parse_csv(content: bytes, max_rows: int = 200_000) -> IngestionResult:
     )
 
 
+def aggregate_test_day_records(
+    cows: list[CowRecord],
+) -> tuple[dict[str, float], list[str]]:
+    """Compute the canonical 10 herd stats from per-cow test-day records.
+
+    Wraps the internal ``_aggregate_test_days`` helper so callers outside the
+    CSV-upload path (e.g. preset dataset endpoints) can derive the same stats
+    from already-parsed cow data.
+
+    Args:
+        cows (list[CowRecord]): Per-cow test-day records.
+
+    Returns:
+        tuple[dict[str, float], list[str]]: ``(raw_stats, warnings)``. Only the
+        canonical keys derivable from the supplied data are populated.
+
+    """
+    lactations = [
+        _CowLactation(
+            cow_id=c.cow_id,
+            parity=c.parity,
+            test_days=list(zip(c.dim, c.milk_kg, strict=False)),
+            milk_305d=None,
+        )
+        for c in cows
+    ]
+    return _aggregate_test_days(lactations)
+
+
 def normalize_herd_stats(
     raw: dict[str, float],
     stat_ranges: dict[str, tuple[float, float]],
@@ -336,7 +379,7 @@ def _parse_aggregated(
 ) -> tuple[dict[str, float], int, list[str]]:
     """Parse a pre-aggregated herd stats CSV (one row per profile).
 
-    Multiple rows are averaged column-wise — preserves the original
+    Multiple rows are averaged column-wise - preserves the original
     ``individual`` → column-mean behaviour but no longer distinguishes that
     sub-case in the response format.
 
@@ -541,7 +584,7 @@ def _trapezoid_cumulative(
     between consecutive observations. If ``max_dim`` is provided, integration
     stops there (with linear interpolation for observations that straddle the
     cap, and extrapolation holding the last yield if observations end earlier).
-    If ``max_dim`` is None, the integration covers only the observed range —
+    If ``max_dim`` is None, the integration covers only the observed range -
     no extrapolation past the last observation.
 
     Args:
@@ -623,13 +666,13 @@ def _aggregate_test_days(
     if near_21 is not None:
         stats["Achieved21Milk"] = near_21
     else:
-        warnings.append("No test-day records near DIM 21 — Achieved21Milk left to slider default.")
+        warnings.append("No test-day records near DIM 21 - Achieved21Milk left to slider default.")
 
     near_75 = _mean_near_dim(cows, 75, _DIM_75_WINDOW)
     if near_75 is not None:
         stats["Achieved75Milk"] = near_75
     else:
-        warnings.append("No test-day records near DIM 75 — Achieved75Milk left to slider default.")
+        warnings.append("No test-day records near DIM 75 - Achieved75Milk left to slider default.")
 
     max_dims = [max(d for d, _ in cow.test_days) for cow in cows if cow.test_days]
     if max_dims:
@@ -652,6 +695,6 @@ def _aggregate_test_days(
                     f"Dropped {dropped} cow(s) from 305-d estimate (too few test-day records)."
                 )
         else:
-            warnings.append("Could not estimate Achieved305Milk — left to slider default.")
+            warnings.append("Could not estimate Achieved305Milk - left to slider default.")
 
     return stats, warnings
