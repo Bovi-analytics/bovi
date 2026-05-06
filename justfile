@@ -89,6 +89,26 @@ api-down:
 api-logs:
     cd apps/backend/api && docker compose logs -f
 
+# Build, start, hit /health, then stop — quick smoke test
+api-smoke:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd apps/backend/api
+    docker compose build
+    docker compose up -d
+    echo "Waiting for API to be ready..."
+    for i in $(seq 1 15); do
+        if curl -sf http://localhost:8000/ > /dev/null 2>&1; then
+            echo "✓ / OK"
+            docker compose down
+            exit 0
+        fi
+        sleep 1
+    done
+    echo "✗ /health did not respond in time"
+    docker compose down
+    exit 1
+
 run-models:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -105,8 +125,16 @@ run-dashboard:
     bun dev --port $PORT_DASHBOARD
 
 # ── Infrastructure ──────────────────────────────────────────
-preview-infra:
-    cd apps/infrastructure && pulumi preview
+infra-preview:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd apps/infrastructure
+    source scripts/load-env.sh
+    pulumi preview
 
-deploy-infra:
-    cd apps/infrastructure && pulumi up
+infra-deploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd apps/infrastructure
+    source scripts/load-env.sh
+    pulumi up --yes

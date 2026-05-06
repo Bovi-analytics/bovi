@@ -53,6 +53,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -145,9 +148,17 @@ jobs:
         working-directory: packages/models/lactationcurve
         run: uv build
 
+      - name: Generate requirements.txt for lactation-curves
+        working-directory: apps/backend/models/lactation-curves
+        run: uv export --no-dev --no-emit-workspace --no-hashes -o requirements.txt
+
       - name: Deploy lactation-curves
         working-directory: apps/backend/models/lactation-curves
         run: func azure functionapp publish "curves-${{ env.PULUMI_STACK }}" --python
+
+      - name: Generate requirements.txt for lactation-autoencoder
+        working-directory: apps/backend/models/lactation-autoencoder
+        run: uv export --no-dev --no-emit-workspace --no-hashes -o requirements.txt
 
       - name: Deploy lactation-autoencoder
         working-directory: apps/backend/models/lactation-autoencoder
