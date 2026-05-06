@@ -5,7 +5,6 @@ runtime:
   options:
     toolchain: uv
     virtualenv: .venv
-    program: src
 config:
   pulumi:tags:
     value:
