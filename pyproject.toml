@@ -28,7 +28,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-mock>=3.0.0",
     "ruff>=0.1.0",
-    "basedpyright>=1.38.2",
+    "basedpyright==1.39.3",
     "pre-commit>=4.5.1",
     "python-dotenv>=1.0.0",
     "httpx>=0.28.0",
@@ -51,6 +51,9 @@ indent-style = "space"
 typeCheckingMode = "basic"
 pythonVersion = "3.12"
 pythonPlatform = "All"
+# torch's type stubs don't expose tensor/as_tensor/float32/device/uint8 via __all__,
+# but PyTorch's documented public API uses them — disable the false positives.
+reportPrivateImportUsage = "none"
 exclude = [
     "**/.venv",
     "**/node_modules",

@@ -486,8 +486,8 @@ def calculate_characteristic(
                         )
                         raise Exception(msg)
             try:
-                return float(value)
-            except ValueError:
+                return float(value)  # pyright: ignore[reportArgumentType]
+            except (ValueError, TypeError):
                 raise Exception(
                     "Could not compute characteristic, possibly due to invalid fitted parameters"
                 )
@@ -552,7 +552,7 @@ def calculate_characteristic(
                         else:
                             value = persistency_milkbot(fitted_params_bayes[3])
 
-                    return float(value)
+                    return float(value)  # pyright: ignore[reportArgumentType]
             else:
                 raise Exception("Bayesian fitting is currently only implemented for MilkBot models")
 

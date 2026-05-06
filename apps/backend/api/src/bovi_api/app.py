@@ -16,7 +16,13 @@ _ALEMBIC_DIR = Path(__file__).parent / "alembic"
 
 
 def _run_migrations() -> None:
-    """Apply Alembic migrations up to head. Idempotent - safe to call on every startup."""
+    """Apply Alembic migrations up to head. Idempotent - safe to call on every startup.
+
+    Skips when no database is configured (e.g. test collection in CI before
+    fixtures replace the engine).
+    """
+    if not get_settings().database_url:
+        return
     cfg = Config()
     cfg.set_main_option("script_location", str(_ALEMBIC_DIR))
     command.upgrade(cfg, "head")
