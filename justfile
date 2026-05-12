@@ -1,10 +1,15 @@
 set dotenv-load
 
 # ── Derived URLs (from PORT_* in .env) ───────────────────────
-export LACTATION_CURVES_URL := "http://localhost:" + env("PORT_CURVES", "8001")
-export LACTATION_AUTOENCODER_URL := "http://localhost:" + env("PORT_AUTOENCODER", "8002")
-export NEXT_PUBLIC_API_URL := "http://localhost:" + env("PORT_API", "8000")
-export CORS_ORIGINS := "[\"http://localhost:" + env("PORT_DASHBOARD", "3000") + "\"]"
+export PORT_API := env("PORT_API", "8000")
+export PORT_CURVES := env("PORT_CURVES", "8001")
+export PORT_AUTOENCODER := env("PORT_AUTOENCODER", "8002")
+export PORT_DASHBOARD := env("PORT_DASHBOARD", "3000")
+
+export LACTATION_CURVES_URL := "http://localhost:" + PORT_CURVES
+export LACTATION_AUTOENCODER_URL := "http://localhost:" + PORT_AUTOENCODER
+export NEXT_PUBLIC_API_URL := "http://localhost:" + PORT_API
+export CORS_ORIGINS := "[\"http://localhost:" + PORT_DASHBOARD + "\"]"
 
 # ── Workspace ────────────────────────────────────────────────
 sync:
