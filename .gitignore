@@ -32,6 +32,9 @@ htmlcov/
 *.swp
 *.swo
 
+# Local git worktrees
+.worktrees/
+
 # Environment
 .env
 .env.*
