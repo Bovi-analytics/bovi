@@ -14,7 +14,7 @@ Monorepo for the Bovi dairy analytics platform.
 
 ### Apps (deployables)
 
-- `apps/backend/api/` — Central FastAPI gateway with PostgreSQL persistence
+- `apps/backend/api/` — Central FastAPI gateway with SQLite persistence
 - `apps/backend/models/lactation-curves/` — Azure Function App for classical curve fitting
 - `apps/backend/models/lactation-autoencoder/` — Azure Function App for TF autoencoder
 - `apps/frontend/dashboard/` — Next.js visualization dashboard

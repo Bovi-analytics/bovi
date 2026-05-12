@@ -1,7 +1,7 @@
 [project]
 name = "bovi-api"
 version = "0.1.0"
-description = "Bovi central API — gateway, persistence (PostgreSQL), and monitoring"
+description = "Bovi central API — gateway, SQLite persistence, and monitoring"
 authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
 requires-python = ">= 3.12, < 3.13"
 dependencies = [

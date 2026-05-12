@@ -9,7 +9,7 @@ This enables:
 - Classical curve fitting (lactationcurve) alongside the autoencoder
 - YOLO object detection models alongside lactation models
 - A unified dashboard showing all model outputs
-- A central API with persistence (PostgreSQL) and monitoring
+- A central API with SQLite persistence and monitoring
 - Clean public/private separation
 
 ## Architecture Decisions
@@ -28,7 +28,7 @@ This enables:
 | YOLO model | Included in monorepo as packages/models/bovi-yolo/ |
 | Apps layout | Split into apps/frontend/ and apps/backend/ |
 | API architecture | Central API (gateway/persistence) + separate model Function Apps |
-| Database | PostgreSQL (Azure) |
+| Database | SQLite persisted on Azure Files |
 | Dashboard routing | Dashboard → Central API only (never calls model apps directly) |
 | Dashboard pkg manager | bun |
 | uv workspace | Backend Python packages only (dashboard excluded) |
@@ -121,7 +121,7 @@ bovi/
 ## Data Flow
 
 ```
-Dashboard (Next.js) → Central API (apps/backend/api/) → PostgreSQL (Azure)
+Dashboard (Next.js) → Central API (apps/backend/api/) → SQLite on Azure Files (Azure)
                           │
                           ├→ lactation-curves/       (internal Azure Function)
                           └→ lactation-autoencoder/  (internal Azure Function)
@@ -172,7 +172,7 @@ These depend on `bovi-core` via PyPI.
 4. Verify: `uv run pytest packages/models/bovi-yolo/tests/`
 
 ### Phase 6: Create Backend Apps
-1. Build `apps/backend/api/` — Central FastAPI gateway with PostgreSQL persistence
+1. Build `apps/backend/api/` — Central FastAPI gateway with SQLite persistence
 2. Build `apps/backend/models/lactation-curves/` — Azure Function App (classical fitting + milkbot)
 3. Build `apps/backend/models/lactation-autoencoder/` — Azure Function App (TF model)
 4. Verify: `uv run pytest apps/backend/*/tests/`
@@ -185,7 +185,7 @@ These depend on `bovi-core` via PyPI.
 ### Phase 8: Move infrastructure
 1. Copy Pulumi code from `lactation_curve_core/packages/python/infrastructure/`
 2. Adapt for new app structure (separate Function App resources per model app)
-3. Add PostgreSQL resource for central API
+3. Add Azure Files persistence for the central API SQLite database
 4. Verify: `pulumi preview`
 
 ## Key Source Files (to copy from)

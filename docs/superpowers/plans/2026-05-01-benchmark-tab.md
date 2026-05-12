@@ -6,7 +6,7 @@
 
 **Architecture:** New FastAPI router (`benchmark.py`) backed by two new DB tables (`challenges`, `submissions`). Frontend is a new Next.js route group with React Query hooks. The benchmark route reuses the existing `POST /curves/test-interval` proxy and extracts a shared `fetch_preset_cows()` utility from `datasets.py`. Auth is deferred — schema has nullable `user_id` fields.
 
-**Tech Stack:** Python 3.12 / FastAPI / SQLModel / PostgreSQL / scipy / scikit-learn / fpdf2 — Next.js 14 / TypeScript / Mantine / TanStack React Query / Zod
+**Tech Stack:** Python 3.12 / FastAPI / SQLModel / SQLite with aiosqlite / scipy / scikit-learn / fpdf2 — Next.js 14 / TypeScript / Mantine / TanStack React Query / Zod
 
 ---
 

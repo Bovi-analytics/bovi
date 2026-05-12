@@ -1,4 +1,8 @@
-"""PostgreSQL database connection and session management."""
+"""Database connection and session management.
+
+Production on Azure uses SQLite persisted on Azure Files. Local development
+uses a SQLite file by default; SQLAlchemy can still use other configured URLs.
+"""
 
 from collections.abc import AsyncGenerator
 
@@ -39,7 +43,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def create_tables() -> None:
-    """Create all tables (for development; use Alembic in production)."""
+    """Create all tables for local development; Azure deployments use Alembic."""
     engine = _get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
