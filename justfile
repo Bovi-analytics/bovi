@@ -14,7 +14,6 @@ export CORS_ORIGINS := "[\"http://localhost:" + PORT_DASHBOARD + "\"]"
 # ── Workspace ────────────────────────────────────────────────
 sync:
     uv sync --all-packages
-    cd apps/infrastructure && uv sync
     git config core.hooksPath .githooks
 
 lint:
