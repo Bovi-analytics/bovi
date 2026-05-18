@@ -18,7 +18,7 @@ The lactation autoencoder model takes 10 herd-level statistics as input (normali
 This feature adds:
 1. A dedicated **Herd Stats management page** where users create, edit, and delete named herd profiles
 2. **CSV upload** (pre-aggregated or individual cow data) that normalizes to 0–1 automatically
-3. **Persistent storage** in PostgreSQL
+3. **Persistent storage** in the central API database (SQLite on Azure Files in Azure/prod; local SQLite in dev)
 4. **Dropdown integration** on the curves page to select a saved profile as a starting preset (sliders remain editable)
 
 ---
@@ -192,7 +192,7 @@ class HerdProfileRead(HerdProfileBase):
 
 Requires an Alembic migration (`alembic revision --autogenerate -m "add herd_profiles table"`). Do not use `create_tables()` for production — Alembic is the migration tool. Migration files live in `apps/backend/api/alembic/versions/`.
 
-**`updated_at` strategy:** `server_default=func.now()` sets the value on INSERT. For auto-update on UPDATE, add a PostgreSQL trigger in the migration:
+**`updated_at` strategy:** `server_default=func.now()` sets the value on INSERT. For auto-update on UPDATE, use SQLAlchemy `onupdate=func.now()` or a SQLite-compatible migration. If this feature is deployed against an explicitly configured PostgreSQL database, a PostgreSQL trigger would look like:
 
 ```sql
 CREATE OR REPLACE FUNCTION update_updated_at_column()

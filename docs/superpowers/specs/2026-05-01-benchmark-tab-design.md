@@ -48,7 +48,7 @@ Het ICAR Portal (een apart project) implementeert een accreditatie-workflow voor
 |---|---|---|
 | Nieuwe tab vs. uitbreiding `/curves` | Nieuwe `/benchmark` tab | Conceptueel andere workflow; houdt `/curves` simpel |
 | Auth | Uitgesteld | Core-functionaliteit eerst; schema klaar voor later |
-| DB-opslag | PostgreSQL (bestaand) | Nieuwe tabellen, consistent met rest van bovi |
+| DB-opslag | SQLite (bestaand; Azure Files in prod) | Nieuwe tabellen, consistent met rest van bovi |
 | Dataset-bron | Aurora + Sunnyside preset blobs | ICAR dataset toevoegen aan `DatasetKey` is buiten scope |
 | Reference berekening | Bestaand `/curves/test-interval` | Endpoint is al batch-capable via `test_ids` array; geen nieuwe proxy route nodig |
 | Upload-formaat Pad B | CSV (niet Excel) | Herbruikbaar met nieuwe `parse_submission_csv()` op basis van bestaande parseer-infrastructuur; Excel vereist openpyxl dependency |

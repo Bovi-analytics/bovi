@@ -32,7 +32,10 @@ class FittingResult(FittingResultBase, table=True):
     __tablename__: ClassVar[str] = "fitting_results"
 
     id: int | None = Field(default=None, primary_key=True)
-    created_at: datetime | None = Field(default=None, sa_column_kwargs={"server_default": "now()"})
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
 
 
 class FittingResultCreate(FittingResultBase):

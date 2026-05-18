@@ -12,13 +12,13 @@ bovi is a monorepo for the Bovi dairy analytics platform containing:
 - **packages/infrastructure/pulumi/** — Azure infrastructure as code
 
 ### Apps (deployables)
-- **apps/backend/api/** — Central FastAPI gateway: unified contract, persistence (PostgreSQL), monitoring
+- **apps/backend/api/** — Central FastAPI gateway: unified contract, SQLite persistence, monitoring
 - **apps/backend/models/lactation-curves/** — Azure Function App: classical curve fitting + milkbot
 - **apps/backend/models/lactation-autoencoder/** — Azure Function App: TF autoencoder predictions
 - **apps/frontend/dashboard/** — Next.js visualization dashboard (bun)
 
 ### Data flow
-Dashboard → Central API → PostgreSQL + proxies to model Function Apps (internal)
+Dashboard → Central API → SQLite on Azure Files + proxies to model Function Apps (internal)
 
 ## Commands
 

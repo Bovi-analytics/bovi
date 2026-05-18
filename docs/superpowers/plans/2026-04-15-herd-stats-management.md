@@ -6,7 +6,7 @@
 
 **Architecture:** SQLModel `HerdProfile` table in the Central API; a new FastAPI router for CRUD + stateless CSV preview; normalization logic inlined in the ingestion utility (no cross-package ML imports); a `HerdStatsRangeNormalizationTransform` utility class (not in TransformRegistry) in the lactation-autoencoder package; a new Next.js `/herd-stats` management page; a profile-selector dropdown wired into the existing `AutoencoderInputPanel`.
 
-**Tech Stack:** Python 3.12 · FastAPI · SQLModel · Alembic · asyncpg · aiosqlite (tests) · Next.js · Mantine · Zod · React Query · uv · bun
+**Tech Stack:** Python 3.12 · FastAPI · SQLModel · Alembic · SQLite with aiosqlite · optional asyncpg for explicitly configured PostgreSQL · Next.js · Mantine · Zod · React Query · uv · bun
 
 **Spec:** `docs/superpowers/specs/2026-04-15-herd-stats-management-design.md`
 
@@ -456,9 +456,9 @@ cd apps/backend/api && uv run alembic revision --autogenerate -m "add herd_profi
 
 Expected: creates a file in `alembic/versions/` like `<hash>_add_herd_profiles_table.py`.
 
-- [ ] **Step 3: Add the `updated_at` PostgreSQL trigger to the migration**
+- [ ] **Step 3: Ensure `updated_at` works with the configured database**
 
-Open the newly generated migration file. In `upgrade()`, after `op.create_table(...)`, add:
+Azure/prod uses SQLite on Azure Files and local dev uses SQLite, so prefer SQLAlchemy `onupdate=func.now()` or a SQLite-compatible migration. Only add the PostgreSQL trigger below when deploying this feature against an explicitly configured PostgreSQL database. In `upgrade()`, after `op.create_table(...)`, add:
 
 ```python
     op.execute("""
