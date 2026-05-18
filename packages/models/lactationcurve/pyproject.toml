@@ -58,7 +58,11 @@ markers = [
     "interpolation: Interpolation function behavior tests",
     "islc: End-to-end ISLC orchestration tests",
     "islc_icar: End-to-end ISLC_ICAR orchestration tests",
+    "integration: Integration tests using package fixtures",
+    "output_validation: Output DataFrame structure tests",
+    "realistic: Realistic-data tests",
     "representation: Standard representation builder tests",
+    "utility: Utility helper tests",
 ]
 
 [tool.semantic_release]

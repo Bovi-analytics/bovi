@@ -1,5 +1,7 @@
 """Tests for format conversion utilities."""
 
+import importlib.util
+
 import numpy as np
 import pytest
 from bovi_core.ml.utils.format_conversion import (
@@ -120,6 +122,11 @@ class TestConvertBoxFormat:
 
 class TestConvertColorFormat:
     """Test suite for color format conversion."""
+
+    pytestmark = pytest.mark.skipif(
+        importlib.util.find_spec("cv2") is None,
+        reason="OpenCV is required for color format conversion tests",
+    )
 
     def test_bgr_to_rgb(self):
         """Test conversion from BGR to RGB."""

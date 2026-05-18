@@ -11,6 +11,7 @@ Note: Integration tests for register_to_unity_catalog() should be run
 in a Databricks environment with proper credentials configured.
 """
 
+import importlib.util
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -98,6 +99,11 @@ class TestGenerateUCModelName:
 
 class TestResolveAliasVersion:
     """Tests for _resolve_alias_version()."""
+
+    pytestmark = pytest.mark.skipif(
+        importlib.util.find_spec("mlflow") is None,
+        reason="MLflow is required for Unity Catalog alias resolution tests",
+    )
 
     @patch("mlflow.MlflowClient")
     def test_alias_not_exists(self, mock_mlflow_client):

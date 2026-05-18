@@ -62,10 +62,14 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
-importmode = "importlib"
 pythonpath = [
+    "packages/bovi-core/src",
     "packages/bovi-core/tests",
+    "packages/models/lactationcurve/src",
+    "packages/models/lactation-autoencoder/src",
+    "apps/backend/api/src",
     "apps/backend/models/lactation-autoencoder",
+    "apps/backend/models/lactation-curves",
 ]
 testpaths = [
     "packages/bovi-core/tests",

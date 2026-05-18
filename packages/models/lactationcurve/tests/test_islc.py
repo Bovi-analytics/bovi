@@ -10,7 +10,7 @@ Test Categories:
     - ISLC method core: Validation and branch coverage for ``ISLC_method``
     - Interpolation methods: ``interpolation_standard_lc`` and linear helpers
     - ISLC orchestration: Grouping, filtering, and per-lactation output
-    - ISLC ICAR orchestration: Grouping, filtering, and per-lactation output
+    - ISLC original orchestration: Grouping, filtering, and per-lactation output
     - Representation builder: Validation and output-shape checks for
       ``create_standard_lc_representation``
 
@@ -25,11 +25,11 @@ Usage:
         pytest tests/lactationcurve/test_islc.py -m islc_method -v
         pytest tests/lactationcurve/test_islc.py -m interpolation -v
         pytest tests/lactationcurve/test_islc.py -m islc -v
-        pytest tests/lactationcurve/test_islc.py -m islc_icar -v
         pytest tests/lactationcurve/test_islc.py -m representation -v
+        pytest tests/lactationcurve/test_islc.py -m integration -v
 
 Author:
-    Meike van Leerdam
+    Meike van Leerdam and copilot
 """
 
 from importlib import import_module
@@ -48,15 +48,15 @@ def _standard_curve_series() -> pd.Series:
 
 def _identity_corr_and_std() -> tuple[pd.DataFrame, np.ndarray]:
     """Create neutral correlation and std inputs for ISLC tests."""
-    n = len(islc_mod.GRID_DAYS)
+    n = len(islc_mod.GRID_DAYS) + 2  # includes day 0 and day 305
     corr = pd.DataFrame(np.eye(n), index=range(n), columns=range(n))
     std = np.ones(n, dtype=float)
     return corr, std
 
 
-def _identity_corr_and_std_icar() -> tuple[pd.DataFrame, np.ndarray]:
-    """Create neutral correlation and std inputs for ISLC_ICAR tests."""
-    n = len(islc_mod.GRID_DAYS) + 2  # includes day 0 and day 305
+def _identity_corr_and_std_original() -> tuple[pd.DataFrame, np.ndarray]:
+    """Create neutral correlation and std inputs for ISLC original tests."""
+    n = len(islc_mod.GRID_DAYS)  # original ISLC does not include day 0 and day 305 in the grid
     corr = pd.DataFrame(np.eye(n), index=range(n), columns=range(n))
     std = np.ones(n, dtype=float)
     return corr, std
@@ -92,13 +92,14 @@ def test_curve_value_prefers_label_then_fallback_positional() -> None:
 
 
 @pytest.mark.islc_method
-def test_islc_method_raises_for_non_grid_day() -> None:
-    """ISLC_method fails fast when input has DIM values outside GRID_DAYS."""
+def test_islc_method_handles_non_grid_day_input() -> None:
+    """ISLC_method still produces a finite value when input DIMs are off-grid."""
     corr, std = _identity_corr_and_std()
-    lactation = pd.DataFrame({"GridDay": [11, 30], "MilkYieldInterp": [30.0, 28.0]})
+    lactation = pd.DataFrame({"DaysInMilk": [11, 30], "MilkingYield": [30.0, 28.0]})
 
-    with pytest.raises(ValueError, match="not part of the grid"):
-        islc_mod.ISLC_method(lactation, _standard_curve_series(), corr, std)
+    value = islc_mod.ISLC_method(lactation, _standard_curve_series(), corr, std)
+    assert isinstance(value, float)
+    assert np.isfinite(value)
 
 
 @pytest.mark.islc_method
@@ -107,8 +108,8 @@ def test_islc_method_returns_float_when_day_290_present() -> None:
     corr, std = _identity_corr_and_std()
     lactation = pd.DataFrame(
         {
-            "GridDay": [10, 30, 50, 290],
-            "MilkYieldInterp": [30.0, 29.0, 28.0, 20.0],
+            "DaysInMilk": [10, 30, 50, 290],
+            "MilkingYield": [30.0, 29.0, 28.0, 20.0],
         }
     )
 
@@ -138,7 +139,7 @@ def test_interpolation_standard_lc_preserves_testid() -> None:
 
     result = islc_mod.interpolation_standard_lc(
         group,
-        column_name_dim="DaysInMilk",
+        days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
         standard_lc=_standard_curve_series(),
     )
@@ -158,7 +159,7 @@ def test_interpolation_standard_lc_returns_empty_with_expected_columns() -> None
 
     result = islc_mod.interpolation_standard_lc(
         group,
-        column_name_dim="DaysInMilk",
+        days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
         standard_lc=_standard_curve_series(),
     )
@@ -174,8 +175,9 @@ def test_linear_interpd_all_to_grid_returns_all_grid_days() -> None:
 
     result = islc_mod.linear_interpd_all_to_grid(group, "DaysInMilk", "MilkingYield")
 
-    assert len(result) == len(islc_mod.GRID_DAYS)
-    assert set(result["GridDay"].tolist()) == set(islc_mod.GRID_DAYS)
+    expected_grid = [0] + islc_mod.GRID_DAYS + [305]
+    assert len(result) == len(expected_grid)
+    assert set(result["GridDay"].tolist()) == set(expected_grid)
     assert set(result["TestId"].tolist()) == {4}
 
 
@@ -219,10 +221,10 @@ def test_islc_adds_default_testid_when_missing() -> None:
         std_per_grid_day=std,
     )
 
-    assert list(result.columns) == ["305_milk_yield", "TestId"]
+    assert list(result.columns) == ["TestId", "LactationMilkYield"]
     assert len(result) == 1
     assert int(result.loc[0, "TestId"]) == 0
-    assert np.isfinite(float(result.loc[0, "305_milk_yield"]))
+    assert np.isfinite(float(result.loc[0, "LactationMilkYield"]))
 
 
 @pytest.mark.islc
@@ -260,9 +262,9 @@ def test_islc_filters_days_over_305() -> None:
             "TestId": [1, 1, 1, 1],
         }
     )
-    corr, std = _identity_corr_and_std()
+    corr, std = _identity_corr_and_std_original()
 
-    result = islc_mod.ISLC(
+    result = islc_mod.ISLC_original(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -273,7 +275,7 @@ def test_islc_filters_days_over_305() -> None:
 
     assert len(result) == 1
     assert int(result.loc[0, "TestId"]) == 1
-    assert np.isfinite(float(result.loc[0, "305_milk_yield"]))
+    assert np.isfinite(float(result.loc[0, "LactationMilkYield"]))
 
 
 @pytest.mark.islc
@@ -299,58 +301,12 @@ def test_islc_returns_nan_for_non_interpolable_lactation() -> None:
 
     assert len(result) == 1
     assert int(result.loc[0, "TestId"]) == 7
-    assert np.isnan(float(result.loc[0, "305_milk_yield"]))
+    assert np.isnan(float(result.loc[0, "LactationMilkYield"]))
 
 
 @pytest.mark.islc
-def test_islc_icar_adds_default_testid_when_missing() -> None:
-    """ISLC_ICAR treats data without TestId as a single lactation with TestId==0."""
-    df = pd.DataFrame({"DaysInMilk": [10, 30, 50], "MilkingYield": [32.0, 31.0, 30.0]})
-    corr, std = _identity_corr_and_std_icar()
-
-    result = islc_mod.ISLC_ICAR(
-        df=df,
-        days_in_milk_col="DaysInMilk",
-        milking_yield_col="MilkingYield",
-        standard_lc_305=_standard_curve_series(),
-        correlation_matrix=corr,
-        std_per_grid_day=std,
-    )
-
-    assert list(result.columns) == ["lactation_milk_yield", "TestId"]
-    assert len(result) == 1
-    assert int(result.loc[0, "TestId"]) == 0
-    assert np.isfinite(float(result.loc[0, "lactation_milk_yield"]))
-
-
-@pytest.mark.islc
-def test_islc_icar_processes_multiple_lactations() -> None:
-    """ISLC_ICAR returns one row per unique TestId for multi-lactation input."""
-    df = pd.DataFrame(
-        {
-            "DaysInMilk": [10, 30, 50, 10, 30, 50],
-            "MilkingYield": [32.0, 31.0, 30.0, 26.0, 25.0, 24.0],
-            "TestId": [1, 1, 1, 2, 2, 2],
-        }
-    )
-    corr, std = _identity_corr_and_std_icar()
-
-    result = islc_mod.ISLC_ICAR(
-        df=df,
-        days_in_milk_col="DaysInMilk",
-        milking_yield_col="MilkingYield",
-        standard_lc_305=_standard_curve_series(),
-        correlation_matrix=corr,
-        std_per_grid_day=std,
-    )
-
-    assert len(result) == 2
-    assert set(result["TestId"].astype(int).tolist()) == {1, 2}
-
-
-@pytest.mark.islc
-def test_islc_icar_filters_days_over_max_dim_by_default() -> None:
-    """ISLC_ICAR defaults to max_dim=305 and drops records above that threshold."""
+def test_islc_filters_days_over_max_dim_by_default() -> None:
+    """ISLC defaults to max_dim=305 and drops records above that threshold."""
     df = pd.DataFrame(
         {
             "DaysInMilk": [10, 30, 50, 400],
@@ -358,9 +314,9 @@ def test_islc_icar_filters_days_over_max_dim_by_default() -> None:
             "TestId": [1, 1, 1, 1],
         }
     )
-    corr, std = _identity_corr_and_std_icar()
+    corr, std = _identity_corr_and_std()
 
-    result = islc_mod.ISLC_ICAR(
+    result = islc_mod.ISLC(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -371,22 +327,22 @@ def test_islc_icar_filters_days_over_max_dim_by_default() -> None:
 
     assert len(result) == 1
     assert int(result.loc[0, "TestId"]) == 1
-    assert np.isfinite(float(result.loc[0, "lactation_milk_yield"]))
+    assert np.isfinite(float(result.loc[0, "LactationMilkYield"]))
 
 
 @pytest.mark.islc
-def test_islc_icar_allows_extended_horizon_with_max_dim_max() -> None:
-    """ISLC_ICAR can include DIM > 305 when max_dim='max'."""
+def test_islc_allows_extended_horizon_with_max_dim_max() -> None:
+    """ISLC can include DIM > 305 when max_dim='max'."""
     df = pd.DataFrame(
         {
-            "DaysInMilk": [10, 30, 50, 350],
+            "DaysInMilk": [10, 30, 50, 400],
             "MilkingYield": [32.0, 31.0, 30.0, 29.0],
             "TestId": [1, 1, 1, 1],
         }
     )
-    corr, std = _identity_corr_and_std_icar()
+    corr, std = _identity_corr_and_std()
 
-    result_305 = islc_mod.ISLC_ICAR(
+    result_305 = islc_mod.ISLC(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -395,7 +351,7 @@ def test_islc_icar_allows_extended_horizon_with_max_dim_max() -> None:
         std_per_grid_day=std,
         max_dim=305,
     )
-    result_max = islc_mod.ISLC_ICAR(
+    result_max = islc_mod.ISLC(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -405,10 +361,10 @@ def test_islc_icar_allows_extended_horizon_with_max_dim_max() -> None:
         max_dim="max",
     )
 
-    assert np.isfinite(float(result_305.loc[0, "lactation_milk_yield"]))
-    assert np.isfinite(float(result_max.loc[0, "lactation_milk_yield"]))
-    assert float(result_max.loc[0, "lactation_milk_yield"]) >= float(
-        result_305.loc[0, "lactation_milk_yield"]
+    assert np.isfinite(float(result_305.loc[0, "LactationMilkYield"]))
+    assert np.isfinite(float(result_max.loc[0, "LactationMilkYield"]))
+    assert float(result_max.loc[0, "LactationMilkYield"]) >= float(
+        result_305.loc[0, "LactationMilkYield"]
     )
 
 
@@ -503,9 +459,10 @@ def test_create_standard_lc_representation_adds_testid_when_interpolator_omits_i
 
     def fake_interpolation_method(
         group: pd.DataFrame,
-        column_name_dim: str,
+        days_in_milk_col: str,
         milking_yield_col: str,
         standard_lc: pd.Series | None = None,
+        small_grid: bool = False,
     ) -> pd.DataFrame:
         return pd.DataFrame(
             {
@@ -535,19 +492,61 @@ def test_create_standard_lc_representation_adds_testid_when_interpolator_omits_i
     assert isinstance(curve_grid, pd.Series)
 
 
-def test_run_demo_executes_with_monkeypatched_io(monkeypatch: pytest.MonkeyPatch) -> None:
-    """_run_demo executes without touching filesystem when I/O is monkeypatched."""
-    fake_df = pd.DataFrame(
-        {
-            "DaysInMilk": list(range(1, 13)),
-            "TestDayMilkYield": [float(v) for v in range(10, 22)],
-        }
-    )
-    fake_result = pd.DataFrame({"305_milk_yield": [1234.5], "TestId": [0]})
-    fake_icar_result = pd.DataFrame({"lactation_milk_yield": [1200.0], "TestId": [0]})
+@pytest.mark.integration
+class TestIntegration:
+    """Integration tests using real fixture files and package-provided matrices."""
 
-    monkeypatch.setattr(islc_mod.pd, "read_csv", lambda *args, **kwargs: fake_df.copy())
-    monkeypatch.setattr(islc_mod, "ISLC", lambda *args, **kwargs: fake_result)
-    monkeypatch.setattr(islc_mod, "ISLC_ICAR", lambda *args, **kwargs: fake_icar_result)
+    def test_islc_method_real_file_smoke_test(self, test_data_dir):
+        """Real-file prediction with provided covariance should be finite and stable."""
+        full_lac_single = pd.read_csv(test_data_dir / "l2_anim2_herd654.csv")
 
-    islc_mod._run_demo()
+        result = islc_mod.ISLC(
+            full_lac_single,
+            days_in_milk_col="DaysInMilk",
+            milking_yield_col="TestDayMilkYield",
+            max_dim=305,
+        )
+
+        assert not result.empty
+        assert "LactationMilkYield" in result.columns
+        assert np.isfinite(result["LactationMilkYield"]).all()
+        assert result["LactationMilkYield"].iloc[0] == pytest.approx(10801.72434)
+        # not completely exact to the 305 sum of the data
+        # because of the interpolation of day 0 that is added to the ISLC method
+
+    def test_ISLC_original_fit_from_reference_requires_reference_df(
+        self, reference_lactations: pd.DataFrame
+    ):
+        """ISLC_original fit mode should fail fast when no reference dataframe is provided."""
+        target_data = reference_lactations.loc[lambda df: df["TestId"] == 1].copy()
+
+        with pytest.raises(
+            ValueError,
+            match="Provide reference_df to fit your own standard lactation curve",
+        ):
+            islc_mod.ISLC_original(
+                target_data,
+                days_in_milk_col="DaysInMilk",
+                milking_yield_col="MilkingYield",
+                fit_standard_lc_from_data=True,
+                reference_df=None,
+            )
+
+    def test_ISLC_original_fitted_fit_standard_lc_returns_target_lactation(
+        self, reference_lactations: pd.DataFrame
+    ):
+        """Leave-one-id-out fit in ISLC_original should keep the target lactation."""
+        test_day_df = reference_lactations
+        training_data = test_day_df.loc[test_day_df["TestId"] != 1].copy()
+        target_data = test_day_df.loc[test_day_df["TestId"] == 1].copy()
+
+        result_cov = islc_mod.ISLC_original(
+            target_data,
+            days_in_milk_col="DaysInMilk",
+            milking_yield_col="MilkingYield",
+            fit_standard_lc_from_data=True,
+            reference_df=training_data,
+        )
+
+        assert result_cov["TestId"].tolist() == [1]
+        assert np.isfinite(float(result_cov["LactationMilkYield"].iloc[0]))

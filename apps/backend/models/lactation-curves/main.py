@@ -13,7 +13,12 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from lactationcurve.characteristics import calculate_characteristic, test_interval_method
+from lactationcurve.characteristics import (
+    ISLC,
+    best_predict_method,
+    calculate_characteristic,
+    test_interval_method,
+)
 from lactationcurve.fitting import fit_lactation_curve, milkbot_model
 from lactationcurve.preprocessing.validate_and_standardize import MilkBotPriors
 from pydantic import BaseModel, Field, ValidationError, model_validator
@@ -411,6 +416,10 @@ class TestIntervalRequest(BaseModel):
         return self
 
 
+class YieldEstimateRequest(TestIntervalRequest):
+    """Request body for 305-day yield estimators using test-day records."""
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -520,7 +529,53 @@ def test_interval(
         "results": [
             {
                 "test_id": row["TestId"],
-                "total_305_yield": float(str(row["Total305Yield"])),
+                "total_305_yield": float(str(row["LactationMilkYield"])),
+            }
+            for _, row in result_df.iterrows()
+        ],
+    }
+
+
+@app.post("/islc")
+def islc(
+    request: YieldEstimateRequest,
+) -> dict[str, list[dict]]:
+    """Calculate lactation milk yield using the ISLC ICAR-style method."""
+    data: dict[str, list] = {
+        "DaysInMilk": request.dim,
+        "MilkingYield": request.milkrecordings,
+    }
+    if request.test_ids is not None:
+        data["TestId"] = request.test_ids
+    result_df = ISLC(pd.DataFrame(data))
+    return {
+        "results": [
+            {
+                "test_id": row["TestId"],
+                "total_305_yield": float(str(row["LactationMilkYield"])),
+            }
+            for _, row in result_df.iterrows()
+        ],
+    }
+
+
+@app.post("/best-predict")
+def best_predict(
+    request: YieldEstimateRequest,
+) -> dict[str, list[dict]]:
+    """Calculate 305-day milk yield using best prediction."""
+    data: dict[str, list] = {
+        "DaysInMilk": request.dim,
+        "MilkingYield": request.milkrecordings,
+    }
+    if request.test_ids is not None:
+        data["TestId"] = request.test_ids
+    result_df = best_predict_method(pd.DataFrame(data))
+    return {
+        "results": [
+            {
+                "test_id": row["TestId"],
+                "total_305_yield": float(str(row["LactationMilkYield"])),
             }
             for _, row in result_df.iterrows()
         ],

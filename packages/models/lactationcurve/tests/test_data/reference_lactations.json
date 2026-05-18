@@ -1,0 +1,227 @@
+[
+  {
+    "TestId": 1,
+    "DaysInMilk": 10,
+    "MilkingYield": 25.594165
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 30,
+    "MilkingYield": 27.549058
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 50,
+    "MilkingYield": 28.921801
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 70,
+    "MilkingYield": 29.3
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 90,
+    "MilkingYield": 28.521801
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 110,
+    "MilkingYield": 26.749058
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 130,
+    "MilkingYield": 24.394165
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 150,
+    "MilkingYield": 21.945465
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 170,
+    "MilkingYield": 19.791526
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 190,
+    "MilkingYield": 18.12816
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 210,
+    "MilkingYield": 16.967323
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 230,
+    "MilkingYield": 16.208858
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 250,
+    "MilkingYield": 15.719788
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 270,
+    "MilkingYield": 15.386004
+  },
+  {
+    "TestId": 1,
+    "DaysInMilk": 290,
+    "MilkingYield": 15.130489
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 10,
+    "MilkingYield": 27.594165
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 30,
+    "MilkingYield": 29.549058
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 50,
+    "MilkingYield": 30.921801
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 70,
+    "MilkingYield": 31.3
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 90,
+    "MilkingYield": 30.521801
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 110,
+    "MilkingYield": 28.749058
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 130,
+    "MilkingYield": 26.394165
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 150,
+    "MilkingYield": 23.945465
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 170,
+    "MilkingYield": 21.791526
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 190,
+    "MilkingYield": 20.12816
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 210,
+    "MilkingYield": 18.967323
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 230,
+    "MilkingYield": 18.208858
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 250,
+    "MilkingYield": 17.719788
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 270,
+    "MilkingYield": 17.386004
+  },
+  {
+    "TestId": 2,
+    "DaysInMilk": 290,
+    "MilkingYield": 17.130489
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 10,
+    "MilkingYield": 23.594165
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 30,
+    "MilkingYield": 25.549058
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 50,
+    "MilkingYield": 26.921801
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 70,
+    "MilkingYield": 27.3
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 90,
+    "MilkingYield": 26.521801
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 110,
+    "MilkingYield": 24.749058
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 130,
+    "MilkingYield": 22.394165
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 150,
+    "MilkingYield": 19.945465
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 170,
+    "MilkingYield": 17.791526
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 190,
+    "MilkingYield": 16.12816
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 210,
+    "MilkingYield": 14.967323
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 230,
+    "MilkingYield": 14.208858
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 250,
+    "MilkingYield": 13.719788
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 270,
+    "MilkingYield": 13.386004
+  },
+  {
+    "TestId": 3,
+    "DaysInMilk": 290,
+    "MilkingYield": 13.130489
+  }
+]

@@ -12,11 +12,15 @@ import numpy as np
 # - image_dataset_large (from loaders/conftest.py)
 # - mock_dataloader_config (from dataloaders/conftest.py)
 # - albumentations_resize_transform (from loaders/conftest.py)
-import tensorflow as tf
+import pytest
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
 from bovi_core.ml.dataloaders.loaders.tensorflow_loader import TensorFlowDataLoader
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
 from PIL import Image
+
+tf = pytest.importorskip(
+    "tensorflow", reason="TensorFlow is required for TensorFlowDataLoader tests"
+)
 
 
 class TestTensorFlowDataLoader:

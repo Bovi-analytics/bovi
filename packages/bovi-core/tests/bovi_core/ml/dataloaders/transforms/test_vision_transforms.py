@@ -4,9 +4,12 @@ These tests verify that the Albumentations transforms work correctly
 as replacements for the old vision.py wrapper classes.
 """
 
-import albumentations as A
 import numpy as np
 import pytest
+
+A = pytest.importorskip(
+    "albumentations", reason="Albumentations is required for vision transform tests"
+)
 
 
 @pytest.fixture

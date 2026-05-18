@@ -9,11 +9,12 @@ These tests create temporary video files to verify:
 import os
 import tempfile
 
-import cv2
 import numpy as np
 import pytest
 from bovi_core.ml.dataloaders.datasets.video_dataset import VideoDataset
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
+
+cv2 = pytest.importorskip("cv2", reason="OpenCV is required for video dataset integration tests")
 
 
 @pytest.fixture

@@ -80,8 +80,8 @@ class TestBasicCalculations:
 
         assert len(result) == 1, "Should return one row for one lactation"
         assert result.iloc[0]["TestId"] == 1, "TestId should be 1"
-        assert np.isclose(result.iloc[0]["Total305Yield"], expected_yield), (
-            f"Expected {expected_yield}, got {result.iloc[0]['Total305Yield']}"
+        assert np.isclose(result.iloc[0]["LactationMilkYield"], expected_yield), (
+            f"Expected {expected_yield}, got {result.iloc[0]['LactationMilkYield']}"
         )
 
     def test_three_data_points(self):
@@ -109,8 +109,8 @@ class TestBasicCalculations:
 
         assert len(result) == 1, "Should return one row for one lactation"
         assert result.iloc[0]["TestId"] == 1, "TestId should be 1"
-        assert np.isclose(result.iloc[0]["Total305Yield"], expected_yield, rtol=1e-5), (
-            f"Expected {expected_yield}, got {result.iloc[0]['Total305Yield']}"
+        assert np.isclose(result.iloc[0]["LactationMilkYield"], expected_yield, rtol=1e-5), (
+            f"Expected {expected_yield}, got {result.iloc[0]['LactationMilkYield']}"
         )
 
     def test_four_equally_spaced_points(self):
@@ -139,8 +139,8 @@ class TestBasicCalculations:
 
         assert len(result) == 1, "Should return one row for one lactation"
         assert result.iloc[0]["TestId"] == 1, "TestId should be 1"
-        assert np.isclose(result.iloc[0]["Total305Yield"], expected_yield, rtol=1e-5), (
-            f"Expected {expected_yield}, got {result.iloc[0]['Total305Yield']}"
+        assert np.isclose(result.iloc[0]["LactationMilkYield"], expected_yield, rtol=1e-5), (
+            f"Expected {expected_yield}, got {result.iloc[0]['LactationMilkYield']}"
         )
 
 
@@ -157,14 +157,14 @@ class TestOutputValidation:
         assert isinstance(result, pd.DataFrame), "Output should be a DataFrame"
         assert list(result.columns) == [
             "TestId",
-            "Total305Yield",
-        ], f"Expected columns ['TestId', 'Total305Yield'], got {list(result.columns)}"
-        assert result["Total305Yield"].dtype == np.float64, (
-            f"Total305Yield should be float64, got {result['Total305Yield'].dtype}"
+            "LactationMilkYield",
+        ], f"Expected columns ['TestId', 'LactationMilkYield'], got {list(result.columns)}"
+        assert result["LactationMilkYield"].dtype == np.float64, (
+            f"LactationMilkYield should be float64, got {result['LactationMilkYield'].dtype}"
         )
 
     def test_output_values_are_positive(self):
-        """Test that all Total305Yield values are positive."""
+        """Test that all LactationMilkYield values are positive."""
         df = pd.DataFrame(
             {
                 "DaysInMilk": [10, 40, 70, 15, 45, 75],
@@ -175,7 +175,7 @@ class TestOutputValidation:
 
         result = test_interval_method(df)
 
-        assert all(result["Total305Yield"] > 0), "All yields should be positive"
+        assert all(result["LactationMilkYield"] > 0), "All yields should be positive"
 
     def test_multiple_lactations_processed(self):
         """Test that multiple lactations are processed independently."""
@@ -212,7 +212,7 @@ class TestEdgeCases:
         # Day 350 should be filtered out, only first 4 records used
         # We can verify this by checking that the result is reasonable
         assert len(result) == 1
-        assert result.iloc[0]["Total305Yield"] > 0
+        assert result.iloc[0]["LactationMilkYield"] > 0
 
     def test_exactly_day_standard_lactation_days_included(self):
         """Test that day STANDARD_LACTATION_DAYS is included in
@@ -238,7 +238,7 @@ class TestEdgeCases:
         )
 
         assert len(result) == 1
-        assert np.isclose(result.iloc[0]["Total305Yield"], expected_yield, rtol=1e-5)
+        assert np.isclose(result.iloc[0]["LactationMilkYield"], expected_yield, rtol=1e-5)
 
     def test_first_test_on_day_zero(self):
         """Test that DIM = 0 (first test on day 0) is handled correctly."""
@@ -260,8 +260,8 @@ class TestEdgeCases:
 
         assert len(result) == 1
         assert result.iloc[0]["TestId"] == 1
-        assert np.isclose(result.iloc[0]["Total305Yield"], expected_yield, rtol=1e-5), (
-            f"Expected {expected_yield}, got {result.iloc[0]['Total305Yield']}"
+        assert np.isclose(result.iloc[0]["LactationMilkYield"], expected_yield, rtol=1e-5), (
+            f"Expected {expected_yield}, got {result.iloc[0]['LactationMilkYield']}"
         )
 
     def test_unsorted_data_handled(self):
@@ -288,8 +288,8 @@ class TestEdgeCases:
         result_sorted = test_interval_method(df_sorted)
 
         assert np.isclose(
-            result.iloc[0]["Total305Yield"],
-            result_sorted.iloc[0]["Total305Yield"],
+            result.iloc[0]["LactationMilkYield"],
+            result_sorted.iloc[0]["LactationMilkYield"],
             rtol=1e-5,
         ), "Unsorted data should produce same result as sorted data"
 
@@ -318,7 +318,9 @@ class TestEdgeCases:
             # If it doesn't raise an error, verify result is reasonable
             assert len(result) <= 1, "Should process or skip invalid data"
             if len(result) > 0:
-                assert result.iloc[0]["Total305Yield"] > 0, "Total yield should still be positive"
+                assert result.iloc[0]["LactationMilkYield"] > 0, (
+                    "Total yield should still be positive"
+                )
         except (ValueError, AssertionError):
             # Function may raise an error for invalid data, which is acceptable
             pass
@@ -338,7 +340,7 @@ class TestEdgeCases:
 
         # Should still process the lactation
         assert len(result) == 1, "Should process lactation with zero yield"
-        assert result.iloc[0]["Total305Yield"] >= 0, "Total yield should be non-negative"
+        assert result.iloc[0]["LactationMilkYield"] >= 0, "Total yield should be non-negative"
 
     def test_empty_dataframe_with_columns(self):
         """Test that empty DataFrame with proper columns returns empty result."""
@@ -351,7 +353,7 @@ class TestEdgeCases:
         assert len(result) == 0, "Should return empty DataFrame for empty input"
         assert list(result.columns) == [
             "TestId",
-            "Total305Yield",
+            "LactationMilkYield",
         ], "Should have correct columns even when empty"
 
     def test_completely_empty_dataframe(self):
@@ -386,7 +388,7 @@ class TestEdgeCases:
             result = test_interval_method(df)
             assert len(result) == 1, "Should return one row for one lactation"
             assert result.iloc[0]["TestId"] == 1
-            assert result.iloc[0]["Total305Yield"] > 0, "Total yield should be positive"
+            assert result.iloc[0]["LactationMilkYield"] > 0, "Total yield should be positive"
         except (ValueError, AssertionError):
             # Function may raise an error for duplicate DIMs, which is acceptable
             pass
@@ -428,8 +430,10 @@ class TestEdgeCases:
             assert len(result) <= 1, "Should process or skip records with NaN"
             if len(result) > 0:
                 assert result.iloc[0]["TestId"] == 1
-                assert result.iloc[0]["Total305Yield"] > 0, "Total yield should be positive"
-                assert not np.isnan(result.iloc[0]["Total305Yield"]), "Result should not be NaN"
+                assert result.iloc[0]["LactationMilkYield"] > 0, "Total yield should be positive"
+                assert not np.isnan(result.iloc[0]["LactationMilkYield"]), (
+                    "Result should not be NaN"
+                )
         except (ValueError, TypeError):
             # Function may raise an error for NaN values, which is acceptable
             pass
@@ -454,7 +458,7 @@ class TestRealisticData:
         assert result.iloc[0]["TestId"] == first_test_id
 
         # Verify realistic range for dairy cows (typically 5000-15000 kg for 305-day lactation)
-        total_yield = result.iloc[0]["Total305Yield"]
+        total_yield = result.iloc[0]["LactationMilkYield"]
         assert 3000 <= total_yield <= 20000, (
             f"Yield {total_yield} kg is outside realistic range (3000-20000 kg)"
         )
@@ -481,7 +485,7 @@ class TestRealisticData:
         )
 
         # Verify all yields are positive
-        assert all(result["Total305Yield"] > 0), "All yields should be positive"
+        assert all(result["LactationMilkYield"] > 0), "All yields should be positive"
 
     def test_subsampled_complete_curve(self, complete_lactation_data):
         """Test with monthly-sampled points from l2_anim2_herd654.csv."""
@@ -502,7 +506,7 @@ class TestRealisticData:
         assert result.iloc[0]["TestId"] == 1
 
         # Verify realistic yield range
-        total_yield = result.iloc[0]["Total305Yield"]
+        total_yield = result.iloc[0]["LactationMilkYield"]
         assert 5000 <= total_yield <= 15000, (
             f"Yield {total_yield} kg is outside expected range for complete curve (5000-15000 kg)"
         )
@@ -523,7 +527,7 @@ class TestRealisticData:
         assert result.iloc[0]["TestId"] == 1
 
         # Verify realistic yield range
-        total_yield = result.iloc[0]["Total305Yield"]
+        total_yield = result.iloc[0]["LactationMilkYield"]
         assert 5000 <= total_yield <= 15000, (
             f"Yield {total_yield} kg is outside expected range (5000-15000 kg)"
         )
@@ -568,7 +572,7 @@ class TestRealisticData:
 
         # Verify results
         assert len(result) == num_lactations, f"Should process all {num_lactations} lactations"
-        assert all(result["Total305Yield"] > 0), "All yields should be positive"
+        assert all(result["LactationMilkYield"] > 0), "All yields should be positive"
         assert set(result["TestId"].values) == set(range(1, num_lactations + 1)), (
             "Should have all TestIds"
         )

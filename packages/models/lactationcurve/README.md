@@ -48,6 +48,8 @@ Additional models available for a.o. symbolic LCC derivations:
   - time_to_peak, peak_yield, cumulative_milk_yield, persistency
 - **ICAR procedures cumulative milk yield:**
   - Test Interval Method
+  - Interpolation Standard Lactation Curve (ISLC) Method
+  - Best Predict Method
 - Input validation/normalization via `validate_and_prepare_inputs`
 - Caching of symbolic expressions for performance
 
@@ -76,7 +78,20 @@ The package is organized into three main modules:
 
 | `calculate_characteristic` | float (LCC value) |
 
-| `test_interval_method` | DataFrame with 305‑day totals |
+| `test_interval_method` | DataFrame with lactation milk yield totals |
+
+| `ISLC` | DataFrame with lactation milk yield totals |
+
+| `ISLC_original` | DataFrame with original grid-based ISLC totals |
+
+| `best_predict_method` | DataFrame with best-prediction lactation milk yield totals |
+
+## The meaning of a TestId
+
+The `TestId` is an identifier for a lactation. It is not necessarily the same
+as a cow ID, because a cow can have multiple lactations across calvings. If a
+`TestId` column is not provided, the package treats all records as one
+lactation and creates a default `TestId`.
 
 ## Bayesian (MilkBot API)
 

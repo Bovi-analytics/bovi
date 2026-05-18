@@ -81,6 +81,18 @@ async def proxy_curves_test_interval(request: Request) -> JSONResponse:
     return await _proxy_post(settings.lactation_curves_url, "/test-interval", request)
 
 
+@router.post("/curves/islc")
+async def proxy_curves_islc(request: Request) -> JSONResponse:
+    """Proxy: calculate lactation yield via ISLC."""
+    return await _proxy_post(settings.lactation_curves_url, "/islc", request)
+
+
+@router.post("/curves/best-predict")
+async def proxy_curves_best_predict(request: Request) -> JSONResponse:
+    """Proxy: calculate 305-day yield via best prediction."""
+    return await _proxy_post(settings.lactation_curves_url, "/best-predict", request)
+
+
 # ---------------------------------------------------------------------------
 # Lactation Autoencoder
 # ---------------------------------------------------------------------------
