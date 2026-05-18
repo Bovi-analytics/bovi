@@ -1,12 +1,16 @@
 """Shared pytest fixtures for the bovi-api test suite."""
 
 import asyncio
+import os
 
 import pytest
+
+os.environ["DATABASE_URL"] = ""
+
 from bovi_api import app as app_module
 from bovi_api.app import create_app
 from bovi_api.database import get_session
-from bovi_api.models import Challenge, HerdProfile, Submission
+from bovi_api.models import Challenge, FittingResult, HerdProfile, Submission
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -24,9 +28,7 @@ def client(monkeypatch):
 
     async def _create_tables() -> None:
         async with engine.begin() as conn:
-            # Only create the tables actually used in tests - FittingResult uses
-            # sa_type=None which SQLite cannot compile DDL for in create_all().
-            # Migrations cover the configured runtime database separately.
+            await conn.run_sync(FittingResult.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(HerdProfile.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(Challenge.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(Submission.__table__.create)  # type: ignore[union-attr]

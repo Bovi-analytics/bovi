@@ -6,13 +6,57 @@ uses a SQLite file by default; SQLAlchemy can still use other configured URLs.
 
 from collections.abc import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import event, text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlmodel import SQLModel
 
 from bovi_api.settings import get_settings
 
-_engine = None
-_session_factory = None
+_engine: AsyncEngine | None = None
+_session_factory: async_sessionmaker[AsyncSession] | None = None
+
+
+def _is_sqlite_url(database_url: str) -> bool:
+    """Return whether the configured SQLAlchemy URL points at SQLite."""
+    return database_url.startswith("sqlite")
+
+
+def _create_engine(database_url: str) -> AsyncEngine:
+    """Create the async engine with backend-appropriate connection settings."""
+    kwargs: dict[str, object] = {
+        "echo": False,
+        # Validate pooled connections before handing them out. This is mostly
+        # useful for server databases, but harmless for SQLite and keeps the
+        # engine policy consistent if another SQLAlchemy URL is configured.
+        "pool_pre_ping": True,
+    }
+    if _is_sqlite_url(database_url):
+        kwargs["connect_args"] = {"timeout": 30}
+
+    engine = create_async_engine(database_url, **kwargs)
+    if _is_sqlite_url(database_url):
+        _configure_sqlite(engine)
+    return engine
+
+
+def _configure_sqlite(engine: AsyncEngine) -> None:
+    """Apply SQLite pragmas to every new DB-API connection."""
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _set_sqlite_pragmas(dbapi_connection, _connection_record) -> None:
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.execute("PRAGMA journal_mode=WAL")
+        finally:
+            cursor.close()
 
 
 def _get_engine():
@@ -23,7 +67,7 @@ def _get_engine():
         if not settings.database_url:
             msg = "DATABASE_URL is not configured"
             raise RuntimeError(msg)
-        _engine = create_async_engine(settings.database_url, echo=False)
+        _engine = _create_engine(settings.database_url)
     return _engine
 
 
@@ -47,6 +91,22 @@ async def create_tables() -> None:
     engine = _get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+
+
+async def check_database_connection(session: AsyncSession | None = None) -> dict[str, str]:
+    """Run a lightweight database readiness check."""
+    try:
+        if session is not None:
+            await session.execute(text("SELECT 1"))
+            bind = session.get_bind()
+            return {"status": "ok", "dialect": bind.dialect.name}
+
+        engine = _get_engine()
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return {"status": "ok", "dialect": engine.dialect.name}
+    except (RuntimeError, SQLAlchemyError) as exc:
+        return {"status": "error", "detail": str(exc)}
 
 
 async def dispose_engine() -> None:
