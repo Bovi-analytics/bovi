@@ -1,11 +1,22 @@
-"""
-ICAR 305-day yield calculation — Test Interval Method.
+"""ICAR 305-day yield calculation using the Test Interval Method.
 
-This module implements the **Test Interval Method** described in ICAR guidelines
-(Procedure 2, Section 2: Computing of Accumulated Lactation Yield) to compute
-total **305-day milk yield** from test-day data.
+Purpose
+-------
+This module implements the ICAR Test Interval Method (Procedure 2,
+Section 2) to compute cumulative milk yield from test-day records.
 
-Approach
+Method Summary
+--------------
+Calculate total milk yield over 305 days by integrating test-day records using:
+- Linear projection from calving to the first test day,
+- Trapezoidal integration between consecutive test days,
+- Linear projection from the last test day to DIM=305.
+
+Key Entry Points
+----------------
+- ``test_interval_method``: Compute cumulative lactation milk yield per
+    ``TestId`` using start, interval, and end segments.
+
 --------
 - **Start segment**: Linear projection from calving (DIM=0) to the first test day.
 - **Intermediate segments**: **Trapezoidal rule** between consecutive test days.
@@ -28,7 +39,8 @@ Notes
 - Units: DIM in days, milk yield in kg.
 - Records with `DIM > 305` are excluded prior to computation.
 
-Author: Meike van Leerdam, Date: 07-31-2025
+Author: Meike van Leerdam,
+Date: 07-31-2025
 """
 
 import pandas as pd
@@ -37,11 +49,12 @@ from lactationcurve.preprocessing import standardize_lactation_columns
 
 
 def test_interval_method(
-    df,
-    days_in_milk_col=None,
-    milking_yield_col=None,
-    test_id_col=None,
-    default_test_id=1,
+    df: pd.DataFrame,
+    days_in_milk_col: str | None = None,
+    milking_yield_col: str | None = None,
+    test_id_col: str | None = None,
+    default_test_id: int = 0,
+    max_dim: int = 305,
 ) -> pd.DataFrame:
     """Compute 305-day total milk yield using the ICAR Test Interval Method.
 
@@ -69,7 +82,7 @@ def test_interval_method(
         ValueError: If required columns (DaysInMilk or MilkingYield) cannot be found.
 
     Notes:
-        - Records with DIM > 305 are dropped before computation.
+        - Records with DIM > max_dim are dropped before computation.
         - At least two data points per TestId are required for trapezoidal integration;
           otherwise the lactation is skipped.
     """
@@ -81,7 +94,7 @@ def test_interval_method(
         milking_yield_col=milking_yield_col,
         test_id_col=test_id_col,
         default_test_id=default_test_id,
-        max_dim=305,
+        max_dim=max_dim,
     )
 
     result = []

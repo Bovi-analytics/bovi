@@ -97,7 +97,7 @@ export const FitResponseSchema = z.object({
 });
 
 export const CharacteristicResponseSchema = z.object({
-  value: z.number(),
+  value: z.number().nullable(),
 });
 
 export const PredictResponseSchema = z.object({

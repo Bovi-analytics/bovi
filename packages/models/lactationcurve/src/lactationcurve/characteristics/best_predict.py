@@ -426,7 +426,7 @@ def best_predict_method(
         )
         results.append({"TestId": test_id, "LactationMilkYield": pred})
 
-    return pd.DataFrame(results, columns=pd.Index(["TestId", "LactationMilkYield"]))
+    return pd.DataFrame(results)
 
 
 # demo function so I can see if this script runs as expected
