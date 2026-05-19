@@ -57,6 +57,8 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
                     },
                     reference_yields=None,
                     actual_yields={f"cow{i}": 8000.0 for i in range(10)},
+                    user_id=1,
+                    organization_id=1,
                 )
             )
             await session.commit()

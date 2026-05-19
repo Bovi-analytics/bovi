@@ -2,7 +2,7 @@
 
 import type { ReactElement } from "react";
 import { Alert, Badge, Button, Group, Stack, Table, Text } from "@mantine/core";
-import { downloadReportUrl } from "@/lib/api-client";
+import { downloadSubmissionReport } from "@/lib/api-client";
 import type { ParityStats, SubmissionRead, VsBlock } from "@/types/api";
 
 interface Props {
@@ -134,7 +134,7 @@ export function ComparisonResults({ submission }: Props): ReactElement {
       )}
 
       <Group>
-        <Button size="xs" component="a" href={downloadReportUrl(submission.id)} download>
+        <Button size="xs" onClick={() => void downloadSubmissionReport(submission.id)}>
           Download PDF
         </Button>
       </Group>

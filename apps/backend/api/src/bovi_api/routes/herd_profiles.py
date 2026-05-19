@@ -6,11 +6,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
+from bovi_api.auth import require_auth
 from bovi_api.database import get_session
 from bovi_api.herd_stats_ingestion import DEFAULT_STAT_RANGES, normalize_herd_stats, parse_csv
 from bovi_api.models import HerdProfile, HerdProfileCreate, HerdProfileRead
 
-router = APIRouter(tags=["herd-profiles"])
+router = APIRouter(tags=["herd-profiles"], dependencies=[Depends(require_auth)])
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 

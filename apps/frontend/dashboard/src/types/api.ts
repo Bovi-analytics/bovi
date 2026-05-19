@@ -246,7 +246,8 @@ export const ChallengeReadSchema = z.object({
   period: z.string(),
   name: z.string().nullable().optional(),
   source: z.string().nullable().optional(),
-  user_id: z.string().nullable(),
+  user_id: z.number().nullable(),
+  organization_id: z.number().nullable().optional(),
   created_at: z.string().nullable(),
 });
 export type ChallengeRead = z.infer<typeof ChallengeReadSchema>;
@@ -257,6 +258,7 @@ export const ChallengeCreatePresetSchema = z.object({
   source: z.literal("preset").default("preset"),
   preset: z.literal("icar").default("icar"),
   name: z.string().optional(),
+  organization_id: z.number().optional(),
 });
 export type ChallengeCreatePreset = z.infer<typeof ChallengeCreatePresetSchema>;
 
@@ -302,7 +304,8 @@ export const SubmissionReadSchema = z.object({
   country: z.string().nullable(),
   calculation_method: z.string().nullable(),
   notes: z.string().nullable(),
-  user_id: z.string().nullable(),
+  user_id: z.number().nullable(),
+  organization_id: z.number().nullable().optional(),
   stats: ComparisonStatsSchema,
   failed_cow_ids: z.array(z.string()),
   created_at: z.string().nullable(),

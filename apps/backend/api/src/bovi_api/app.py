@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from bovi_api.database import dispose_engine
-from bovi_api.routes import benchmark, datasets, health, herd_profiles, proxy, results
+from bovi_api.routes import auth, benchmark, datasets, health, herd_profiles, proxy, results
 from bovi_api.settings import get_settings
 
 _ALEMBIC_DIR = Path(__file__).parent / "alembic"
@@ -60,6 +60,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    app.include_router(auth.router)
     app.include_router(proxy.router)
     app.include_router(results.router)
     app.include_router(herd_profiles.router, prefix="/herd-profiles")

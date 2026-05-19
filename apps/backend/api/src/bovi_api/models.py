@@ -99,6 +99,88 @@ class HerdProfileRead(HerdProfileBase):
     updated_at: datetime | None
 
 
+# --- Auth and organization models ---
+
+
+class UserBase(SQLModel):
+    """Local Bovi user linked to a Microsoft Entra identity."""
+
+    entra_oid: str = Field(index=True, unique=True)
+    email: str | None = Field(default=None, index=True)
+    name: str | None = Field(default=None)
+    role: str = Field(default="User", index=True)
+
+
+class User(UserBase, table=True):
+    """Application user used for ownership, organizations, and audit trails."""
+
+    __tablename__: ClassVar[str] = "users"
+
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=sa_func.now(),
+            onupdate=sa_func.now(),
+        ),
+    )
+    last_login_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+
+
+class OrganizationBase(SQLModel):
+    """Organization that owns shared Bovi records."""
+
+    name: str = Field(max_length=200)
+
+
+class Organization(OrganizationBase, table=True):
+    """Organization/team boundary for shared benchmark records."""
+
+    __tablename__: ClassVar[str] = "organizations"
+
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=sa_func.now(),
+            onupdate=sa_func.now(),
+        ),
+    )
+
+
+class OrganizationMembershipBase(SQLModel):
+    """Membership and organization-local role for a user."""
+
+    user_id: int = Field(foreign_key="users.id", index=True)
+    organization_id: int = Field(foreign_key="organizations.id", index=True)
+    role: str = Field(default="Member", index=True)
+
+
+class OrganizationMembership(OrganizationMembershipBase, table=True):
+    """Join table between users and organizations."""
+
+    __tablename__: ClassVar[str] = "organization_memberships"
+    __table_args__ = (
+        UniqueConstraint("user_id", "organization_id", name="uq_organization_membership"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
+
+
 # --- Benchmark models ---
 
 
@@ -108,9 +190,10 @@ class ChallengeBase(SQLModel):
     dataset: str = Field(description="'icar' or 'upload'")
     size: str = Field(default="full", description="'full' for ICAR, 'custom' for upload")
     period: str = Field(default="all", description="'all' for ICAR, 'custom' for upload")
-    user_id: str | None = Field(
+    user_id: int | None = Field(
         default=None, description="Auth-ready; nullable until auth is added"
     )
+    organization_id: int | None = Field(default=None, foreign_key="organizations.id")
 
 
 class Challenge(ChallengeBase, table=True):
@@ -176,7 +259,8 @@ class SubmissionBase(SQLModel):
     country: str | None = Field(default=None)
     calculation_method: str | None = Field(default=None)
     notes: str | None = Field(default=None)
-    user_id: str | None = Field(default=None)
+    user_id: int | None = Field(default=None)
+    organization_id: int | None = Field(default=None, foreign_key="organizations.id")
 
 
 class Submission(SubmissionBase, table=True):

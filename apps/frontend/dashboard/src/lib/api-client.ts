@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { getBackendAccessToken, handleUnauthorizedResponse } from "@/lib/auth/service";
 import { getApiBaseUrl } from "@/lib/env";
 import {
   AutoencoderPredictResponseSchema,
@@ -49,54 +50,86 @@ import type {
 /* ------------------------------------------------------------------ */
 
 async function apiFetch<T>(path: string, schema: z.ZodType<T>, body: unknown): Promise<T> {
+  const headers = await jsonHeaders();
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`API error ${response.status} on ${path}: ${JSON.stringify(error)}`);
-  }
+  await ensureOk(response, path);
 
   const data: unknown = await response.json();
   return schema.parse(data);
 }
 
 async function apiGet<T>(path: string, schema: z.ZodType<T>): Promise<T> {
+  const headers = await jsonHeaders();
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
+    headers,
   });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`API error ${response.status} on ${path}: ${JSON.stringify(error)}`);
-  }
+  await ensureOk(response, path);
   const data: unknown = await response.json();
   return schema.parse(data);
 }
 
 async function apiPut<T>(path: string, schema: z.ZodType<T>, body: unknown): Promise<T> {
+  const headers = await jsonHeaders();
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`API error ${response.status} on ${path}: ${JSON.stringify(error)}`);
-  }
+  await ensureOk(response, path);
   const data: unknown = await response.json();
   return schema.parse(data);
 }
 
 async function apiDelete(path: string): Promise<void> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, { method: "DELETE" });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`API error ${response.status} on ${path}: ${JSON.stringify(error)}`);
+  const headers = await authHeaders();
+  const response = await fetch(`${getApiBaseUrl()}${path}`, { method: "DELETE", headers });
+  await ensureOk(response, path);
+}
+
+async function authHeaders(): Promise<HeadersInit> {
+  const token = await getBackendAccessToken();
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function jsonHeaders(): Promise<HeadersInit> {
+  return { "Content-Type": "application/json", ...(await authHeaders()) };
+}
+
+async function ensureOk(response: Response, path: string): Promise<void> {
+  if (response.ok) return;
+  if (response.status === 401) {
+    handleUnauthorizedResponse();
   }
+  const error = await response.json().catch(() => ({}));
+  throw new Error(`API error ${response.status} on ${path}: ${JSON.stringify(error)}`);
+}
+
+function filenameFromContentDisposition(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const match = /filename="?([^";]+)"?/i.exec(header);
+  return match?.[1] ?? fallback;
+}
+
+async function downloadBlob(path: string, fallbackFilename: string): Promise<void> {
+  const headers = await authHeaders();
+  const response = await fetch(`${getApiBaseUrl()}${path}`, { headers });
+  await ensureOk(response, path);
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filenameFromContentDisposition(
+    response.headers.get("Content-Disposition"),
+    fallbackFilename
+  );
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 /* ------------------------------------------------------------------ */
@@ -190,15 +223,14 @@ export async function getPresetHerdStats(
 export async function uploadHerdProfileCsv(file: File): Promise<HerdProfileUploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
+  const headers = await authHeaders();
   const response = await fetch(`${getApiBaseUrl()}/herd-profiles/csv-preview`, {
     method: "POST",
+    headers,
     body: formData,
     // No Content-Type header - browser sets multipart boundary automatically
   });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`Upload error ${response.status}: ${JSON.stringify(error)}`);
-  }
+  await ensureOk(response, "/herd-profiles/csv-preview");
   const data: unknown = await response.json();
   return HerdProfileUploadResponseSchema.parse(data);
 }
@@ -220,14 +252,13 @@ export async function createChallengeUpload(
   formData.append("name", name);
   formData.append("test_day_csv", testDayCsv);
   formData.append("actual_yields_csv", actualYieldsCsv);
+  const headers = await authHeaders();
   const response = await fetch(`${getApiBaseUrl()}/benchmark/challenges/upload`, {
     method: "POST",
+    headers,
     body: formData,
   });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`Upload error ${response.status}: ${JSON.stringify(error)}`);
-  }
+  await ensureOk(response, "/benchmark/challenges/upload");
   return ChallengeReadSchema.parse(await response.json());
 }
 
@@ -239,8 +270,8 @@ export async function getChallenge(id: number): Promise<ChallengeRead> {
   return apiGet(`/benchmark/challenges/${id}`, ChallengeReadSchema);
 }
 
-export function exportChallengeUrl(id: number): string {
-  return `${getApiBaseUrl()}/benchmark/challenges/${id}/export`;
+export async function downloadChallengeExport(id: number): Promise<void> {
+  await downloadBlob(`/benchmark/challenges/${id}/export`, `challenge_${id}.csv`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -279,17 +310,16 @@ export async function submitOwnMethod(
   Object.entries(meta).forEach(([k, v]) => {
     if (v) formData.append(k, String(v));
   });
+  const headers = await authHeaders();
   const response = await fetch(
     `${getApiBaseUrl()}/benchmark/challenges/${challengeId}/submissions/upload`,
     {
       method: "POST",
+      headers,
       body: formData,
     }
   );
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`Upload error ${response.status}: ${JSON.stringify(error)}`);
-  }
+  await ensureOk(response, `/benchmark/challenges/${challengeId}/submissions/upload`);
   return SubmissionReadSchema.parse(await response.json());
 }
 
@@ -301,6 +331,6 @@ export async function getSubmission(id: number): Promise<SubmissionRead> {
   return apiGet(`/benchmark/submissions/${id}`, SubmissionReadSchema);
 }
 
-export function downloadReportUrl(id: number): string {
-  return `${getApiBaseUrl()}/benchmark/submissions/${id}/report`;
+export async function downloadSubmissionReport(id: number): Promise<void> {
+  await downloadBlob(`/benchmark/submissions/${id}/report`, `benchmark_report_${id}.pdf`);
 }

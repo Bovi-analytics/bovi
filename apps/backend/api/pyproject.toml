@@ -18,6 +18,7 @@ dependencies = [
     "aiosqlite>=0.20.0",
     "python-multipart>=0.0.12",
     "azure-storage-blob>=12.28.0",
+    "PyJWT[crypto]>=2.10",
     "pandas>=2.3",
     "scipy>=1.13",
     "scikit-learn>=1.5",

@@ -16,6 +16,12 @@ from pydantic import BaseModel, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
+from bovi_api.auth import (
+    CurrentUser,
+    ensure_organization_access,
+    first_accessible_organization_id,
+    require_auth,
+)
 from bovi_api.benchmark_ingestion import (
     parse_actual_yields_csv,
     parse_submission_csv,
@@ -225,11 +231,13 @@ class ChallengeCreatePresetBody(BaseModel):
     source: Literal["preset"] = "preset"
     preset: Literal["icar"] = "icar"
     name: str | None = None
+    organization_id: int | None = None
 
 
 @router.post("/challenges", response_model=ChallengeRead, status_code=201)
 async def create_challenge_preset(
     body: ChallengeCreatePresetBody,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> Challenge:
@@ -251,6 +259,9 @@ async def create_challenge_preset(
     # Keep only cows that have ALY (defensive - already filtered by generator)
     cow_metadata = {cid: m for cid, m in cow_metadata.items() if cid in preset.actual_yields}
 
+    organization_id = body.organization_id or first_accessible_organization_id(current_user)
+    ensure_organization_access(current_user, organization_id)
+
     challenge = Challenge(
         dataset=body.preset,
         size="full",
@@ -260,6 +271,8 @@ async def create_challenge_preset(
         cow_metadata=cow_metadata,
         reference_yields=None,
         actual_yields=preset.actual_yields,
+        user_id=current_user.id,
+        organization_id=organization_id,
     )
     session.add(challenge)
     await session.commit()
@@ -272,6 +285,8 @@ async def create_challenge_upload(
     name: str = Form(...),
     test_day_csv: UploadFile = File(...),
     actual_yields_csv: UploadFile = File(...),
+    organization_id: int | None = Form(default=None),
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> Challenge:
     """Create an upload-backed challenge: user-supplied test-day records + ground-truth yields."""
@@ -302,6 +317,9 @@ async def create_challenge_upload(
     # Drop cows without ALY
     cow_metadata = {cid: m for cid, m in cow_metadata.items() if cid in actual_yields}
 
+    resolved_organization_id = organization_id or first_accessible_organization_id(current_user)
+    ensure_organization_access(current_user, resolved_organization_id)
+
     challenge = Challenge(
         dataset="upload",
         size="custom",
@@ -311,6 +329,8 @@ async def create_challenge_upload(
         cow_metadata=cow_metadata,
         reference_yields=None,
         actual_yields={cid: actual_yields[cid] for cid in cow_metadata},
+        user_id=current_user.id,
+        organization_id=resolved_organization_id,
     )
     session.add(challenge)
     await session.commit()
@@ -320,36 +340,44 @@ async def create_challenge_upload(
 
 @router.get("/challenges", response_model=list[ChallengeRead])
 async def list_challenges(
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> list[Challenge]:
     """List all challenges, newest first."""
-    result = await session.execute(
-        select(Challenge).order_by(col(Challenge.created_at).desc()).limit(100)
-    )
+    statement = select(Challenge).order_by(col(Challenge.created_at).desc()).limit(100)
+    if not current_user.is_admin:
+        statement = statement.where(
+            col(Challenge.organization_id).in_(current_user.organization_ids)
+        )
+    result = await session.execute(statement)
     return list(result.scalars().all())
 
 
 @router.get("/challenges/{challenge_id}", response_model=ChallengeDetail)
 async def get_challenge(
     challenge_id: int,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> Challenge:
     """Get a single challenge with full cow metadata."""
     challenge = await session.get(Challenge, challenge_id)
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
+    ensure_organization_access(current_user, challenge.organization_id)
     return challenge
 
 
 @router.get("/challenges/{challenge_id}/export")
 async def export_challenge(
     challenge_id: int,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> Response:
     """Download a CSV of the challenge's test-day data."""
     challenge = await session.get(Challenge, challenge_id)
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
+    ensure_organization_access(current_user, challenge.organization_id)
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -393,6 +421,7 @@ class SubmissionBoviBody(BaseModel):
 async def create_submission_bovi(
     challenge_id: int,
     body: SubmissionBoviBody,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> Submission:
@@ -400,6 +429,7 @@ async def create_submission_bovi(
     challenge = await session.get(Challenge, challenge_id)
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
+    ensure_organization_access(current_user, challenge.organization_id)
     if not challenge.actual_yields:
         raise HTTPException(
             status_code=422,
@@ -432,6 +462,8 @@ async def create_submission_bovi(
         bovi_yields=benchmark_yields,
         stats=stats,
         failed_cow_ids=failed_cow_ids,
+        user_id=current_user.id,
+        organization_id=challenge.organization_id,
     )
     session.add(submission)
     await session.commit()
@@ -452,6 +484,7 @@ async def create_submission_upload(
     country: str | None = Form(default=None),
     calculation_method: str | None = Form(default=None),
     notes: str | None = Form(default=None),
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> Submission:
@@ -459,6 +492,7 @@ async def create_submission_upload(
     challenge = await session.get(Challenge, challenge_id)
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
+    ensure_organization_access(current_user, challenge.organization_id)
     if not challenge.actual_yields:
         raise HTTPException(
             status_code=422,
@@ -513,6 +547,8 @@ async def create_submission_upload(
         bovi_yields=benchmark_yields,
         stats=stats,
         failed_cow_ids=failed_ids,
+        user_id=current_user.id,
+        organization_id=challenge.organization_id,
     )
     session.add(submission)
     await session.commit()
@@ -522,36 +558,44 @@ async def create_submission_upload(
 
 @router.get("/submissions", response_model=list[SubmissionRead])
 async def list_submissions(
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> list[Submission]:
     """List all submissions, newest first."""
-    result = await session.execute(
-        select(Submission).order_by(col(Submission.created_at).desc()).limit(100)
-    )
+    statement = select(Submission).order_by(col(Submission.created_at).desc()).limit(100)
+    if not current_user.is_admin:
+        statement = statement.where(
+            col(Submission.organization_id).in_(current_user.organization_ids)
+        )
+    result = await session.execute(statement)
     return list(result.scalars().all())
 
 
 @router.get("/submissions/{submission_id}", response_model=SubmissionRead)
 async def get_submission(
     submission_id: int,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> Submission:
     """Get a single submission with stats."""
     sub = await session.get(Submission, submission_id)
     if sub is None:
         raise HTTPException(status_code=404, detail="Submission not found")
+    ensure_organization_access(current_user, sub.organization_id)
     return sub
 
 
 @router.get("/submissions/{submission_id}/report")
 async def download_report(
     submission_id: int,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> Response:
     """Download a PDF report for a submission."""
     sub = await session.get(Submission, submission_id)
     if sub is None:
         raise HTTPException(status_code=404, detail="Submission not found")
+    ensure_organization_access(current_user, sub.organization_id)
 
     challenge = await session.get(Challenge, sub.challenge_id)
     if challenge is None:

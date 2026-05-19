@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     lactation_autoencoder_url: str = "http://localhost:8002"
     database_url: str = ""
     cors_origins: list[str] = ["http://localhost:3000"]
+    azure_ad_client_id: str = ""
+    azure_ad_tenant_id: str = ""
+    auth_disabled: bool = False
+    dev_mode: bool = False
     connection_string: str | None = (
         None  # Azure Storage connection string (CONNECTION_STRING env var)
     )
