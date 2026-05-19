@@ -78,3 +78,5 @@ packages/models/*/docs/*
 
 # Data
 data/cow_data
+data/raw
+data/raw/

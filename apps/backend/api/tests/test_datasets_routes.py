@@ -5,9 +5,12 @@ from __future__ import annotations
 import math
 
 import pytest
+from azure.core.exceptions import AzureError
 from bovi_api.herd_stats_ingestion import CowRecord, aggregate_test_day_records
 from bovi_api.routes import datasets as datasets_route
 from bovi_api.routes.datasets import PresetCow, PresetDatasetResponse
+from bovi_api.settings import Settings
+from fastapi import HTTPException
 
 
 def _fake_preset(cows: list[PresetCow]) -> PresetDatasetResponse:
@@ -96,3 +99,82 @@ def test_preset_herd_stats_no_matching_cows_returns_404(client, monkeypatch, fak
     )
     response = client.get("/datasets/presets/sunnyside/small/recent/herd-stats?parity=9")
     assert response.status_code == 404
+
+
+def test_fetch_preset_cows_falls_back_to_local_raw_data(tmp_path, monkeypatch):
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    (raw_dir / "AuroraTDM23_26_prepped.csv").write_text(
+        "\n".join(
+            [
+                "ID,BDAT,LACT,RC,M305,TestDate,DIM,MILK",
+                "874,2020-04-21,2,7,26010.0,2023-04-05,35,113.0",
+                "874,2020-04-21,2,7,26010.0,2025-04-05,65,100.0",
+                "875,2020-04-21,3,7,26010.0,2025-05-05,35,90.0",
+            ]
+        )
+    )
+    monkeypatch.setattr(datasets_route, "_LOCAL_RAW_DIR", raw_dir)
+
+    preset = datasets_route.fetch_preset_cows(
+        "aurora",
+        "small",
+        "mixed",
+        Settings(connection_string=""),
+    )
+
+    assert preset.dataset == "aurora"
+    assert preset.size == "small"
+    assert preset.period == "mixed"
+    assert preset.cow_count == 2
+    assert {cow.cow_id for cow in preset.cows} == {"874_2", "875_3"}
+    assert preset.cows[0].milk_kg[0] == pytest.approx(113.0 * 0.45359237, abs=0.01)
+
+
+def test_fetch_preset_cows_uses_local_raw_data_when_blob_is_unreachable(tmp_path, monkeypatch):
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    (raw_dir / "MilkRecordingsSunnySide.CSV").write_text(
+        "\n".join(
+            [
+                '"ID","LACT","TestDate","DIM","MILK"',
+                "1,3,06/04/08,440,50",
+                "1,3,06/04/08,470,48",
+            ]
+        )
+    )
+    monkeypatch.setattr(datasets_route, "_LOCAL_RAW_DIR", raw_dir)
+
+    def _raise_blob_error(*args, **kwargs):
+        raise AzureError("network unavailable")
+
+    monkeypatch.setattr(datasets_route, "_fetch_blob_preset", _raise_blob_error)
+
+    preset = datasets_route.fetch_preset_cows(
+        "sunnyside",
+        "small",
+        "mixed",
+        Settings(connection_string="UseDevelopmentStorage=true"),
+    )
+
+    assert preset.dataset == "sunnyside"
+    assert preset.cow_count == 1
+    assert preset.cows[0].cow_id == "1_3"
+
+
+def test_fetch_preset_cows_returns_503_when_blob_and_local_raw_data_are_unavailable(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(datasets_route, "_LOCAL_RAW_DIR", tmp_path / "missing")
+
+    with pytest.raises(HTTPException) as exc_info:
+        datasets_route.fetch_preset_cows(
+            "aurora",
+            "small",
+            "mixed",
+            Settings(connection_string=""),
+        )
+
+    assert exc_info.value.status_code == 503
+    assert "local fallback failed" in exc_info.value.detail
