@@ -466,6 +466,59 @@ class TestCalculateCharacteristicNegativeOutputs:
     """Verify handling of negative characteristic values."""
 
     @pytest.mark.parametrize(
+        ("characteristic", "numeric_name", "expected"),
+        [
+            ("time_to_peak", "numeric_time_to_peak", 42),
+            ("peak_yield", "numeric_peak_yield", 31.5),
+            ("cumulative_milk_yield", "numeric_cumulative_yield", 8123.4),
+        ],
+    )
+    def test_symbolic_failure_uses_numeric_fallback(
+        self, monkeypatch, characteristic, numeric_name, expected
+    ):
+        """Symbolic derivation failures should not escape when a numeric fallback exists."""
+
+        def fake_validate_and_prepare_inputs(*args, **kwargs):
+            return SimpleNamespace(
+                dim=[1, 2, 3],
+                milkrecordings=[30.0, 31.0, 29.0],
+                model="milkbot",
+                fitting="frequentist",
+                breed="H",
+                parity=3,
+                continent="USA",
+                custom_priors=None,
+                milk_unit="kg",
+                persistency_method="derived",
+                lactation_length=305,
+            )
+
+        def raise_symbolic_failure(*args, **kwargs):
+            raise Exception("No real solution for time to peak and peak yield found")
+
+        monkeypatch.setattr(
+            lcc_mod, "validate_and_prepare_inputs", fake_validate_and_prepare_inputs
+        )
+        monkeypatch.setattr(
+            lcc_mod,
+            "get_lc_parameters",
+            lambda *args, **kwargs: (30.0, 20.0, 5.0, 0.005),
+        )
+        monkeypatch.setattr(
+            lcc_mod, "lactation_curve_characteristic_function", raise_symbolic_failure
+        )
+        monkeypatch.setattr(lcc_mod, numeric_name, lambda *args, **kwargs: expected)
+
+        result = calculate_characteristic(
+            [1, 2, 3],
+            [30.0, 31.0, 29.0],
+            model="milkbot",
+            characteristic=characteristic,
+        )
+
+        assert result == expected
+
+    @pytest.mark.parametrize(
         "characteristic",
         ["peak_yield", "cumulative_milk_yield"],
     )

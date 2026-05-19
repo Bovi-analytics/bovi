@@ -425,13 +425,16 @@ def calculate_characteristic(
             if characteristic != "persistency":
                 # Try symbolic formula first
                 assert isinstance(lactation_length, int)
-                expr, params, fn = lactation_curve_characteristic_function(
-                    model, characteristic, lactation_length
-                )
-                with np.errstate(
-                    divide="ignore", invalid="ignore"
-                ):  # get rid of warnings for invalid operations
-                    value = fn(*fitted_params)
+                try:
+                    expr, params, fn = lactation_curve_characteristic_function(
+                        model, characteristic, lactation_length
+                    )
+                    with np.errstate(
+                        divide="ignore", invalid="ignore"
+                    ):  # get rid of warnings for invalid operations
+                        value = fn(*fitted_params)
+                except Exception:
+                    value = None
 
                 # If symbolic formula fails or is invalid (use numeric approach)
                 if (
@@ -553,10 +556,66 @@ def calculate_characteristic(
 
                     if characteristic != "persistency":
                         # Get the symbolic expression and model parameters
-                        expr, param_symbols, fn = lactation_curve_characteristic_function(
-                            model, characteristic
-                        )
-                        value = fn(*fitted_params_bayes)
+                        try:
+                            expr, param_symbols, fn = lactation_curve_characteristic_function(
+                                model, characteristic
+                            )
+                            with np.errstate(divide="ignore", invalid="ignore"):
+                                value = fn(*fitted_params_bayes)
+                        except Exception:
+                            value = None
+
+                        if (
+                            value is None
+                            or not np.isfinite(value)
+                            or (characteristic == "time_to_peak" and value <= 0)
+                        ):
+                            if characteristic == "time_to_peak":
+                                value = numeric_time_to_peak(
+                                    dim,
+                                    milkrecordings,
+                                    model,
+                                    fitting=fitting,
+                                    key=key,
+                                    parity=parity,
+                                    breed=breed,
+                                    custom_priors=custom_priors,
+                                    milk_unit=milk_unit,
+                                    continent=continent,
+                                )
+                            elif characteristic == "peak_yield":
+                                value = numeric_peak_yield(
+                                    dim,
+                                    milkrecordings,
+                                    model,
+                                    fitting=fitting,
+                                    key=key,
+                                    parity=parity,
+                                    breed=breed,
+                                    custom_priors=custom_priors,
+                                    milk_unit=milk_unit,
+                                    continent=continent,
+                                )
+                            elif characteristic == "cumulative_milk_yield":
+                                if lactation_length == "max":
+                                    numeric_lactation_length = max(dim)
+                                elif isinstance(lactation_length, int):
+                                    numeric_lactation_length = lactation_length
+                                else:
+                                    numeric_lactation_length = 305
+                                value = numeric_cumulative_yield(
+                                    dim,
+                                    milkrecordings,
+                                    model,
+                                    fitting=fitting,
+                                    lactation_length=numeric_lactation_length,
+                                    key=key,
+                                    parity=parity,
+                                    breed=breed,
+                                    custom_priors=custom_priors,
+                                    milk_unit=milk_unit,
+                                    continent=continent,
+                                )
 
                     else:
                         if persistency_method == "derived":
