@@ -1,25 +1,16 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { Badge, Button, Card, Group, Select, Stack, Text, TextInput } from "@mantine/core";
+import { Badge, Button, Card, Group, Stack, Text, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { useSubmitBoviModel } from "../hooks/use-submissions";
 import type { BenchmarkModel } from "@/types/api";
+import { BenchmarkModelPicker } from "./benchmark-model-picker";
 
 interface Props {
   challengeId: number;
   onSuccess: () => void;
 }
-
-const MODEL_OPTIONS: { value: BenchmarkModel; label: string }[] = [
-  { value: "tim", label: "TIM (ICAR Test Interval Method)" },
-  { value: "wood", label: "Wood" },
-  { value: "wilmink", label: "Wilmink" },
-  { value: "ali_schaeffer", label: "Ali-Schaeffer" },
-  { value: "fischer", label: "Fischer" },
-  { value: "milkbot", label: "MilkBot" },
-  { value: "autoencoder", label: "Autoencoder (deep learning)" },
-];
 
 export function SubmissionFormBovi({ challengeId, onSuccess }: Props): ReactElement {
   const [challenger, setChallenger] = useState<BenchmarkModel>("wood");
@@ -41,14 +32,17 @@ export function SubmissionFormBovi({ challengeId, onSuccess }: Props): ReactElem
         <Card withBorder padding="sm" bg="var(--mantine-color-violet-light)">
           <Stack gap={6}>
             <Group gap="xs">
-              <Text size="xs" tt="uppercase" fw={700} c="violet">Challenger</Text>
-              <Badge color="violet" variant="filled">Bovi model</Badge>
+              <Text size="xs" tt="uppercase" fw={700} c="violet">
+                Challenger
+              </Text>
+              <Badge color="violet" variant="filled">
+                Bovi model
+              </Badge>
             </Group>
-            <Select
-              label="Pick a model"
-              data={MODEL_OPTIONS}
+            <BenchmarkModelPicker
+              label="Pick a challenger model"
               value={challenger}
-              onChange={(v) => v && setChallenger(v as BenchmarkModel)}
+              onChange={setChallenger}
             />
           </Stack>
         </Card>
@@ -56,21 +50,26 @@ export function SubmissionFormBovi({ challengeId, onSuccess }: Props): ReactElem
         <Card withBorder padding="sm" bg="var(--mantine-color-blue-light)">
           <Stack gap={6}>
             <Group gap="xs">
-              <Text size="xs" tt="uppercase" fw={700} c="blue">Benchmark</Text>
-              <Badge color="blue" variant="filled">Bovi model</Badge>
+              <Text size="xs" tt="uppercase" fw={700} c="blue">
+                Benchmark
+              </Text>
+              <Badge color="blue" variant="filled">
+                Bovi model
+              </Badge>
             </Group>
-            <Select
-              label="Pick a model"
-              data={MODEL_OPTIONS}
+            <BenchmarkModelPicker
+              label="Pick a benchmark model"
               value={benchmark}
-              onChange={(v) => v && setBenchmark(v as BenchmarkModel)}
+              onChange={setBenchmark}
             />
           </Stack>
         </Card>
       </Group>
 
       {same && (
-        <Text c="red" size="xs">Benchmark and challenger must differ.</Text>
+        <Text c="red" size="xs">
+          Benchmark and challenger must differ.
+        </Text>
       )}
 
       <Group grow>
@@ -86,7 +85,11 @@ export function SubmissionFormBovi({ challengeId, onSuccess }: Props): ReactElem
         />
       </Group>
 
-      {error && <Text c="red" size="xs">{(error as Error).message}</Text>}
+      {error && (
+        <Text c="red" size="xs">
+          {(error as Error).message}
+        </Text>
+      )}
 
       <Button onClick={handleSubmit} loading={isPending} disabled={same}>
         Run &amp; Compare

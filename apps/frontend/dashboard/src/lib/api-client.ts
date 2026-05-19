@@ -11,6 +11,7 @@ import {
   PresetHerdStatsResponseSchema,
   PredictResponseSchema,
   TestIntervalResponseSchema,
+  YieldEstimateResponseSchema,
   ChallengeListSchema,
   ChallengeReadSchema,
   SubmissionListSchema,
@@ -36,6 +37,8 @@ import type {
   PredictResponse,
   TestIntervalRequest,
   TestIntervalResponse,
+  YieldEstimateRequest,
+  YieldEstimateResponse,
   ChallengeCreatePreset,
   ChallengeRead,
   SubmissionRead,
@@ -116,6 +119,16 @@ export async function predictMilkbot(request: PredictRequest): Promise<PredictRe
 
 export async function getTestInterval(request: TestIntervalRequest): Promise<TestIntervalResponse> {
   return apiFetch("/curves/test-interval", TestIntervalResponseSchema, request);
+}
+
+export async function getIslc(request: YieldEstimateRequest): Promise<YieldEstimateResponse> {
+  return apiFetch("/curves/islc", YieldEstimateResponseSchema, request);
+}
+
+export async function getBestPredict(
+  request: YieldEstimateRequest
+): Promise<YieldEstimateResponse> {
+  return apiFetch("/curves/best-predict", YieldEstimateResponseSchema, request);
 }
 
 export async function predictAutoencoder(
@@ -244,11 +257,10 @@ export async function submitBoviModel(
     notes?: string;
   }
 ): Promise<SubmissionRead> {
-  return apiFetch(
-    `/benchmark/challenges/${challengeId}/submissions`,
-    SubmissionReadSchema,
-    { submission_type: "bovi_model", ...data }
-  );
+  return apiFetch(`/benchmark/challenges/${challengeId}/submissions`, SubmissionReadSchema, {
+    submission_type: "bovi_model",
+    ...data,
+  });
 }
 
 export async function submitOwnMethod(
@@ -264,11 +276,16 @@ export async function submitOwnMethod(
 ): Promise<SubmissionRead> {
   const formData = new FormData();
   formData.append("file", file);
-  Object.entries(meta).forEach(([k, v]) => { if (v) formData.append(k, String(v)); });
-  const response = await fetch(`${getApiBaseUrl()}/benchmark/challenges/${challengeId}/submissions/upload`, {
-    method: "POST",
-    body: formData,
+  Object.entries(meta).forEach(([k, v]) => {
+    if (v) formData.append(k, String(v));
   });
+  const response = await fetch(
+    `${getApiBaseUrl()}/benchmark/challenges/${challengeId}/submissions/upload`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(`Upload error ${response.status}: ${JSON.stringify(error)}`);
