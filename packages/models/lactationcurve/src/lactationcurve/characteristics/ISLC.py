@@ -576,7 +576,6 @@ def ISLC_original(
             days_in_milk_col="DaysInMilk",
             milking_yield_col="MilkingYield",
             standard_lc=standard_lc_305,
-            small_grid=True,
         )
         if lactation.empty:
             rows.append({"TestId": test_id, "305_milk_yield": np.nan})

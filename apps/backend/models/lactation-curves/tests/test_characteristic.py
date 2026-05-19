@@ -88,6 +88,18 @@ def test_characteristic_defaults(api: httpx.Client, sample_data: dict):
     assert isinstance(r.json()["value"], float)
 
 
+def test_characteristic_allows_null_value(api: httpx.Client, sample_data: dict, monkeypatch):
+    """A non-sensible characteristic result should be returned as JSON null."""
+    import main
+
+    monkeypatch.setattr(main, "calculate_characteristic", lambda **kwargs: None)
+
+    r = api.post("/characteristic", json=sample_data)
+
+    assert r.status_code == 200
+    assert r.json() == {"value": None}
+
+
 def test_characteristic_missing_dim(api: httpx.Client):
     """Missing required field dim should return 422."""
     r = api.post("/characteristic", json={"milkrecordings": [15.0, 25.0, 30.0]})

@@ -34,12 +34,14 @@ Authors:
 import math
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 import sympy as sp
 from dotenv import find_dotenv, load_dotenv
 
+import lactationcurve.characteristics.lactation_curve_characteristics as lcc_mod
 from lactationcurve.characteristics import (
     calculate_characteristic,
     lactation_curve_characteristic_function,
@@ -157,7 +159,7 @@ class TestCharacteristicFunction:
         [
             ("sikka", {"a", "b", "c"}),
             ("wilmink", {"a", "b", "c", "k"}),
-            ("ali_schaeffer", {"a", "b", "c", "d", "k"}),
+            ("milkbot", {"a", "b", "c", "d"}),
         ],
     )
     def test_models_return_expected_symbols(self, model, expected_symbols):
@@ -457,6 +459,122 @@ class TestCalculateCharacteristicErrors:
                 fitting="Bayesian",
                 key=key,
             )
+
+
+@pytest.mark.errorhandling
+class TestCalculateCharacteristicNegativeOutputs:
+    """Verify handling of negative characteristic values."""
+
+    @pytest.mark.parametrize(
+        "characteristic",
+        ["peak_yield", "cumulative_milk_yield"],
+    )
+    def test_negative_non_persistency_returns_none(self, monkeypatch, characteristic):
+        """Negative non-persistency outputs should return None."""
+
+        def fake_validate_and_prepare_inputs(*args, **kwargs):
+            return SimpleNamespace(
+                dim=[1, 2, 3],
+                milkrecordings=[30.0, 29.0, 28.0],
+                model="wood",
+                fitting="frequentist",
+                breed="H",
+                parity=3,
+                continent="USA",
+                custom_priors=None,
+                milk_unit="kg",
+                persistency_method="derived",
+                lactation_length=305,
+            )
+
+        monkeypatch.setattr(
+            lcc_mod, "validate_and_prepare_inputs", fake_validate_and_prepare_inputs
+        )
+        monkeypatch.setattr(lcc_mod, "get_lc_parameters", lambda *args, **kwargs: (30.0, 0.2, 0.01))
+        monkeypatch.setattr(
+            lcc_mod,
+            "lactation_curve_characteristic_function",
+            lambda *args, **kwargs: (None, (), lambda *p: -1.0),
+        )
+
+        result = calculate_characteristic(
+            [1, 2, 3],
+            [30.0, 29.0, 28.0],
+            model="wood",
+            characteristic=characteristic,
+        )
+        assert result is None
+
+    def test_negative_time_to_peak_returns_none(self, monkeypatch):
+        """Negative time_to_peak from numeric fallback should return None."""
+
+        def fake_validate_and_prepare_inputs(*args, **kwargs):
+            return SimpleNamespace(
+                dim=[1, 2, 3],
+                milkrecordings=[30.0, 29.0, 28.0],
+                model="wood",
+                fitting="frequentist",
+                breed="H",
+                parity=3,
+                continent="USA",
+                custom_priors=None,
+                milk_unit="kg",
+                persistency_method="derived",
+                lactation_length=305,
+            )
+
+        monkeypatch.setattr(
+            lcc_mod, "validate_and_prepare_inputs", fake_validate_and_prepare_inputs
+        )
+        monkeypatch.setattr(lcc_mod, "get_lc_parameters", lambda *args, **kwargs: (30.0, 0.2, 0.01))
+        monkeypatch.setattr(
+            lcc_mod,
+            "lactation_curve_characteristic_function",
+            lambda *args, **kwargs: (None, (), lambda *p: -1.0),
+        )
+        monkeypatch.setattr(lcc_mod, "numeric_time_to_peak", lambda *args, **kwargs: -2)
+
+        result = calculate_characteristic(
+            [1, 2, 3],
+            [30.0, 29.0, 28.0],
+            model="wood",
+            characteristic="time_to_peak",
+        )
+        assert result is None
+
+    def test_negative_persistency_is_returned(self, monkeypatch):
+        """Persistency is allowed to be negative and should be returned as float."""
+
+        def fake_validate_and_prepare_inputs(*args, **kwargs):
+            return SimpleNamespace(
+                dim=[1, 2, 3],
+                milkrecordings=[30.0, 29.0, 28.0],
+                model="wood",
+                fitting="frequentist",
+                breed="H",
+                parity=3,
+                continent="USA",
+                custom_priors=None,
+                milk_unit="kg",
+                persistency_method="derived",
+                lactation_length=305,
+            )
+
+        monkeypatch.setattr(
+            lcc_mod, "validate_and_prepare_inputs", fake_validate_and_prepare_inputs
+        )
+        monkeypatch.setattr(lcc_mod, "get_lc_parameters", lambda *args, **kwargs: (30.0, 0.2, 0.01))
+        monkeypatch.setattr(lcc_mod, "persistency_fitted_curve", lambda *args, **kwargs: -0.5)
+
+        result = calculate_characteristic(
+            [1, 2, 3],
+            [30.0, 29.0, 28.0],
+            model="wood",
+            characteristic="persistency",
+            persistency_method="derived",
+        )
+        assert isinstance(result, float)
+        assert result == -0.5
 
 
 @pytest.mark.numeric

@@ -35,6 +35,7 @@ Last update: 11-feb-2025
 
 import numpy as np
 from sympy import (
+    Integral,
     diff,
     exp,
     integrate,
@@ -122,7 +123,9 @@ def lactation_curve_characteristic_function(
 
     Raises:
         Exception: If the model is unknown, or if no positive real solution for
-            peak timing/yield exists where required.
+            peak timing/yield exists where required. In this case None is returned
+             for the characteristic,
+             and the function can be evaluated with numeric methods as a fallback.
     """
     # check the cache
     storage = (model, characteristic)
@@ -169,24 +172,27 @@ def lactation_curve_characteristic_function(
 
     elif model == "emmans":
         # === EMMANS ===
-        a, b, c, d, t = symbols("a b c d t")
+        a, b, c, d, t = symbols("a b c d t", real=True, positive=True)
         function = a * exp(-exp(d - b * t)) * exp(-c * t)
 
     elif model == "ali_schaeffer":
         # ====ALI=====
-        a, b, c, d, k, t = symbols("a b c d k t", real=True, positive=True)
-        function = (
-            a + b * (t / 305) + c * (t / 305) ** 2 + d * log(t / 305) + k * log((305 / t) ** 2)
-        )
+        a, b, c, d, k, t = symbols("a b c d k t", real=True)
+
+        t1 = t / 305
+        w1 = log(305 / t)
+
+        function = a + b * t1 + c * t1**2 + d * w1 + k * w1**2
 
     elif model == "wilmink":
         # === WILMINK ===
-        a, b, c, k, t = symbols("a b c k t", real=True, positive=True)
-        function = a + b * t + c * exp(-k * t)
+        a, c, k, t = symbols("a c k t", real=True, positive=True)
+        b = symbols("b", real=True)  # b can be negative in Wilmink
+        function = a + b * exp(-k * t) - c * t
 
     elif model == "hayashi":
         # === HAYASHI ===
-        a, b, c, d, t = symbols("a b c d t", real=True, positive=True)
+        a, b, c, t = symbols("a b c t", real=True, positive=True)
         function = b * (exp(-t / c) - exp(-t / (a * c)))
 
     elif model == "rook":
@@ -212,10 +218,30 @@ def lactation_curve_characteristic_function(
     else:
         raise Exception("Unknown model")
 
-    # find derivative
-    fdiff = diff(function, t)
     # solve derivative for when it is zero to find the function for time of peak
-    tpeak = solve(fdiff, t)
+    fdiff = diff(function, t)
+
+    tpeak = None  # default
+
+    valid_roots = []
+
+    try:
+        candidate_roots = solve(fdiff, t)
+
+        for r in candidate_roots:
+            r_simplified = simplify(r)
+
+            if r_simplified.is_real is not False:
+                valid_roots.append(r_simplified)
+
+    except Exception:
+        valid_roots = []
+
+    tpeak = valid_roots[0] if valid_roots else None
+
+    # override to prevent sympy error
+    if model == "dijkstra":
+        tpeak = simplify(log(b / d) / c)
 
     # define the end of lactation
     T = lactation_length  # days in milk
@@ -224,7 +250,7 @@ def lactation_curve_characteristic_function(
     persistency = None
     try:
         if tpeak:
-            tmp = (function.subs(t, T) - function.subs(t, tpeak[0])) / (T - tpeak[0])
+            tmp = (function.subs(t, T) - function.subs(t, tpeak)) / (T - tpeak)
             tmp = tmp.cancel()  # light simplification
             if is_valid_sympy_expr(tmp):
                 persistency = tmp
@@ -233,14 +259,17 @@ def lactation_curve_characteristic_function(
 
     if characteristic != "cumulative_milk_yield":
         if tpeak:  # Check if the list is not empty
-            peak_expr = simplify(function.subs(t, tpeak[0]))
+            peak_expr = simplify(function.subs(t, tpeak))
         else:
-            raise Exception("No positive real solution for time to peak and peak yield found")
+            raise Exception("No real solution for time to peak and peak yield found")
 
     # find function for cumulative milk yield of the lactation.
     # A lactation length of 305 is the default, but this value can
     # also be provided as a parameter in the characteristic function.
-    cum_my_expr = integrate(function, (t, 0, lactation_length))
+    cum_my_expr = integrate(function, (t, 0, lactation_length), meijerg=False)
+
+    if cum_my_expr == 0:
+        cum_my_expr = Integral(function, (t, 0, lactation_length))
 
     # Sorted parameter list (exclude t)
     params = tuple(
@@ -251,7 +280,7 @@ def lactation_curve_characteristic_function(
     # Select requested characteristic
     # ----------------------------------------------------
     if characteristic == "time_to_peak":
-        expr = tpeak[0]
+        expr = tpeak
     elif characteristic == "peak_yield":
         expr = peak_expr
     elif characteristic == "cumulative_milk_yield":
@@ -263,7 +292,7 @@ def lactation_curve_characteristic_function(
     else:
         # Return all four if None or 'all'
         expr = {
-            "time_to_peak": tpeak[0],
+            "time_to_peak": tpeak,
             "peak_yield": peak_expr,
             "persistency": persistency,  # possibly None
             "cumulative_milk_yield": cum_my_expr,
@@ -303,7 +332,7 @@ def calculate_characteristic(
     milk_unit="kg",
     persistency_method="derived",
     lactation_length=305,
-) -> float:
+) -> float | None:
     """Evaluate a lactation curve characteristic from observed test-day data.
 
     This function fits the requested model (frequentist or Bayesian via MilkBot),
@@ -333,7 +362,9 @@ def calculate_characteristic(
             305 (default), 'max' (use max DIM in data), or an integer.
 
     Returns:
-        float: The requested characteristic value.
+        float | None: The requested characteristic value.
+        Or None if value is negative (except persistency)
+        or cannot be computed symbolically.
 
     Raises:
         Exception: If inputs are invalid, the model/characteristic is unsupported,
@@ -486,11 +517,13 @@ def calculate_characteristic(
                         )
                         raise Exception(msg)
             try:
-                return float(value)  # pyright: ignore[reportArgumentType]
-            except (ValueError, TypeError):
-                raise Exception(
-                    "Could not compute characteristic, possibly due to invalid fitted parameters"
-                )
+                if value is None:
+                    return None
+                if characteristic != "persistency" and value < 0:
+                    return None
+                return float(value)
+            except ValueError:
+                raise Exception("Could not compute characteristic")
 
         else:
             if model == "milkbot":
@@ -552,7 +585,14 @@ def calculate_characteristic(
                         else:
                             value = persistency_milkbot(fitted_params_bayes[3])
 
-                    return float(value)  # pyright: ignore[reportArgumentType]
+                try:
+                    if value is None:
+                        return None
+                    if characteristic != "persistency" and value < 0:
+                        return None
+                    return float(value)
+                except ValueError:
+                    raise Exception("Could not compute characteristic")
             else:
                 raise Exception("Bayesian fitting is currently only implemented for MilkBot models")
 
@@ -791,3 +831,66 @@ def persistency_fitted_curve(
     # calculate persistency
     persistency = (end_yield - peak_yield) / (lactation_length - t_peak)
     return persistency
+
+
+# add main to test
+def demo():
+    from sympy import pprint
+
+    models = [
+        "brody",
+        "sikka",
+        "fischer",
+        "nelder",
+        "wood",
+        "dhanoa",
+        "emmans",
+        "ali_schaeffer",
+        "wilmink",
+        "hayashi",
+        "rook",
+        "dijkstra",
+        "prasad",
+        "milkbot",
+    ]
+
+    characteristics = ["time_to_peak", "peak_yield", "cumulative_milk_yield"]
+
+    # simple test parameter values (biologically reasonable-ish)
+    test_values = {"a": 10, "b": 2, "c": 0.1, "d": 1, "k": 0.05, "k1": 0.1, "k2": 0.05}
+
+    for model in models:
+        print("\n" + "=" * 60)
+        print(f"MODEL: {model.upper()}")
+        print("=" * 60)
+
+        for char in characteristics:
+            print(f"\n--- {char} ---")
+
+            try:
+                expr, params, func = lactation_curve_characteristic_function(
+                    model=model, characteristic=char
+                )
+
+                # print symbolic expression
+                print("Symbolic:")
+                pprint(expr)
+
+                # build numeric input in correct order
+                try:
+                    param_values = [test_values[p.name] for p in params]
+
+                    numeric_value = func(*param_values)
+
+                    print("Numeric:")
+                    print(numeric_value)
+
+                except Exception as e:
+                    print("Numeric evaluation failed:", e)
+
+            except Exception as e:
+                print("Error:", e)
+
+
+if __name__ == "__main__":
+    demo()
