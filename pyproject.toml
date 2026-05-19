@@ -58,6 +58,7 @@ venv = ".venv"
 reportPrivateImportUsage = "none"
 exclude = [
     "**/.venv",
+    "**/.worktrees",
     "**/node_modules",
     "**/notebooks/**",
     "**/*.ipynb",
