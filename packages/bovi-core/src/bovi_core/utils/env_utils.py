@@ -91,7 +91,10 @@ def call_databricks_api(method, endpoint_url, json_payload=None, dbutils=None):
         response.raise_for_status()
         return response.json() if response.content else None
     except requests.exceptions.HTTPError as e:
-        print(f"API Error: {e.response.status_code} {e.response.text}")
+        if e.response is not None:
+            print(f"API Error: {e.response.status_code} {e.response.text}")
+        else:
+            print(f"API Error: {str(e)}")
         raise
     except Exception as e:
         print(f"General Error: {str(e)}")

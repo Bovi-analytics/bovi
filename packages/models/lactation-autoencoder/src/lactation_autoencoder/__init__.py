@@ -1,6 +1,6 @@
 """Lactation autoencoder model module."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 # Import transforms to trigger TransformRegistry registration
 from lactation_autoencoder.dataloaders.transforms import (
@@ -9,6 +9,10 @@ from lactation_autoencoder.dataloaders.transforms import (
     HerdStatsNormalizationTransform,
     MilkNormalizationTransform,
 )
+
+if TYPE_CHECKING:
+    from lactation_autoencoder.models import LactationAutoencoderModel
+    from lactation_autoencoder.predictors import LactationPredictionResult, LactationPredictor
 
 __all__ = [
     "EventTokenizationTransform",

@@ -51,6 +51,8 @@ indent-style = "space"
 typeCheckingMode = "basic"
 pythonVersion = "3.12"
 pythonPlatform = "All"
+venvPath = "."
+venv = ".venv"
 # torch's type stubs don't expose tensor/as_tensor/float32/device/uint8 via __all__,
 # but PyTorch's documented public API uses them — disable the false positives.
 reportPrivateImportUsage = "none"
