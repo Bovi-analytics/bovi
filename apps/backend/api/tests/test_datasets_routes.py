@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 
 import pytest
@@ -160,6 +161,64 @@ def test_fetch_preset_cows_uses_local_raw_data_when_blob_is_unreachable(tmp_path
     assert preset.dataset == "sunnyside"
     assert preset.cow_count == 1
     assert preset.cows[0].cow_id == "1_3"
+
+
+def test_fetch_preset_cows_rebuilds_icar_when_generated_yields_are_implausible(
+    tmp_path,
+    monkeypatch,
+):
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    generated_dir = raw_dir / "preset-datasets" / "icar"
+    generated_dir.mkdir(parents=True)
+    (generated_dir / "full.json").write_text(
+        json.dumps(
+            {
+                "dataset": "icar",
+                "size": "full",
+                "period": "all",
+                "cow_count": 1,
+                "cows": [
+                    {
+                        "cow_id": "1483",
+                        "display_name": "Cow 1483 - parity 2",
+                        "parity": 2,
+                        "dim": [10, 40],
+                        "milk_kg": [30.0, 31.0],
+                    }
+                ],
+                "actual_yields": {"1483": 148310573.1},
+            }
+        )
+    )
+    (raw_dir / "TestDataSet(in).csv").write_text(
+        "\n".join(
+            [
+                "TestID,Parity,DIM,DailyMilkingYield",
+                "1483,2,10,30.0",
+                "1483,2,40,31.0",
+            ]
+        )
+    )
+    (raw_dir / "ActualMilkYields.csv").write_text(
+        "\n".join(
+            [
+                "TotalActualProduction,TestID,Total Actual production",
+                "148310573.1,1483,10573.1",
+            ]
+        )
+    )
+    monkeypatch.setattr(datasets_route, "_LOCAL_RAW_DIR", raw_dir)
+
+    preset = datasets_route.fetch_preset_cows(
+        "icar",
+        "full",
+        "all",
+        Settings(connection_string=""),
+    )
+
+    assert preset.cow_count == 1
+    assert preset.actual_yields == {"1483": 10573.1}
 
 
 def test_fetch_preset_cows_returns_503_when_blob_and_local_raw_data_are_unavailable(

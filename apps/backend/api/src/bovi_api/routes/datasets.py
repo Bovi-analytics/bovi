@@ -105,6 +105,7 @@ _LOCAL_ICAR_FILES = {
     "test": ["TestDataSet.csv", "TestDataSet(in).csv"],
     "actual_yields": ["ActualMilkYields.csv", "ActualMilkYieldsICAR platform.xlsx"],
 }
+_MAX_PLAUSIBLE_LACTATION_YIELD_KG = 100_000.0
 
 
 class PresetCow(BaseModel):
@@ -314,6 +315,18 @@ def _norm_id(value: object) -> str:
     return str(value).strip()
 
 
+def _column_lookup(columns: list[str]) -> dict[str, str]:
+    return {c.lower().strip(): c for c in columns}
+
+
+def _has_plausible_actual_yields(preset: PresetDatasetResponse) -> bool:
+    if not preset.actual_yields:
+        return True
+    return all(
+        0 < value < _MAX_PLAUSIBLE_LACTATION_YIELD_KG for value in preset.actual_yields.values()
+    )
+
+
 def _build_local_icar_preset() -> PresetDatasetResponse:
     import pandas as pd
 
@@ -327,7 +340,7 @@ def _build_local_icar_preset() -> PresetDatasetResponse:
         )
 
     test_df = _read_local_table(test_path)
-    cols = {c.lower(): c for c in test_df.columns}
+    cols = _column_lookup(list(test_df.columns))
     id_col = cols.get("testid") or cols.get("cow_id") or cols.get("id")
     parity_col = cols.get("parity") or cols.get("lact")
     dim_col = cols.get("dim") or cols.get("daysinmilk")
@@ -364,14 +377,14 @@ def _build_local_icar_preset() -> PresetDatasetResponse:
         )
 
     yields_df = _read_local_table(yields_path)
-    yield_cols = {c.lower(): c for c in yields_df.columns}
+    yield_cols = _column_lookup(list(yields_df.columns))
     yield_id = yield_cols.get("testid") or yield_cols.get("cow_id") or yield_cols.get("id")
     yield_value = (
-        yield_cols.get("totalactualproduction")
+        yield_cols.get("total actual production")
         or yield_cols.get("actualproduction")
         or yield_cols.get("yield_305day")
         or yield_cols.get("total_305_yield")
-        or yield_cols.get("total actual production")
+        or yield_cols.get("totalactualproduction")
     )
     if not yield_id or not yield_value:
         raise LocalPresetUnavailableError(
@@ -404,7 +417,9 @@ def _fetch_local_preset(
 ) -> PresetDatasetResponse:
     generated_path = _LOCAL_RAW_DIR / _preset_blob_path(dataset, size, period)
     if generated_path.exists():
-        return PresetDatasetResponse(**json.loads(generated_path.read_text()))
+        generated = PresetDatasetResponse(**json.loads(generated_path.read_text()))
+        if dataset != "icar" or _has_plausible_actual_yields(generated):
+            return generated
 
     if dataset == "icar":
         return _build_local_icar_preset()
