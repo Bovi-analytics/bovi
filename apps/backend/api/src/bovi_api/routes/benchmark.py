@@ -42,10 +42,23 @@ _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 _FAILURE_THRESHOLD = 0.20
 
 CURVE_MODELS = {"wood", "wilmink", "ali_schaeffer", "fischer", "milkbot"}
-ALL_MODELS = CURVE_MODELS | {"tim", "autoencoder"}
+YIELD_ESTIMATORS = {
+    "tim": "/test-interval",
+    "islc": "/islc",
+    "best_predict": "/best-predict",
+}
+ALL_MODELS = CURVE_MODELS | set(YIELD_ESTIMATORS) | {"autoencoder"}
 
 ChallengerOrBenchmark = Literal[
-    "wood", "wilmink", "ali_schaeffer", "fischer", "milkbot", "autoencoder", "tim"
+    "wood",
+    "wilmink",
+    "ali_schaeffer",
+    "fischer",
+    "milkbot",
+    "autoencoder",
+    "tim",
+    "islc",
+    "best_predict",
 ]
 
 
@@ -54,11 +67,12 @@ ChallengerOrBenchmark = Literal[
 # ---------------------------------------------------------------------------
 
 
-async def _call_tim(
+async def _call_yield_estimator(
     cow_metadata: dict[str, dict],
     settings: Settings,
+    path: str,
 ) -> dict[str, float]:
-    """Call POST /curves/test-interval for all cows."""
+    """Call a lactation-curves 305-day yield endpoint for all cows."""
     dim_all: list[int] = []
     milk_all: list[float] = []
     test_ids_all: list[str] = []
@@ -72,13 +86,13 @@ async def _call_tim(
     client = _get_client()
     try:
         resp = await client.post(
-            f"{settings.lactation_curves_url}/test-interval",
+            f"{settings.lactation_curves_url}{path}",
             content=json.dumps(payload),
             headers={"Content-Type": "application/json"},
         )
         resp.raise_for_status()
     except httpx.RequestError as exc:
-        logger.exception("TIM proxy error: %s", exc)
+        logger.exception("Yield estimator proxy error for %s: %s", path, exc)
         raise HTTPException(
             status_code=502, detail="Upstream lactation-curves service unavailable."
         )
@@ -193,8 +207,8 @@ async def _dispatch_model(
     settings: Settings,
 ) -> dict[str, float]:
     """Run the requested model on all cows and return {cow_id: 305-day yield}."""
-    if model == "tim":
-        return await _call_tim(cow_metadata, settings)
+    if model in YIELD_ESTIMATORS:
+        return await _call_yield_estimator(cow_metadata, settings, YIELD_ESTIMATORS[model])
     if model in CURVE_MODELS:
         return await _call_curve_characteristic(cow_metadata, model, settings)
     if model == "autoencoder":

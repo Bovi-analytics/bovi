@@ -10,7 +10,6 @@ import {
   Code,
   FileInput,
   Group,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -21,21 +20,12 @@ import { useState } from "react";
 import { exportChallengeUrl } from "@/lib/api-client";
 import { useSubmitOwnMethod } from "../hooks/use-submissions";
 import type { BenchmarkModel } from "@/types/api";
+import { BenchmarkModelPicker } from "./benchmark-model-picker";
 
 interface Props {
   challengeId: number;
   onSuccess: () => void;
 }
-
-const BENCHMARK_OPTIONS: { value: BenchmarkModel; label: string }[] = [
-  { value: "tim", label: "TIM (ICAR Test Interval Method)" },
-  { value: "wood", label: "Wood" },
-  { value: "wilmink", label: "Wilmink" },
-  { value: "ali_schaeffer", label: "Ali-Schaeffer" },
-  { value: "fischer", label: "Fischer" },
-  { value: "milkbot", label: "MilkBot" },
-  { value: "autoencoder", label: "Autoencoder (deep learning)" },
-];
 
 const RESULTS_EXAMPLE_CSV = `cow_id,yield_305day
 1001,8520
@@ -75,15 +65,21 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
         <Card withBorder padding="sm" bg="var(--mantine-color-violet-light)">
           <Stack gap={6}>
             <Group gap="xs">
-              <Text size="xs" tt="uppercase" fw={700} c="violet">Challenger</Text>
-              <Badge color="violet" variant="filled">Own method (CSV)</Badge>
+              <Text size="xs" tt="uppercase" fw={700} c="violet">
+                Challenger
+              </Text>
+              <Badge color="violet" variant="filled">
+                Own method (CSV)
+              </Badge>
             </Group>
             <Group gap={4} wrap="nowrap">
               <Text size="xs" c="dimmed">
                 Calculate 305-day yields with your own method, then upload the results.
               </Text>
               <Tooltip label="Required columns: cow_id, yield_305day. UTF-8, comma or semicolon-separated.">
-                <ActionIcon size="xs" variant="subtle" color="gray"><Info size={14} /></ActionIcon>
+                <ActionIcon size="xs" variant="subtle" color="gray">
+                  <Info size={14} />
+                </ActionIcon>
               </Tooltip>
             </Group>
             <Group gap="xs">
@@ -117,8 +113,8 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
                 <Accordion.Panel>
                   <Stack gap={6}>
                     <Text size="xs">
-                      Required: <Code>cow_id</Code>, <Code>yield_305day</Code>{" "}
-                      (or <Code>total_305_yield</Code>). One row per cow.
+                      Required: <Code>cow_id</Code>, <Code>yield_305day</Code> (or{" "}
+                      <Code>total_305_yield</Code>). One row per cow.
                     </Text>
                     <Code block>{RESULTS_EXAMPLE_CSV}</Code>
                   </Stack>
@@ -137,14 +133,17 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
         <Card withBorder padding="sm" bg="var(--mantine-color-blue-light)">
           <Stack gap={6}>
             <Group gap="xs">
-              <Text size="xs" tt="uppercase" fw={700} c="blue">Benchmark</Text>
-              <Badge color="blue" variant="filled">Bovi model</Badge>
+              <Text size="xs" tt="uppercase" fw={700} c="blue">
+                Benchmark
+              </Text>
+              <Badge color="blue" variant="filled">
+                Bovi model
+              </Badge>
             </Group>
-            <Select
+            <BenchmarkModelPicker
               label="Pick a benchmark model"
-              data={BENCHMARK_OPTIONS}
               value={benchmark}
-              onChange={(v) => v && setBenchmark(v as BenchmarkModel)}
+              onChange={setBenchmark}
             />
             <Text size="xs" c="dimmed">
               Bovi runs this model server-side on the same cohort. Both your challenger and the
@@ -167,7 +166,11 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
         />
       </Group>
 
-      {error && <Text c="red" size="xs">{(error as Error).message}</Text>}
+      {error && (
+        <Text c="red" size="xs">
+          {(error as Error).message}
+        </Text>
+      )}
 
       <Button onClick={handleSubmit} loading={isPending} disabled={!file}>
         Submit &amp; Compare

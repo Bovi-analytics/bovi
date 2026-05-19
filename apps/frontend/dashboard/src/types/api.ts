@@ -73,11 +73,12 @@ export const PredictRequestSchema = z.object({
   d: z.number(),
 });
 
-export const TestIntervalRequestSchema = z.object({
+export const YieldEstimateRequestSchema = z.object({
   dim: z.array(z.number().int()),
   milkrecordings: z.array(z.number()),
   test_ids: z.array(z.union([z.number(), z.string()])).optional(),
 });
+export const TestIntervalRequestSchema = YieldEstimateRequestSchema;
 
 export const AutoencoderPredictRequestSchema = z.object({
   milk: z.array(z.number().nullable()),
@@ -109,14 +110,16 @@ export const AutoencoderPredictResponseSchema = z.object({
   latent_vector: z.array(z.number()).nullable(),
 });
 
-export const TestIntervalResultSchema = z.object({
+export const YieldEstimateResultSchema = z.object({
   test_id: z.union([z.number(), z.string()]),
   total_305_yield: z.number(),
 });
+export const TestIntervalResultSchema = YieldEstimateResultSchema;
 
-export const TestIntervalResponseSchema = z.object({
-  results: z.array(TestIntervalResultSchema),
+export const YieldEstimateResponseSchema = z.object({
+  results: z.array(YieldEstimateResultSchema),
 });
+export const TestIntervalResponseSchema = YieldEstimateResponseSchema;
 
 /* ------------------------------------------------------------------ */
 /*  Inferred request/response types                                    */
@@ -130,6 +133,8 @@ export type PredictRequest = z.infer<typeof PredictRequestSchema>;
 export type PredictResponse = z.infer<typeof PredictResponseSchema>;
 export type AutoencoderPredictRequest = z.infer<typeof AutoencoderPredictRequestSchema>;
 export type AutoencoderPredictResponse = z.infer<typeof AutoencoderPredictResponseSchema>;
+export type YieldEstimateRequest = z.infer<typeof YieldEstimateRequestSchema>;
+export type YieldEstimateResponse = z.infer<typeof YieldEstimateResponseSchema>;
 export type TestIntervalRequest = z.infer<typeof TestIntervalRequestSchema>;
 export type TestIntervalResponse = z.infer<typeof TestIntervalResponseSchema>;
 
@@ -312,6 +317,8 @@ export const BenchmarkModelSchema = z.enum([
   "milkbot",
   "autoencoder",
   "tim",
+  "islc",
+  "best_predict",
 ]);
 export type BenchmarkModel = z.infer<typeof BenchmarkModelSchema>;
 
