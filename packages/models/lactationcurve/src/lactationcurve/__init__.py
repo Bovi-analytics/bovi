@@ -11,7 +11,7 @@ using the **ICAR guideline**.
 
 > **Initial authored:** 2025‑08‑12
 
-> **Updated:** 2026-05-18
+> **Updated:** 2026-05-20
 
 ---
 
@@ -119,7 +119,7 @@ If you use the `lactationcurve` package in your research, please consider citing
 
 *van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., &
 Hostens, M. (2026). Bovi-analytics/bovi:
-v.1.1.0. (v.1.1.0). Zenodo.
+v.1.1.1. (v.1.1.1). Zenodo.
 https://doi.org/10.5281/zenodo.18715145*
 
 
@@ -140,7 +140,7 @@ https://doi.org/10.7717/peerj.54*
 
 ---
 
-## Version v.1.1.0
+## Version v.1.1.1
 
 """
 
