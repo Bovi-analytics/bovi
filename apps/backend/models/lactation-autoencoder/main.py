@@ -6,6 +6,7 @@ import logging
 import time
 import uuid
 import warnings
+from pathlib import Path
 from typing import Literal
 
 # MLflow emits a UserWarning about `Any` type hints from its OWN internal
@@ -31,6 +32,7 @@ from bovi_core.ml import create_model  # noqa: E402
 from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.timeseries import ImputationTransform  # noqa: E402
+from bovi_core.utils.path_utils import get_project_root, get_run_config_path  # noqa: E402
 from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
@@ -46,7 +48,16 @@ logger = logging.getLogger("lactation_autoencoder")
 # Model startup (loaded once at module level)
 # ---------------------------------------------------------------------------
 
-config = Config(experiment_name="lactation_autoencoder", project_name="bovi")
+project_root = Path(get_project_root(project_name="bovi"))
+config = Config(
+    experiment_name="lactation_autoencoder",
+    config_file_path=get_run_config_path(
+        str(project_root),
+        "lactation_autoencoder",
+        root_dir_name="models",
+    ),
+    project_name="bovi",
+)
 model = create_model(config, "autoencoder")
 transforms = TransformRegistry.from_config(config.experiment.dataloaders.inference.transforms)
 

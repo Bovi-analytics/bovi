@@ -123,6 +123,24 @@ class TestGetRunConfigPath:
         assert "v1" in result
         assert result.endswith("custom.yaml")
 
+    def test_models_root_dir(self, mock_project_root):
+        """Test resolving a config under the inference models collection."""
+        config_dir = (
+            mock_project_root / "data" / "models" / "mock_model" / "versions" / "v3" / "config"
+        )
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.yaml").write_text(
+            "experiment_name: mock_model\nexperiment_version: 3"
+        )
+
+        result = get_run_config_path(
+            str(mock_project_root),
+            "mock_model",
+            root_dir_name="models",
+        )
+
+        assert "data/models/mock_model/versions/v3/config/config.yaml" in result
+
 
 class TestMakePathAbsolute:
     """Tests for make_path_absolute function."""
@@ -196,6 +214,18 @@ class TestGetExperimentPaths:
         assert "my_experiment/versions/v2" in result["dir"]
         assert result["config_dir"].endswith("config")
         assert result["weights_dir"].endswith("weights")
+
+    def test_models_directory_structure(self, mock_project_root):
+        """Test paths can target the inference models collection."""
+        result = get_experiment_paths(
+            str(mock_project_root),
+            "lactation_autoencoder",
+            "v15",
+            root_dir_name="models",
+        )
+
+        assert result["experiments_dir"].endswith("data/models")
+        assert "lactation_autoencoder/versions/v15" in result["dir"]
 
 
 def _write_toml(path: Path, project_name: str) -> None:

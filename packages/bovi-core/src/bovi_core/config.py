@@ -11,6 +11,7 @@ from azure.storage.blob import BlobServiceClient
 from bovi_core.secrets import SecretsManager
 from bovi_core.utils.config_utils import (
     ConfigFileTracker,
+    extract_data_collection_from_path,
     extract_experiment_name_from_path,
     get_author_info,
     validate_project_name,
@@ -317,8 +318,9 @@ class Config:
 
         # Load YAML (run config)
         if config_file_path:
+            data_collection = extract_data_collection_from_path(config_file_path)
             if not os.path.exists(config_file_path):
-                experiments_dir = os.path.join(project_root_path, "data", "experiments")
+                configs_root_dir = os.path.join(project_root_path, "data", data_collection)
                 # Look for config files in the versioned config directory
                 # (parent of config_file_path)
                 config_dir = str(Path(config_file_path).parent)
@@ -328,8 +330,8 @@ class Config:
                     else "Config directory does not exist"
                 )
                 available_exps = (
-                    self._list_available_experiments(experiments_dir)
-                    if os.path.exists(experiments_dir)
+                    self._list_available_experiments(configs_root_dir)
+                    if os.path.exists(configs_root_dir)
                     else "None found"
                 )
                 raise FileNotFoundError(
@@ -337,9 +339,10 @@ class Config:
                     f"   Expected path: {config_file_path}\n"
                     f"   Looking for: {config_file_name}\n\n"
                     f"   Make sure the directory structure exists:\n"
-                    f"   data/experiments/{experiment_name}/{config_file_name}\n\n"
+                    f"   data/{data_collection}/{experiment_name}/versions/v1/config/"
+                    f"{config_file_name}\n\n"
                     f"   Available config files in '{experiment_name}': {available_configs}\n"
-                    f"   Available experiments: {available_exps}"
+                    f"   Available {data_collection}: {available_exps}"
                 )
             try:
                 with open(config_file_path, "r") as f:
@@ -393,6 +396,7 @@ class Config:
                 str(project_root_path),
                 experiment_name,
                 str(exp_version),
+                root_dir_name=data_collection,
             )
             self.experiment.experiments_dir = exp_paths["experiments_dir"]
             self.experiment.dir = exp_paths["dir"]
@@ -481,9 +485,10 @@ class Config:
         # Validate experiment name matches the folder name (source of truth)
         folder_name = extract_experiment_name_from_path(config_file_path)
         if folder_name is None:
-            # Fallback to parent folder name if not in experiments structure
+            # Direct config files outside data/{experiments,models} use their parent folder.
             folder_name = Path(config_file_path).parent.name
         config_exp_name = run_data.get("experiment_name")
+        data_collection = extract_data_collection_from_path(config_file_path)
 
         if config_exp_name != folder_name:
             raise ValueError(
@@ -493,7 +498,7 @@ class Config:
                 f"   File: {config_file_path}\n\n"
                 f"   The 'experiment_name' field in your config.yaml must match the folder name.\n"
                 f"   Either:\n"
-                f"   1. Rename the folder to: data/experiments/{config_exp_name}/\n"
+                f"   1. Rename the folder to: data/{data_collection}/{config_exp_name}/\n"
                 f"   2. Update experiment_name in config.yaml to: '{folder_name}'\n"
             )
 

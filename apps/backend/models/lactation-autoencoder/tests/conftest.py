@@ -7,7 +7,7 @@ from bovi_core.utils.path_utils import get_project_root
 
 _WEIGHTS = (
     Path(get_project_root(project_name="bovi"))
-    / "data/experiments/lactation_autoencoder/versions/v15/weights/autoencoder/saved_model.pb"
+    / "data/models/lactation_autoencoder/versions/v15/weights/autoencoder/saved_model.pb"
 )
 
 # Skip the entire suite when the TF SavedModel isn't available locally —

@@ -203,21 +203,26 @@ def get_run_config_path(
     experiment_name: str,
     config_file_name: str = "config.yaml",
     version: Optional[str] = None,
+    root_dir_name: str = "experiments",
 ) -> str:
     """
-    Get path to experiment run config file.
+    Get path to a versioned run config file.
 
     Args:
         project_root_path: Path to project root
-        experiment_name: Name of the experiment
+        experiment_name: Name of the experiment or inference model
         config_file_name: Name of config file (default: "config.yaml")
         version: Version folder name (e.g., "v1"). If None, uses latest
             version that has a config file.
+        root_dir_name: Data subdirectory to use ("experiments" or "models").
 
     Returns:
         str: Path to run config file
     """
-    versions_dir = Path(project_root_path) / "data" / "experiments" / experiment_name / "versions"
+    if root_dir_name not in {"experiments", "models"}:
+        raise ValueError("root_dir_name must be 'experiments' or 'models'")
+
+    versions_dir = Path(project_root_path) / "data" / root_dir_name / experiment_name / "versions"
 
     if version is None and versions_dir.exists():
         # Find versions that have a config file, sorted by version number descending
@@ -283,26 +288,31 @@ def get_experiment_paths(
     project_root_path: str,
     experiment_name: str,
     version: str,
+    root_dir_name: str = "experiments",
 ) -> dict:
     """
-    Get all paths for a specific experiment version.
+    Get all paths for a specific versioned experiment or inference model.
 
     Args:
         project_root_path: Path to project root
-        experiment_name: Name of the experiment
+        experiment_name: Name of the experiment or inference model
         version: Version string (e.g., "v1", "1", or "1.0")
+        root_dir_name: Data subdirectory to use ("experiments" or "models").
 
     Returns:
         Dict with experiment paths:
-        - experiments_dir: Base experiments directory
+        - experiments_dir: Base directory for backwards-compatible callers
         - dir: Main experiment version directory
         - config_dir: Config directory within version
         - weights_dir: Weights directory within version
     """
+    if root_dir_name not in {"experiments", "models"}:
+        raise ValueError("root_dir_name must be 'experiments' or 'models'")
+
     # Normalize version string to "v{n}" format if needed
     version_str = version if version.startswith("v") else f"v{version}"
 
-    experiments_dir = Path(project_root_path) / "data" / "experiments"
+    experiments_dir = Path(project_root_path) / "data" / root_dir_name
     version_dir = experiments_dir / experiment_name / "versions" / version_str
 
     return {

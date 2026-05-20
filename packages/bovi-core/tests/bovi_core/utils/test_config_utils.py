@@ -1,6 +1,9 @@
 """Tests for config_utils module."""
 
-from bovi_core.utils.config_utils import extract_experiment_name_from_path
+from bovi_core.utils.config_utils import (
+    extract_data_collection_from_path,
+    extract_experiment_name_from_path,
+)
 
 
 class TestExtractExperimentNameFromPath:
@@ -23,6 +26,12 @@ class TestExtractExperimentNameFromPath:
         path = "/some/root/data/experiments/my_exp/versions/v2/config/dev.yaml"
         result = extract_experiment_name_from_path(path)
         assert result == "my_exp"
+
+    def test_model_path_extracts_model_name(self):
+        """Test extraction from versioned inference model path structure."""
+        path = "/project/data/models/lactation_autoencoder/versions/v15/config/config.yaml"
+        result = extract_experiment_name_from_path(path)
+        assert result == "lactation_autoencoder"
 
     def test_windows_style_path(self):
         """Test extraction works with different path separators."""
@@ -53,3 +62,19 @@ class TestExtractExperimentNameFromPath:
         path = "/data/experiments/yolo_v8_2024_exp/versions/v1/config/config.yaml"
         result = extract_experiment_name_from_path(path)
         assert result == "yolo_v8_2024_exp"
+
+
+class TestExtractDataCollectionFromPath:
+    """Tests for detecting the data collection containing a config."""
+
+    def test_models_path_returns_models(self):
+        path = "/project/data/models/lactation_autoencoder/versions/v15/config/config.yaml"
+        assert extract_data_collection_from_path(path) == "models"
+
+    def test_experiments_path_returns_experiments(self):
+        path = "/project/data/experiments/yolo/versions/v1/config/config.yaml"
+        assert extract_data_collection_from_path(path) == "experiments"
+
+    def test_direct_path_defaults_to_experiments(self):
+        path = "/project/config.yaml"
+        assert extract_data_collection_from_path(path) == "experiments"
