@@ -113,8 +113,9 @@ If you use the `lactationcurve` package in your research, please consider citing
 *Zenodo. https://doi.org/10.5281/zenodo.18715145*
 
 
-BibTex:
+BibTeX:
 
+```bibtex
 @software{van_leerdam_2026_lactationcurve,
 
   author       = {van Leerdam, Meike Beatrijs and de Kok, D. and Osei-Tete, J. A. and Hostens, M.},
@@ -133,10 +134,10 @@ BibTex:
 
 }
 
-``
+```
 
 
-A machine-readable citation is included in `CITATION.cff
+A machine-readable citation is included in `CITATION.cff`.
 
 
 If you also use the Bayesian fitting functionality that relies on the MilkBot API, please also cite the following paper:
