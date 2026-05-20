@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     lactation_curves_url: str = "http://localhost:8001"
     lactation_autoencoder_url: str = "http://localhost:8002"
-    database_url: str = ""
+    database_url: str = "sqlite+aiosqlite:///./bovi.db"
     cors_origins: list[str] = ["http://localhost:3000"]
     connection_string: str | None = (
         None  # Azure Storage connection string (CONNECTION_STRING env var)
