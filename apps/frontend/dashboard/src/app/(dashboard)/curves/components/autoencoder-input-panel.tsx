@@ -9,13 +9,12 @@ import {
   Loader,
   NumberInput,
   Select,
-  SegmentedControl,
   Stack,
   Switch,
   Text,
   Tooltip,
 } from "@mantine/core";
-import { AlertCircle, Info } from "lucide-react";
+import { AlertCircle, Check, Info } from "lucide-react";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { HerdStatsForm } from "@/app/(dashboard)/autoencoder/components/herd-stats-form";
@@ -24,12 +23,52 @@ import { herdProfileToStats } from "@/lib/herd-profile-utils";
 import type { ImputationMethod } from "@/types/api";
 
 const IMPUTATION_OPTIONS = [
-  { value: "forward_fill", label: "Forward fill" },
-  { value: "backward_fill", label: "Backward fill" },
-  { value: "linear", label: "Linear interpolation" },
-  { value: "zero", label: "Zero" },
-  { value: "mean", label: "Mean" },
+  {
+    value: "forward_fill",
+    label: "Forward fill",
+    description: "Uses the most recent known milk value for later missing days.",
+  },
+  {
+    value: "backward_fill",
+    label: "Backward fill",
+    description: "Uses the next known milk value for earlier missing days.",
+  },
+  {
+    value: "linear",
+    label: "Linear interpolation",
+    description: "Draws a straight line between neighboring known values.",
+  },
+  {
+    value: "zero",
+    label: "Zero fill",
+    description: "Replaces missing values with 0 kg milk. This is not the same as ignoring them.",
+  },
+  {
+    value: "mean",
+    label: "Mean fill",
+    description: "Uses the average of the known values in this cow's sequence.",
+  },
 ] as const;
+
+const HERD_STATS_SOURCE_COPY: Record<HerdStatsSourceKind, { label: string; description: string }> =
+  {
+    dataset: {
+      label: "Active dataset",
+      description: "Compute herd-level averages from the dataset selected in Herd Stats.",
+    },
+    default: {
+      label: "Model default",
+      description: "Let the autoencoder use its global training-set average.",
+    },
+    profile: {
+      label: "Saved profile",
+      description: "Load a saved herd profile and use its ten aggregate stats.",
+    },
+    manual: {
+      label: "Manual",
+      description: "Edit the herd statistics yourself before prediction.",
+    },
+  };
 
 export type HerdStatsSourceKind = "dataset" | "default" | "profile" | "manual";
 
@@ -72,23 +111,33 @@ export function AutoencoderInputPanel({
   const [showRaw, setShowRaw] = useState(false);
   const { data: profiles = [] } = useHerdProfiles();
 
-  const sourceOptions = [
+  const sourceOptions: Array<{
+    value: HerdStatsSourceKind;
+    label: string;
+    description: string;
+    disabled?: boolean;
+  }> = [
     {
       value: "dataset",
-      label: datasetLabel ? `Dataset (${datasetLabel})` : "Dataset",
+      label: datasetLabel ? `Dataset: ${datasetLabel}` : HERD_STATS_SOURCE_COPY.dataset.label,
+      description: datasetLabel
+        ? HERD_STATS_SOURCE_COPY.dataset.description
+        : "Load a dataset in Herd Stats to use this option.",
       disabled: !datasetLabel,
     },
-    { value: "default", label: "Model default" },
-    { value: "profile", label: "Saved profile" },
-    { value: "manual", label: "Manual" },
+    { value: "default", ...HERD_STATS_SOURCE_COPY.default },
+    { value: "profile", ...HERD_STATS_SOURCE_COPY.profile },
+    { value: "manual", ...HERD_STATS_SOURCE_COPY.manual },
   ];
 
   const profileOptions = profiles.map((p) => ({ value: String(p.id), label: p.name }));
+  const selectedImputationOption =
+    IMPUTATION_OPTIONS.find((option) => option.value === imputationMethod) ?? IMPUTATION_OPTIONS[0];
 
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-3 text-sm font-medium text-muted-foreground">Autoencoder</h3>
+        <h3 className="mb-3 text-base font-semibold text-foreground">Autoencoder</h3>
 
         <Stack gap="sm">
           <NumberInput
@@ -130,12 +179,41 @@ export function AutoencoderInputPanel({
                 </Tooltip>
               </span>
             </Text>
-            <SegmentedControl
-              size="xs"
-              value={herdStatsSource}
-              onChange={(v) => onHerdStatsSourceChange(v as HerdStatsSourceKind)}
-              data={sourceOptions}
-            />
+            <div className="grid gap-2" role="radiogroup" aria-label="Herd stats source">
+              {sourceOptions.map((option) => {
+                const isSelected = herdStatsSource === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    disabled={option.disabled}
+                    onClick={() => onHerdStatsSourceChange(option.value)}
+                    className={[
+                      "flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left transition-colors",
+                      isSelected
+                        ? "border-violet-500 bg-violet-500/10 text-foreground"
+                        : "border-border bg-background/40 text-foreground hover:border-violet-400/70 hover:bg-violet-500/5",
+                      option.disabled
+                        ? "cursor-not-allowed opacity-50 hover:border-border hover:bg-background/40"
+                        : "",
+                    ].join(" ")}
+                  >
+                    <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-current">
+                      {isSelected && <Check size={11} strokeWidth={3} />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium leading-5">{option.label}</span>
+                      <span className="block text-xs leading-5 text-muted-foreground">
+                        {option.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
             {herdStatsSource === "dataset" && datasetLabel && (
               <Text size="xs" c="dimmed">
                 Computing herd-level averages from <b>{datasetLabel}</b>{" "}
@@ -174,6 +252,11 @@ export function AutoencoderInputPanel({
                 disabled={profileOptions.length === 0}
               />
             )}
+            {herdStatsSource === "profile" && profileOptions.length === 0 && (
+              <Text size="xs" c="dimmed">
+                Create a saved profile in Herd Stats first, or use dataset/default/manual here.
+              </Text>
+            )}
             {herdStatsSource === "manual" && (
               <Badge size="xs" color="gray" variant="light" w="fit-content">
                 Edit values below in &ldquo;Herd Statistics&rdquo;
@@ -196,12 +279,37 @@ export function AutoencoderInputPanel({
               </span>
             }
             data={IMPUTATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            renderOption={({ option }) => {
+              const imputationOption = IMPUTATION_OPTIONS.find(
+                (item) => item.value === option.value
+              );
+
+              return (
+                <Tooltip
+                  label={imputationOption?.description ?? ""}
+                  withArrow
+                  multiline
+                  w={280}
+                  position="right"
+                >
+                  <div className="flex w-full min-w-0 flex-col">
+                    <span className="text-sm font-medium">{option.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {imputationOption?.description}
+                    </span>
+                  </div>
+                </Tooltip>
+              );
+            }}
             value={imputationMethod}
             onChange={(val) => {
               if (val) onImputationMethodChange(val as ImputationMethod);
             }}
             size="sm"
           />
+          <Text size="xs" c="dimmed">
+            {selectedImputationOption.description}
+          </Text>
         </Stack>
 
         <Button
