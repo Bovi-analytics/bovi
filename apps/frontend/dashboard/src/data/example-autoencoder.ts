@@ -3,6 +3,7 @@ export interface ExampleAutoencoderData {
   readonly label: string;
   readonly description: string;
   readonly parity: number;
+  readonly herdId?: number;
   readonly milk: readonly (number | null)[];
   readonly events?: readonly string[];
 }

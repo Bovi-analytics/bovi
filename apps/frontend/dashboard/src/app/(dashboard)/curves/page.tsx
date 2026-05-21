@@ -290,9 +290,9 @@ export default function CurvesPage(): ReactElement {
   } = useAutoencoderPredict({
     milk: dailyModelInput.milk,
     parity,
+    herdId: activeAutoData.herdId,
     events: activeAutoData.events?.slice(0, dailyModelInput.milk.length),
     herdStats: effectiveHerdStats,
-    imputationMethod: useImputation ? imputationMethod : undefined,
     enabled: dataMode === "daily" && predictEnabled,
   });
 

@@ -173,6 +173,26 @@ class TestHerdStatsEnrichmentFallback:
         expected = np.array([float(i + 110) for i in range(10)], dtype=np.float32)
         assert np.allclose(result["herd_stats"], expected)
 
+    def test_missing_herd_id_uses_parity_only(self, herd_stats_dir):
+        """Test Level 3 when only parity is available."""
+        transform = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
+        data: dict[str, object] = {"parity": 2}
+
+        result = transform(data)
+
+        expected = np.array([float(i + 110) for i in range(10)], dtype=np.float32)
+        assert np.allclose(result["herd_stats"], expected)
+
+    def test_missing_parity_uses_herd_only(self, herd_stats_dir):
+        """Test Level 2 when only herd_id is available."""
+        transform = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
+        data: dict[str, object] = {"herd_id": 1002}
+
+        result = transform(data)
+
+        expected = np.array([float(i + 20) for i in range(10)], dtype=np.float32)
+        assert np.allclose(result["herd_stats"], expected)
+
     def test_level_4_global(self, herd_stats_dir):
         """Test Level 4: global fallback (unknown herd and parity)."""
         transform = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
@@ -193,6 +213,16 @@ class TestHerdStatsEnrichmentFallback:
         # Should fall through to Level 4 (global)
         expected = np.array([float(i + 200) for i in range(10)], dtype=np.float32)
         assert np.allclose(result["herd_stats"], expected)
+
+    def test_existing_herd_stats_are_preserved(self, herd_stats_dir):
+        """Explicit herd stats should not be overwritten by enrichment."""
+        transform = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
+        explicit = np.array([0.5] * 10, dtype=np.float32)
+        data: dict[str, object] = {"parity": 2, "herd_stats": explicit}
+
+        result = transform(data)
+
+        assert result["herd_stats"] is explicit
 
     def test_output_shape_and_dtype(self, herd_stats_dir):
         """Test output array shape and dtype."""
