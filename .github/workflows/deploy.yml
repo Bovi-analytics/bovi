@@ -239,8 +239,11 @@ jobs:
             --name "bovi-api-${{ env.PULUMI_STACK }}" \
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --query "properties.configuration.ingress.fqdn" -o tsv)"
-          for _ in $(seq 1 30); do
-            if curl -fsS "https://${fqdn}/health"; then
+          health_url="https://${fqdn}/health"
+          echo "Checking API health at ${health_url}"
+          for attempt in $(seq 1 30); do
+            echo "Health check attempt ${attempt}/30"
+            if curl --connect-timeout 5 --max-time 10 -fsS "$health_url"; then
               exit 0
             fi
             sleep 10
