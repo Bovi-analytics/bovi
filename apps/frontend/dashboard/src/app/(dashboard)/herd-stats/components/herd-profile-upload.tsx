@@ -315,11 +315,11 @@ export function HerdProfileUpload(): ReactElement {
             {preview.cows.length > 0 && uploadedFilename && (
               <Alert icon={<CheckCircle2 size={14} />} color="green">
                 {preview.cows.length} cow record(s) from{" "}
-                <Code>{uploadedFilename}</Code> saved for use in the{" "}
-                <Link href="/curves" style={{ textDecoration: "underline" }}>
-                  Curves tab
+                <Code>{uploadedFilename}</Code> saved. Continue to the{" "}
+                <Link href="/herd-profiles" style={{ textDecoration: "underline" }}>
+                  Herd Profiles tab
                 </Link>{" "}
-                - pick individual cows from the "Uploaded" group or use the random-cow button.
+                before opening Curves.
               </Alert>
             )}
             <Table striped withColumnBorders fz="xs">

@@ -237,12 +237,12 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
             </Text>
             <Button
               component={Link}
-              href="/curves"
+              href="/herd-profiles"
               size="sm"
               color="violet"
               rightSection={<ChevronRight size={14} />}
             >
-              Go to Curves
+              Go to Herd Profiles
             </Button>
           </Group>
         </Alert>
@@ -421,8 +421,12 @@ function UploadPanel(): ReactElement {
           ))}
           {preview.cows.length > 0 && uploadedFilename && (
             <Alert icon={<CheckCircle2 size={14} />} color="green">
-              {preview.cows.length} cow records from <Code>{uploadedFilename}</Code> ready for the{" "}
-              <Link href="/curves" style={{ textDecoration: "underline" }}>Curves tab</Link>.
+              {preview.cows.length} cow records from <Code>{uploadedFilename}</Code> ready.
+              Continue to the{" "}
+              <Link href="/herd-profiles" style={{ textDecoration: "underline" }}>
+                Herd Profiles tab
+              </Link>{" "}
+              before opening Curves.
             </Alert>
           )}
           <Table striped withColumnBorders fz="xs">
@@ -513,6 +517,7 @@ function UploadPanel(): ReactElement {
 
 export function DataSourcePicker(): ReactElement {
   const { activePreset, dataset: uploadedDataset } = useUploadedCows();
+  const activePresetDataset = activePreset?.dataset;
 
   // Derive initial active source from context state
   const [activeSource, setActiveSource] = useState<SourceKey | null>(() => {
@@ -526,10 +531,10 @@ export function DataSourcePicker(): ReactElement {
   // tile click is not immediately undone — the user can preview a different
   // preset (e.g. Aurora) before activating it.
   useEffect(() => {
-    if (activePreset) {
-      setActiveSource(activePreset.dataset);
+    if (activePresetDataset) {
+      setActiveSource(activePresetDataset);
     }
-  }, [activePreset?.dataset]);
+  }, [activePresetDataset]);
 
   return (
     <Stack gap="md">
