@@ -25,7 +25,7 @@ const HERD_STATS_SOURCE_COPY: Record<HerdStatsSourceKind, { label: string; descr
   {
     dataset: {
       label: "Active dataset",
-      description: "Compute herd-level averages from the dataset selected in Herd Stats.",
+      description: "Compute herd-level averages from the dataset selected in Data Upload.",
     },
     default: {
       label: "Model default",
@@ -89,7 +89,7 @@ export function AutoencoderInputPanel({
       label: datasetLabel ? `Dataset: ${datasetLabel}` : HERD_STATS_SOURCE_COPY.dataset.label,
       description: datasetLabel
         ? HERD_STATS_SOURCE_COPY.dataset.description
-        : "Load a dataset in Herd Stats to use this option.",
+        : "Load a dataset in Data Upload to use this option.",
       disabled: !datasetLabel,
     },
     { value: "default", ...HERD_STATS_SOURCE_COPY.default },
@@ -219,7 +219,7 @@ export function AutoencoderInputPanel({
             )}
             {herdStatsSource === "profile" && profileOptions.length === 0 && (
               <Text size="xs" c="dimmed">
-                Create a saved profile in Herd Stats first, or use dataset/default/manual here.
+                Create a saved profile in Herd Profiles first, or use dataset/default/manual here.
               </Text>
             )}
             {herdStatsSource === "manual" && (

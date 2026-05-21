@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Badge, Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
 import {
   ArrowDown,
-  BarChart3,
+  ClipboardList,
   ChevronRight,
   Database,
   FlaskConical,
@@ -31,22 +31,22 @@ const FLOW: FlowStep[] = [
   {
     number: "1",
     icon: Database,
-    title: "Load herd data",
-    tab: "Herd Data tab",
-    href: "/herd-stats",
+    title: "Upload or select data",
+    tab: "Data Upload tab",
+    href: "/data-upload",
     cta: "Load data",
     description:
-      "Start here. Pick a built-in preset farm (Aurora Ridge or Sunnyside) or upload your own milk-recording CSV. Every other page reads from this dataset.",
+      "Start here. Pick a built-in preset farm (Aurora Ridge or Sunnyside) or upload your own milk-recording CSV. The selected cow records feed the rest of the workflow.",
   },
   {
     number: "2",
-    icon: BarChart3,
-    title: "Explore herd statistics",
-    tab: "Herd Data tab, scroll down",
-    href: "/herd-stats",
-    cta: "Review herd stats",
+    icon: ClipboardList,
+    title: "Create herd profiles",
+    tab: "Herd Profiles tab",
+    href: "/herd-profiles",
+    cta: "Open Herd Profiles",
     description:
-      "On the same Herd Data page, review the ten aggregate KPIs (achieved milk, days in milk, somatic cell score, days open, ...). Sanity-check the import before moving on.",
+      "Review, create, and save the ten aggregate herd statistics used by the autoencoder. Profiles can come from the dataset you loaded first.",
   },
   {
     number: "3",
@@ -225,11 +225,11 @@ export default function HomePage(): ReactElement {
             </Text>
             <Button
               component={Link}
-              href="/herd-stats"
+              href="/data-upload"
               size="lg"
               rightSection={<ChevronRight size={18} />}
             >
-              Get started: go to Herd Stats
+              Get started: go to Data Upload
             </Button>
           </Stack>
         </Stack>

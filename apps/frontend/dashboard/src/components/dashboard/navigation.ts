@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, FlaskConical, Home, Trophy } from "lucide-react";
+import { ClipboardList, Database, FlaskConical, Home, Trophy } from "lucide-react";
 
 export interface NavigationItem {
   readonly label: string;
@@ -9,7 +9,8 @@ export interface NavigationItem {
 
 export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
   { label: "Home", href: "/", icon: Home },
-  { label: "Herd Stats", href: "/herd-stats", icon: BarChart3 },
+  { label: "Data Upload", href: "/data-upload", icon: Database },
+  { label: "Herd Profiles", href: "/herd-profiles", icon: ClipboardList },
   { label: "Curves", href: "/curves", icon: FlaskConical },
   { label: "Benchmark", href: "/benchmark", icon: Trophy },
 ];

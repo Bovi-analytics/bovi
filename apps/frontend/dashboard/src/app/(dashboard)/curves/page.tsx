@@ -194,7 +194,7 @@ export default function CurvesPage(): ReactElement {
   const [cowIdInput, setCowIdInput] = useState("");
   const [cowIdError, setCowIdError] = useState<string | null>(null);
 
-  // Active preset cows - fetched from blob via React Query (shared cache with Herd Stats tab)
+  // Active preset cows - fetched from blob via React Query (shared cache with Data Upload tab)
   const { data: presetData } = usePresetDataset(
     activePreset?.dataset ?? null,
     activePreset?.size ?? "small",
@@ -533,7 +533,7 @@ export default function CurvesPage(): ReactElement {
           <>
             <Text size="xs" c="dimmed">Dataset:</Text>
             <Badge variant="light" color="violet" size="sm">{activeDatasetLabel}</Badge>
-            <Link href="/herd-stats">
+            <Link href="/data-upload">
               <Text size="xs" c="dimmed" style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>
                 Change
               </Text>
@@ -542,9 +542,9 @@ export default function CurvesPage(): ReactElement {
         ) : (
           <>
             <Text size="xs" c="dimmed">No dataset loaded -</Text>
-            <Link href="/herd-stats">
+            <Link href="/data-upload">
               <Text size="xs" c="violet" style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>
-                load one in Herd Stats
+                load one in Data Upload
               </Text>
             </Link>
           </>
@@ -670,8 +670,8 @@ export default function CurvesPage(): ReactElement {
               ) : (
                 <Text size="xs" c="dimmed">
                   No dataset loaded -{" "}
-                  <Link href="/herd-stats" className="underline underline-offset-2">
-                    go to Herd Stats
+                  <Link href="/data-upload" className="underline underline-offset-2">
+                    go to Data Upload
                   </Link>{" "}
                   to pick Aurora Ridge, Sunnyside, or upload your own CSV.
                 </Text>
@@ -754,8 +754,8 @@ export default function CurvesPage(): ReactElement {
               ) : (
                 <Text size="xs" c="dimmed">
                   No dataset loaded -{" "}
-                  <Link href="/herd-stats" className="underline underline-offset-2">
-                    go to Herd Stats
+                  <Link href="/data-upload" className="underline underline-offset-2">
+                    go to Data Upload
                   </Link>{" "}
                   to pick Aurora Ridge, Sunnyside, or upload your own CSV.
                 </Text>
