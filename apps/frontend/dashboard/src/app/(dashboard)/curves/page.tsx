@@ -12,7 +12,10 @@ import {
   DEFAULT_AUTOENCODER_DATA,
 } from "@/data/example-autoencoder";
 import { DEFAULT_HERD_STATS } from "@/data/herd-stats-metadata";
-import { sampleTestDays } from "@/lib/sample-test-days";
+import {
+  DAILY_MODEL_INPUT_DAYS,
+  prepareDailyModelInput,
+} from "@/lib/daily-model-input";
 import { LactationCurveChart } from "@/components/charts/lactation-curve-chart";
 import { ClassicalInputPanel } from "./components/classical-input-panel";
 import { AutoencoderInputPanel } from "./components/autoencoder-input-panel";
@@ -202,6 +205,7 @@ export default function CurvesPage(): ReactElement {
     DEFAULT_AUTOENCODER_DATA
   );
   const [parity, setParity] = useState<number>(DEFAULT_AUTOENCODER_DATA.parity);
+  const [useImputation, setUseImputation] = useState(false);
   const [imputationMethod, setImputationMethod] = useState<ImputationMethod>("forward_fill");
   const [herdStatsSource, setHerdStatsSource] = useState<HerdStatsSourceKind>(
     activePreset ? "dataset" : "default"
@@ -252,16 +256,19 @@ export default function CurvesPage(): ReactElement {
   // Classical models state (shared between modes)
   const [selectedModels, setSelectedModels] = useState<Model[]>(["wood"]);
 
-  // Derive sparse test-day points from dense data (daily mode)
-  const sampledTestDays = useMemo(
-    () => sampleTestDays(activeAutoData.milk),
-    [activeAutoData.milk]
+  const dailyModelInput = useMemo(
+    () =>
+      prepareDailyModelInput(activeAutoData.milk, {
+        useImputation,
+        imputationMethod,
+      }),
+    [activeAutoData.milk, useImputation, imputationMethod]
   );
 
   // Choose dim/milkrecordings based on mode
-  const classicalDim = dataMode === "testday" ? activeLactation.dim : sampledTestDays.dim;
+  const classicalDim = dataMode === "testday" ? activeLactation.dim : dailyModelInput.dim;
   const classicalMilk =
-    dataMode === "testday" ? activeLactation.milkrecordings : sampledTestDays.milkrecordings;
+    dataMode === "testday" ? activeLactation.milkrecordings : dailyModelInput.milk;
   const classicalParity = dataMode === "testday" ? activeLactation.parity : parity;
 
   // Classical model results
@@ -280,11 +287,11 @@ export default function CurvesPage(): ReactElement {
     isError: autoencoderError,
     error: autoencoderErrorObj,
   } = useAutoencoderPredict({
-    milk: activeAutoData.milk,
+    milk: dailyModelInput.milk,
     parity,
-    events: activeAutoData.events,
+    events: activeAutoData.events?.slice(0, dailyModelInput.milk.length),
     herdStats: effectiveHerdStats,
-    imputationMethod,
+    imputationMethod: useImputation ? imputationMethod : undefined,
     enabled: dataMode === "daily" && predictEnabled,
   });
 
@@ -315,6 +322,7 @@ export default function CurvesPage(): ReactElement {
       }));
     }
     return activeAutoData.milk
+      .slice(0, DAILY_MODEL_INPUT_DAYS)
       .map((val, i) => (val !== null ? { dim: i + 1, yield: val } : null))
       .filter((o): o is NonNullable<typeof o> => o !== null);
   }, [dataMode, activeLactation, activeAutoData.milk]);
@@ -330,7 +338,7 @@ export default function CurvesPage(): ReactElement {
       : classicalStats;
 
   // Null count for daily mode display
-  const nullCount = activeAutoData.milk.filter((v) => v === null).length;
+  const nullCount = dailyModelInput.missingCount;
 
   function handleToggleModel(model: Model) {
     setSelectedModels((prev) =>
@@ -569,7 +577,7 @@ export default function CurvesPage(): ReactElement {
               value: "daily",
               label: (
                 <Tooltip
-                  label="Dense daily measurements, e.g. from a milking robot. Enables the autoencoder to reconstruct the full lactation curve. Classical models also run on sampled points from this data."
+                  label="Dense daily measurements, e.g. from a milking robot. The same prepared daily sequence is used for the autoencoder and classical models."
                   multiline
                   w={280}
                   withArrow
@@ -768,7 +776,7 @@ export default function CurvesPage(): ReactElement {
 
             {/* Data summary - always visible in daily mode */}
             <Text size="xs" c="dimmed">
-              {activeAutoData.milk.length} daily records ({nullCount} missing) · autoencoder uses the full sequence · classical models use {sampledTestDays.dim.length} sampled test-day points
+              {dailyModelInput.milk.length} daily records used ({nullCount} missing in the source) · missing values are {useImputation ? "imputed before both model families run" : "included as 0 kg for both model families"}
             </Text>
           </Stack>
         </div>
@@ -787,6 +795,8 @@ export default function CurvesPage(): ReactElement {
             <AutoencoderInputPanel
               parity={parity}
               onParityChange={setParity}
+              useImputation={useImputation}
+              onUseImputationChange={setUseImputation}
               imputationMethod={imputationMethod}
               onImputationMethodChange={setImputationMethod}
               herdStatsSource={herdStatsSource}

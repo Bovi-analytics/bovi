@@ -25,8 +25,6 @@ export const ImputationMethodSchema = z.enum([
   "forward_fill",
   "backward_fill",
   "linear",
-  "zero",
-  "mean",
 ]);
 
 /* Inferred types - use these in components and function signatures */
