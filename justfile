@@ -113,6 +113,50 @@ api-smoke:
     docker compose down
     exit 1
 
+# ── Containerised stack (migration job + API + dashboard) ───
+compose-build:
+    docker compose build
+
+compose-up:
+    docker compose up -d
+
+compose-down:
+    docker compose down
+
+compose-logs:
+    docker compose logs -f
+
+# Build, start, hit API + dashboard, then stop — quick smoke test
+compose-smoke:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    docker compose build
+    docker compose up -d
+    trap 'docker compose down >/dev/null 2>&1 || true' EXIT
+    echo "Waiting for API and dashboard to be ready..."
+    for i in $(seq 1 30); do
+        if curl -sf "http://localhost:$PORT_API/" >/dev/null 2>&1; then
+            echo "✓ API / OK"
+            break
+        fi
+        if [ "$i" -eq 30 ]; then
+            echo "✗ API / did not respond in time"
+            exit 1
+        fi
+        sleep 1
+    done
+    for i in $(seq 1 30); do
+        if curl -sf "http://localhost:$PORT_DASHBOARD/" >/dev/null 2>&1; then
+            echo "✓ Dashboard / OK"
+            exit 0
+        fi
+        if [ "$i" -eq 30 ]; then
+            echo "✗ Dashboard / did not respond in time"
+            exit 1
+        fi
+        sleep 1
+    done
+
 run-models:
     #!/usr/bin/env bash
     set -euo pipefail

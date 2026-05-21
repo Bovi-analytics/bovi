@@ -50,6 +50,7 @@ Thumbs.db
 node_modules/
 .next/
 bun.lock
+!apps/frontend/dashboard/bun.lock
 *.tsbuildinfo
 
 # Azure Functions
