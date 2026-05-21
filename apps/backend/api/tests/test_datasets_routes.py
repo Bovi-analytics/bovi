@@ -129,6 +129,17 @@ def _write_local_preset(tmp_path, monkeypatch, dataset="aurora", size="small", p
     return payload
 
 
+def test_preset_blob_path_uses_canonical_data_prefix():
+    assert (
+        datasets_route._preset_blob_path("aurora", "small", "recent")
+        == "data/datasets/presets/aurora/small_recent.json"
+    )
+    assert (
+        datasets_route._preset_blob_path("icar", "full", "all")
+        == "data/datasets/presets/icar/full.json"
+    )
+
+
 def test_fetch_preset_cows_falls_back_to_local_preset(tmp_path, monkeypatch):
     _write_local_preset(tmp_path, monkeypatch)
     preset = datasets_route.fetch_preset_cows(

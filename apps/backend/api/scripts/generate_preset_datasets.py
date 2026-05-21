@@ -2,8 +2,8 @@
 """Generate preset cow-dataset JSON blobs for the Curves tab.
 
 Reads Aurora and Sunnyside CSVs from Azure Blob Storage (icarwebsite container,
-dataset/ folder), generates 9 JSON samples per dataset (3 sizes × 3 periods),
-and uploads them back as preset-datasets/{aurora|sunnyside}/{size}_{period}.json.
+data/raw/ folder), generates 9 JSON samples per dataset (3 sizes × 3 periods),
+and uploads them back as data/datasets/presets/{aurora|sunnyside}/{size}_{period}.json.
 
 Usage:
     uv run python scripts/generate_preset_datasets.py [--dry-run]
@@ -26,12 +26,14 @@ from azure.storage.blob import BlobServiceClient
 
 LBS_TO_KG = 0.45359237
 CONTAINER = "icarwebsite"
+RAW_PREFIX = "data/raw"
+PRESET_PREFIX = "data/datasets/presets"
 
 SIZES: dict[str, int] = {"small": 200, "medium": 1000, "large": 5000}
 
 DATASET_CONFIGS: dict[str, dict] = {
     "aurora": {
-        "blob_path": "dataset/AuroraTDM23_26.csv",
+        "blob_path": f"{RAW_PREFIX}/AuroraTDM23_26.csv",
         "id_col": "ID",
         "parity_col": "LACT",
         "dim_col": "DIM",
@@ -45,7 +47,7 @@ DATASET_CONFIGS: dict[str, dict] = {
         },
     },
     "sunnyside": {
-        "blob_path": "dataset/MilkRecordingsSunnyside.csv",
+        "blob_path": f"{RAW_PREFIX}/MilkRecordingsSunnyside.csv",
         "id_col": "ID",
         "parity_col": "LACT",
         "dim_col": "DIM",
@@ -213,13 +215,13 @@ def _generate_blob(
 def _build_icar_preset(client: BlobServiceClient) -> bytes:
     """Build the ICAR preset blob with cows + actual ground-truth yields.
 
-    Reads dataset/TestDataSet.csv (sparse test-day records) and
-    dataset/ActualMilkYields.csv (daily-meter ground truth) from the
+    Reads data/raw/TestDataSet.csv (sparse test-day records) and
+    data/raw/ActualMilkYields.csv (daily-meter ground truth) from the
     icarwebsite container, joins on TestId, and emits cohort + actual_yields.
     """
     print("\n=== ICAR ===")
-    test_df = _read_blob_csv(client, "dataset/TestDataSet.csv")
-    aly_df = _read_blob_csv(client, "dataset/ActualMilkYields.csv")
+    test_df = _read_blob_csv(client, f"{RAW_PREFIX}/TestDataSet.csv")
+    aly_df = _read_blob_csv(client, f"{RAW_PREFIX}/ActualMilkYields.csv")
 
     # Identify columns flexibly (case-insensitive)
     cols = {c.lower(): c for c in test_df.columns}
@@ -342,7 +344,7 @@ def main(dry_run: bool = False) -> None:
 
             for size_key in ["small", "medium", "large"]:
                 blob_data = _generate_blob(lactations, dataset_key, size_key, period)
-                dest_path = f"preset-datasets/{dataset_key}/{size_key}_{period}.json"
+                dest_path = f"{PRESET_PREFIX}/{dataset_key}/{size_key}_{period}.json"
                 cow_count = json.loads(blob_data)["cow_count"]
                 kb = len(blob_data) / 1024
                 print(f"    {size_key:6s}: {cow_count:5,} cows, {kb:.0f} KB -> {dest_path}")
@@ -353,7 +355,7 @@ def main(dry_run: bool = False) -> None:
 
     # ICAR — single blob with cows + actual_yields
     icar_blob = _build_icar_preset(client)
-    icar_path = "preset-datasets/icar/full.json"
+    icar_path = f"{PRESET_PREFIX}/icar/full.json"
     icar_kb = len(icar_blob) / 1024
     icar_count = json.loads(icar_blob)["cow_count"]
     print(f"  ICAR: {icar_count:,} cows, {icar_kb:.0f} KB -> {icar_path}")
