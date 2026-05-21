@@ -6,7 +6,8 @@ Resources deployed:
   - App Service Plan (shared consumption plan for all Function Apps)
   - lactation-curves Function App + dedicated App Insights
   - lactation-autoencoder Function App + dedicated App Insights
-  - Container Apps Environment + bovi-api Container App + dedicated App Insights
+  - Container Apps Environment + bovi-api + bovi-dashboard Container Apps
+  - dedicated App Insights for the central API
 """
 
 import hashlib
@@ -21,7 +22,9 @@ from bovi_infra.resources.container_app import (
     DATA_VOLUME_NAME,
     SQLITE_DATABASE_URL,
     ContainerAppArgs,
+    StatelessContainerAppArgs,
     create_container_app,
+    create_stateless_container_app,
 )
 from bovi_infra.resources.container_app_environment import (
     ContainerAppEnvironmentArgs,
@@ -65,6 +68,11 @@ milkbot_key = config.get_secret("milkbotKey") or ""
 api_image = (
     os.getenv("API_IMAGE")
     or config.get("apiImage")
+    or "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+)
+dashboard_image = (
+    os.getenv("DASHBOARD_IMAGE")
+    or config.get("dashboardImage")
     or "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 )
 ghcr_username = os.getenv("GHCR_USERNAME")
@@ -276,6 +284,29 @@ api_migration_job_result = create_container_app_job(
 )
 
 # ---------------------------------------------------------------------------
+# Dashboard frontend
+# ---------------------------------------------------------------------------
+dashboard_result = create_stateless_container_app(
+    "bovi-dashboard",
+    StatelessContainerAppArgs(
+        resource_group_name=resource_group.name,
+        location=location,
+        app_name=f"bovi-dashboard-{stack}",
+        environment_id=cae_result.id,
+        image=dashboard_image,
+        port=3000,
+        registry_server="ghcr.io" if ghcr_username and ghcr_token else None,
+        registry_username=ghcr_username,
+        registry_password=pulumi.Output.secret(ghcr_token) if ghcr_token else None,
+        env={
+            "NODE_ENV": "production",
+            "NEXT_PUBLIC_API_URL": api_result.url,
+        },
+        tags=tags,
+    ),
+)
+
+# ---------------------------------------------------------------------------
 # Exports
 # ---------------------------------------------------------------------------
 pulumi.export("resource_group_name", resource_group.name)
@@ -286,3 +317,5 @@ pulumi.export("autoencoder_app_name", autoencoder_result.app.name)
 pulumi.export("autoencoder_app_url", autoencoder_result.url)
 pulumi.export("api_url", api_result.url)
 pulumi.export("api_migration_job_name", api_migration_job_result.name)
+pulumi.export("dashboard_app_name", dashboard_result.container_app.name)
+pulumi.export("dashboard_url", dashboard_result.url)

@@ -1,10 +1,19 @@
 export function getApiBaseUrl(): string {
+  return "/api/bovi";
+}
+
+export function getRuntimeApiBaseUrl(): string {
   const url = process.env["NEXT_PUBLIC_API_URL"];
   if (!url) {
     throw new Error(
-      "NEXT_PUBLIC_API_URL is not set. Copy .env.local.example to .env.local and fill it in."
+      "NEXT_PUBLIC_API_URL is not set. Configure it on the dashboard runtime environment."
     );
   }
-  // Strip trailing slashes so callers can do `${base}/path` safely
   return url.replace(/\/+$/, "");
+}
+
+export function buildRuntimeApiUrl(path: string[], search = ""): string {
+  const normalizedPath = path.map((segment) => encodeURIComponent(segment)).join("/");
+  const suffix = normalizedPath ? `/${normalizedPath}` : "";
+  return `${getRuntimeApiBaseUrl()}${suffix}${search}`;
 }

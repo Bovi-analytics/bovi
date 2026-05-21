@@ -6,3 +6,4 @@ config:
   bovi:location: eastus
   bovi:resourceGroup: Bovi-Analytics-Tools
   bovi:apiImage: ghcr.io/bovi-analytics/bovi-api:latest
+  bovi:dashboardImage: ghcr.io/bovi-analytics/bovi-dashboard:latest

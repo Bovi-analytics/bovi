@@ -38,25 +38,26 @@ publishes it to `http://localhost:3000`.
 
 ## API URL
 
-The dashboard calls the API from browser-side code. That means
-`NEXT_PUBLIC_API_URL` must be a URL that the browser on the host can reach.
-For local Docker Compose, the default is:
+Browser-side code calls the local Next.js proxy at `/api/bovi`. The proxy runs
+inside the dashboard server and forwards requests to `NEXT_PUBLIC_API_URL` at
+runtime. This keeps the Docker image reusable across environments.
+
+For local development outside Docker, the API runs on the host:
 
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-The Docker service name `http://api:8000` is only reachable by other containers
-inside the Docker network. It is not reachable by the browser on the host, so it
-is not a good default for this frontend bundle.
-
-`NEXT_PUBLIC_*` values are embedded by Next.js at build time. If the public API
-URL changes, rebuild the dashboard image:
+For root Docker Compose, the dashboard container uses the internal Docker
+network:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000 docker compose build dashboard
-docker compose up -d dashboard
+NEXT_PUBLIC_API_URL=http://api:8000
 ```
+
+Do not read `NEXT_PUBLIC_API_URL` directly from client components. Next.js
+embeds public env values into browser bundles at build time; the proxy route is
+what makes this value runtime-configurable.
 
 ## Production Build
 
