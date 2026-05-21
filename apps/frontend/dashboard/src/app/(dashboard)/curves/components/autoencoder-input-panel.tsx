@@ -38,16 +38,6 @@ const IMPUTATION_OPTIONS = [
     label: "Linear interpolation",
     description: "Draws a straight line between neighboring known values.",
   },
-  {
-    value: "zero",
-    label: "Zero fill",
-    description: "Replaces missing values with 0 kg milk. This is not the same as ignoring them.",
-  },
-  {
-    value: "mean",
-    label: "Mean fill",
-    description: "Uses the average of the known values in this cow's sequence.",
-  },
 ] as const;
 
 const HERD_STATS_SOURCE_COPY: Record<HerdStatsSourceKind, { label: string; description: string }> =
@@ -75,6 +65,8 @@ export type HerdStatsSourceKind = "dataset" | "default" | "profile" | "manual";
 interface AutoencoderInputPanelProps {
   readonly parity: number;
   readonly onParityChange: (parity: number) => void;
+  readonly useImputation: boolean;
+  readonly onUseImputationChange: (useImputation: boolean) => void;
   readonly imputationMethod: ImputationMethod;
   readonly onImputationMethodChange: (method: ImputationMethod) => void;
   readonly herdStatsSource: HerdStatsSourceKind;
@@ -93,6 +85,8 @@ interface AutoencoderInputPanelProps {
 export function AutoencoderInputPanel({
   parity,
   onParityChange,
+  useImputation,
+  onUseImputationChange,
   imputationMethod,
   onImputationMethodChange,
   herdStatsSource,
@@ -264,52 +258,68 @@ export function AutoencoderInputPanel({
             )}
           </Stack>
 
-          <Select
-            label={
-              <span className="inline-flex items-center gap-1">
-                Imputation method
-                <Tooltip
-                  label="How to fill missing (null) values in the milk sequence before prediction"
-                  withArrow
-                  multiline
-                  w={250}
-                >
-                  <Info size={14} className="cursor-help text-muted-foreground" />
-                </Tooltip>
-              </span>
-            }
-            data={IMPUTATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-            renderOption={({ option }) => {
-              const imputationOption = IMPUTATION_OPTIONS.find(
-                (item) => item.value === option.value
-              );
-
-              return (
-                <Tooltip
-                  label={imputationOption?.description ?? ""}
-                  withArrow
-                  multiline
-                  w={280}
-                  position="right"
-                >
-                  <div className="flex w-full min-w-0 flex-col">
-                    <span className="text-sm font-medium">{option.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {imputationOption?.description}
-                    </span>
-                  </div>
-                </Tooltip>
-              );
-            }}
-            value={imputationMethod}
-            onChange={(val) => {
-              if (val) onImputationMethodChange(val as ImputationMethod);
-            }}
+          <Switch
+            label="Use imputation"
+            description="When off, missing daily milk values are included as 0 kg for both model families."
+            checked={useImputation}
+            onChange={(event) => onUseImputationChange(event.currentTarget.checked)}
             size="sm"
           />
-          <Text size="xs" c="dimmed">
-            {selectedImputationOption.description}
-          </Text>
+
+          {useImputation ? (
+            <>
+              <Select
+                label={
+                  <span className="inline-flex items-center gap-1">
+                    Imputation method
+                    <Tooltip
+                      label="How to fill missing daily milk values before both model families run"
+                      withArrow
+                      multiline
+                      w={250}
+                    >
+                      <Info size={14} className="cursor-help text-muted-foreground" />
+                    </Tooltip>
+                  </span>
+                }
+                data={IMPUTATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                renderOption={({ option }) => {
+                  const imputationOption = IMPUTATION_OPTIONS.find(
+                    (item) => item.value === option.value
+                  );
+
+                  return (
+                    <Tooltip
+                      label={imputationOption?.description ?? ""}
+                      withArrow
+                      multiline
+                      w={280}
+                      position="right"
+                    >
+                      <div className="flex w-full min-w-0 flex-col">
+                        <span className="text-sm font-medium">{option.label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {imputationOption?.description}
+                        </span>
+                      </div>
+                    </Tooltip>
+                  );
+                }}
+                value={imputationMethod}
+                onChange={(val) => {
+                  if (val) onImputationMethodChange(val as ImputationMethod);
+                }}
+                size="sm"
+              />
+              <Text size="xs" c="dimmed">
+                {selectedImputationOption.description}
+              </Text>
+            </>
+          ) : (
+            <Text size="xs" c="dimmed">
+              Missing values are treated as 0 kg for both the autoencoder and classical models.
+            </Text>
+          )}
         </Stack>
 
         <Button
