@@ -254,8 +254,7 @@ api_migration_job_result = create_container_app_job(
         job_name=api_migration_job_name,
         environment_id=cae_result.id,
         image=api_image,
-        command=["python"],
-        args=["-m", "bovi_api.migrations"],
+        command=["run-migrations"],
         container_name="bovi-api-migrate",
         env={
             "DATABASE_URL": SQLITE_DATABASE_URL,
