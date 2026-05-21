@@ -19,7 +19,7 @@ import { Info } from "lucide-react";
 import { useState } from "react";
 import { exportChallengeUrl } from "@/lib/api-client";
 import { useSubmitOwnMethod } from "../hooks/use-submissions";
-import type { BenchmarkModel } from "@/types/api";
+import type { BenchmarkModel, MilkBotRunOptions } from "@/types/api";
 import { BenchmarkModelPicker } from "./benchmark-model-picker";
 
 interface Props {
@@ -46,6 +46,11 @@ function downloadText(content: string, filename: string): void {
 export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactElement {
   const [file, setFile] = useState<File | null>(null);
   const [benchmark, setBenchmark] = useState<BenchmarkModel>("tim");
+  const [benchmarkOptions, setBenchmarkOptions] = useState<MilkBotRunOptions>({
+    fitting: "frequentist",
+    breed: "H",
+    continent: "USA",
+  });
   const [organization, setOrganization] = useState("");
   const [country, setCountry] = useState("");
   const [calcMethod, setCalcMethod] = useState("");
@@ -54,7 +59,16 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
   function handleSubmit() {
     if (!file) return;
     mutate(
-      { file, meta: { benchmark, organization, country, calculation_method: calcMethod } },
+      {
+        file,
+        meta: {
+          benchmark,
+          ...(benchmark === "milkbot" ? { benchmark_options: benchmarkOptions } : {}),
+          organization,
+          country,
+          calculation_method: calcMethod,
+        },
+      },
       { onSuccess }
     );
   }
@@ -144,6 +158,8 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
               label="Pick a benchmark model"
               value={benchmark}
               onChange={setBenchmark}
+              milkbotOptions={benchmarkOptions}
+              onMilkbotOptionsChange={setBenchmarkOptions}
             />
             <Text size="xs" c="dimmed">
               Bovi runs this model server-side on the same cohort. Both your challenger and the

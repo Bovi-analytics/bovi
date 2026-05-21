@@ -28,6 +28,7 @@ import type {
   HerdProfile,
   HerdProfileCreate,
   HerdProfileUploadResponse,
+  MilkBotRunOptions,
   PresetDatasetKey,
   PresetDatasetResponse,
   PresetHerdStatsResponse,
@@ -48,7 +49,11 @@ import type {
 /*  Generic fetch helpers                                              */
 /* ------------------------------------------------------------------ */
 
-async function apiFetch<T>(path: string, schema: z.ZodType<T>, body: unknown): Promise<T> {
+async function apiFetch<T>(
+  path: string,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  body: unknown
+): Promise<T> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -64,7 +69,7 @@ async function apiFetch<T>(path: string, schema: z.ZodType<T>, body: unknown): P
   return schema.parse(data);
 }
 
-async function apiGet<T>(path: string, schema: z.ZodType<T>): Promise<T> {
+async function apiGet<T>(path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>): Promise<T> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
@@ -77,7 +82,11 @@ async function apiGet<T>(path: string, schema: z.ZodType<T>): Promise<T> {
   return schema.parse(data);
 }
 
-async function apiPut<T>(path: string, schema: z.ZodType<T>, body: unknown): Promise<T> {
+async function apiPut<T>(
+  path: string,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  body: unknown
+): Promise<T> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -252,6 +261,8 @@ export async function submitBoviModel(
   data: {
     challenger: BenchmarkModel;
     benchmark: BenchmarkModel;
+    challenger_options?: MilkBotRunOptions;
+    benchmark_options?: MilkBotRunOptions;
     organization?: string;
     country?: string;
     notes?: string;
@@ -268,6 +279,7 @@ export async function submitOwnMethod(
   file: File,
   meta: {
     benchmark: BenchmarkModel;
+    benchmark_options?: MilkBotRunOptions;
     organization?: string;
     country?: string;
     calculation_method?: string;
@@ -276,8 +288,13 @@ export async function submitOwnMethod(
 ): Promise<SubmissionRead> {
   const formData = new FormData();
   formData.append("file", file);
+  if (meta.benchmark_options) {
+    formData.append("benchmark_fitting", meta.benchmark_options.fitting);
+    formData.append("benchmark_breed", meta.benchmark_options.breed);
+    formData.append("benchmark_continent", meta.benchmark_options.continent);
+  }
   Object.entries(meta).forEach(([k, v]) => {
-    if (v) formData.append(k, String(v));
+    if (v && k !== "benchmark_options") formData.append(k, String(v));
   });
   const response = await fetch(
     `${getApiBaseUrl()}/benchmark/challenges/${challengeId}/submissions/upload`,

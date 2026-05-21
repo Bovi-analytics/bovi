@@ -177,6 +177,11 @@ class SubmissionBase(SQLModel):
     calculation_method: str | None = Field(default=None)
     notes: str | None = Field(default=None)
     user_id: str | None = Field(default=None)
+    run_options: dict | None = Field(
+        default_factory=dict,
+        sa_column=Column(JSON, nullable=True),
+        description="Model run options, e.g. MilkBot fitting configuration.",
+    )
 
 
 class Submission(SubmissionBase, table=True):

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useSubmitBoviModel } from "../hooks/use-submissions";
 import type { BenchmarkModel } from "@/types/api";
 import { BenchmarkModelPicker } from "./benchmark-model-picker";
+import type { MilkBotRunOptions } from "@/types/api";
 
 interface Props {
   challengeId: number;
@@ -15,6 +16,16 @@ interface Props {
 export function SubmissionFormBovi({ challengeId, onSuccess }: Props): ReactElement {
   const [challenger, setChallenger] = useState<BenchmarkModel>("wood");
   const [benchmark, setBenchmark] = useState<BenchmarkModel>("tim");
+  const [challengerOptions, setChallengerOptions] = useState<MilkBotRunOptions>({
+    fitting: "frequentist",
+    breed: "H",
+    continent: "USA",
+  });
+  const [benchmarkOptions, setBenchmarkOptions] = useState<MilkBotRunOptions>({
+    fitting: "frequentist",
+    breed: "H",
+    continent: "USA",
+  });
   const [organization, setOrganization] = useState("");
   const [country, setCountry] = useState("");
   const { mutate, isPending, error } = useSubmitBoviModel(challengeId);
@@ -23,7 +34,17 @@ export function SubmissionFormBovi({ challengeId, onSuccess }: Props): ReactElem
 
   function handleSubmit() {
     if (same) return;
-    mutate({ challenger, benchmark, organization, country }, { onSuccess });
+    mutate(
+      {
+        challenger,
+        benchmark,
+        ...(challenger === "milkbot" ? { challenger_options: challengerOptions } : {}),
+        ...(benchmark === "milkbot" ? { benchmark_options: benchmarkOptions } : {}),
+        organization,
+        country,
+      },
+      { onSuccess }
+    );
   }
 
   return (
@@ -43,6 +64,8 @@ export function SubmissionFormBovi({ challengeId, onSuccess }: Props): ReactElem
               label="Pick a challenger model"
               value={challenger}
               onChange={setChallenger}
+              milkbotOptions={challengerOptions}
+              onMilkbotOptionsChange={setChallengerOptions}
             />
           </Stack>
         </Card>
@@ -61,6 +84,8 @@ export function SubmissionFormBovi({ challengeId, onSuccess }: Props): ReactElem
               label="Pick a benchmark model"
               value={benchmark}
               onChange={setBenchmark}
+              milkbotOptions={benchmarkOptions}
+              onMilkbotOptionsChange={setBenchmarkOptions}
             />
           </Stack>
         </Card>

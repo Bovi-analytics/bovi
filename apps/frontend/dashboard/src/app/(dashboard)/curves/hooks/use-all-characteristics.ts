@@ -1,6 +1,6 @@
 import { useQueries } from "@tanstack/react-query";
 import { getCharacteristic } from "@/lib/api-client";
-import type { Model, Characteristic } from "@/types/api";
+import type { Model, Characteristic, MilkBotRunOptions } from "@/types/api";
 
 const ALL_CHARACTERISTICS: Characteristic[] = [
   "peak_yield",
@@ -14,6 +14,7 @@ interface UseAllCharacteristicsParams {
   readonly dim: readonly number[];
   readonly milkrecordings: readonly number[];
   readonly parity: number;
+  readonly milkbotOptions: MilkBotRunOptions;
 }
 
 interface ModelCharacteristics {
@@ -34,11 +35,19 @@ export function useAllCharacteristics({
   dim,
   milkrecordings,
   parity,
+  milkbotOptions,
 }: UseAllCharacteristicsParams): ModelCharacteristics[] {
   // Create one query per (model, characteristic) pair
   const queries = models.flatMap((model) =>
     ALL_CHARACTERISTICS.map((characteristic) => ({
-      queryKey: ["characteristic", model, characteristic, dim, milkrecordings] as const,
+      queryKey: [
+        "characteristic",
+        model,
+        characteristic,
+        dim,
+        milkrecordings,
+        model === "milkbot" ? milkbotOptions : null,
+      ] as const,
       queryFn: () =>
         getCharacteristic({
           model,
@@ -46,6 +55,7 @@ export function useAllCharacteristics({
           dim: [...dim],
           milkrecordings: [...milkrecordings],
           parity,
+          ...(model === "milkbot" ? milkbotOptions : {}),
         }),
     }))
   );
