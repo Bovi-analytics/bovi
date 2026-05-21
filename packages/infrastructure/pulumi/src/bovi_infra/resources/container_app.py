@@ -32,6 +32,10 @@ class ContainerAppArgs:
     memory: str = "0.5Gi"
     min_replicas: int = 0
     max_replicas: int = 1
+    registry_server: str | None = None
+    registry_username: pulumi.Input[str] | None = None
+    registry_password: pulumi.Input[str] | None = None
+    registry_password_secret_name: str = "ghcr-token"
     tags: ResourceTags | None = None
 
 
@@ -64,6 +68,22 @@ def create_container_app(name: str, args: ContainerAppArgs) -> ContainerAppResul
         app.EnvironmentVarArgs(name="DATABASE_URL", value=_DATABASE_URL),
         *[app.EnvironmentVarArgs(name=k, value=v) for k, v in args.env.items()],
     ]
+    secrets: list[app.SecretArgs] = []
+    registries: list[app.RegistryCredentialsArgs] = []
+    if args.registry_server and args.registry_username and args.registry_password:
+        secrets.append(
+            app.SecretArgs(
+                name=args.registry_password_secret_name,
+                value=args.registry_password,
+            )
+        )
+        registries.append(
+            app.RegistryCredentialsArgs(
+                server=args.registry_server,
+                username=args.registry_username,
+                password_secret_ref=args.registry_password_secret_name,
+            )
+        )
 
     container_app = app.ContainerApp(
         name,
@@ -73,6 +93,8 @@ def create_container_app(name: str, args: ContainerAppArgs) -> ContainerAppResul
         location=args.location,
         configuration=app.ConfigurationArgs(
             active_revisions_mode="Single",
+            registries=registries or None,
+            secrets=secrets or None,
             ingress=app.IngressArgs(
                 external=True,
                 target_port=args.port,
