@@ -53,6 +53,7 @@ def test_run_migrations_retries_sqlite_lock(monkeypatch, tmp_path):
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_path}")
     get_settings.cache_clear()
     calls = 0
+    locks: list[int] = []
     sleeps: list[float] = []
 
     def upgrade(_cfg: Config, _revision: str) -> None:
@@ -66,12 +67,15 @@ def test_run_migrations_retries_sqlite_lock(monkeypatch, tmp_path):
             )
 
     monkeypatch.setattr(app_module.command, "upgrade", upgrade)
+    monkeypatch.setattr(app_module.fcntl, "flock", lambda _fd, operation: locks.append(operation))
     monkeypatch.setattr(app_module, "sleep", sleeps.append)
 
     try:
         app_module._run_migrations()
 
         assert calls == 3
+        assert locks == [app_module.fcntl.LOCK_EX, app_module.fcntl.LOCK_UN]
+        assert db_path.with_name("locked.db.migration.lock").exists()
         assert sleeps == [app_module._MIGRATION_LOCK_RETRY_SECONDS] * 2
     finally:
         get_settings.cache_clear()
