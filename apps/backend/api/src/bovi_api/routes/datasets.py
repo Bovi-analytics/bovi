@@ -1,7 +1,7 @@
 """Preset cow-dataset endpoints.
 
 Serves pre-generated JSON blobs from Azure Blob Storage or local presets.
-Azure blobs live under preset-datasets/{aurora|sunnyside}/{size}_{period}.json
+Azure blobs live under data/datasets/presets/{aurora|sunnyside}/{size}_{period}.json
 in the icarwebsite container. Local presets live under data/datasets/presets.
 """
 
@@ -27,7 +27,7 @@ from bovi_api.settings import Settings, get_settings
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
 _CONTAINER = "icarwebsite"
-_BLOB_PREFIX = "preset-datasets"
+_BLOB_PREFIX = "data/datasets/presets"
 _LOCAL_PRESETS_DIR = Path(__file__).resolve().parents[6] / "data" / "datasets" / "presets"
 
 DatasetKey = Literal["aurora", "sunnyside", "icar"]
