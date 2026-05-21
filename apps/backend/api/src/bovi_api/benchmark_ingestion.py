@@ -10,6 +10,7 @@ from typing import Literal, overload
 # Centralized column aliases - accepted in any case across all parsers.
 COW_ID_ALIASES = ("cow_id", "testid", "id")
 PARITY_ALIASES = ("parity", "lact", "lactation")
+HERD_ID_ALIASES = ("herd_id", "herdid", "herd", "farm_id", "farmid")
 DIM_ALIASES = ("dim", "daysinmilk", "days_in_milk")
 MILK_ALIASES = ("milk_kg", "milk", "dailymilkingyield", "milkrecording")
 YIELD_ALIASES = (
@@ -99,9 +100,9 @@ def parse_submission_csv(
 
 
 def parse_test_day_csv(content: bytes) -> dict[str, dict]:
-    """Parse a test-day CSV into {cow_id: {parity, dim[], milk_kg[]}}.
+    """Parse a test-day CSV into {cow_id: {parity, herd_id, dim[], milk_kg[]}}.
 
-    Required columns: cow_id, dim, milk_kg. Optional: parity.
+    Required columns: cow_id, dim, milk_kg. Optional: parity, herd_id.
     Multiple rows per cow are grouped together.
     """
     text = _decode(content)
@@ -113,10 +114,11 @@ def parse_test_day_csv(content: bytes) -> dict[str, dict]:
     dim_col = _resolve(reader.fieldnames, DIM_ALIASES)
     milk_col = _resolve(reader.fieldnames, MILK_ALIASES)
     parity_col = _resolve(reader.fieldnames, PARITY_ALIASES)
+    herd_id_col = _resolve(reader.fieldnames, HERD_ID_ALIASES)
     if cow_col is None or dim_col is None or milk_col is None:
         raise ValueError(
             "Test-day CSV missing required columns. Expected cow_id, dim, milk_kg "
-            "(or aliases). Optional: parity."
+            "(or aliases). Optional: parity, herd_id."
         )
 
     out: dict[str, dict] = {}
@@ -137,9 +139,20 @@ def parse_test_day_csv(content: bytes) -> dict[str, dict]:
                 parity = int(float(str(row[parity_col])))
             except (ValueError, TypeError):
                 parity = None
-        entry = out.setdefault(cow_id, {"parity": parity, "dim": [], "milk_kg": []})
+        herd_id: int | None = None
+        if herd_id_col and row.get(herd_id_col):
+            try:
+                herd_id = int(float(str(row[herd_id_col])))
+            except (ValueError, TypeError):
+                herd_id = None
+        entry = out.setdefault(
+            cow_id,
+            {"parity": parity, "herd_id": herd_id, "dim": [], "milk_kg": []},
+        )
         if parity is not None and entry["parity"] is None:
             entry["parity"] = parity
+        if herd_id is not None and entry["herd_id"] is None:
+            entry["herd_id"] = herd_id
         entry["dim"].append(d)
         entry["milk_kg"].append(round(m, 2))
 

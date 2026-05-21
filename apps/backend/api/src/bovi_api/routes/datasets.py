@@ -64,6 +64,7 @@ class PresetCow(BaseModel):
     cow_id: str
     display_name: str
     parity: int | None
+    herd_id: int | None = None
     dim: list[int]
     milk_kg: list[float]
 
