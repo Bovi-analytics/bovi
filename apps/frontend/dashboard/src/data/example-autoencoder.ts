@@ -61,6 +61,7 @@ export const EXAMPLE_AUTOENCODER_DATA: readonly ExampleAutoencoderData[] = [
     label: "Partial lactation (gaps in recording)",
     description: "Real-world data with sensor gaps: missing days 18-51 and 160-239. The model reconstructs the full curve.",
     parity: 2,
+    herdId: 2942694,
     milk: [
       15.0, 26.0, 26.0, 26.0, 31.0, 35.0, 37.0, 37.0, 38.0, 38.0,
       39.0, 39.0, 40.0, 43.0, 41.0, 42.0, 43.0, 43.0, null, null,

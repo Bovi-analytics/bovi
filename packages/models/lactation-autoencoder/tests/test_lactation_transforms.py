@@ -193,6 +193,16 @@ class TestHerdStatsEnrichmentFallback:
         expected = np.array([float(i + 20) for i in range(10)], dtype=np.float32)
         assert np.allclose(result["herd_stats"], expected)
 
+    def test_int_like_metadata_is_coerced(self, herd_stats_dir):
+        """API and dataset metadata may arrive as strings or arrays."""
+        transform = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
+        data: dict[str, object] = {"herd_id": np.array([1001]), "parity": "1.0"}
+
+        result = transform(data)
+
+        expected = np.array([float(i + 1) for i in range(10)], dtype=np.float32)
+        assert np.allclose(result["herd_stats"], expected)
+
     def test_level_4_global(self, herd_stats_dir):
         """Test Level 4: global fallback (unknown herd and parity)."""
         transform = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
