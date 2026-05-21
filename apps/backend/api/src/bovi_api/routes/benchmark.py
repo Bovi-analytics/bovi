@@ -91,7 +91,12 @@ async def _repair_preset_challenge_if_needed(
         )
 
     challenge.cow_metadata = {
-        cow.cow_id: {"parity": cow.parity, "dim": cow.dim, "milk_kg": cow.milk_kg}
+        cow.cow_id: {
+            "parity": cow.parity,
+            "herd_id": cow.herd_id,
+            "dim": cow.dim,
+            "milk_kg": cow.milk_kg,
+        }
         for cow in preset.cows
         if cow.cow_id in preset.actual_yields
     }
@@ -223,7 +228,10 @@ async def _call_autoencoder(
         for d, m in zip(meta["dim"], meta["milk_kg"]):
             if 1 <= d <= 304:
                 milk[d - 1] = float(m)
-        items.append({"milk": milk, "parity": meta.get("parity") or 1})
+        item = {"milk": milk, "parity": meta.get("parity") or 1}
+        if meta.get("herd_id") is not None:
+            item["herd_id"] = meta["herd_id"]
+        items.append(item)
 
     payload = {"items": items, "imputation_method": "forward_fill"}
     client = _get_client()
@@ -295,7 +303,12 @@ async def create_challenge_preset(
         )
 
     cow_metadata: dict[str, dict] = {
-        cow.cow_id: {"parity": cow.parity, "dim": cow.dim, "milk_kg": cow.milk_kg}
+        cow.cow_id: {
+            "parity": cow.parity,
+            "herd_id": cow.herd_id,
+            "dim": cow.dim,
+            "milk_kg": cow.milk_kg,
+        }
         for cow in preset.cows
     }
     # Keep only cows that have ALY (defensive - already filtered by generator)
@@ -403,11 +416,12 @@ async def export_challenge(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["cow_id", "parity", "dim", "milk_kg"])
+    writer.writerow(["cow_id", "herd_id", "parity", "dim", "milk_kg"])
     for cow_id, meta in challenge.cow_metadata.items():
+        herd_id = meta.get("herd_id", "")
         parity = meta.get("parity", "")
         for d, m in zip(meta["dim"], meta["milk_kg"]):
-            writer.writerow([cow_id, parity, d, m])
+            writer.writerow([cow_id, herd_id, parity, d, m])
 
     content = output.getvalue().encode("utf-8")
     return Response(
