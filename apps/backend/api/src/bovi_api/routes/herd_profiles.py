@@ -6,14 +6,22 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
-from bovi_api.auth import require_auth
+from bovi_api.auth import CurrentUser, first_accessible_organization_id, require_auth
 from bovi_api.database import get_session
 from bovi_api.herd_stats_ingestion import DEFAULT_STAT_RANGES, normalize_herd_stats, parse_csv
 from bovi_api.models import HerdProfile, HerdProfileCreate, HerdProfileRead
+from bovi_api.settings import Settings, get_settings
+from bovi_api.upload_storage import (
+    UploadStorageError,
+    make_upload_audit,
+    organization_name_for_user,
+    upload_csv_to_blob,
+)
 
 router = APIRouter(tags=["herd-profiles"], dependencies=[Depends(require_auth)])
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+ACTION_HERD_PROFILE_CSV_PREVIEW = "herd_profile_csv_preview"
 
 
 class CowRecordPayload(BaseModel):
@@ -69,6 +77,9 @@ async def create_herd_profile(
 @router.post("/csv-preview", response_model=HerdProfileUploadResponse)
 async def csv_preview(
     file: UploadFile = File(...),
+    current_user: CurrentUser = Depends(require_auth),
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
 ) -> HerdProfileUploadResponse:
     """Parse and normalize an uploaded CSV. Returns a preview; does NOT save to DB."""
     filename = file.filename or ""
@@ -79,12 +90,48 @@ async def csv_preview(
     if len(content) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
 
+    organization_id = first_accessible_organization_id(current_user)
+    organization_name = organization_name_for_user(current_user, organization_id)
+    try:
+        stored_upload = upload_csv_to_blob(
+            content,
+            filename=filename,
+            content_type=file.content_type,
+            action_type=ACTION_HERD_PROFILE_CSV_PREVIEW,
+            settings=settings,
+        )
+    except UploadStorageError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     try:
         result = parse_csv(content)
     except ValueError as exc:
+        session.add(
+            make_upload_audit(
+                stored_upload,
+                action_type=ACTION_HERD_PROFILE_CSV_PREVIEW,
+                status="rejected",
+                current_user=current_user,
+                organization_id=organization_id,
+                organization_name=organization_name,
+                error_detail=str(exc),
+            )
+        )
+        await session.commit()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     normalized = normalize_herd_stats(result.raw_stats, DEFAULT_STAT_RANGES)
+    session.add(
+        make_upload_audit(
+            stored_upload,
+            action_type=ACTION_HERD_PROFILE_CSV_PREVIEW,
+            status="accepted",
+            current_user=current_user,
+            organization_id=organization_id,
+            organization_name=organization_name,
+        )
+    )
+    await session.commit()
 
     return HerdProfileUploadResponse(
         stats=normalized,

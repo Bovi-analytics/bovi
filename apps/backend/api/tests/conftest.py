@@ -14,6 +14,8 @@ from bovi_api import app as app_module
 from bovi_api.auth import AuthenticatedOrganization, CurrentUser, require_auth
 from bovi_api.app import create_app
 from bovi_api.database import get_session
+from bovi_api.routes import benchmark as benchmark_routes
+from bovi_api.routes import herd_profiles as herd_profile_routes
 from bovi_api.models import (
     Challenge,
     FittingResult,
@@ -21,8 +23,10 @@ from bovi_api.models import (
     Organization,
     OrganizationMembership,
     Submission,
+    UploadAudit,
     User,
 )
+from bovi_api.upload_storage import StoredUpload
 
 
 @pytest.fixture()
@@ -32,6 +36,19 @@ def client(monkeypatch):
     # against the in-memory engine below, so running migrations would only
     # touch an unrelated real DB file.
     monkeypatch.setattr(app_module, "_run_migrations", lambda: None)
+
+    def _fake_upload_csv_to_blob(content, *, filename, content_type, action_type, settings):
+        return StoredUpload(
+            original_filename=filename,
+            content_type=content_type,
+            size_bytes=len(content),
+            sha256="0" * 64,
+            blob_container=settings.upload_container,
+            blob_path=f"test-uploads/{action_type}/{filename}",
+        )
+
+    monkeypatch.setattr(benchmark_routes, "upload_csv_to_blob", _fake_upload_csv_to_blob)
+    monkeypatch.setattr(herd_profile_routes, "upload_csv_to_blob", _fake_upload_csv_to_blob)
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -45,6 +62,7 @@ def client(monkeypatch):
             await conn.run_sync(HerdProfile.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(Challenge.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(Submission.__table__.create)  # type: ignore[union-attr]
+            await conn.run_sync(UploadAudit.__table__.create)  # type: ignore[union-attr]
 
     asyncio.run(_create_tables())
 

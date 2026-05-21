@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     connection_string: str | None = (
         None  # Azure Storage connection string (CONNECTION_STRING env var)
     )
+    upload_container: str = "bovi-uploads"
 
     model_config = {"env_file": find_dotenv(), "env_file_encoding": "utf-8", "extra": "ignore"}
 

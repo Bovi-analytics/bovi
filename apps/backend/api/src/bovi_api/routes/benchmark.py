@@ -40,12 +40,21 @@ from bovi_api.models import (
 from bovi_api.routes.datasets import fetch_preset_cows
 from bovi_api.routes.proxy import _get_client
 from bovi_api.settings import Settings, get_settings
+from bovi_api.upload_storage import (
+    UploadStorageError,
+    make_upload_audit,
+    organization_name_for_user,
+    upload_csv_to_blob,
+)
 
 logger = logging.getLogger("bovi_api.benchmark")
 router = APIRouter(prefix="/benchmark", tags=["benchmark"])
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 _FAILURE_THRESHOLD = 0.20
+ACTION_BENCHMARK_CHALLENGE_TEST_DAY = "benchmark_challenge_test_day"
+ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS = "benchmark_challenge_actual_yields"
+ACTION_BENCHMARK_SUBMISSION_RESULTS = "benchmark_submission_results"
 
 CURVE_MODELS = {"wood", "wilmink", "ali_schaeffer", "fischer", "milkbot"}
 YIELD_ESTIMATORS = {
@@ -288,6 +297,7 @@ async def create_challenge_upload(
     organization_id: int | None = Form(default=None),
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
 ) -> Challenge:
     """Create an upload-backed challenge: user-supplied test-day records + ground-truth yields."""
     test_bytes = await test_day_csv.read()
@@ -295,30 +305,100 @@ async def create_challenge_upload(
     if len(test_bytes) > _MAX_UPLOAD_BYTES or len(aly_bytes) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="One of the uploads exceeds the 10 MB limit.")
 
+    resolved_organization_id = organization_id or first_accessible_organization_id(current_user)
+    ensure_organization_access(current_user, resolved_organization_id)
+    organization_name = organization_name_for_user(current_user, resolved_organization_id)
+
+    try:
+        test_upload = upload_csv_to_blob(
+            test_bytes,
+            filename=test_day_csv.filename or "test_day.csv",
+            content_type=test_day_csv.content_type,
+            action_type=ACTION_BENCHMARK_CHALLENGE_TEST_DAY,
+            settings=settings,
+        )
+        aly_upload = upload_csv_to_blob(
+            aly_bytes,
+            filename=actual_yields_csv.filename or "actual_yields.csv",
+            content_type=actual_yields_csv.content_type,
+            action_type=ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS,
+            settings=settings,
+        )
+    except UploadStorageError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     try:
         cow_metadata = parse_test_day_csv(test_bytes)
     except ValueError as exc:
+        detail = f"test-day CSV: {exc}"
+        for stored, action in (
+            (test_upload, ACTION_BENCHMARK_CHALLENGE_TEST_DAY),
+            (aly_upload, ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS),
+        ):
+            session.add(
+                make_upload_audit(
+                    stored,
+                    action_type=action,
+                    status="rejected",
+                    current_user=current_user,
+                    organization_id=resolved_organization_id,
+                    organization_name=organization_name,
+                    error_detail=detail,
+                )
+            )
+        await session.commit()
         raise HTTPException(status_code=400, detail=f"test-day CSV: {exc}") from exc
     try:
         actual_yields = parse_actual_yields_csv(aly_bytes)
     except ValueError as exc:
+        detail = f"actual-yields CSV: {exc}"
+        for stored, action in (
+            (test_upload, ACTION_BENCHMARK_CHALLENGE_TEST_DAY),
+            (aly_upload, ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS),
+        ):
+            session.add(
+                make_upload_audit(
+                    stored,
+                    action_type=action,
+                    status="rejected",
+                    current_user=current_user,
+                    organization_id=resolved_organization_id,
+                    organization_name=organization_name,
+                    error_detail=detail,
+                )
+            )
+        await session.commit()
         raise HTTPException(status_code=400, detail=f"actual-yields CSV: {exc}") from exc
 
     # Coverage check: ALY must cover at least 80% of cows in the test-day file
     overlap = sum(1 for cid in cow_metadata if cid in actual_yields)
     if not cow_metadata or overlap / len(cow_metadata) < 0.80:
+        detail = (
+            f"Actual-yields CSV must cover at least 80% of cows from the test-day CSV "
+            f"(got {overlap}/{len(cow_metadata)})."
+        )
+        for stored, action in (
+            (test_upload, ACTION_BENCHMARK_CHALLENGE_TEST_DAY),
+            (aly_upload, ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS),
+        ):
+            session.add(
+                make_upload_audit(
+                    stored,
+                    action_type=action,
+                    status="rejected",
+                    current_user=current_user,
+                    organization_id=resolved_organization_id,
+                    organization_name=organization_name,
+                    error_detail=detail,
+                )
+            )
+        await session.commit()
         raise HTTPException(
             status_code=422,
-            detail=(
-                f"Actual-yields CSV must cover at least 80% of cows from the test-day CSV "
-                f"(got {overlap}/{len(cow_metadata)})."
-            ),
+            detail=detail,
         )
     # Drop cows without ALY
     cow_metadata = {cid: m for cid, m in cow_metadata.items() if cid in actual_yields}
-
-    resolved_organization_id = organization_id or first_accessible_organization_id(current_user)
-    ensure_organization_access(current_user, resolved_organization_id)
 
     challenge = Challenge(
         dataset="upload",
@@ -333,6 +413,22 @@ async def create_challenge_upload(
         organization_id=resolved_organization_id,
     )
     session.add(challenge)
+    await session.flush()
+    for stored, action in (
+        (test_upload, ACTION_BENCHMARK_CHALLENGE_TEST_DAY),
+        (aly_upload, ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS),
+    ):
+        session.add(
+            make_upload_audit(
+                stored,
+                action_type=action,
+                status="accepted",
+                current_user=current_user,
+                organization_id=resolved_organization_id,
+                organization_name=organization_name,
+                challenge_id=challenge.id,
+            )
+        )
     await session.commit()
     await session.refresh(challenge)
     return challenge
@@ -509,19 +605,58 @@ async def create_submission_upload(
     if len(content) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
 
+    organization_name = organization_name_for_user(current_user, challenge.organization_id)
+    try:
+        stored_upload = upload_csv_to_blob(
+            content,
+            filename=filename,
+            content_type=file.content_type,
+            action_type=ACTION_BENCHMARK_SUBMISSION_RESULTS,
+            settings=settings,
+        )
+    except UploadStorageError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     try:
         challenger_yields, failed_ids = parse_submission_csv(content, return_failed=True)
     except ValueError as exc:
+        session.add(
+            make_upload_audit(
+                stored_upload,
+                action_type=ACTION_BENCHMARK_SUBMISSION_RESULTS,
+                status="rejected",
+                current_user=current_user,
+                organization_id=challenge.organization_id,
+                organization_name=organization_name,
+                challenge_id=challenge_id,
+                error_detail=str(exc),
+            )
+        )
+        await session.commit()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     total = len(challenger_yields) + len(failed_ids)
     if total > 0 and len(failed_ids) / total > _FAILURE_THRESHOLD:
+        detail = (
+            f"Too many invalid rows: {len(failed_ids)}/{total} failed "
+            f"(>{int(_FAILURE_THRESHOLD * 100)}% threshold)."
+        )
+        session.add(
+            make_upload_audit(
+                stored_upload,
+                action_type=ACTION_BENCHMARK_SUBMISSION_RESULTS,
+                status="rejected",
+                current_user=current_user,
+                organization_id=challenge.organization_id,
+                organization_name=organization_name,
+                challenge_id=challenge_id,
+                error_detail=detail,
+            )
+        )
+        await session.commit()
         raise HTTPException(
             status_code=422,
-            detail=(
-                f"Too many invalid rows: {len(failed_ids)}/{total} failed "
-                f"(>{int(_FAILURE_THRESHOLD * 100)}% threshold)."
-            ),
+            detail=detail,
         )
 
     benchmark_yields = await _dispatch_model(benchmark, challenge.cow_metadata, settings)
@@ -551,6 +686,19 @@ async def create_submission_upload(
         organization_id=challenge.organization_id,
     )
     session.add(submission)
+    await session.flush()
+    session.add(
+        make_upload_audit(
+            stored_upload,
+            action_type=ACTION_BENCHMARK_SUBMISSION_RESULTS,
+            status="accepted",
+            current_user=current_user,
+            organization_id=challenge.organization_id,
+            organization_name=organization_name,
+            challenge_id=challenge_id,
+            submission_id=submission.id,
+        )
+    )
     await session.commit()
     await session.refresh(submission)
     return submission

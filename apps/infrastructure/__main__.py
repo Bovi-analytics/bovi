@@ -32,8 +32,10 @@ from bovi_infra.resources.observability import (
     create_log_analytics,
 )
 from bovi_infra.resources.storage import (
+    BlobContainerArgs,
     FilesShareArgs,
     StorageAccountArgs,
+    create_blob_container,
     create_files_share,
     create_storage_account,
 )
@@ -88,6 +90,15 @@ files_share_result = create_files_share(
         account_name=storage_result.account.name,
         share_name="bovidata",
         quota_gb=1,
+    ),
+)
+
+uploads_container_result = create_blob_container(
+    "uploads-container",
+    BlobContainerArgs(
+        resource_group_name=resource_group.name,
+        account_name=storage_result.account.name,
+        container_name="bovi-uploads",
     ),
 )
 
@@ -216,7 +227,11 @@ api_result = create_container_app(
         storage_account_name=storage_result.account.name,
         storage_account_key=storage_result.primary_key,
         files_share_name="bovidata",
-        env={"APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string},
+        env={
+            "APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string,
+            "CONNECTION_STRING": storage_result.connection_string,
+            "UPLOAD_CONTAINER": "bovi-uploads",
+        },
         tags=tags,
     ),
 )
@@ -226,6 +241,7 @@ api_result = create_container_app(
 # ---------------------------------------------------------------------------
 pulumi.export("resource_group_name", resource_group.name)
 pulumi.export("storage_account_name", storage_result.account.name)
+pulumi.export("uploads_container_name", uploads_container_result.container.name)
 pulumi.export("curves_app_name", curves_result.app.name)
 pulumi.export("curves_app_url", curves_result.url)
 pulumi.export("autoencoder_app_name", autoencoder_result.app.name)

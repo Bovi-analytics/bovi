@@ -301,3 +301,31 @@ class SubmissionRead(SubmissionBase):
     stats: dict
     failed_cow_ids: list
     created_at: datetime | None
+
+
+class UploadAudit(SQLModel, table=True):
+    """Raw CSV upload audit record persisted in the File Share-backed database."""
+
+    __tablename__: ClassVar[str] = "upload_audits"
+
+    id: int | None = Field(default=None, primary_key=True)
+    action_type: str = Field(index=True, max_length=80)
+    status: str = Field(index=True, max_length=20)
+    user_id: int | None = Field(default=None, foreign_key="users.id")
+    user_email: str | None = Field(default=None, max_length=320)
+    user_name: str | None = Field(default=None, max_length=200)
+    organization_id: int | None = Field(default=None, foreign_key="organizations.id")
+    organization_name: str | None = Field(default=None, max_length=200)
+    original_filename: str = Field(max_length=500)
+    content_type: str | None = Field(default=None, max_length=200)
+    size_bytes: int
+    sha256: str = Field(max_length=64)
+    blob_container: str = Field(max_length=200)
+    blob_path: str = Field(max_length=1000)
+    challenge_id: int | None = Field(default=None, foreign_key="challenges.id")
+    submission_id: int | None = Field(default=None, foreign_key="submissions.id")
+    error_detail: str | None = Field(default=None)
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
