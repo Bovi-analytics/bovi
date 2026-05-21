@@ -206,6 +206,7 @@ export const PresetCowSchema = z.object({
   cow_id: z.string(),
   display_name: z.string(),
   parity: z.number().nullable(),
+  herd_id: z.number().int().nullable().optional(),
   dim: z.array(z.number()),
   milk_kg: z.array(z.number()),
 });

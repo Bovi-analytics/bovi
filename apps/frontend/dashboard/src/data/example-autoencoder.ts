@@ -3,6 +3,7 @@ export interface ExampleAutoencoderData {
   readonly label: string;
   readonly description: string;
   readonly parity: number;
+  readonly herdId?: number;
   readonly milk: readonly (number | null)[];
   readonly events?: readonly string[];
 }
@@ -51,6 +52,7 @@ export const EXAMPLE_AUTOENCODER_DATA: readonly ExampleAutoencoderData[] = [
     description:
       "Real-world data with sensor gaps: missing days 18-51 and 160-239. The model reconstructs the full curve.",
     parity: 2,
+    herdId: 2942694,
     milk: [
       15.0,
       26.0,
