@@ -10,6 +10,7 @@ Resources deployed:
 """
 
 import hashlib
+import os
 
 import pulumi
 import pulumi_azure_native.resources as resources
@@ -50,6 +51,10 @@ resource_group_name = config.require("resourceGroup")
 dashboard_origin = config.get("dashboardOrigin") or "http://localhost:3000"
 milkbot_key = config.get_secret("milkbotKey") or ""
 api_image = config.get("apiImage") or "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+ghcr_username = os.getenv("GHCR_USERNAME")
+ghcr_token = os.getenv("GHCR_TOKEN")
+if bool(ghcr_username) != bool(ghcr_token):
+    raise ValueError("GHCR_USERNAME and GHCR_TOKEN must be set together")
 
 # Storage accounts must be globally unique — derive a short suffix from the subscription ID
 storage_suffix = hashlib.md5(subscription_id.encode()).hexdigest()[:6]
@@ -216,6 +221,9 @@ api_result = create_container_app(
         storage_account_name=storage_result.account.name,
         storage_account_key=storage_result.primary_key,
         files_share_name="bovidata",
+        registry_server="ghcr.io" if ghcr_username and ghcr_token else None,
+        registry_username=ghcr_username,
+        registry_password=pulumi.Output.secret(ghcr_token) if ghcr_token else None,
         env={"APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string},
         tags=tags,
     ),
