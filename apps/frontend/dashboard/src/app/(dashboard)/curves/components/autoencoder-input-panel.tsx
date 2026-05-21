@@ -9,35 +9,43 @@ import {
   Loader,
   NumberInput,
   Select,
-  SegmentedControl,
   Stack,
   Switch,
   Text,
   Tooltip,
 } from "@mantine/core";
-import { AlertCircle, Info } from "lucide-react";
+import { AlertCircle, Check, Info } from "lucide-react";
 import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 import { HerdStatsForm } from "@/app/(dashboard)/autoencoder/components/herd-stats-form";
 import { useHerdProfiles } from "@/app/(dashboard)/herd-stats/hooks/use-herd-profiles";
 import { herdProfileToStats } from "@/lib/herd-profile-utils";
-import type { ImputationMethod } from "@/types/api";
 
-const IMPUTATION_OPTIONS = [
-  { value: "forward_fill", label: "Forward fill" },
-  { value: "backward_fill", label: "Backward fill" },
-  { value: "linear", label: "Linear interpolation" },
-  { value: "zero", label: "Zero" },
-  { value: "mean", label: "Mean" },
-] as const;
+const HERD_STATS_SOURCE_COPY: Record<HerdStatsSourceKind, { label: string; description: string }> =
+  {
+    dataset: {
+      label: "Active dataset",
+      description: "Compute herd-level averages from the dataset selected in Data Upload.",
+    },
+    default: {
+      label: "Model default",
+      description: "Let the autoencoder use its global training-set average.",
+    },
+    profile: {
+      label: "Saved profile",
+      description: "Load a saved herd profile and use its ten aggregate stats.",
+    },
+    manual: {
+      label: "Manual",
+      description: "Edit the herd statistics yourself before prediction.",
+    },
+  };
 
 export type HerdStatsSourceKind = "dataset" | "default" | "profile" | "manual";
 
 interface AutoencoderInputPanelProps {
   readonly parity: number;
   readonly onParityChange: (parity: number) => void;
-  readonly imputationMethod: ImputationMethod;
-  readonly onImputationMethodChange: (method: ImputationMethod) => void;
   readonly herdStatsSource: HerdStatsSourceKind;
   readonly onHerdStatsSourceChange: (source: HerdStatsSourceKind) => void;
   readonly selectedProfileId: number | null;
@@ -54,8 +62,6 @@ interface AutoencoderInputPanelProps {
 export function AutoencoderInputPanel({
   parity,
   onParityChange,
-  imputationMethod,
-  onImputationMethodChange,
   herdStatsSource,
   onHerdStatsSourceChange,
   selectedProfileId,
@@ -72,15 +78,23 @@ export function AutoencoderInputPanel({
   const [showRaw, setShowRaw] = useState(false);
   const { data: profiles = [] } = useHerdProfiles();
 
-  const sourceOptions = [
+  const sourceOptions: Array<{
+    value: HerdStatsSourceKind;
+    label: string;
+    description: string;
+    disabled?: boolean;
+  }> = [
     {
       value: "dataset",
-      label: datasetLabel ? `Dataset (${datasetLabel})` : "Dataset",
+      label: datasetLabel ? `Dataset: ${datasetLabel}` : HERD_STATS_SOURCE_COPY.dataset.label,
+      description: datasetLabel
+        ? HERD_STATS_SOURCE_COPY.dataset.description
+        : "Load a dataset in Data Upload to use this option.",
       disabled: !datasetLabel,
     },
-    { value: "default", label: "Model default" },
-    { value: "profile", label: "Saved profile" },
-    { value: "manual", label: "Manual" },
+    { value: "default", ...HERD_STATS_SOURCE_COPY.default },
+    { value: "profile", ...HERD_STATS_SOURCE_COPY.profile },
+    { value: "manual", ...HERD_STATS_SOURCE_COPY.manual },
   ];
 
   const profileOptions = profiles.map((p) => ({ value: String(p.id), label: p.name }));
@@ -88,7 +102,7 @@ export function AutoencoderInputPanel({
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-3 text-sm font-medium text-muted-foreground">Autoencoder</h3>
+        <h3 className="mb-3 text-base font-semibold text-foreground">Autoencoder</h3>
 
         <Stack gap="sm">
           <NumberInput
@@ -130,12 +144,41 @@ export function AutoencoderInputPanel({
                 </Tooltip>
               </span>
             </Text>
-            <SegmentedControl
-              size="xs"
-              value={herdStatsSource}
-              onChange={(v) => onHerdStatsSourceChange(v as HerdStatsSourceKind)}
-              data={sourceOptions}
-            />
+            <div className="grid gap-2" role="radiogroup" aria-label="Herd stats source">
+              {sourceOptions.map((option) => {
+                const isSelected = herdStatsSource === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    disabled={option.disabled}
+                    onClick={() => onHerdStatsSourceChange(option.value)}
+                    className={[
+                      "flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left transition-colors",
+                      isSelected
+                        ? "border-violet-500 bg-violet-500/10 text-foreground"
+                        : "border-border bg-background/40 text-foreground hover:border-violet-400/70 hover:bg-violet-500/5",
+                      option.disabled
+                        ? "cursor-not-allowed opacity-50 hover:border-border hover:bg-background/40"
+                        : "",
+                    ].join(" ")}
+                  >
+                    <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-current">
+                      {isSelected && <Check size={11} strokeWidth={3} />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium leading-5">{option.label}</span>
+                      <span className="block text-xs leading-5 text-muted-foreground">
+                        {option.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
             {herdStatsSource === "dataset" && datasetLabel && (
               <Text size="xs" c="dimmed">
                 Computing herd-level averages from <b>{datasetLabel}</b>{" "}
@@ -174,6 +217,11 @@ export function AutoencoderInputPanel({
                 disabled={profileOptions.length === 0}
               />
             )}
+            {herdStatsSource === "profile" && profileOptions.length === 0 && (
+              <Text size="xs" c="dimmed">
+                Create a saved profile in Herd Profiles first, or use dataset/default/manual here.
+              </Text>
+            )}
             {herdStatsSource === "manual" && (
               <Badge size="xs" color="gray" variant="light" w="fit-content">
                 Edit values below in &ldquo;Herd Statistics&rdquo;
@@ -181,27 +229,6 @@ export function AutoencoderInputPanel({
             )}
           </Stack>
 
-          <Select
-            label={
-              <span className="inline-flex items-center gap-1">
-                Imputation method
-                <Tooltip
-                  label="How to fill missing (null) values in the milk sequence before prediction"
-                  withArrow
-                  multiline
-                  w={250}
-                >
-                  <Info size={14} className="cursor-help text-muted-foreground" />
-                </Tooltip>
-              </span>
-            }
-            data={IMPUTATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-            value={imputationMethod}
-            onChange={(val) => {
-              if (val) onImputationMethodChange(val as ImputationMethod);
-            }}
-            size="sm"
-          />
         </Stack>
 
         <Button

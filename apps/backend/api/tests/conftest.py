@@ -10,12 +10,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 os.environ["DATABASE_URL"] = ""
 
-from bovi_api import app as app_module
 from bovi_api.auth import AuthenticatedOrganization, CurrentUser, require_auth
 from bovi_api.app import create_app
 from bovi_api.database import get_session
-from bovi_api.routes import benchmark as benchmark_routes
-from bovi_api.routes import herd_profiles as herd_profile_routes
 from bovi_api.models import (
     Challenge,
     FittingResult,
@@ -26,16 +23,14 @@ from bovi_api.models import (
     UploadAudit,
     User,
 )
+from bovi_api.routes import benchmark as benchmark_routes
+from bovi_api.routes import herd_profiles as herd_profile_routes
 from bovi_api.upload_storage import StoredUpload
 
 
 @pytest.fixture()
 def client(monkeypatch):
     """TestClient backed by an in-memory SQLite database."""
-    # Skip the Alembic auto-migration on startup: tests create tables directly
-    # against the in-memory engine below, so running migrations would only
-    # touch an unrelated real DB file.
-    monkeypatch.setattr(app_module, "_run_migrations", lambda: None)
 
     def _fake_upload_csv_to_blob(content, *, filename, content_type, action_type, settings):
         return StoredUpload(

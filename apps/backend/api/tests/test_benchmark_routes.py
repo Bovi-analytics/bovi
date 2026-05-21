@@ -8,6 +8,7 @@ import pytest
 from bovi_api.database import get_session
 from bovi_api.models import Challenge, Submission, UploadAudit
 from bovi_api.routes.benchmark import _dispatch_model
+from bovi_api.routes.datasets import PresetCow, PresetDatasetResponse
 from bovi_api.settings import Settings
 from bovi_api.upload_storage import UploadStorageError
 from sqlmodel import select
@@ -286,6 +287,28 @@ class _FakeClient:
         )
 
 
+class _AutoencoderFakeClient:
+    def __init__(self):
+        self.calls = []
+
+    async def post(self, url, content, headers):
+        self.calls.append(
+            {
+                "url": url,
+                "payload": json.loads(content),
+                "headers": headers,
+            }
+        )
+        return _FakeResponse(
+            {
+                "results": [
+                    {"predictions": [1.0] * 304},
+                    {"predictions": [2.0] * 304},
+                ]
+            }
+        )
+
+
 @pytest.mark.parametrize(
     ("model", "expected_path"),
     [
@@ -328,3 +351,140 @@ def test_dispatch_yield_estimators_call_matching_lactation_curve_endpoint(
             "headers": {"Content-Type": "application/json"},
         }
     ]
+
+
+def test_dispatch_autoencoder_sends_parity_and_herd_id(monkeypatch):
+    """Autoencoder benchmark dispatch preserves per-cow metadata in the batch payload."""
+    fake_client = _AutoencoderFakeClient()
+    monkeypatch.setattr(benchmark_routes, "_get_client", lambda: fake_client)
+
+    cow_metadata = {
+        "cow-1": {"dim": [10, 40], "milk_kg": [22.0, 31.0], "parity": 2, "herd_id": 2942694},
+        "cow-2": {"dim": [12, 45], "milk_kg": [24.0, 33.0], "parity": 3, "herd_id": 991},
+    }
+
+    result = asyncio.run(
+        _dispatch_model(
+            "autoencoder",
+            cow_metadata,
+            Settings(lactation_autoencoder_url="https://autoencoder.example"),
+        )
+    )
+
+    assert result == {"cow-1": 304.0, "cow-2": 608.0}
+    assert fake_client.calls == [
+        {
+            "url": "https://autoencoder.example/predict/batch",
+            "payload": {
+                "items": [
+                    {
+                        "milk": [None] * 9 + [22.0] + [None] * 29 + [31.0] + [None] * 264,
+                        "parity": 2,
+                        "herd_id": 2942694,
+                    },
+                    {
+                        "milk": [None] * 11 + [24.0] + [None] * 32 + [33.0] + [None] * 259,
+                        "parity": 3,
+                        "herd_id": 991,
+                    },
+                ],
+                "imputation_method": "forward_fill",
+            },
+            "headers": {"Content-Type": "application/json"},
+        }
+    ]
+
+
+def test_download_report_repairs_legacy_icar_actual_yields(client, monkeypatch):
+    """Existing preset challenges with concatenated ALY are repaired before PDF export."""
+    override = client.app.dependency_overrides[get_session]
+    ids: dict[str, int] = {}
+
+    async def _seed() -> None:
+        async for session in override():
+            challenge = Challenge(
+                dataset="icar",
+                size="full",
+                period="all",
+                source="preset",
+                name="ICAR cohort",
+                cow_metadata={"1483": {"parity": 2, "dim": [10, 40], "milk_kg": [30.0, 31.0]}},
+                reference_yields=None,
+                actual_yields={"1483": 148310573.1},
+            )
+            session.add(challenge)
+            await session.commit()
+            await session.refresh(challenge)
+            assert challenge.id is not None
+            submission = Submission(
+                challenge_id=challenge.id,
+                submission_type="bovi_model",
+                model_type="wood",
+                benchmark_model="tim",
+                submitted_yields={"1483": 10500.0},
+                bovi_yields={"1483": 10600.0},
+                stats={
+                    "version": 2,
+                    "challenger_vs_aly": {
+                        "overall": {"rmse": 148300073.1, "n": 1},
+                        "by_parity": {},
+                    },
+                    "benchmark_vs_aly": {
+                        "overall": {"rmse": 148299973.1, "n": 1},
+                        "by_parity": {},
+                    },
+                    "challenger_vs_benchmark": {
+                        "overall": {"rmse": 100.0, "n": 1},
+                        "by_parity": {},
+                    },
+                    "failed_count": 0,
+                },
+                failed_cow_ids=[],
+            )
+            session.add(submission)
+            await session.commit()
+            await session.refresh(submission)
+            assert submission.id is not None
+            ids["submission"] = submission.id
+            ids["challenge"] = challenge.id
+            break
+
+    asyncio.run(_seed())
+
+    monkeypatch.setattr(
+        benchmark_routes,
+        "fetch_preset_cows",
+        lambda *args, **kwargs: PresetDatasetResponse(
+            dataset="icar",
+            size="full",
+            period="all",
+            cow_count=1,
+            cows=[
+                PresetCow(
+                    cow_id="1483",
+                    display_name="Cow 1483 - parity 2",
+                    parity=2,
+                    dim=[10, 40],
+                    milk_kg=[30.0, 31.0],
+                )
+            ],
+            actual_yields={"1483": 10573.1},
+        ),
+    )
+
+    captured: dict = {}
+
+    def _fake_pdf(**kwargs):
+        captured.update(kwargs)
+        return b"%PDF-1.4\n"
+
+    monkeypatch.setattr(benchmark_routes, "generate_report_pdf", _fake_pdf)
+
+    response = client.get(f"/benchmark/submissions/{ids['submission']}/report")
+
+    assert response.status_code == 200
+    assert captured["actual_yields"] == {"1483": 10573.1}
+    assert captured["stats"]["challenger_vs_aly"]["overall"]["rmse"] == pytest.approx(73.1)
+
+    challenge = client.get(f"/benchmark/challenges/{ids['challenge']}").json()
+    assert challenge["actual_yields"] == {"1483": 10573.1}

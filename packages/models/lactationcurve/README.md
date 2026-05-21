@@ -108,20 +108,21 @@ lactation and creates a default `TestId`.
 
 If you use the `lactationcurve` package in your research, please consider citing it as follows:
 
-*van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., & Hostens, M. (2026). Bovi-analytics/bovi: v.1.1.1. (v.1.1.0).*
+*van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., & Hostens, M. (2026). Bovi-analytics/bovi: v.1.1.1. (v.1.1.2).*
 
 *Zenodo. https://doi.org/10.5281/zenodo.18715145*
 
 
-BibTex:
+BibTeX:
 
+```bibtex
 @software{van_leerdam_2026_lactationcurve,
 
   author       = {van Leerdam, Meike Beatrijs and de Kok, D. and Osei-Tete, J. A. and Hostens, M.},
 
   title        = {Bovi-analytics/lactation\_curve\_core: v.1.1.1},
 
-  version      = {1.1.0},
+  version      = {1.1.2},
 
   year         = {2026},
 
@@ -133,10 +134,10 @@ BibTex:
 
 }
 
-``
+```
 
 
-A machine-readable citation is included in `CITATION.cff
+A machine-readable citation is included in `CITATION.cff`.
 
 
 If you also use the Bayesian fitting functionality that relies on the MilkBot API, please also cite the following paper:

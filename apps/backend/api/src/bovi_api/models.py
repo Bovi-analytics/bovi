@@ -204,7 +204,7 @@ class Challenge(ChallengeBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     cow_metadata: dict = Field(
         sa_column=Column(JSON),
-        description="{cow_id: {parity, dim[], milk_kg[]}} - test-day records per cow",
+        description="{cow_id: {parity, herd_id, dim[], milk_kg[]}} - test-day records per cow",
     )
     reference_yields: dict | None = Field(
         default=None,

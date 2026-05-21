@@ -1,7 +1,7 @@
 """Tests for benchmark CSV ingestion."""
 
 import pytest
-from bovi_api.benchmark_ingestion import parse_submission_csv
+from bovi_api.benchmark_ingestion import parse_submission_csv, parse_test_day_csv
 
 
 def test_parse_valid_csv():
@@ -32,3 +32,20 @@ def test_parse_negative_yield_raises():
     csv_bytes = b"cow_id,yield_305day\ncow1,-100.0\n"
     with pytest.raises(ValueError, match="negative"):
         parse_submission_csv(csv_bytes)
+
+
+def test_parse_test_day_csv_preserves_herd_id_and_parity():
+    csv_bytes = (
+        b"cow_id,herd_id,parity,dim,milk_kg\ncow1,2942694,2,10,25.5\ncow1,2942694,2,20,28.0\n"
+    )
+
+    result = parse_test_day_csv(csv_bytes)
+
+    assert result == {
+        "cow1": {
+            "herd_id": 2942694,
+            "parity": 2,
+            "dim": [10, 20],
+            "milk_kg": [25.5, 28.0],
+        }
+    }

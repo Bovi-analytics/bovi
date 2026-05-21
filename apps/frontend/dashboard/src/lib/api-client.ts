@@ -171,7 +171,7 @@ export async function predictAutoencoder(
 }
 
 export async function healthCheck(): Promise<boolean> {
-  const response = await fetch(`${getApiBaseUrl()}/`);
+  const response = await fetch(`${getApiBaseUrl()}/health`);
   return response.ok;
 }
 

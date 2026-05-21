@@ -50,6 +50,7 @@ Thumbs.db
 node_modules/
 .next/
 bun.lock
+!apps/frontend/dashboard/bun.lock
 *.tsbuildinfo
 
 # Azure Functions
@@ -79,5 +80,6 @@ packages/models/*/docs/*
 
 # Data
 data/cow_data
+data/datasets/presets/
 data/raw
 data/raw/

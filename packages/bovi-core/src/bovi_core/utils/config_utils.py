@@ -179,9 +179,12 @@ def get_author_info(project_config: Any) -> Tuple[str, str]:
 def extract_experiment_name_from_path(file_path: str) -> Optional[str]:
     """Extract experiment name from a config file path.
 
-    Supports both legacy and versioned directory structures:
-      - Legacy: data/experiments/{experiment}/config.yaml
-      - Versioned: data/experiments/{experiment}/versions/v1/config/config.yaml
+    Supports both versioned data collections:
+      - Experiments: data/experiments/{experiment}/versions/v1/config/config.yaml
+      - Inference models: data/models/{model}/versions/v1/config/config.yaml
+
+    The legacy flat experiment path remains parseable for existing experiment
+    configs that are still present in the repo.
 
     Args:
         file_path: Path to a config file within an experiment directory.
@@ -192,7 +195,19 @@ def extract_experiment_name_from_path(file_path: str) -> Optional[str]:
 
     """
     path_parts = Path(file_path).parts
-    if "experiments" in path_parts:
-        exp_idx = path_parts.index("experiments")
-        return path_parts[exp_idx + 1] if exp_idx + 1 < len(path_parts) else None
+    for collection in ("experiments", "models"):
+        if collection in path_parts:
+            exp_idx = path_parts.index(collection)
+            return path_parts[exp_idx + 1] if exp_idx + 1 < len(path_parts) else None
     return None
+
+
+def extract_data_collection_from_path(file_path: str) -> str:
+    """Return the data collection that contains a run config.
+
+    Defaults to ``experiments`` for direct config paths outside ``data/models``.
+    """
+    path_parts = Path(file_path).parts
+    if "models" in path_parts:
+        return "models"
+    return "experiments"

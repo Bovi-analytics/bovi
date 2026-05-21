@@ -6,7 +6,7 @@ import logging
 import time
 import uuid
 import warnings
-from typing import Literal
+from pathlib import Path
 
 # MLflow emits a UserWarning about `Any` type hints from its OWN internal
 # response schemas during import. There's no way for us to make those hints
@@ -31,11 +31,17 @@ from bovi_core.ml import create_model  # noqa: E402
 from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.timeseries import ImputationTransform  # noqa: E402
+from bovi_core.utils.path_utils import get_project_root, get_run_config_path  # noqa: E402
 from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
 from lactation_autoencoder.dataloaders import LactationDataset  # noqa: E402
-from pydantic import BaseModel, Field  # noqa: E402
+from schemas import (  # noqa: E402
+    AutoencoderBatchRequest,
+    AutoencoderBatchResponse,
+    AutoencoderPredictRequest,
+    AutoencoderPredictResponse,
+)
 from settings import Settings, get_settings  # noqa: E402
 from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 
@@ -46,7 +52,16 @@ logger = logging.getLogger("lactation_autoencoder")
 # Model startup (loaded once at module level)
 # ---------------------------------------------------------------------------
 
-config = Config(experiment_name="lactation_autoencoder", project_name="bovi")
+project_root = Path(get_project_root(project_name="bovi"))
+config = Config(
+    experiment_name="lactation_autoencoder",
+    config_file_path=get_run_config_path(
+        str(project_root),
+        "lactation_autoencoder",
+        root_dir_name="models",
+    ),
+    project_name="bovi",
+)
 model = create_model(config, "autoencoder")
 transforms = TransformRegistry.from_config(config.experiment.dataloaders.inference.transforms)
 
@@ -107,51 +122,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# ---------------------------------------------------------------------------
-# Request / Response models
-# ---------------------------------------------------------------------------
-
-VALID_IMPUTATION_METHODS = Literal["forward_fill", "backward_fill", "linear", "zero", "mean"]
-
-
-class AutoencoderPredictRequest(BaseModel):
-    """Request body for a single autoencoder prediction."""
-
-    milk: list[float | None] = Field(
-        ...,
-        min_length=1,
-        description="Daily milk yield (kg). Padded/truncated to 304.",
-    )
-    events: list[str] | None = Field(
-        default=None,
-        description="Daily events. Case-insensitive.",
-    )
-    parity: int = Field(default=1, ge=1, le=12)
-    herd_id: int | None = Field(default=None)
-    herd_stats: list[float] | None = Field(default=None, min_length=10, max_length=10)
-    imputation_method: VALID_IMPUTATION_METHODS = Field(default="forward_fill")
-
-
-class AutoencoderPredictResponse(BaseModel):
-    """Response body for autoencoder prediction."""
-
-    predictions: list[float] = Field(..., description="Predicted milk yields (304 days).")
-    latent_vector: list[float] | None = Field(default=None)
-
-
-class AutoencoderBatchRequest(BaseModel):
-    """Request body for batch autoencoder prediction."""
-
-    items: list[AutoencoderPredictRequest] = Field(..., min_length=1)
-    imputation_method: VALID_IMPUTATION_METHODS = Field(default="forward_fill")
-
-
-class AutoencoderBatchResponse(BaseModel):
-    """Response body for batch autoencoder prediction."""
-
-    results: list[AutoencoderPredictResponse]
 
 
 # ---------------------------------------------------------------------------

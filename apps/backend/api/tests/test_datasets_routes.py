@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 
 import pytest
@@ -101,21 +102,46 @@ def test_preset_herd_stats_no_matching_cows_returns_404(client, monkeypatch, fak
     assert response.status_code == 404
 
 
-def test_fetch_preset_cows_falls_back_to_local_raw_data(tmp_path, monkeypatch):
-    raw_dir = tmp_path / "raw"
-    raw_dir.mkdir()
-    (raw_dir / "AuroraTDM23_26_prepped.csv").write_text(
-        "\n".join(
-            [
-                "ID,BDAT,LACT,RC,M305,TestDate,DIM,MILK",
-                "874,2020-04-21,2,7,26010.0,2023-04-05,35,113.0",
-                "874,2020-04-21,2,7,26010.0,2025-04-05,65,100.0",
-                "875,2020-04-21,3,7,26010.0,2025-05-05,35,90.0",
-            ]
-        )
-    )
-    monkeypatch.setattr(datasets_route, "_LOCAL_RAW_DIR", raw_dir)
+def _write_local_preset(tmp_path, monkeypatch, dataset="aurora", size="small", period="mixed"):
+    presets_dir = tmp_path / "presets"
+    preset_dir = presets_dir / dataset
+    preset_dir.mkdir(parents=True)
+    preset_path = preset_dir / ("full.json" if dataset == "icar" else f"{size}_{period}.json")
+    payload = {
+        "dataset": dataset,
+        "size": size,
+        "period": period,
+        "cow_count": 1,
+        "cows": [
+            {
+                "cow_id": "874_2",
+                "display_name": "Cow 874 - parity 2",
+                "parity": 2,
+                "dim": [35, 65],
+                "milk_kg": [51.26, 45.36],
+            }
+        ],
+    }
+    if dataset == "icar":
+        payload["actual_yields"] = {"874_2": 10573.1}
+    preset_path.write_text(json.dumps(payload))
+    monkeypatch.setattr(datasets_route, "_LOCAL_PRESETS_DIR", presets_dir)
+    return payload
 
+
+def test_preset_blob_path_uses_canonical_data_prefix():
+    assert (
+        datasets_route._preset_blob_path("aurora", "small", "recent")
+        == "data/datasets/presets/aurora/small_recent.json"
+    )
+    assert (
+        datasets_route._preset_blob_path("icar", "full", "all")
+        == "data/datasets/presets/icar/full.json"
+    )
+
+
+def test_fetch_preset_cows_falls_back_to_local_preset(tmp_path, monkeypatch):
+    _write_local_preset(tmp_path, monkeypatch)
     preset = datasets_route.fetch_preset_cows(
         "aurora",
         "small",
@@ -126,24 +152,13 @@ def test_fetch_preset_cows_falls_back_to_local_raw_data(tmp_path, monkeypatch):
     assert preset.dataset == "aurora"
     assert preset.size == "small"
     assert preset.period == "mixed"
-    assert preset.cow_count == 2
-    assert {cow.cow_id for cow in preset.cows} == {"874_2", "875_3"}
-    assert preset.cows[0].milk_kg[0] == pytest.approx(113.0 * 0.45359237, abs=0.01)
+    assert preset.cow_count == 1
+    assert preset.cows[0].cow_id == "874_2"
+    assert preset.cows[0].milk_kg[0] == pytest.approx(51.26)
 
 
-def test_fetch_preset_cows_uses_local_raw_data_when_blob_is_unreachable(tmp_path, monkeypatch):
-    raw_dir = tmp_path / "raw"
-    raw_dir.mkdir()
-    (raw_dir / "MilkRecordingsSunnySide.CSV").write_text(
-        "\n".join(
-            [
-                '"ID","LACT","TestDate","DIM","MILK"',
-                "1,3,06/04/08,440,50",
-                "1,3,06/04/08,470,48",
-            ]
-        )
-    )
-    monkeypatch.setattr(datasets_route, "_LOCAL_RAW_DIR", raw_dir)
+def test_fetch_preset_cows_uses_local_preset_when_blob_is_unreachable(tmp_path, monkeypatch):
+    _write_local_preset(tmp_path, monkeypatch, dataset="sunnyside", size="small", period="mixed")
 
     def _raise_blob_error(*args, **kwargs):
         raise AzureError("network unavailable")
@@ -159,14 +174,14 @@ def test_fetch_preset_cows_uses_local_raw_data_when_blob_is_unreachable(tmp_path
 
     assert preset.dataset == "sunnyside"
     assert preset.cow_count == 1
-    assert preset.cows[0].cow_id == "1_3"
+    assert preset.cows[0].cow_id == "874_2"
 
 
-def test_fetch_preset_cows_returns_503_when_blob_and_local_raw_data_are_unavailable(
+def test_fetch_preset_cows_returns_503_when_blob_and_local_preset_are_unavailable(
     tmp_path,
     monkeypatch,
 ):
-    monkeypatch.setattr(datasets_route, "_LOCAL_RAW_DIR", tmp_path / "missing")
+    monkeypatch.setattr(datasets_route, "_LOCAL_PRESETS_DIR", tmp_path / "missing")
 
     with pytest.raises(HTTPException) as exc_info:
         datasets_route.fetch_preset_cows(

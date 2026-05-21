@@ -1,0 +1,49 @@
+x-api-build: &api-build
+  context: ./apps/backend/api
+  dockerfile: Dockerfile
+
+services:
+  migrate:
+    build: *api-build
+    image: bovi-api:local
+    container_name: bovi-api-migrate
+    command: ["run-migrations"]
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/bovi.db
+    volumes:
+      - bovi-data:/data
+    restart: "no"
+
+  api:
+    build: *api-build
+    image: bovi-api:local
+    container_name: bovi-api
+    ports:
+      - "${PORT_API:-8000}:8000"
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/bovi.db
+      CORS_ORIGINS: '["http://localhost:${PORT_DASHBOARD:-3000}"]'
+    volumes:
+      - bovi-data:/data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./apps/frontend/dashboard
+      dockerfile: Dockerfile
+    image: bovi-dashboard:local
+    container_name: bovi-dashboard
+    ports:
+      - "${PORT_DASHBOARD:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  bovi-data:

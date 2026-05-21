@@ -41,8 +41,12 @@ function StatsTable({
 }): ReactElement {
   return (
     <Stack gap={4}>
-      <Text fw={600} size="sm">{title}</Text>
-      <Text size="xs" c="dimmed">{caption}</Text>
+      <Text fw={600} size="sm">
+        {title}
+      </Text>
+      <Text size="xs" c="var(--benchmark-muted-text)">
+        {caption}
+      </Text>
       <Table withTableBorder withColumnBorders>
         <Table.Thead>
           <Table.Tr>
@@ -68,9 +72,7 @@ function StatsTable({
 export function ComparisonResults({ submission }: Props): ReactElement {
   const { stats } = submission;
   const challengerLabel =
-    submission.submission_type === "bovi_model"
-      ? `Bovi - ${submission.model_type}`
-      : "Own method";
+    submission.submission_type === "bovi_model" ? `Bovi - ${submission.model_type}` : "Own method";
   const benchmarkLabel = submission.benchmark_model ?? "tim";
 
   // v2 stats: three blocks
@@ -83,9 +85,15 @@ export function ComparisonResults({ submission }: Props): ReactElement {
       <Group justify="space-between">
         <Text fw={600}>Results</Text>
         <Group gap={6}>
-          <Badge color="violet" variant="light">{challengerLabel}</Badge>
-          <Text size="xs" c="dimmed">vs</Text>
-          <Badge color="blue" variant="light">{benchmarkLabel}</Badge>
+          <Badge color="violet" variant="light">
+            {challengerLabel}
+          </Badge>
+          <Text size="xs" c="var(--benchmark-muted-text)">
+            vs
+          </Text>
+          <Badge color="blue" variant="light">
+            {benchmarkLabel}
+          </Badge>
         </Group>
       </Group>
 
@@ -116,8 +124,8 @@ export function ComparisonResults({ submission }: Props): ReactElement {
       ) : (
         <>
           <Alert color="yellow" variant="light" title="Legacy submission">
-            This submission was created before the three-axis benchmarking refactor and only has
-            the older vs-TIM comparison.
+            This submission was created before the three-axis benchmarking refactor and only has the
+            older vs-TIM comparison.
           </Alert>
           {stats.overall && stats.by_parity && (
             <StatsTable
@@ -130,7 +138,9 @@ export function ComparisonResults({ submission }: Props): ReactElement {
       )}
 
       {stats.failed_count > 0 && (
-        <Text size="xs" c="dimmed">{stats.failed_count} cow(s) excluded from stats.</Text>
+        <Text size="xs" c="var(--benchmark-muted-text)">
+          {stats.failed_count} cow(s) excluded from stats.
+        </Text>
       )}
 
       <Group>

@@ -55,6 +55,7 @@ _FAILURE_THRESHOLD = 0.20
 ACTION_BENCHMARK_CHALLENGE_TEST_DAY = "benchmark_challenge_test_day"
 ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS = "benchmark_challenge_actual_yields"
 ACTION_BENCHMARK_SUBMISSION_RESULTS = "benchmark_submission_results"
+_MAX_PLAUSIBLE_LACTATION_YIELD_KG = 100_000.0
 
 CURVE_MODELS = {"wood", "wilmink", "ali_schaeffer", "fischer", "milkbot"}
 YIELD_ESTIMATORS = {
@@ -75,6 +76,60 @@ ChallengerOrBenchmark = Literal[
     "islc",
     "best_predict",
 ]
+
+
+def _actual_yields_are_plausible(actual_yields: dict | None) -> bool:
+    if not actual_yields:
+        return True
+    return all(
+        0 < float(value) < _MAX_PLAUSIBLE_LACTATION_YIELD_KG for value in actual_yields.values()
+    )
+
+
+async def _repair_preset_challenge_if_needed(
+    challenge: Challenge,
+    session: AsyncSession,
+    settings: Settings,
+) -> bool:
+    """Refresh legacy ICAR preset challenges that stored bad concatenated ALY values."""
+    if challenge.dataset != "icar" or challenge.source != "preset":
+        return False
+    if _actual_yields_are_plausible(challenge.actual_yields):
+        return False
+
+    loop = asyncio.get_running_loop()
+    preset = await loop.run_in_executor(None, fetch_preset_cows, "icar", "full", "all", settings)
+    if not preset.actual_yields:
+        raise HTTPException(
+            status_code=500,
+            detail="ICAR preset is missing actual_yields - regenerate the preset data.",
+        )
+
+    challenge.cow_metadata = {
+        cow.cow_id: {
+            "parity": cow.parity,
+            "herd_id": cow.herd_id,
+            "dim": cow.dim,
+            "milk_kg": cow.milk_kg,
+        }
+        for cow in preset.cows
+        if cow.cow_id in preset.actual_yields
+    }
+    challenge.actual_yields = {cid: preset.actual_yields[cid] for cid in challenge.cow_metadata}
+    session.add(challenge)
+    await session.commit()
+    await session.refresh(challenge)
+    return True
+
+
+def _recalculate_submission_stats(submission: Submission, challenge: Challenge) -> dict:
+    parities = {cid: meta.get("parity", 1) or 1 for cid, meta in challenge.cow_metadata.items()}
+    return calculate_comparison_stats_v2(
+        challenger_yields=submission.submitted_yields,
+        benchmark_yields=submission.bovi_yields,
+        actual_yields=challenge.actual_yields or {},
+        parities=parities,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +243,10 @@ async def _call_autoencoder(
         for d, m in zip(meta["dim"], meta["milk_kg"]):
             if 1 <= d <= 304:
                 milk[d - 1] = float(m)
-        items.append({"milk": milk, "parity": meta.get("parity") or 1})
+        item = {"milk": milk, "parity": meta.get("parity") or 1}
+        if meta.get("herd_id") is not None:
+            item["herd_id"] = meta["herd_id"]
+        items.append(item)
 
     payload = {"items": items, "imputation_method": "forward_fill"}
     client = _get_client()
@@ -262,7 +320,12 @@ async def create_challenge_preset(
         )
 
     cow_metadata: dict[str, dict] = {
-        cow.cow_id: {"parity": cow.parity, "dim": cow.dim, "milk_kg": cow.milk_kg}
+        cow.cow_id: {
+            "parity": cow.parity,
+            "herd_id": cow.herd_id,
+            "dim": cow.dim,
+            "milk_kg": cow.milk_kg,
+        }
         for cow in preset.cows
     }
     # Keep only cows that have ALY (defensive - already filtered by generator)
@@ -477,11 +540,12 @@ async def export_challenge(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["cow_id", "parity", "dim", "milk_kg"])
+    writer.writerow(["cow_id", "herd_id", "parity", "dim", "milk_kg"])
     for cow_id, meta in challenge.cow_metadata.items():
+        herd_id = meta.get("herd_id", "")
         parity = meta.get("parity", "")
         for d, m in zip(meta["dim"], meta["milk_kg"]):
-            writer.writerow([cow_id, parity, d, m])
+            writer.writerow([cow_id, herd_id, parity, d, m])
 
     content = output.getvalue().encode("utf-8")
     return Response(
@@ -724,12 +788,21 @@ async def get_submission(
     submission_id: int,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
 ) -> Submission:
     """Get a single submission with stats."""
     sub = await session.get(Submission, submission_id)
     if sub is None:
         raise HTTPException(status_code=404, detail="Submission not found")
     ensure_organization_access(current_user, sub.organization_id)
+    challenge = await session.get(Challenge, sub.challenge_id)
+    if challenge is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    if await _repair_preset_challenge_if_needed(challenge, session, settings):
+        sub.stats = _recalculate_submission_stats(sub, challenge)
+        session.add(sub)
+        await session.commit()
+        await session.refresh(sub)
     return sub
 
 
@@ -738,6 +811,7 @@ async def download_report(
     submission_id: int,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
 ) -> Response:
     """Download a PDF report for a submission."""
     sub = await session.get(Submission, submission_id)
@@ -748,6 +822,11 @@ async def download_report(
     challenge = await session.get(Challenge, sub.challenge_id)
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
+    if await _repair_preset_challenge_if_needed(challenge, session, settings):
+        sub.stats = _recalculate_submission_stats(sub, challenge)
+        session.add(sub)
+        await session.commit()
+        await session.refresh(sub)
 
     parities = {cid: meta.get("parity", 1) or 1 for cid, meta in challenge.cow_metadata.items()}
     pdf_bytes = generate_report_pdf(
