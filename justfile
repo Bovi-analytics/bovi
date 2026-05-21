@@ -76,9 +76,9 @@ dev: stop run
 run-api:
     cd apps/backend/api && uv run python -m uvicorn bovi_api.app:app --reload --port $PORT_API
 
-# Apply DB migrations manually (the API also does this automatically on startup)
+# Apply DB migrations manually before rolling a new API revision.
 db-migrate:
-    cd apps/backend/api && uv run alembic upgrade head
+    cd apps/backend/api && uv run python -m bovi_api.migrations
 
 # ── Containerised API (SQLite on a Docker volume) ────────────
 api-build:
