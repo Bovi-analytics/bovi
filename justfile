@@ -148,7 +148,7 @@ compose-smoke:
     for i in $(seq 1 30); do
         if curl -sf "http://localhost:$PORT_DASHBOARD/" >/dev/null 2>&1; then
             echo "✓ Dashboard / OK"
-            exit 0
+            break
         fi
         if [ "$i" -eq 30 ]; then
             echo "✗ Dashboard / did not respond in time"
@@ -156,6 +156,12 @@ compose-smoke:
         fi
         sleep 1
     done
+    if curl -sf "http://localhost:$PORT_DASHBOARD/api/bovi/health" >/dev/null 2>&1; then
+        echo "✓ Dashboard API proxy /api/bovi/health OK"
+        exit 0
+    fi
+    echo "✗ Dashboard API proxy did not respond"
+    exit 1
 
 run-models:
     #!/usr/bin/env bash
