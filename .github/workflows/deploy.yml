@@ -158,6 +158,8 @@ jobs:
             --name "$API_MIGRATION_JOB" \
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --image "$API_IMAGE" \
+            --command python \
+            --args "-m" "bovi_api.migrations" \
             --query "name" -o tsv)"
           if [ -z "$execution_name" ]; then
             execution_name="$(az containerapp job execution list \
