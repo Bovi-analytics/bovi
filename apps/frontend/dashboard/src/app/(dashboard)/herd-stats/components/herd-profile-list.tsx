@@ -14,7 +14,10 @@ import {
 import type { HerdProfile, HerdProfileCreate } from "@/types/api";
 import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
 
-const PRESET_LABELS: Record<string, string> = { aurora: "Aurora Ridge", sunnyside: "Sunnyside" };
+const PRESET_LABELS: Record<string, string> = {
+  aurora: "Preset cohort A",
+  sunnyside: "Preset cohort B",
+};
 const PERIOD_LABELS: Record<string, string> = { recent: "Recent", old: "Old", mixed: "Mixed" };
 const SIZE_LABELS: Record<string, string> = { small: "Small", medium: "Medium", large: "Large" };
 
@@ -56,9 +59,7 @@ export function HerdProfileList(): ReactElement {
         </Group>
 
         {profiles.length === 0 ? (
-          <Text size="sm">
-            No profiles yet. Create one to save a set of herd statistics.
-          </Text>
+          <Text size="sm">No profiles yet. Create one to save a set of herd statistics.</Text>
         ) : (
           <Table striped highlightOnHover>
             <Table.Thead>
@@ -75,9 +76,7 @@ export function HerdProfileList(): ReactElement {
                   <Table.Td>{profile.name}</Table.Td>
                   <Table.Td>{profile.description || "-"}</Table.Td>
                   <Table.Td>
-                    {profile.created_at
-                      ? new Date(profile.created_at).toLocaleDateString()
-                      : "-"}
+                    {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "-"}
                   </Table.Td>
                   <Table.Td>
                     <Group gap="xs" justify="flex-end">
@@ -120,7 +119,7 @@ export function HerdProfileList(): ReactElement {
           }
           defaultDescription={
             activePreset
-              ? `Herd statistics derived from the ${PRESET_LABELS[activePreset.dataset]} preset dataset (${PERIOD_LABELS[activePreset.period].toLowerCase()} period, ${SIZE_LABELS[activePreset.size].toLowerCase()} sample).`
+              ? `Herd statistics derived from ${PRESET_LABELS[activePreset.dataset]} (${PERIOD_LABELS[activePreset.period].toLowerCase()} period, ${SIZE_LABELS[activePreset.size].toLowerCase()} sample).`
               : undefined
           }
           onSubmit={handleCreate}

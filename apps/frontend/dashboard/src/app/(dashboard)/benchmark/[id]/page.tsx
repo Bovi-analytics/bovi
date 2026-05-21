@@ -11,7 +11,7 @@ import { useChallenge } from "../hooks/use-challenges";
 import { useSubmissions } from "../hooks/use-submissions";
 
 const DATASET_LABEL: Record<string, string> = {
-  icar: "ICAR cohort",
+  icar: "Reference cohort",
   upload: "Custom upload",
 };
 
@@ -27,7 +27,7 @@ export default function ChallengeDetailPage(): ReactElement {
   if (challengeLoading || submissionsLoading) return <Loader />;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="benchmark-page space-y-6 p-6">
       <Anchor component={Link} href="/benchmark" size="sm">
         <Group gap={4} wrap="nowrap">
           <ArrowLeft size={14} />
@@ -49,23 +49,25 @@ export default function ChallengeDetailPage(): ReactElement {
             </>
           )}
         </Group>
-        <Text size="sm" c="dimmed">
+        <Text size="sm" c="var(--benchmark-muted-text)">
           Submit a challenger - a Bovi model or your own CSV - to compare against the fixed TIM
-          (ICAR) benchmark for this cohort.
+          benchmark for this cohort.
         </Text>
       </Stack>
 
       <Card withBorder padding="md">
         <Stack gap={4} mb="sm">
           <Text fw={600}>Submit a challenger</Text>
-          <Text size="xs" c="dimmed">
+          <Text size="xs" c="var(--benchmark-muted-text)">
             Pick a Bovi model to run, or upload the results of your own calculation. Bovi compares
-            it against the TIM (ICAR) benchmark for this challenge.
+            it against the TIM benchmark for this challenge.
           </Text>
         </Stack>
         <SubmissionForm
           challengeId={challengeId}
-          onSuccess={() => { refetch(); }}
+          onSuccess={() => {
+            refetch();
+          }}
         />
       </Card>
 
@@ -79,7 +81,9 @@ export default function ChallengeDetailPage(): ReactElement {
       )}
 
       {challengeSubmissions.length > 1 && (
-        <Text size="xs" c="dimmed">{challengeSubmissions.length} submissions total for this challenge.</Text>
+        <Text size="xs" c="var(--benchmark-muted-text)">
+          {challengeSubmissions.length} submissions total for this challenge.
+        </Text>
       )}
     </div>
   );

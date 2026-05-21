@@ -17,8 +17,7 @@ export interface ExampleLactation {
  * Example datasets.
  *
  * - `source: "synthetic"` - illustrative lactations, hand-crafted for teaching purposes.
- * - `source: "icar"` - one cow per parity bucket, extracted from Meike's ICAR test-day
- *   dataset (`data/cow_data/TestDataSet(in).csv`). Real test-day records in kg.
+ * - `source: "icar"` - anonymized reference cows with real test-day records in kg.
  */
 export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   {
@@ -53,8 +52,9 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "icar-2348",
-    label: "ICAR cow 2348 - parity 1",
-    description: "Real ICAR test-day records: first-lactation heifer, 11 measurements, peak ~34 kg.",
+    label: "Reference cow 2348 - parity 1",
+    description:
+      "Anonymized test-day records: first-lactation heifer, 11 measurements, peak ~34 kg.",
     parity: 1,
     breed: "H",
     dim: [7, 35, 63, 91, 119, 147, 175, 203, 231, 259, 287],
@@ -63,8 +63,8 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "icar-2212",
-    label: "ICAR cow 2212 - parity 2",
-    description: "Real ICAR test-day records: second-lactation cow, pronounced peak near 48 kg.",
+    label: "Reference cow 2212 - parity 2",
+    description: "Anonymized test-day records: second-lactation cow, pronounced peak near 48 kg.",
     parity: 2,
     breed: "H",
     dim: [5, 33, 61, 89, 117, 145, 173, 201, 229, 257, 299],
@@ -73,8 +73,9 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "icar-1900",
-    label: "ICAR cow 1900 - parity 4",
-    description: "Real ICAR test-day records: mature cow, late peak reaching 56 kg on the third test.",
+    label: "Reference cow 1900 - parity 4",
+    description:
+      "Anonymized test-day records: mature cow, late peak reaching 56 kg on the third test.",
     parity: 4,
     breed: "H",
     dim: [3, 31, 59, 87, 115, 143, 171, 199, 227, 255, 283],
@@ -83,8 +84,8 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "icar-1863",
-    label: "ICAR cow 1863 - parity 5",
-    description: "Real ICAR test-day records: fifth-parity cow with a noisier yield profile.",
+    label: "Reference cow 1863 - parity 5",
+    description: "Anonymized test-day records: fifth-parity cow with a noisier yield profile.",
     parity: 5,
     breed: "H",
     dim: [17, 45, 73, 101, 129, 157, 185, 213, 241, 269],
@@ -93,8 +94,9 @@ export const EXAMPLE_LACTATIONS: readonly ExampleLactation[] = [
   },
   {
     id: "icar-1483",
-    label: "ICAR cow 1483 - parity 7",
-    description: "Real ICAR test-day records: aged high-yielder peaking at 53 kg then declining sharply.",
+    label: "Reference cow 1483 - parity 7",
+    description:
+      "Anonymized test-day records: aged high-yielder peaking at 53 kg then declining sharply.",
     parity: 7,
     breed: "H",
     dim: [15, 43, 71, 99, 127, 155, 183, 211, 239, 268, 302],

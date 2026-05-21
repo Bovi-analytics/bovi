@@ -10,7 +10,7 @@ interface Props {
 }
 
 const DATASET_LABEL: Record<string, string> = {
-  icar: "ICAR cohort",
+  icar: "Reference cohort",
   upload: "Custom upload",
 };
 
@@ -22,20 +22,18 @@ export function ChallengeCard({ challenge }: Props): ReactElement {
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Stack gap="xs">
         <Group justify="space-between">
-          <Text fw={600} size="sm">{title}</Text>
-          <Badge size="xs" variant="light">{datasetLabel}</Badge>
+          <Text fw={600} size="sm">
+            {title}
+          </Text>
+          <Badge size="xs" variant="light">
+            {datasetLabel}
+          </Badge>
         </Group>
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="var(--benchmark-muted-text)">
           #{challenge.id}
-          {challenge.created_at
-            ? ` · ${new Date(challenge.created_at).toLocaleDateString()}`
-            : ""}
+          {challenge.created_at ? ` · ${new Date(challenge.created_at).toLocaleDateString()}` : ""}
         </Text>
-        <Button
-          size="xs"
-          variant="light"
-          onClick={() => router.push(`/benchmark/${challenge.id}`)}
-        >
+        <Button size="xs" variant="light" onClick={() => router.push(`/benchmark/${challenge.id}`)}>
           View &amp; Submit
         </Button>
       </Stack>

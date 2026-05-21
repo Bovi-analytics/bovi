@@ -27,9 +27,7 @@ function SectionHeader({
           {badge}
         </Badge>
       </Group>
-      <Text size="sm">
-        {description}
-      </Text>
+      <Text size="sm">{description}</Text>
     </Stack>
   );
 }
@@ -51,7 +49,7 @@ export default function HerdStatsPage(): ReactElement {
           icon={FlaskConical}
           title="Cow data"
           badge="for Classical Models"
-          description="Individual cow records - one measurement per test day. Load a preset farm dataset or upload your own CSV. Used by the classical curve models (Wood, Wilmink, etc.)."
+          description="Individual cow records - one measurement per test day. Load an anonymized preset dataset or upload your own CSV. Used by the classical curve models (Wood, Wilmink, etc.)."
         />
         <DataSourcePicker />
       </div>

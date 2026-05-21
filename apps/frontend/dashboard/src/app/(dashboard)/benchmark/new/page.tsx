@@ -22,10 +22,7 @@ import { ArrowLeft, Info } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  useCreateChallengePreset,
-  useCreateChallengeUpload,
-} from "../hooks/use-challenges";
+import { useCreateChallengePreset, useCreateChallengeUpload } from "../hooks/use-challenges";
 
 const TEST_DAY_EXAMPLE_CSV = `cow_id,parity,dim,milk_kg
 1001,1,15,28.5
@@ -61,19 +58,23 @@ function PresetTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
     <Stack gap="md">
       <Card withBorder padding="md">
         <Stack gap="sm">
-          <Text fw={600}>ICAR cohort</Text>
-          <Text size="sm" c="dimmed">
-            407 cows with sparse test-day records and ground-truth Actual Lactation Yield (ALY)
-            from daily-meter recordings. This is the only preset that can be used for
-            ground-truth benchmarking.
+          <Text fw={600}>Reference cohort</Text>
+          <Text size="sm" c="var(--benchmark-muted-text)">
+            407 cows with sparse test-day records and ground-truth Actual Lactation Yield (ALY) from
+            daily-meter recordings. This is the built-in preset that can be used for ground-truth
+            benchmarking.
           </Text>
           <TextInput
             label="Cohort name (optional)"
-            placeholder="ICAR cohort"
+            placeholder="Reference cohort"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          {error && <Text c="red" size="sm">{(error as Error).message}</Text>}
+          {error && (
+            <Text c="red" size="sm">
+              {(error as Error).message}
+            </Text>
+          )}
           <Button
             onClick={() =>
               mutate(
@@ -84,7 +85,7 @@ function PresetTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
             loading={isPending}
             w="fit-content"
           >
-            Create ICAR challenge
+            Create reference challenge
           </Button>
         </Stack>
       </Card>
@@ -118,9 +119,13 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
       <Card withBorder padding="sm">
         <Stack gap={6}>
           <Group gap={6}>
-            <Text fw={600} size="sm">Test-day records CSV</Text>
+            <Text fw={600} size="sm">
+              Test-day records CSV
+            </Text>
             <Tooltip label="Sparse test-day milk recordings, multiple rows per cow.">
-              <ActionIcon size="xs" variant="subtle" color="gray"><Info size={14} /></ActionIcon>
+              <ActionIcon size="xs" variant="subtle" color="gray">
+                <Info size={14} />
+              </ActionIcon>
             </Tooltip>
           </Group>
           <FileInput
@@ -158,9 +163,13 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
       <Card withBorder padding="sm">
         <Stack gap={6}>
           <Group gap={6}>
-            <Text fw={600} size="sm">Actual yields CSV (ground truth)</Text>
+            <Text fw={600} size="sm">
+              Actual yields CSV (ground truth)
+            </Text>
             <Tooltip label="Daily-meter cumulative 305-day yield per cow.">
-              <ActionIcon size="xs" variant="subtle" color="gray"><Info size={14} /></ActionIcon>
+              <ActionIcon size="xs" variant="subtle" color="gray">
+                <Info size={14} />
+              </ActionIcon>
             </Tooltip>
           </Group>
           <FileInput
@@ -183,7 +192,9 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
                     variant="outline"
                     size="xs"
                     w="fit-content"
-                    onClick={() => downloadText(ACTUAL_YIELDS_EXAMPLE_CSV, "actual_yields_example.csv")}
+                    onClick={() =>
+                      downloadText(ACTUAL_YIELDS_EXAMPLE_CSV, "actual_yields_example.csv")
+                    }
                   >
                     Download example CSV
                   </Button>
@@ -194,7 +205,11 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
         </Stack>
       </Card>
 
-      {error && <Text c="red" size="sm">{(error as Error).message}</Text>}
+      {error && (
+        <Text c="red" size="sm">
+          {(error as Error).message}
+        </Text>
+      )}
 
       <Button
         disabled={!canSubmit}
@@ -219,7 +234,7 @@ export default function NewChallengePage(): ReactElement {
   const onCreated = (id: number) => router.push(`/benchmark/${id}`);
 
   return (
-    <div className="max-w-2xl space-y-6 p-6">
+    <div className="benchmark-page max-w-2xl space-y-6 p-6">
       <Anchor component={Link} href="/benchmark" size="sm">
         <Group gap={4} wrap="nowrap">
           <ArrowLeft size={14} />
@@ -228,15 +243,15 @@ export default function NewChallengePage(): ReactElement {
       </Anchor>
       <Stack gap={4}>
         <h1 className="text-2xl font-semibold">New Challenge</h1>
-        <Text size="sm" c="dimmed">
-          Pick a cohort with ground-truth Actual Lactation Yield (ALY). Use the built-in ICAR
+        <Text size="sm" c="var(--benchmark-muted-text)">
+          Pick a cohort with ground-truth Actual Lactation Yield (ALY). Use the built-in reference
           dataset, or upload your own test-day records together with daily-meter ground truth.
         </Text>
       </Stack>
 
       <Tabs defaultValue="preset">
         <Tabs.List>
-          <Tabs.Tab value="preset">ICAR preset</Tabs.Tab>
+          <Tabs.Tab value="preset">Reference preset</Tabs.Tab>
           <Tabs.Tab value="upload">Upload own dataset</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="preset" pt="md">
@@ -249,7 +264,7 @@ export default function NewChallengePage(): ReactElement {
 
       <Group gap="xs">
         <Loader size="xs" style={{ display: "none" }} />
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="var(--benchmark-muted-text)">
           Creating an upload challenge takes a few seconds. Once created, run the challenger and
           benchmark on the cohort to see results.
         </Text>
