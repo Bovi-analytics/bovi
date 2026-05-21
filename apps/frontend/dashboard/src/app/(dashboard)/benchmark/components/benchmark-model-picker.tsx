@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { Select, Stack, Tabs, Text } from "@mantine/core";
-import type { BenchmarkModel } from "@/types/api";
+import { Group, SegmentedControl, Select, Stack, Tabs, Text } from "@mantine/core";
+import type { BenchmarkModel, MilkBotRunOptions } from "@/types/api";
 
 type BenchmarkModelGroup = "yield" | "curve" | "deep";
 
@@ -60,11 +60,23 @@ interface Props {
   readonly label: string;
   readonly value: BenchmarkModel;
   readonly onChange: (value: BenchmarkModel) => void;
+  readonly milkbotOptions: MilkBotRunOptions;
+  readonly onMilkbotOptionsChange: (options: MilkBotRunOptions) => void;
 }
 
-export function BenchmarkModelPicker({ label, value, onChange }: Props): ReactElement {
+export function BenchmarkModelPicker({
+  label,
+  value,
+  onChange,
+  milkbotOptions,
+  onMilkbotOptionsChange,
+}: Props): ReactElement {
   const activeGroup = MODEL_TO_GROUP[value];
   const activeModels = MODEL_GROUPS[activeGroup].models;
+
+  function updateMilkBotOptions(patch: Partial<MilkBotRunOptions>): void {
+    onMilkbotOptionsChange({ ...milkbotOptions, ...patch });
+  }
 
   function handleTabChange(nextGroup: string | null): void {
     if (!nextGroup || nextGroup === activeGroup) {
@@ -94,6 +106,55 @@ export function BenchmarkModelPicker({ label, value, onChange }: Props): ReactEl
       <Text size="xs" c="dimmed">
         {MODEL_GROUPS[activeGroup].description}
       </Text>
+      {value === "milkbot" && (
+        <Stack gap={6}>
+          <SegmentedControl
+            size="xs"
+            value={milkbotOptions.fitting}
+            onChange={(nextValue) =>
+              updateMilkBotOptions({ fitting: nextValue as MilkBotRunOptions["fitting"] })
+            }
+            data={[
+              { value: "frequentist", label: "Frequentist" },
+              { value: "bayesian", label: "Bayesian" },
+            ]}
+          />
+          <Group grow>
+            <Select
+              size="xs"
+              label="Prior source"
+              value={milkbotOptions.continent}
+              onChange={(nextValue) =>
+                nextValue &&
+                updateMilkBotOptions({ continent: nextValue as MilkBotRunOptions["continent"] })
+              }
+              data={[
+                { value: "USA", label: "USA" },
+                { value: "EU", label: "EU" },
+                { value: "CHEN", label: "Chen et al." },
+              ]}
+              allowDeselect={false}
+            />
+            <Select
+              size="xs"
+              label="Breed"
+              value={milkbotOptions.breed}
+              onChange={(nextValue) =>
+                nextValue &&
+                updateMilkBotOptions({ breed: nextValue as MilkBotRunOptions["breed"] })
+              }
+              data={[
+                { value: "H", label: "Holstein" },
+                { value: "J", label: "Jersey" },
+              ]}
+              allowDeselect={false}
+            />
+          </Group>
+          <Text size="xs" c="dimmed">
+            Parity is read per cow from the benchmark cohort.
+          </Text>
+        </Stack>
+      )}
     </Stack>
   );
 }

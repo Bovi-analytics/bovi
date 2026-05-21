@@ -1,6 +1,7 @@
 """Tests for the /fit endpoint (lactation curve fitting)."""
 
 import httpx
+import numpy as np
 import pytest
 
 
@@ -87,6 +88,84 @@ def test_fit_single_point(api: httpx.Client):
 def test_fit_parity_zero(api: httpx.Client, sample_data: dict):
     """Parity 0 violates ge=1 constraint -- should return 422."""
     r = api.post("/fit", json={**sample_data, "parity": 0})
+    assert r.status_code == 422
+
+
+def test_fit_bayesian_milkbot_uses_configured_key(
+    api: httpx.Client, sample_data: dict, monkeypatch: pytest.MonkeyPatch
+):
+    import main
+
+    calls = []
+
+    def fake_fit_lactation_curve(**kwargs):
+        calls.append(kwargs)
+        return np.ones(305)
+
+    monkeypatch.setattr(main.settings, "milkbot_key", "test-key")
+    monkeypatch.setattr(main, "fit_lactation_curve", fake_fit_lactation_curve)
+
+    r = api.post(
+        "/fit",
+        json={
+            **sample_data,
+            "model": "milkbot",
+            "fitting": "bayesian",
+            "breed": "J",
+            "parity": 2,
+            "continent": "EU",
+        },
+    )
+
+    assert r.status_code == 200
+    assert len(r.json()["predictions"]) == 305
+    assert calls[0]["key"] == "test-key"
+    assert calls[0]["fitting"] == "bayesian"
+    assert calls[0]["breed"] == "J"
+    assert calls[0]["parity"] == 2
+    assert calls[0]["continent"] == "EU"
+
+
+def test_fit_bayesian_chen_maps_to_custom_priors(
+    api: httpx.Client, sample_data: dict, monkeypatch: pytest.MonkeyPatch
+):
+    import main
+
+    calls = []
+
+    def fake_fit_lactation_curve(**kwargs):
+        calls.append(kwargs)
+        return np.ones(305)
+
+    monkeypatch.setattr(main.settings, "milkbot_key", "test-key")
+    monkeypatch.setattr(main, "fit_lactation_curve", fake_fit_lactation_curve)
+
+    r = api.post(
+        "/fit",
+        json={**sample_data, "model": "milkbot", "fitting": "bayesian", "continent": "CHEN"},
+    )
+
+    assert r.status_code == 200
+    assert calls[0]["continent"] == "USA"
+    assert calls[0]["custom_priors"] == "CHEN"
+
+
+def test_fit_bayesian_requires_milkbot_key(
+    api: httpx.Client, sample_data: dict, monkeypatch: pytest.MonkeyPatch
+):
+    import main
+
+    monkeypatch.setattr(main.settings, "milkbot_key", "")
+
+    r = api.post("/fit", json={**sample_data, "model": "milkbot", "fitting": "bayesian"})
+
+    assert r.status_code == 503
+    assert r.json()["detail"] == "MILKBOT_KEY is required for Bayesian MilkBot fitting."
+
+
+def test_fit_bayesian_non_milkbot_returns_422(api: httpx.Client, sample_data: dict):
+    r = api.post("/fit", json={**sample_data, "model": "wood", "fitting": "bayesian"})
+
     assert r.status_code == 422
 
 

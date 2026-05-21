@@ -178,6 +178,43 @@ def test_characteristic_lactation_length_zero(api: httpx.Client, sample_data: di
     assert r.status_code == 422
 
 
+def test_characteristic_bayesian_milkbot_uses_configured_key(
+    api: httpx.Client, sample_data: dict, monkeypatch: pytest.MonkeyPatch
+):
+    import main
+
+    calls = []
+
+    def fake_calculate_characteristic(**kwargs):
+        calls.append(kwargs)
+        return 123.0
+
+    monkeypatch.setattr(main.settings, "milkbot_key", "test-key")
+    monkeypatch.setattr(main, "calculate_characteristic", fake_calculate_characteristic)
+
+    r = api.post(
+        "/characteristic",
+        json={
+            **sample_data,
+            "model": "milkbot",
+            "characteristic": "cumulative_milk_yield",
+            "fitting": "bayesian",
+            "breed": "J",
+            "parity": 2,
+            "continent": "CHEN",
+        },
+    )
+
+    assert r.status_code == 200
+    assert r.json()["value"] == 123.0
+    assert calls[0]["key"] == "test-key"
+    assert calls[0]["fitting"] == "bayesian"
+    assert calls[0]["breed"] == "J"
+    assert calls[0]["parity"] == 2
+    assert calls[0]["continent"] == "USA"
+    assert calls[0]["custom_priors"] == "CHEN"
+
+
 def test_characteristic_wrong_method(api: httpx.Client):
     """GET on a POST-only endpoint should return 405."""
     r = api.get("/characteristic")

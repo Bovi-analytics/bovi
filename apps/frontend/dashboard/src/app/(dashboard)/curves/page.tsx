@@ -35,7 +35,13 @@ import { useAllCharacteristics } from "./hooks/use-all-characteristics";
 import { useAutoencoderPredict } from "./hooks/use-autoencoder-predict";
 import { usePresetDataset } from "./hooks/use-preset-dataset";
 import { usePresetHerdStats } from "./hooks/use-preset-herd-stats";
-import type { Model, ImputationMethod, PresetCow, PresetDatasetKey } from "@/types/api";
+import type {
+  Model,
+  ImputationMethod,
+  MilkBotRunOptions,
+  PresetCow,
+  PresetDatasetKey,
+} from "@/types/api";
 import type { ExampleLactation } from "@/data/example-lactations";
 import type { ExampleAutoencoderData } from "@/data/example-autoencoder";
 import { useWeightUnit } from "@/app/providers/unit-provider";
@@ -100,10 +106,17 @@ interface ClassicalResultsProps {
   readonly dim: readonly number[];
   readonly milkrecordings: readonly number[];
   readonly parity: number;
+  readonly milkbotOptions: MilkBotRunOptions;
 }
 
-function useClassicalResults({ models, dim, milkrecordings, parity }: ClassicalResultsProps) {
-  const fitResults = useComparison({ models, dim, milkrecordings });
+function useClassicalResults({
+  models,
+  dim,
+  milkrecordings,
+  parity,
+  milkbotOptions,
+}: ClassicalResultsProps) {
+  const fitResults = useComparison({ models, dim, milkrecordings, parity, milkbotOptions });
 
   const curves = fitResults
     .map((result, i) => {
@@ -122,7 +135,7 @@ function useClassicalResults({ models, dim, milkrecordings, parity }: ClassicalR
 
   const isLoading = fitResults.some((r) => r.isLoading);
 
-  const allChars = useAllCharacteristics({ models, dim, milkrecordings, parity });
+  const allChars = useAllCharacteristics({ models, dim, milkrecordings, parity, milkbotOptions });
 
   const statsRows: StatsRow[] = allChars.map((chars) => {
     const metadata = MODEL_METADATA[chars.model];
@@ -259,6 +272,11 @@ export default function CurvesPage(): ReactElement {
 
   // Classical models state (shared between modes)
   const [selectedModels, setSelectedModels] = useState<Model[]>(["wood"]);
+  const [milkbotOptions, setMilkbotOptions] = useState<MilkBotRunOptions>({
+    fitting: "frequentist",
+    breed: "H",
+    continent: "USA",
+  });
 
   const dailyModelInput = useMemo(
     () =>
@@ -285,6 +303,7 @@ export default function CurvesPage(): ReactElement {
     dim: classicalDim,
     milkrecordings: classicalMilk,
     parity: classicalParity,
+    milkbotOptions,
   });
 
   // Autoencoder prediction (daily mode only)
@@ -882,7 +901,13 @@ export default function CurvesPage(): ReactElement {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left panel: inputs */}
         <div className="space-y-4 lg:col-span-1">
-          <ClassicalInputPanel selectedModels={selectedModels} onToggleModel={handleToggleModel} />
+          <ClassicalInputPanel
+            selectedModels={selectedModels}
+            onToggleModel={handleToggleModel}
+            parity={classicalParity}
+            milkbotOptions={milkbotOptions}
+            onMilkbotOptionsChange={setMilkbotOptions}
+          />
 
           {dataMode === "daily" && (
             <AutoencoderInputPanel
