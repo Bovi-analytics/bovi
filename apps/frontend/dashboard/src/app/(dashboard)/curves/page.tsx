@@ -19,6 +19,7 @@ import {
 import { LactationCurveChart } from "@/components/charts/lactation-curve-chart";
 import { ClassicalInputPanel } from "./components/classical-input-panel";
 import { AutoencoderInputPanel } from "./components/autoencoder-input-panel";
+import { DailyImputationPanel } from "./components/daily-imputation-panel";
 import type { HerdStatsSourceKind } from "./components/autoencoder-input-panel";
 import { StatsComparisonTable } from "./components/stats-comparison-table";
 import type { StatsRow } from "./components/stats-comparison-table";
@@ -795,10 +796,6 @@ export default function CurvesPage(): ReactElement {
             <AutoencoderInputPanel
               parity={parity}
               onParityChange={setParity}
-              useImputation={useImputation}
-              onUseImputationChange={setUseImputation}
-              imputationMethod={imputationMethod}
-              onImputationMethodChange={setImputationMethod}
               herdStatsSource={herdStatsSource}
               onHerdStatsSourceChange={setHerdStatsSource}
               selectedProfileId={selectedProfileId}
@@ -810,6 +807,15 @@ export default function CurvesPage(): ReactElement {
               datasetStatsError={datasetHerdStatsError}
               onPredict={() => setPredictEnabled(true)}
               isLoading={autoencoderLoading}
+            />
+          )}
+
+          {dataMode === "daily" && (
+            <DailyImputationPanel
+              useImputation={useImputation}
+              onUseImputationChange={setUseImputation}
+              imputationMethod={imputationMethod}
+              onImputationMethodChange={setImputationMethod}
             />
           )}
         </div>
