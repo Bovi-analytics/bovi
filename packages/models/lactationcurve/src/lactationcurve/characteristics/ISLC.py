@@ -49,9 +49,17 @@ Notes
 - The methods can be applied to lactations without any measurements,
     in which case the result will be the population mean from the standard curve.
 
+Reference
+---------
+Wilmink, J. B. M. (1987). 
+Comparison of different methods of predicting 305-day milk yield using means 
+calculated from within-herd lactation curves. Livestock Production Science, 
+17, 1-17.
+
 
 Author: Meike
 Date: 20 October 2025
+Last update: 21 May 2026
 """
 
 # Import packages

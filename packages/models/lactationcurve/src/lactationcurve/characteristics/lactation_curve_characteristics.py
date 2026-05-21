@@ -30,7 +30,7 @@ Notes
 
 
 Author: Meike van Leerdam
-Last update: 11-feb-2025
+Last update: 21-May-2026
 """
 
 import numpy as np

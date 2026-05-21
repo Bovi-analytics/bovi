@@ -14,11 +14,14 @@ Francis Dodds. (in publication)
 
 Pre-defined lactation curve models
 ----------------------------------
-- Models that can be fitted using frequentist statistics (numeric or least squares optimization):
+- Models that can be fitted using frequentist statistics (numeric least squares optimization):
     - Wood
     - Wilmink
     - Ali & Schaeffer
     - Fischer
+    - MilkBot
+
+- Models that can be fitted using frequentist statistics (algebraic least squares optimization):
     - MilkBot
 
 - Models that can be fitted using Bayesian fitting:

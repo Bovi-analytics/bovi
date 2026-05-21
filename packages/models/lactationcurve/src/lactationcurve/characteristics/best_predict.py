@@ -30,8 +30,17 @@ Notes
 - Users can fit curve and covariance ingredients from their own reference
     population.
 
+Reference
+---------
+VanRaden, P. M. (1997). Lactation yields and accuracies computed from test 
+day yields and (co) variances by best prediction. 
+Journal of dairy science, 80(11), 3015-3022.
+
+Original code for best predict can be found on [GitHub](https://github.com/wintermind/bestpred)
+
 Author: Meike van Leerdam,
 Date: 24-04-2026
+Last update: 21-May-2026
 """
 
 from pathlib import Path

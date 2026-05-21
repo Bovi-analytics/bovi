@@ -240,6 +240,17 @@ in lactation curve shape and magnitude with the MilkBot
 lactation model. PeerJ 1, e54.
 https://doi.org/10.7717/peerj.54*
 
+If you use the 305-day yield calculation methods based on the ICAR guideline, please also cite the following paper:
+Best Predict method:
+*VanRaden, P. M. (1997). Lactation yields and accuracies computed from test 
+day yields and (co) variances by best prediction. 
+Journal of dairy science, 80(11), 3015-3022.*
+
+ISLC:
+*Wilmink, J. B. M. (1987). 
+Comparison of different methods of predicting 305-day milk yield using means 
+calculated from within-herd lactation curves. Livestock Production Science, 17, 1-17.* 
+
 ---
 
 ## License
