@@ -28,8 +28,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     ],
     color: "#2563eb",
     description:
-      "The most widely used model due to its simplicity. " +
-      "Three parameters describe the rise to peak and subsequent decline.",
+      "An incomplete gamma-type function combining a power-law growth term with an exponential decay term.",
   },
   wilmink: {
     id: "wilmink",
@@ -44,8 +43,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     ],
     color: "#16a34a",
     description:
-      "A linear-exponential hybrid. Combines a linear decline " +
-      "with an exponential rise in early lactation.",
+      "A combination of an exponential and a linear component. In contrast to the Fischer model, the additional parameter scaling the exponential term increases flexibility in describing early-lactation dynamics and peak formation.",
   },
   ali_schaeffer: {
     id: "ali_schaeffer",
@@ -61,8 +59,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     ],
     color: "#d97706",
     description:
-      "A flexible 5-parameter model using polynomial and logarithmic terms. " +
-      "Best for complex lactation shapes but can overfit with few data points.",
+      "A linear regression model based on quadratic polynomials in standardized time and in the log-transformed inverse time, where the log term increases flexibility in modelling the ascending phase and peak of lactation.",
   },
   fischer: {
     id: "fischer",
@@ -76,8 +73,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     ],
     color: "#dc2626",
     description:
-      "A simplified exponential decay model. " +
-      "Good for smooth lactation curves without sharp peaks.",
+      "A combination of an exponential and a linear component, characterized by an early exponential phase followed by an approximately linear decline.",
   },
   milkbot: {
     id: "milkbot",
@@ -92,8 +88,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     ],
     color: "#9333ea",
     description:
-      "The most flexible model, describing rise, peak, and decline. " +
-      "Supports both frequentist and Bayesian fitting.",
+      "An empirical, mechanistically motivated four-parameter model describing lactation as the development and decay of udder capacity. It consists of a ramp-up phase and exponential decline, with parameters controlling scale, onset, growth rate, and decay.",
   },
 } as const;
 

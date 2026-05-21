@@ -76,9 +76,9 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
     templateName: "herd_stats_template_aggregated.csv",
   },
   icar_test_day: {
-    label: "ICAR test-day records",
+    label: "Standard test-day records",
     blurb:
-      "One row per cow per milk recording, as exported by the ICAR platform. We aggregate across cows to derive AchievedMilk, Achieved21Milk, Achieved75Milk, Achieved305Milk (trapezoidal ICAR test-interval method) and DaysInMilk. Parity is also detected and shown as a hint for the autoencoder. All other herd stats remain at slider defaults.",
+      "One row per cow per milk recording, as exported by milk-recording software. We aggregate across cows to derive AchievedMilk, Achieved21Milk, Achieved75Milk, Achieved305Milk (trapezoidal test-interval method) and DaysInMilk. Parity is also detected and shown as a hint for the autoencoder. All other herd stats remain at slider defaults.",
     columns: [
       { name: "TestId", description: "Unique cow identifier", required: true },
       { name: "DaysInMilk", description: "Days since calving for this record", required: true },
@@ -88,7 +88,11 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
         description: "Lactation number - used to pick the dominant parity across the herd",
         required: false,
       },
-      { name: "EventType", description: "Only rows with value MilkRecording are kept", required: false },
+      {
+        name: "EventType",
+        description: "Only rows with value MilkRecording are kept",
+        required: false,
+      },
       {
         name: "TestDate / CalvingDate / BirthDate",
         description: "Ignored; may be present without issue",
@@ -105,7 +109,11 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
     columns: [
       { name: "ID", description: "Unique cow identifier", required: true },
       { name: "DIM", description: "Days in milk for this test day", required: true },
-      { name: "MILK", description: "Daily milk yield in lbs (auto-converted to kg)", required: true },
+      {
+        name: "MILK",
+        description: "Daily milk yield in lbs (auto-converted to kg)",
+        required: true,
+      },
       {
         name: "305ME",
         description: "305-day mature equivalent in lbs (preferred source for Achieved305Milk)",
@@ -134,7 +142,7 @@ function downloadText(content: string, filename: string): void {
 
 const FORMAT_LABELS: Record<FormatKey, string> = {
   aggregated: "Aggregated",
-  icar_test_day: "ICAR test-day",
+  icar_test_day: "Standard test-day",
   dairycom_test_day: "DairyCom",
 };
 
@@ -184,8 +192,7 @@ export function HerdProfileUpload(): ReactElement {
   }
 
   const activeFormat = FORMATS[selectedFormat];
-  const detectedMismatch =
-    preview !== null && preview.format_detected !== selectedFormat;
+  const detectedMismatch = preview !== null && preview.format_detected !== selectedFormat;
 
   return (
     <>
@@ -194,9 +201,9 @@ export function HerdProfileUpload(): ReactElement {
           Import from CSV
         </Text>
         <Text size="xs">
-          Pick the format that matches your export, then upload the file. We auto-detect the
-          format server-side and aggregate per-cow records when needed. The detection hint below
-          drives the example template and the format docs only.
+          Pick the format that matches your export, then upload the file. We auto-detect the format
+          server-side and aggregate per-cow records when needed. The detection hint below drives the
+          example template and the format docs only.
         </Text>
 
         <SegmentedControl
@@ -209,9 +216,7 @@ export function HerdProfileUpload(): ReactElement {
           }))}
         />
 
-        <Text size="xs">
-          {activeFormat.blurb}
-        </Text>
+        <Text size="xs">{activeFormat.blurb}</Text>
 
         <Accordion variant="contained">
           <Accordion.Item value="format">
@@ -243,9 +248,7 @@ export function HerdProfileUpload(): ReactElement {
                               required
                             </Badge>
                           ) : (
-                            <Text size="xs">
-                              optional
-                            </Text>
+                            <Text size="xs">optional</Text>
                           )}
                         </Table.Td>
                       </Table.Tr>
@@ -303,8 +306,7 @@ export function HerdProfileUpload(): ReactElement {
               <Text size="xs">
                 {preview.row_count.toLocaleString()} row(s) processed
                 {preview.cow_count != null && ` · ${preview.cow_count} cows`}
-                {preview.detected_parity != null &&
-                  ` · dominant parity ${preview.detected_parity}`}
+                {preview.detected_parity != null && ` · dominant parity ${preview.detected_parity}`}
               </Text>
             </Group>
             {preview.warnings.map((w, i) => (
@@ -314,8 +316,8 @@ export function HerdProfileUpload(): ReactElement {
             ))}
             {preview.cows.length > 0 && uploadedFilename && (
               <Alert icon={<CheckCircle2 size={14} />} color="green">
-                {preview.cows.length} cow record(s) from{" "}
-                <Code>{uploadedFilename}</Code> saved. Continue to the{" "}
+                {preview.cows.length} cow record(s) from <Code>{uploadedFilename}</Code> saved.
+                Continue to the{" "}
                 <Link href="/herd-profiles" style={{ textDecoration: "underline" }}>
                   Herd Profiles tab
                 </Link>{" "}
@@ -343,18 +345,14 @@ export function HerdProfileUpload(): ReactElement {
                         {raw !== undefined ? (
                           `${raw.toFixed(rawDigits)}${unit ? ` ${unit}` : ""}`
                         ) : (
-                          <Text size="xs">
-                            -
-                          </Text>
+                          <Text size="xs">-</Text>
                         )}
                       </Table.Td>
                       <Table.Td>
                         {filled ? (
                           preview.stats[meta.name]?.toFixed(3)
                         ) : (
-                          <Text size="xs">
-                            slider default
-                          </Text>
+                          <Text size="xs">slider default</Text>
                         )}
                       </Table.Td>
                     </Table.Tr>

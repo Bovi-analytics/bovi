@@ -36,7 +36,7 @@ const FLOW: FlowStep[] = [
     href: "/data-upload",
     cta: "Load data",
     description:
-      "Start here. Pick a built-in preset farm (Aurora Ridge or Sunnyside) or upload your own milk-recording CSV. The selected cow records feed the rest of the workflow.",
+      "Start here. Pick an anonymized preset cohort or upload your own milk-recording CSV. The selected cow records feed the rest of the workflow.",
   },
   {
     number: "2",
@@ -68,7 +68,7 @@ const FLOW: FlowStep[] = [
     cta: "Open Benchmark",
     sparkle: true,
     description:
-      "Validate a 305-day yield calculation against the ICAR reference (TIM). Either let Bovi run a built-in calculation for you, or upload the results of your own method as a CSV. Get a per-parity report and a downloadable PDF.",
+      "Validate a 305-day yield calculation against the TIM reference. Either let Bovi run a built-in calculation for you, or upload the results of your own method as a CSV. Get a per-parity report and a downloadable PDF.",
   },
 ];
 
@@ -82,13 +82,7 @@ export default function HomePage(): ReactElement {
           className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-primary/15 via-primary/5 to-transparent"
         />
 
-        <Stack
-          align="center"
-          gap="xl"
-          maw={920}
-          w="100%"
-          style={{ position: "relative" }}
-        >
+        <Stack align="center" gap="xl" maw={920} w="100%" style={{ position: "relative" }}>
           {/* Hero */}
           <Stack align="center" gap="md" w="100%">
             <Image
@@ -99,20 +93,15 @@ export default function HomePage(): ReactElement {
               priority
               className="h-auto w-full max-w-[280px] drop-shadow-[0_0_24px_hsl(var(--primary)/0.35)]"
             />
-            <Badge
-              size="lg"
-              variant="light"
-              color="blue"
-              leftSection={<Sparkles size={12} />}
-            >
+            <Badge size="lg" variant="light" color="blue" leftSection={<Sparkles size={12} />}>
               Lactation Curve Platform
             </Badge>
             <Title order={1} ta="center">
               From raw records to validated lactation curves
             </Title>
             <Text size="md" ta="center" maw={640}>
-              Explore, fit, and benchmark dairy cow lactation curves, all from
-              your browser. Follow the four steps below in order.
+              Explore, fit, and benchmark dairy cow lactation curves, all from your browser. Follow
+              the four steps below in order.
             </Text>
           </Stack>
 
@@ -134,12 +123,7 @@ export default function HomePage(): ReactElement {
                       className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-primary to-accent"
                     />
 
-                    <Group
-                      align="stretch"
-                      gap={0}
-                      wrap="nowrap"
-                      className="relative"
-                    >
+                    <Group align="stretch" gap={0} wrap="nowrap" className="relative">
                       {/* Step number + icon column - fixed width for consistency */}
                       <Stack
                         align="center"
@@ -154,12 +138,7 @@ export default function HomePage(): ReactElement {
                             "linear-gradient(180deg, hsl(var(--primary)/0.10), hsl(var(--accent)/0.05))",
                         }}
                       >
-                        <Text
-                          size="xs"
-                          fw={700}
-                          c="blue.4"
-                          style={{ letterSpacing: "0.1em" }}
-                        >
+                        <Text size="xs" fw={700} c="blue.4" style={{ letterSpacing: "0.1em" }}>
                           STEP {step.number}
                         </Text>
                         <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-primary/40 bg-primary/15 shadow-[0_0_24px_hsl(var(--primary)/0.25)]">
@@ -178,8 +157,7 @@ export default function HomePage(): ReactElement {
                               size={18}
                               className="text-accent"
                               style={{
-                                filter:
-                                  "drop-shadow(0 0 6px hsl(var(--accent)/0.6))",
+                                filter: "drop-shadow(0 0 6px hsl(var(--accent)/0.6))",
                               }}
                             />
                           )}

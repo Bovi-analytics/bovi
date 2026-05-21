@@ -23,7 +23,7 @@ const MODEL_GROUPS: Record<
     label: "305-day yield",
     description: "Direct ALY estimators from test-day records.",
     models: [
-      { value: "tim", label: "TIM (ICAR Test Interval Method)" },
+      { value: "tim", label: "TIM (Test Interval Method)" },
       { value: "islc", label: "ISLC" },
       { value: "best_predict", label: "Best Predict" },
     ],

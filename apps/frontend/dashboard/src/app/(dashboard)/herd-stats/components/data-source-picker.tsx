@@ -50,13 +50,13 @@ interface SourceOption {
 const SOURCE_OPTIONS: SourceOption[] = [
   {
     value: "aurora",
-    label: "Aurora Ridge",
-    description: "5,102 cows · US dairy · 2023–2025",
+    label: "Preset cohort A",
+    description: "Anonymized herd · 5,102 cows · 2023-2025",
   },
   {
     value: "sunnyside",
-    label: "Sunnyside",
-    description: "1,000+ cows · US dairy · 2000–2026",
+    label: "Preset cohort B",
+    description: "Anonymized herd · 1,000+ cows · 2000-2026",
   },
   {
     value: "upload",
@@ -140,7 +140,11 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
     columns: [
       { name: "ID", description: "Unique cow identifier", required: true },
       { name: "DIM", description: "Days in milk for this test day", required: true },
-      { name: "MILK", description: "Daily milk yield in lbs (auto-converted to kg)", required: true },
+      {
+        name: "MILK",
+        description: "Daily milk yield in lbs (auto-converted to kg)",
+        required: true,
+      },
       { name: "305ME", description: "305-day mature equivalent in lbs", required: false },
     ],
     template: () => DAIRYCOM_TEMPLATE,
@@ -174,11 +178,11 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
   );
 
   // Always fetch based on local selection → user gets a live preview before clicking "Use"
-  const { data: presetData, isLoading, isError } = usePresetDataset(
-    dataset,
-    selectedSize,
-    selectedPeriod
-  );
+  const {
+    data: presetData,
+    isLoading,
+    isError,
+  } = usePresetDataset(dataset, selectedSize, selectedPeriod);
 
   const isActive =
     activePreset?.dataset === dataset &&
@@ -192,7 +196,9 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
   return (
     <Stack gap="lg">
       <Stack gap={6}>
-        <Text size="sm" fw={600}>Sample size</Text>
+        <Text size="sm" fw={600}>
+          Sample size
+        </Text>
         <SegmentedControl
           size="sm"
           value={selectedSize}
@@ -201,7 +207,9 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
         />
       </Stack>
       <Stack gap={6}>
-        <Text size="sm" fw={600}>Time period</Text>
+        <Text size="sm" fw={600}>
+          Time period
+        </Text>
         <SegmentedControl
           size="sm"
           value={selectedPeriod}
@@ -218,12 +226,7 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
           </Badge>
         )}
         {!isActive && (
-          <Button
-            size="md"
-            color="violet"
-            onClick={activate}
-            disabled={isLoading || !presetData}
-          >
+          <Button size="md" color="violet" onClick={activate} disabled={isLoading || !presetData}>
             Use this dataset
           </Button>
         )}
@@ -320,7 +323,9 @@ function UploadPanel(): ReactElement {
   return (
     <Stack gap="lg">
       <Stack gap={6}>
-        <Text size="sm" fw={600}>File format</Text>
+        <Text size="sm" fw={600}>
+          File format
+        </Text>
         <SegmentedControl
           size="sm"
           value={selectedFormat}
@@ -330,13 +335,17 @@ function UploadPanel(): ReactElement {
             label: FORMATS[k].label,
           }))}
         />
-        <Text size="sm" mt={4}>{activeFormat.blurb}</Text>
+        <Text size="sm" mt={4}>
+          {activeFormat.blurb}
+        </Text>
       </Stack>
 
       <Accordion variant="contained">
         <Accordion.Item value="columns">
           <Accordion.Control>
-            <Text size="sm" fw={600}>Expected columns</Text>
+            <Text size="sm" fw={600}>
+              Expected columns
+            </Text>
           </Accordion.Control>
           <Accordion.Panel>
             <Stack gap="sm">
@@ -351,11 +360,15 @@ function UploadPanel(): ReactElement {
                 <Table.Tbody>
                   {activeFormat.columns.map((c) => (
                     <Table.Tr key={c.name}>
-                      <Table.Td><Code>{c.name}</Code></Table.Td>
+                      <Table.Td>
+                        <Code>{c.name}</Code>
+                      </Table.Td>
                       <Table.Td>{c.description}</Table.Td>
                       <Table.Td>
                         {c.required ? (
-                          <Badge size="sm" color="red" variant="light">required</Badge>
+                          <Badge size="sm" color="red" variant="light">
+                            required
+                          </Badge>
                         ) : (
                           <Text size="sm">optional</Text>
                         )}
@@ -404,8 +417,8 @@ function UploadPanel(): ReactElement {
         <Stack gap="sm">
           {detectedMismatch && (
             <Alert icon={<AlertCircle size={14} />} color="blue">
-              Detected format: <Code>{FORMAT_LABELS[preview.format_detected]}</Code>. Switched
-              from <Code>{FORMAT_LABELS[selectedFormat]}</Code>.
+              Detected format: <Code>{FORMAT_LABELS[preview.format_detected]}</Code>. Switched from{" "}
+              <Code>{FORMAT_LABELS[selectedFormat]}</Code>.
             </Alert>
           )}
           <Group gap="xs">
@@ -417,12 +430,14 @@ function UploadPanel(): ReactElement {
             </Text>
           </Group>
           {preview.warnings.map((w, i) => (
-            <Alert key={i} icon={<AlertCircle size={14} />} color="yellow">{w}</Alert>
+            <Alert key={i} icon={<AlertCircle size={14} />} color="yellow">
+              {w}
+            </Alert>
           ))}
           {preview.cows.length > 0 && uploadedFilename && (
             <Alert icon={<CheckCircle2 size={14} />} color="green">
-              {preview.cows.length} cow records from <Code>{uploadedFilename}</Code> ready.
-              Continue to the{" "}
+              {preview.cows.length} cow records from <Code>{uploadedFilename}</Code> ready. Continue
+              to the{" "}
               <Link href="/herd-profiles" style={{ textDecoration: "underline" }}>
                 Herd Profiles tab
               </Link>{" "}
@@ -528,8 +543,8 @@ export function DataSourcePicker(): ReactElement {
 
   // Keep active source in sync when the active preset changes from outside
   // (e.g. set on another page). Only depends on activePreset.dataset so a local
-  // tile click is not immediately undone — the user can preview a different
-  // preset (e.g. Aurora) before activating it.
+  // tile click is not immediately undone - the user can preview a different
+  // preset before activating it.
   useEffect(() => {
     if (activePresetDataset) {
       setActiveSource(activePresetDataset);
@@ -539,9 +554,12 @@ export function DataSourcePicker(): ReactElement {
   return (
     <Stack gap="md">
       <div>
-        <Text size="md" fw={700}>Data source</Text>
+        <Text size="md" fw={700}>
+          Data source
+        </Text>
         <Text size="sm" mt={4}>
-          Pick a preset farm dataset or upload your own file to start analyzing lactation curves.
+          Pick an anonymized preset dataset or upload your own file to start analyzing lactation
+          curves.
         </Text>
       </div>
 
@@ -567,8 +585,12 @@ export function DataSourcePicker(): ReactElement {
                   transition: "border-color 0.12s",
                 }}
               >
-                <Text size="md" fw={700}>{opt.label}</Text>
-                <Text size="sm" mt={4}>{opt.description}</Text>
+                <Text size="md" fw={700}>
+                  {opt.label}
+                </Text>
+                <Text size="sm" mt={4}>
+                  {opt.description}
+                </Text>
               </Paper>
             </UnstyledButton>
           );
