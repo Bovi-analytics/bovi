@@ -7,10 +7,10 @@ import pulumi_azure_native.app as app
 
 from ..types import ResourceTags
 
-_STORAGE_NAME = "bovifiles"
-_VOLUME_NAME = "data"
-_MOUNT_PATH = "/mnt/data"
-_DATABASE_URL = f"sqlite+aiosqlite:////{_MOUNT_PATH}/bovi.db"
+AZURE_FILES_STORAGE_NAME = "bovifiles"
+DATA_VOLUME_NAME = "data"
+DATA_MOUNT_PATH = "/mnt/data"
+SQLITE_DATABASE_URL = f"sqlite+aiosqlite:////{DATA_MOUNT_PATH}/bovi.db"
 
 
 @dataclass
@@ -42,6 +42,7 @@ class ContainerAppArgs:
 @dataclass
 class ContainerAppResult:
     container_app: app.ContainerApp
+    environment_storage: app.ManagedEnvironmentsStorage
     id: pulumi.Output[str]
     fqdn: pulumi.Output[str]
     url: pulumi.Output[str]
@@ -53,7 +54,7 @@ def create_container_app(name: str, args: ContainerAppArgs) -> ContainerAppResul
         f"{name}-storage",
         resource_group_name=args.resource_group_name,
         environment_name=args.environment_name,
-        storage_name=_STORAGE_NAME,
+        storage_name=AZURE_FILES_STORAGE_NAME,
         properties=app.ManagedEnvironmentStoragePropertiesArgs(
             azure_file=app.AzureFilePropertiesArgs(
                 account_name=args.storage_account_name,
@@ -65,7 +66,7 @@ def create_container_app(name: str, args: ContainerAppArgs) -> ContainerAppResul
     )
 
     env_vars = [
-        app.EnvironmentVarArgs(name="DATABASE_URL", value=_DATABASE_URL),
+        app.EnvironmentVarArgs(name="DATABASE_URL", value=SQLITE_DATABASE_URL),
         *[app.EnvironmentVarArgs(name=k, value=v) for k, v in args.env.items()],
     ]
     secrets: list[app.SecretArgs] = []
@@ -105,9 +106,9 @@ def create_container_app(name: str, args: ContainerAppArgs) -> ContainerAppResul
         template=app.TemplateArgs(
             volumes=[
                 app.VolumeArgs(
-                    name=_VOLUME_NAME,
+                    name=DATA_VOLUME_NAME,
                     storage_type="AzureFile",
-                    storage_name=_STORAGE_NAME,
+                    storage_name=AZURE_FILES_STORAGE_NAME,
                 )
             ],
             containers=[
@@ -121,8 +122,8 @@ def create_container_app(name: str, args: ContainerAppArgs) -> ContainerAppResul
                     env=env_vars,
                     volume_mounts=[
                         app.VolumeMountArgs(
-                            volume_name=_VOLUME_NAME,
-                            mount_path=_MOUNT_PATH,
+                            volume_name=DATA_VOLUME_NAME,
+                            mount_path=DATA_MOUNT_PATH,
                         )
                     ],
                 )
@@ -141,6 +142,7 @@ def create_container_app(name: str, args: ContainerAppArgs) -> ContainerAppResul
     )
     return ContainerAppResult(
         container_app=container_app,
+        environment_storage=env_storage,
         id=container_app.id,
         fqdn=fqdn,
         url=fqdn.apply(lambda h: f"https://{h}" if h else ""),

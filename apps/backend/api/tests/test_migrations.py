@@ -5,7 +5,8 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from bovi_api import app as app_module
+from bovi_api import migrations
+from bovi_api.app import create_app
 from bovi_api.settings import get_settings
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import OperationalError
@@ -65,13 +66,46 @@ def test_run_migrations_retries_sqlite_lock(monkeypatch, tmp_path):
                 sqlite3.OperationalError("database is locked"),
             )
 
-    monkeypatch.setattr(app_module.command, "upgrade", upgrade)
-    monkeypatch.setattr(app_module, "sleep", sleeps.append)
+    monkeypatch.setattr(migrations.command, "upgrade", upgrade)
+    monkeypatch.setattr(migrations, "sleep", sleeps.append)
 
     try:
-        app_module._run_migrations()
+        migrations.run_migrations()
 
         assert calls == 3
-        assert sleeps == [app_module._MIGRATION_LOCK_RETRY_SECONDS] * 2
+        assert sleeps == [migrations._MIGRATION_LOCK_RETRY_SECONDS] * 2
+    finally:
+        get_settings.cache_clear()
+
+
+def test_run_migrations_requires_database_url(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    get_settings.cache_clear()
+
+    try:
+        try:
+            migrations.run_migrations()
+        except RuntimeError as exc:
+            assert str(exc) == "DATABASE_URL is required to run migrations"
+        else:
+            raise AssertionError("Expected run_migrations to require DATABASE_URL")
+    finally:
+        get_settings.cache_clear()
+
+
+def test_create_app_does_not_run_migrations(monkeypatch, tmp_path):
+    db_path = tmp_path / "startup.db"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_path}")
+    get_settings.cache_clear()
+
+    def fail_upgrade(_cfg: Config, _revision: str) -> None:
+        raise AssertionError("create_app must not run migrations")
+
+    monkeypatch.setattr(migrations.command, "upgrade", fail_upgrade)
+
+    try:
+        app = create_app()
+
+        assert app.title == "Bovi API"
     finally:
         get_settings.cache_clear()
