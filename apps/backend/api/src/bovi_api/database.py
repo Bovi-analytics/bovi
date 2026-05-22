@@ -47,7 +47,7 @@ def _create_engine(database_url: str) -> AsyncEngine:
 
 def _is_azure_files_sqlite(database_url: str) -> bool:
     """Return whether SQLite is backed by the Azure Files mount used in prod."""
-    return database_url.startswith("sqlite+aiosqlite:////data/")
+    return database_url.startswith(("sqlite+aiosqlite:////data/", "sqlite+aiosqlite:////mnt/data/"))
 
 
 def _configure_sqlite(engine: AsyncEngine, database_url: str) -> None:
