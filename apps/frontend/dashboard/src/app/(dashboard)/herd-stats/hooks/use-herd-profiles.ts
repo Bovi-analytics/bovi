@@ -4,19 +4,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createHerdProfile,
   deleteHerdProfile,
+  listOptionsKey,
   listHerdProfiles,
   updateHerdProfile,
+  type OrganizationListOptions,
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 import type { HerdProfileCreate } from "@/types/api";
 
 const QUERY_KEY = ["herd-profiles"] as const;
 
-export function useHerdProfiles() {
+export function useHerdProfiles(options: OrganizationListOptions = {}) {
   const { selectedOrganizationId } = useAuth();
   return useQuery({
-    queryKey: [...QUERY_KEY, selectedOrganizationId],
-    queryFn: () => listHerdProfiles(selectedOrganizationId ?? 0),
+    queryKey: [...QUERY_KEY, selectedOrganizationId, listOptionsKey(options)],
+    queryFn: () => listHerdProfiles(selectedOrganizationId ?? 0, options),
     enabled: selectedOrganizationId !== null,
   });
 }

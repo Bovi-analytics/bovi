@@ -100,6 +100,17 @@ async function apiPut<T>(
   return schema.parse(data);
 }
 
+async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const headers = await jsonHeaders();
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(body),
+  });
+  await ensureOk(response, path);
+  return (await response.json()) as T;
+}
+
 async function apiDelete(path: string): Promise<void> {
   const headers = await authHeaders();
   const response = await fetch(`${getApiBaseUrl()}${path}`, { method: "DELETE", headers });
@@ -154,6 +165,48 @@ export interface OrganizationRead {
   id: number;
   name: string;
   role: string | null;
+  created_by_user_id?: number | null;
+  source_entra_tenant_id?: string | null;
+  source_domain?: string | null;
+  source_display_name?: string | null;
+}
+
+export interface OrganizationMemberRead {
+  user_id: number;
+  email: string | null;
+  name: string | null;
+  role: string;
+}
+
+export interface OrganizationInviteRead {
+  id: number;
+  organization_id: number;
+  created_by_user_id: number | null;
+  created_at: string | null;
+  expires_at: string;
+  revoked_at: string | null;
+  accepted_count: number;
+  last_accepted_at: string | null;
+}
+
+export interface OrganizationInviteCreateResponse extends OrganizationInviteRead {
+  token: string;
+}
+
+export interface OrganizationListOptions {
+  scope?: "organization" | "mine";
+  sort?: "created_at" | "name" | "user";
+  direction?: "asc" | "desc";
+  q?: string;
+}
+
+export async function listOrganizations(): Promise<OrganizationRead[]> {
+  const response = await fetch(`${getApiBaseUrl()}/organizations`, {
+    method: "GET",
+    headers: await jsonHeaders(),
+  });
+  await ensureOk(response, "/organizations");
+  return (await response.json()) as OrganizationRead[];
 }
 
 export async function createOrganization(name: string): Promise<OrganizationRead> {
@@ -164,6 +217,47 @@ export async function createOrganization(name: string): Promise<OrganizationRead
   });
   await ensureOk(response, "/organizations");
   return (await response.json()) as OrganizationRead;
+}
+
+export async function updateOrganization(id: number, name: string): Promise<OrganizationRead> {
+  return apiPatch<OrganizationRead>(`/organizations/${id}`, { name });
+}
+
+export async function listOrganizationMembers(id: number): Promise<OrganizationMemberRead[]> {
+  const response = await fetch(`${getApiBaseUrl()}/organizations/${id}/members`, {
+    method: "GET",
+    headers: await jsonHeaders(),
+  });
+  await ensureOk(response, `/organizations/${id}/members`);
+  return (await response.json()) as OrganizationMemberRead[];
+}
+
+export async function removeOrganizationMember(id: number, userId: number): Promise<void> {
+  return apiDelete(`/organizations/${id}/members/${userId}`);
+}
+
+export async function listOrganizationInvites(id: number): Promise<OrganizationInviteRead[]> {
+  const response = await fetch(`${getApiBaseUrl()}/organizations/${id}/invites`, {
+    method: "GET",
+    headers: await jsonHeaders(),
+  });
+  await ensureOk(response, `/organizations/${id}/invites`);
+  return (await response.json()) as OrganizationInviteRead[];
+}
+
+export async function createOrganizationInvite(
+  id: number
+): Promise<OrganizationInviteCreateResponse> {
+  const response = await fetch(`${getApiBaseUrl()}/organizations/${id}/invites`, {
+    method: "POST",
+    headers: await jsonHeaders(),
+  });
+  await ensureOk(response, `/organizations/${id}/invites`);
+  return (await response.json()) as OrganizationInviteCreateResponse;
+}
+
+export async function revokeOrganizationInvite(id: number, inviteId: number): Promise<void> {
+  return apiDelete(`/organizations/${id}/invites/${inviteId}`);
 }
 
 export async function acceptInvite(token: string): Promise<OrganizationRead> {
@@ -214,20 +308,45 @@ export async function healthCheck(): Promise<boolean> {
   return response.ok;
 }
 
-function organizationQuery(organizationId: number | "all", extra = ""): string {
+function organizationQuery(
+  organizationId: number | "all",
+  options: OrganizationListOptions = {}
+): string {
   const params = new URLSearchParams({ organization_id: String(organizationId) });
-  if (extra) {
-    new URLSearchParams(extra).forEach((value, key) => params.set(key, value));
-  }
+  Object.entries(options).forEach(([key, value]) => {
+    if (value) {
+      params.set(key, value);
+    }
+  });
   return `?${params.toString()}`;
+}
+
+function listQueryKey(options: OrganizationListOptions): string {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => {
+    if (value) {
+      params.set(key, value);
+    }
+  });
+  return params.toString();
+}
+
+export function listOptionsKey(options: OrganizationListOptions = {}): string {
+  return listQueryKey(options);
 }
 
 /* ------------------------------------------------------------------ */
 /*  Herd Profiles                                                      */
 /* ------------------------------------------------------------------ */
 
-export async function listHerdProfiles(organizationId: number | "all"): Promise<HerdProfile[]> {
-  return apiGet(`/herd-profiles/${organizationQuery(organizationId)}`, HerdProfileListSchema);
+export async function listHerdProfiles(
+  organizationId: number | "all",
+  options: OrganizationListOptions = {}
+): Promise<HerdProfile[]> {
+  return apiGet(
+    `/herd-profiles/${organizationQuery(organizationId, options)}`,
+    HerdProfileListSchema
+  );
 }
 
 export async function getHerdProfile(id: number): Promise<HerdProfile> {
@@ -319,8 +438,14 @@ export async function createChallengeUpload(
   return ChallengeReadSchema.parse(await response.json());
 }
 
-export async function listChallenges(organizationId: number | "all"): Promise<ChallengeRead[]> {
-  return apiGet(`/benchmark/challenges${organizationQuery(organizationId)}`, ChallengeListSchema);
+export async function listChallenges(
+  organizationId: number | "all",
+  options: OrganizationListOptions = {}
+): Promise<ChallengeRead[]> {
+  return apiGet(
+    `/benchmark/challenges${organizationQuery(organizationId, options)}`,
+    ChallengeListSchema
+  );
 }
 
 export async function getChallenge(id: number): Promise<ChallengeRead> {
@@ -388,9 +513,12 @@ export async function submitOwnMethod(
   return SubmissionReadSchema.parse(await response.json());
 }
 
-export async function listSubmissions(organizationId: number | "all"): Promise<SubmissionRead[]> {
+export async function listSubmissions(
+  organizationId: number | "all",
+  options: OrganizationListOptions = {}
+): Promise<SubmissionRead[]> {
   return apiGet(
-    `/benchmark/submissions${organizationQuery(organizationId)}`,
+    `/benchmark/submissions${organizationQuery(organizationId, options)}`,
     SubmissionListSchema
   );
 }

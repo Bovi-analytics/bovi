@@ -1,15 +1,36 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { Alert, Button, Grid, Group, Loader, Stack, Text } from "@mantine/core";
+import { useState } from "react";
+import {
+  Alert,
+  Button,
+  Grid,
+  Group,
+  Loader,
+  Select,
+  SegmentedControl,
+  Stack,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { OrganizationListOptions } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth";
 import { ChallengeCard } from "./components/challenge-card";
 import { useChallenges } from "./hooks/use-challenges";
 
 export default function BenchmarkPage(): ReactElement {
   const router = useRouter();
-  const { data: challenges, isLoading, error } = useChallenges();
+  const { selectedOrganizationId } = useAuth();
+  const [scope, setScope] = useState<"organization" | "mine">("organization");
+  const [sort, setSort] = useState<"created_at" | "name" | "user">("created_at");
+  const [direction, setDirection] = useState<"asc" | "desc">("desc");
+  const [q, setQ] = useState("");
+  const options: OrganizationListOptions = { scope, sort, direction, q: q.trim() || undefined };
+  const { data: challenges, isLoading, error } = useChallenges(options);
+  const createDisabled = selectedOrganizationId === "all";
 
   if (isLoading) return <Loader />;
   if (error) return <Text c="red">Failed to load challenges.</Text>;
@@ -24,9 +45,59 @@ export default function BenchmarkPage(): ReactElement {
             (ALY) on a cohort of cows with daily-meter data.
           </Text>
         </Stack>
-        <Button leftSection={<Plus size={14} />} onClick={() => router.push("/benchmark/new")}>
+        <Button
+          leftSection={<Plus size={14} />}
+          onClick={() => router.push("/benchmark/new")}
+          disabled={createDisabled}
+        >
           New Challenge
         </Button>
+      </Group>
+
+      {createDisabled && (
+        <Alert color="yellow" variant="light">
+          Select a specific organization before creating or uploading a challenge.
+        </Alert>
+      )}
+
+      <Group gap="sm" align="flex-end">
+        <SegmentedControl
+          size="xs"
+          value={scope}
+          onChange={(value) => setScope(value as "organization" | "mine")}
+          data={[
+            { label: "Organization", value: "organization" },
+            { label: "My items", value: "mine" },
+          ]}
+        />
+        <TextInput
+          aria-label="Search challenges"
+          placeholder="Search by name"
+          value={q}
+          onChange={(event) => setQ(event.currentTarget.value)}
+          size="xs"
+        />
+        <Select
+          aria-label="Sort challenges"
+          size="xs"
+          value={sort}
+          onChange={(value) => setSort((value as "created_at" | "name" | "user") ?? "created_at")}
+          data={[
+            { label: "Created", value: "created_at" },
+            { label: "Name", value: "name" },
+            { label: "User", value: "user" },
+          ]}
+        />
+        <Select
+          aria-label="Sort direction"
+          size="xs"
+          value={direction}
+          onChange={(value) => setDirection((value as "asc" | "desc") ?? "desc")}
+          data={[
+            { label: "Newest first", value: "desc" },
+            { label: "Oldest first", value: "asc" },
+          ]}
+        />
       </Group>
 
       <Alert color="blue" variant="light" title="How the benchmark works">

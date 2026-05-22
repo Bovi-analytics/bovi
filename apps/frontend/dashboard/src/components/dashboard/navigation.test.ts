@@ -9,6 +9,7 @@ describe("DASHBOARD_NAVIGATION", () => {
       ["Herd Profiles", "/herd-profiles"],
       ["Curves", "/curves"],
       ["Benchmark", "/benchmark"],
+      ["Organization", "/organization"],
     ]);
   });
 });
