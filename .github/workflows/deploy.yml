@@ -219,8 +219,14 @@ jobs:
 
       - name: Run API migrations
         env:
+          API_IMAGE: ${{ needs.build-api-image.outputs.image }}
           API_MIGRATION_JOB: bovi-api-migrate-${{ env.PULUMI_STACK }}
         run: |
+          az containerapp job update \
+            --name "$API_MIGRATION_JOB" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --image "$API_IMAGE"
+
           execution_name="$(az containerapp job start \
             --name "$API_MIGRATION_JOB" \
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
