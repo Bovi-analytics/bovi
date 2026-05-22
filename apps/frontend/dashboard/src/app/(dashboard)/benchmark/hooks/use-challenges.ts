@@ -5,18 +5,20 @@ import {
   createChallengePreset,
   createChallengeUpload,
   getChallenge,
+  listOptionsKey,
   listChallenges,
+  type OrganizationListOptions,
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 import type { ChallengeCreatePreset } from "@/types/api";
 
 const KEY = ["benchmark-challenges"] as const;
 
-export function useChallenges() {
+export function useChallenges(options: OrganizationListOptions = {}) {
   const { selectedOrganizationId } = useAuth();
   return useQuery({
-    queryKey: [...KEY, selectedOrganizationId],
-    queryFn: () => listChallenges(selectedOrganizationId ?? 0),
+    queryKey: [...KEY, selectedOrganizationId, listOptionsKey(options)],
+    queryFn: () => listChallenges(selectedOrganizationId ?? 0, options),
     enabled: selectedOrganizationId !== null,
   });
 }

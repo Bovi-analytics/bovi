@@ -2,8 +2,22 @@
 
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ActionIcon, Button, Group, Modal, Stack, Table, Text } from "@mantine/core";
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Group,
+  Modal,
+  Select,
+  SegmentedControl,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { Pencil, Trash2 } from "lucide-react";
+import type { OrganizationListOptions } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth";
 import { HerdProfileForm } from "./herd-profile-form";
 import {
   useCreateHerdProfile,
@@ -22,7 +36,13 @@ const PERIOD_LABELS: Record<string, string> = { recent: "Recent", old: "Old", mi
 const SIZE_LABELS: Record<string, string> = { small: "Small", medium: "Medium", large: "Large" };
 
 export function HerdProfileList(): ReactElement {
-  const { data: profiles = [], isLoading } = useHerdProfiles();
+  const { selectedOrganizationId } = useAuth();
+  const [scope, setScope] = useState<"organization" | "mine">("organization");
+  const [sort, setSort] = useState<"created_at" | "name" | "user">("created_at");
+  const [direction, setDirection] = useState<"asc" | "desc">("desc");
+  const [q, setQ] = useState("");
+  const options: OrganizationListOptions = { scope, sort, direction, q: q.trim() || undefined };
+  const { data: profiles = [], isLoading } = useHerdProfiles(options);
   const { activePreset } = useUploadedCows();
   const createMutation = useCreateHerdProfile();
   const updateMutation = useUpdateHerdProfile();
@@ -30,6 +50,7 @@ export function HerdProfileList(): ReactElement {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<HerdProfile | null>(null);
+  const createDisabled = selectedOrganizationId === "all";
 
   function handleCreate(data: HerdProfileCreate) {
     createMutation.mutate(data, { onSuccess: () => setCreateOpen(false) });
@@ -53,9 +74,62 @@ export function HerdProfileList(): ReactElement {
       <Stack gap="md">
         <Group justify="space-between">
           <Text fw={500}>Saved Herd Profiles</Text>
-          <Button size="sm" color="violet" onClick={() => setCreateOpen(true)}>
+          <Button
+            size="sm"
+            color="violet"
+            disabled={createDisabled}
+            onClick={() => setCreateOpen(true)}
+          >
             New profile
           </Button>
+        </Group>
+
+        {createDisabled && (
+          <Alert color="yellow" variant="light">
+            Select a specific organization before creating a herd profile.
+          </Alert>
+        )}
+
+        <Group gap="sm" align="flex-end">
+          <SegmentedControl
+            size="xs"
+            value={scope}
+            onChange={(value) => setScope(value as "organization" | "mine")}
+            data={[
+              { label: "Organization", value: "organization" },
+              { label: "My items", value: "mine" },
+            ]}
+          />
+          <TextInput
+            aria-label="Search herd profiles"
+            placeholder="Search by name"
+            value={q}
+            onChange={(event) => setQ(event.currentTarget.value)}
+            size="xs"
+          />
+          <Select
+            aria-label="Sort herd profiles"
+            size="xs"
+            value={sort}
+            onChange={(value) =>
+              setSort((value as "created_at" | "name" | "user") ?? "created_at")
+            }
+            data={[
+              { label: "Created", value: "created_at" },
+              { label: "Name", value: "name" },
+              { label: "User", value: "user" },
+            ]}
+          />
+          <Select
+            aria-label="Sort direction"
+            size="xs"
+            value={direction}
+            onChange={(value) => setDirection((value as "asc" | "desc") ?? "desc")}
+            data={[
+              { label: "Newest first", value: "desc" },
+              { label: "Oldest first", value: "asc" },
+            ]}
+          />
         </Group>
 
         {profiles.length === 0 ? (

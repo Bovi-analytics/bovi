@@ -56,6 +56,30 @@ describe("api-client authentication", () => {
     expect(handleUnauthorizedResponse).toHaveBeenCalled();
   });
 
+  it("sends organization list filters to challenge endpoints", async () => {
+    const fetchMock = vi.fn(async () => Response.json([]));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await listChallenges(1, {
+      scope: "mine",
+      sort: "name",
+      direction: "asc",
+      q: "aurora",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/bovi/benchmark/challenges?organization_id=1&scope=mine&sort=name&direction=asc&q=aurora",
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer test-token",
+        },
+      }
+    );
+  });
+
+
   it("downloads challenge exports with bearer token and response filename", async () => {
     const click = vi.fn();
     const revokeObjectURL = vi.fn();
