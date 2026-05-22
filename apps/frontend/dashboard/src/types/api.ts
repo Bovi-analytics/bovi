@@ -219,6 +219,11 @@ export const PresetDatasetResponseSchema = z.object({
   cows: z.array(PresetCowSchema),
 });
 
+export const PresetCountsResponseSchema = z.object({
+  dataset: z.string(),
+  counts: z.record(PresetPeriodKeySchema, z.record(PresetSizeKeySchema, z.number())),
+});
+
 export const PresetHerdStatsResponseSchema = z.object({
   dataset: z.string(),
   size: z.string(),
@@ -235,6 +240,7 @@ export type PresetSizeKey = z.infer<typeof PresetSizeKeySchema>;
 export type PresetPeriodKey = z.infer<typeof PresetPeriodKeySchema>;
 export type PresetCow = z.infer<typeof PresetCowSchema>;
 export type PresetDatasetResponse = z.infer<typeof PresetDatasetResponseSchema>;
+export type PresetCountsResponse = z.infer<typeof PresetCountsResponseSchema>;
 export type PresetHerdStatsResponse = z.infer<typeof PresetHerdStatsResponseSchema>;
 
 /* ------------------------------------------------------------------ */

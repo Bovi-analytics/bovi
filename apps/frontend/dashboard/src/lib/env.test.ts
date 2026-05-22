@@ -30,6 +30,14 @@ describe("dashboard API environment", () => {
     );
   });
 
+  test("preserves trailing slashes for proxied API routes", () => {
+    process.env["NEXT_PUBLIC_API_URL"] = "https://api.example.test";
+
+    expect(buildRuntimeApiUrl(["herd-profiles"], "", true)).toBe(
+      "https://api.example.test/herd-profiles/"
+    );
+  });
+
   test("requires runtime API URL for the server proxy", () => {
     delete process.env["NEXT_PUBLIC_API_URL"];
 

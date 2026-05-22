@@ -33,7 +33,11 @@ function proxyHeaders(request: NextRequest): Headers {
 }
 
 async function proxyRequest(request: NextRequest, context: RouteContext): Promise<Response> {
-  const targetUrl = buildRuntimeApiUrl(context.params.path ?? [], request.nextUrl.search);
+  const targetUrl = buildRuntimeApiUrl(
+    context.params.path ?? [],
+    request.nextUrl.search,
+    request.nextUrl.pathname.endsWith("/")
+  );
   const init: RequestInit & { duplex?: "half" } = {
     method: request.method,
     headers: proxyHeaders(request),
