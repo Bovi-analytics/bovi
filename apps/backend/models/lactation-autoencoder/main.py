@@ -6,7 +6,9 @@ import logging
 import time
 import uuid
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 # MLflow emits a UserWarning about `Any` type hints from its OWN internal
 # response schemas during import. There's no way for us to make those hints
@@ -47,23 +49,6 @@ from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 
 settings: Settings = get_settings()
 logger = logging.getLogger("lactation_autoencoder")
-
-# ---------------------------------------------------------------------------
-# Model startup (loaded once at module level)
-# ---------------------------------------------------------------------------
-
-project_root = Path(get_project_root(project_name="bovi"))
-config = Config(
-    experiment_name="lactation_autoencoder",
-    config_file_path=get_run_config_path(
-        str(project_root),
-        "lactation_autoencoder",
-        root_dir_name="models",
-    ),
-    project_name="bovi",
-)
-model = create_model(config, "autoencoder")
-transforms = TransformRegistry.from_config(config.experiment.dataloaders.inference.transforms)
 
 app = FastAPI(
     title="Lactation Autoencoder",
@@ -129,8 +114,43 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class ModelRuntime:
+    """Loaded autoencoder runtime objects."""
+
+    config: Config
+    model: Any
+    transforms: dict[str, object]
+
+
+_model_runtime: ModelRuntime | None = None
+
+
+def _get_model_runtime() -> ModelRuntime:
+    """Load the model lazily so Azure Functions can index HTTP routes."""
+    global _model_runtime
+    if _model_runtime is None:
+        project_root = Path(get_project_root(project_name="bovi"))
+        config = Config(
+            experiment_name="lactation_autoencoder",
+            config_file_path=get_run_config_path(
+                str(project_root),
+                "lactation_autoencoder",
+                root_dir_name="models",
+            ),
+            project_name="bovi",
+        )
+        model = create_model(config, "autoencoder")
+        transforms = TransformRegistry.from_config(
+            config.experiment.dataloaders.inference.transforms
+        )
+        _model_runtime = ModelRuntime(config=config, model=model, transforms=transforms)
+    return _model_runtime
+
+
 def _build_transforms(
     imputation_method: str,
+    transforms: dict[str, object],
 ) -> list[object]:
     """Build transform list, swapping imputation method if needed.
 
@@ -179,15 +199,16 @@ def _predict_single(
         data["events"] = ["calving"] + ["pad"] * 303
 
     # Build transform list (swap imputation method if needed)
-    transform_list = _build_transforms(request.imputation_method)
+    runtime = _get_model_runtime()
+    transform_list = _build_transforms(request.imputation_method, runtime.transforms)
 
     # Same pipeline as the notebook: DictSource → TransformedSource → LactationDataset
     dict_source = DictSource([data])
     transformed = TransformedSource(dict_source, transform_list)
-    dataset = LactationDataset(source=transformed, config=config)
+    dataset = LactationDataset(source=transformed, config=runtime.config)
     features = dataset[0]["features"]
 
-    result = model.predict(features, return_format="rich")
+    result = runtime.model.predict(features, return_format="rich")
 
     return AutoencoderPredictResponse(
         predictions=result.predictions.tolist(),

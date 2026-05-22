@@ -11,6 +11,7 @@ Resources deployed:
 """
 
 import hashlib
+import json
 import os
 
 import pulumi
@@ -64,6 +65,7 @@ location = config.require("location")
 subscription_id = config.require("subscriptionId")
 resource_group_name = config.require("resourceGroup")
 dashboard_origin = config.get("dashboardOrigin") or "http://localhost:3000"
+api_cors_origins = json.dumps([dashboard_origin])
 milkbot_key = config.get_secret("milkbotKey") or ""
 api_image = (
     os.getenv("API_IMAGE")
@@ -259,6 +261,9 @@ api_result = create_container_app(
         registry_password=pulumi.Output.secret(ghcr_token) if ghcr_token else None,
         env={
             "APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string,
+            "LACTATION_CURVES_URL": curves_result.url.apply(lambda url: f"{url}/api"),
+            "LACTATION_AUTOENCODER_URL": autoencoder_result.url.apply(lambda url: f"{url}/api"),
+            "CORS_ORIGINS": api_cors_origins,
             "STORAGE_ACCOUNT_NAME_ICAR": icar_storage_account_name,
             "STORAGE_ACCOUNT_CONTAINER_ICAR": icar_storage_container,
         },
