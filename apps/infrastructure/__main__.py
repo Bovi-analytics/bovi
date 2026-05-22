@@ -83,11 +83,7 @@ if bool(ghcr_username) != bool(ghcr_token):
 icar_storage_account_name = os.getenv("STORAGE_ACCOUNT_NAME_ICAR")
 icar_storage_account_key = os.getenv("STORAGE_ACCOUNT_KEY_ICAR")
 icar_storage_container = os.getenv("STORAGE_ACCOUNT_CONTAINER_ICAR")
-if (
-    icar_storage_account_name is None
-    or icar_storage_account_key is None
-    or icar_storage_container is None
-):
+if not icar_storage_account_name or not icar_storage_account_key or not icar_storage_container:
     raise ValueError(
         "STORAGE_ACCOUNT_NAME_ICAR, STORAGE_ACCOUNT_KEY_ICAR, and "
         "STORAGE_ACCOUNT_CONTAINER_ICAR must be set for preset dataset blob access"
