@@ -10,7 +10,9 @@ from ..types import ResourceTags
 AZURE_FILES_STORAGE_NAME = "bovifiles"
 DATA_VOLUME_NAME = "data"
 DATA_MOUNT_PATH = "/mnt/data"
-SQLITE_DATABASE_URL = f"sqlite+aiosqlite:///{DATA_MOUNT_PATH}/bovi.db"
+SQLITE_DATABASE_URL = (
+    f"sqlite+aiosqlite:///file:{DATA_MOUNT_PATH}/bovi.db?vfs=unix-dotfile&uri=true"
+)
 
 
 @dataclass
