@@ -7,12 +7,18 @@ import {
   getChallenge,
   listChallenges,
 } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth";
 import type { ChallengeCreatePreset } from "@/types/api";
 
 const KEY = ["benchmark-challenges"] as const;
 
 export function useChallenges() {
-  return useQuery({ queryKey: KEY, queryFn: listChallenges });
+  const { selectedOrganizationId } = useAuth();
+  return useQuery({
+    queryKey: [...KEY, selectedOrganizationId],
+    queryFn: () => listChallenges(selectedOrganizationId ?? 0),
+    enabled: selectedOrganizationId !== null,
+  });
 }
 
 export function useChallenge(id: number) {
@@ -25,14 +31,21 @@ export function useChallenge(id: number) {
 
 export function useCreateChallengePreset() {
   const qc = useQueryClient();
+  const { selectedOrganizationId } = useAuth();
   return useMutation({
-    mutationFn: (data: ChallengeCreatePreset) => createChallengePreset(data),
+    mutationFn: (data: Omit<ChallengeCreatePreset, "organization_id">) => {
+      if (typeof selectedOrganizationId !== "number") {
+        throw new Error("Select a specific organization before creating a challenge.");
+      }
+      return createChallengePreset({ ...data, organization_id: selectedOrganizationId });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }
 
 export function useCreateChallengeUpload() {
   const qc = useQueryClient();
+  const { selectedOrganizationId } = useAuth();
   return useMutation({
     mutationFn: ({
       name,
@@ -42,7 +55,12 @@ export function useCreateChallengeUpload() {
       name: string;
       testDayCsv: File;
       actualYieldsCsv: File;
-    }) => createChallengeUpload(name, testDayCsv, actualYieldsCsv),
+    }) => {
+      if (typeof selectedOrganizationId !== "number") {
+        throw new Error("Select a specific organization before uploading a challenge.");
+      }
+      return createChallengeUpload(name, testDayCsv, actualYieldsCsv, selectedOrganizationId);
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }

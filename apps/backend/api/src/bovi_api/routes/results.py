@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
+from bovi_api.auth import require_auth
 from bovi_api.database import get_session
 from bovi_api.models import FittingResult, FittingResultCreate, FittingResultRead
 
-router = APIRouter(prefix="/results", tags=["results"])
+router = APIRouter(prefix="/results", tags=["results"], dependencies=[Depends(require_auth)])
 
 
 @router.post("/", response_model=FittingResultRead)

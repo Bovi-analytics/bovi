@@ -42,16 +42,19 @@ def test_generator_writes_presets_to_canonical_blob_prefix(monkeypatch):
     monkeypatch.setattr(
         generator,
         "_read_blob_csv",
-        lambda client, blob_path: FakeDataFrame(),
+        lambda client, container, blob_path: FakeDataFrame(),
     )
     monkeypatch.setattr(generator, "_build_lactations", lambda df, config, period: [])
-    monkeypatch.setattr(generator, "_build_icar_preset", lambda client: b'{"cow_count": 0}')
+    monkeypatch.setattr(
+        generator, "_build_icar_preset", lambda client, container: b'{"cow_count": 0}'
+    )
     monkeypatch.setattr(
         generator.BlobServiceClient,
         "from_connection_string",
         lambda conn_str: FakeServiceClient(),
     )
     monkeypatch.setenv("CONNECTION_STRING", "UseDevelopmentStorage=true")
+    monkeypatch.setenv("STORAGE_ACCOUNT_CONTAINER_ICAR", "icar")
 
     generator.main(dry_run=False)
 

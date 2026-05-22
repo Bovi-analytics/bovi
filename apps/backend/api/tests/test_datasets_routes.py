@@ -142,11 +142,19 @@ def test_preset_blob_path_uses_canonical_data_prefix():
 
 def test_fetch_preset_cows_falls_back_to_local_preset(tmp_path, monkeypatch):
     _write_local_preset(tmp_path, monkeypatch)
+    monkeypatch.delenv("STORAGE_ACCOUNT_NAME_ICAR", raising=False)
+    monkeypatch.delenv("STORAGE_ACCOUNT_KEY_ICAR", raising=False)
+    monkeypatch.delenv("STORAGE_ACCOUNT_CONTAINER_ICAR", raising=False)
     preset = datasets_route.fetch_preset_cows(
         "aurora",
         "small",
         "mixed",
-        Settings(connection_string=""),
+        Settings(
+            connection_string="",
+            storage_account_name_icar=None,
+            storage_account_key_icar=None,
+            storage_account_container_icar=None,
+        ),
     )
 
     assert preset.dataset == "aurora"
@@ -182,13 +190,21 @@ def test_fetch_preset_cows_returns_503_when_blob_and_local_preset_are_unavailabl
     monkeypatch,
 ):
     monkeypatch.setattr(datasets_route, "_LOCAL_PRESETS_DIR", tmp_path / "missing")
+    monkeypatch.delenv("STORAGE_ACCOUNT_NAME_ICAR", raising=False)
+    monkeypatch.delenv("STORAGE_ACCOUNT_KEY_ICAR", raising=False)
+    monkeypatch.delenv("STORAGE_ACCOUNT_CONTAINER_ICAR", raising=False)
 
     with pytest.raises(HTTPException) as exc_info:
         datasets_route.fetch_preset_cows(
             "aurora",
             "small",
             "mixed",
-            Settings(connection_string=""),
+            Settings(
+                connection_string="",
+                storage_account_name_icar=None,
+                storage_account_key_icar=None,
+                storage_account_container_icar=None,
+            ),
         )
 
     assert exc_info.value.status_code == 503

@@ -2,11 +2,17 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubmission, listSubmissions, submitBoviModel, submitOwnMethod } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth";
 
 const KEY = ["benchmark-submissions"] as const;
 
 export function useSubmissions() {
-  return useQuery({ queryKey: KEY, queryFn: listSubmissions });
+  const { selectedOrganizationId } = useAuth();
+  return useQuery({
+    queryKey: [...KEY, selectedOrganizationId],
+    queryFn: () => listSubmissions(selectedOrganizationId ?? 0),
+    enabled: selectedOrganizationId !== null,
+  });
 }
 
 export function useSubmission(id: number) {
