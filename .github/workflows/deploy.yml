@@ -310,6 +310,9 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
           AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+          STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
+          STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
+          STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           API_IMAGE: ${{ needs.build-api-image.outputs.image }}
@@ -386,6 +389,9 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
           AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+          STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
+          STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
+          STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           API_IMAGE: ${{ steps.current-api-image.outputs.image }}

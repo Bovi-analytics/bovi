@@ -8,6 +8,7 @@ Local presets live under data/datasets/presets.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -25,6 +26,7 @@ from bovi_api.herd_stats_ingestion import (
 from bovi_api.settings import Settings, get_settings
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
+logger = logging.getLogger(__name__)
 
 _BLOB_PREFIX = "data/datasets/presets"
 _LOCAL_PRESETS_DIR = Path(__file__).resolve().parents[6] / "data" / "datasets" / "presets"
@@ -192,6 +194,16 @@ def fetch_preset_cows(
             blob_error = exc
         except AzureError as exc:
             blob_error = exc
+        logger.warning(
+            "Preset blob fetch failed; trying local fallback",
+            extra={
+                "dataset": dataset,
+                "size": size,
+                "period": period,
+                "blob_path": _preset_blob_path(dataset, size, period),
+                "error": str(blob_error),
+            },
+        )
     else:
         blob_error = HTTPException(
             status_code=503,
