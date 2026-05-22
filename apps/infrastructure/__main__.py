@@ -261,8 +261,8 @@ api_result = create_container_app(
         registry_password=pulumi.Output.secret(ghcr_token) if ghcr_token else None,
         env={
             "APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string,
-            "LACTATION_CURVES_URL": curves_result.url.apply(lambda url: f"{url}/api"),
-            "LACTATION_AUTOENCODER_URL": autoencoder_result.url.apply(lambda url: f"{url}/api"),
+            "LACTATION_CURVES_URL": curves_result.url,
+            "LACTATION_AUTOENCODER_URL": autoencoder_result.url,
             "CORS_ORIGINS": api_cors_origins,
             "STORAGE_ACCOUNT_NAME_ICAR": icar_storage_account_name,
             "STORAGE_ACCOUNT_CONTAINER_ICAR": icar_storage_container,

@@ -488,7 +488,16 @@ jobs:
 
       - name: Deploy lactation-curves
         working-directory: apps/backend/models/lactation-curves
-        run: func azure functionapp publish "curves-${{ env.PULUMI_STACK }}" --python
+        run: |
+          set -euo pipefail
+          if func azure functionapp publish "curves-${{ env.PULUMI_STACK }}" --python 2>&1 | tee /tmp/curves-publish.log; then
+            exit 0
+          fi
+          if grep -q "Deployment successful" /tmp/curves-publish.log && grep -q "Error calling sync triggers" /tmp/curves-publish.log; then
+            echo "Upload succeeded but trigger sync failed; continuing to explicit trigger check."
+            exit 0
+          fi
+          exit 1
 
       - name: Check lactation-curves triggers
         run: |
@@ -519,7 +528,7 @@ jobs:
           curl --connect-timeout 5 --max-time 60 --retry 5 --retry-all-errors -fsS \
             -H "content-type: application/json" \
             --data '{"dim":[10,30,60,90,150,220,280],"milkrecordings":[22,32,41,39,34,28,22],"model":"wood"}' \
-            "https://${host_name}/api/fit" > /tmp/curves-fit.json
+            "https://${host_name}/fit" > /tmp/curves-fit.json
 
       - name: Generate requirements.txt for lactation-autoencoder
         run: |
@@ -542,7 +551,16 @@ jobs:
 
       - name: Deploy lactation-autoencoder
         working-directory: apps/backend/models/lactation-autoencoder
-        run: func azure functionapp publish "autoencoder-${{ env.PULUMI_STACK }}" --python
+        run: |
+          set -euo pipefail
+          if func azure functionapp publish "autoencoder-${{ env.PULUMI_STACK }}" --python 2>&1 | tee /tmp/autoencoder-publish.log; then
+            exit 0
+          fi
+          if grep -q "Deployment successful" /tmp/autoencoder-publish.log && grep -q "Error calling sync triggers" /tmp/autoencoder-publish.log; then
+            echo "Upload succeeded but trigger sync failed; continuing to explicit trigger check."
+            exit 0
+          fi
+          exit 1
 
       - name: Check lactation-autoencoder triggers
         run: |
@@ -562,3 +580,13 @@ jobs:
           done
           echo "No functions indexed for ${app_name}"
           exit 1
+
+      - name: Smoke lactation-autoencoder health endpoint
+        run: |
+          set -euo pipefail
+          host_name="$(az functionapp show \
+            --name "autoencoder-${{ env.PULUMI_STACK }}" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --query "defaultHostName" -o tsv)"
+          curl --connect-timeout 5 --max-time 30 --retry 5 --retry-all-errors -fsS \
+            "https://${host_name}/health" > /tmp/autoencoder-health.json
