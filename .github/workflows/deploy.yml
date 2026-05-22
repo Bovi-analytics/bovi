@@ -10,9 +10,15 @@ on:
       - "apps/infrastructure/**"
       - ".github/workflows/deploy.yml"
       - "docker-compose.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "packages/bovi-core/src/**"
+      - "packages/bovi-core/pyproject.toml"
       - "packages/infrastructure/**"
       - "packages/models/lactationcurve/src/**"
+      - "packages/models/lactationcurve/pyproject.toml"
       - "packages/models/lactation-autoencoder/src/**"
+      - "packages/models/lactation-autoencoder/pyproject.toml"
   workflow_dispatch:
 
 permissions:
@@ -50,9 +56,16 @@ jobs:
               - ".github/workflows/deploy.yml"
               - "docker-compose.yml"
             functions:
+              - ".github/workflows/deploy.yml"
               - "apps/backend/models/**"
+              - "pyproject.toml"
+              - "uv.lock"
+              - "packages/bovi-core/src/**"
+              - "packages/bovi-core/pyproject.toml"
               - "packages/models/lactationcurve/src/**"
+              - "packages/models/lactationcurve/pyproject.toml"
               - "packages/models/lactation-autoencoder/src/**"
+              - "packages/models/lactation-autoencoder/pyproject.toml"
 
   build-api-image:
     needs: detect-changes
@@ -447,22 +460,105 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y azure-functions-core-tools-4
 
-      - name: Build lactationcurve wheel
-        working-directory: packages/models/lactationcurve
-        run: uv build
+      - name: Build Function App workspace wheels
+        run: |
+          set -euo pipefail
+          wheel_dir="/tmp/bovi-function-wheels"
+          rm -rf "$wheel_dir"
+          mkdir -p "$wheel_dir"
+          uv build --package lactationcurve --wheel --out-dir "$wheel_dir"
+          uv build --package bovi-core --wheel --out-dir "$wheel_dir"
+          uv build --package lactation-autoencoder --wheel --out-dir "$wheel_dir"
 
       - name: Generate requirements.txt for lactation-curves
-        working-directory: apps/backend/models/lactation-curves
-        run: uv export --no-dev --no-emit-workspace --no-hashes -o requirements.txt
+        run: |
+          set -euo pipefail
+          app_dir="apps/backend/models/lactation-curves"
+          rm -rf "$app_dir/wheels"
+          mkdir -p "$app_dir/wheels"
+          cp /tmp/bovi-function-wheels/lactationcurve-*.whl "$app_dir/wheels/"
+          uv export \
+            --no-dev \
+            --no-emit-workspace \
+            --no-hashes \
+            --package bovi-lactation-curves-app \
+            -o "$app_dir/requirements.txt"
+          wheel="$(basename "$app_dir"/wheels/lactationcurve-*.whl)"
+          printf '\n./wheels/%s\n' "$wheel" >> "$app_dir/requirements.txt"
 
       - name: Deploy lactation-curves
         working-directory: apps/backend/models/lactation-curves
         run: func azure functionapp publish "curves-${{ env.PULUMI_STACK }}" --python
 
+      - name: Check lactation-curves triggers
+        run: |
+          set -euo pipefail
+          app_name="curves-${{ env.PULUMI_STACK }}"
+          for attempt in $(seq 1 18); do
+            function_count="$(az functionapp function list \
+              --name "$app_name" \
+              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+              --query "length(@)" -o tsv)"
+            function_count="${function_count:-0}"
+            echo "${app_name} indexed functions: ${function_count}"
+            if [ "$function_count" -gt 0 ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "No functions indexed for ${app_name}"
+          exit 1
+
+      - name: Smoke lactation-curves fit endpoint
+        run: |
+          set -euo pipefail
+          host_name="$(az functionapp show \
+            --name "curves-${{ env.PULUMI_STACK }}" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --query "defaultHostName" -o tsv)"
+          curl --connect-timeout 5 --max-time 60 --retry 5 --retry-all-errors -fsS \
+            -H "content-type: application/json" \
+            --data '{"dim":[10,30,60,90,150,220,280],"milkrecordings":[22,32,41,39,34,28,22],"model":"wood"}' \
+            "https://${host_name}/api/fit" > /tmp/curves-fit.json
+
       - name: Generate requirements.txt for lactation-autoencoder
-        working-directory: apps/backend/models/lactation-autoencoder
-        run: uv export --no-dev --no-emit-workspace --no-hashes -o requirements.txt
+        run: |
+          set -euo pipefail
+          app_dir="apps/backend/models/lactation-autoencoder"
+          rm -rf "$app_dir/wheels"
+          mkdir -p "$app_dir/wheels"
+          cp /tmp/bovi-function-wheels/bovi_core-*.whl "$app_dir/wheels/"
+          cp /tmp/bovi-function-wheels/lactation_autoencoder-*.whl "$app_dir/wheels/"
+          uv export \
+            --no-dev \
+            --no-emit-workspace \
+            --no-hashes \
+            --package bovi-lactation-autoencoder-app \
+            -o "$app_dir/requirements.txt"
+          bovi_core_wheel="$(basename "$app_dir"/wheels/bovi_core-*.whl)"
+          autoencoder_wheel="$(basename "$app_dir"/wheels/lactation_autoencoder-*.whl)"
+          printf '\n./wheels/%s\n./wheels/%s\n' "$bovi_core_wheel" "$autoencoder_wheel" \
+            >> "$app_dir/requirements.txt"
 
       - name: Deploy lactation-autoencoder
         working-directory: apps/backend/models/lactation-autoencoder
         run: func azure functionapp publish "autoencoder-${{ env.PULUMI_STACK }}" --python
+
+      - name: Check lactation-autoencoder triggers
+        run: |
+          set -euo pipefail
+          app_name="autoencoder-${{ env.PULUMI_STACK }}"
+          for attempt in $(seq 1 18); do
+            function_count="$(az functionapp function list \
+              --name "$app_name" \
+              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+              --query "length(@)" -o tsv)"
+            function_count="${function_count:-0}"
+            echo "${app_name} indexed functions: ${function_count}"
+            if [ "$function_count" -gt 0 ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "No functions indexed for ${app_name}"
+          exit 1
