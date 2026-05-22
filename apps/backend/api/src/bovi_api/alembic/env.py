@@ -10,7 +10,7 @@ from logging.config import fileConfig
 from alembic import context
 from bovi_api.models import FittingResult, HerdProfile  # noqa: F401 - registers tables
 from bovi_api.settings import get_settings
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlmodel import SQLModel
 
 config = context.config
@@ -43,7 +43,19 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode using a synchronous engine."""
     settings = get_settings()
-    engine = create_engine(_sync_url(settings.database_url))
+    sync_url = _sync_url(settings.database_url)
+    kwargs = {}
+    if sync_url.startswith("sqlite"):
+        kwargs["connect_args"] = {"timeout": 30}
+    engine = create_engine(sync_url, **kwargs)
+    if sync_url.startswith("sqlite"):
+
+        @event.listens_for(engine, "connect")
+        def _set_sqlite_busy_timeout(dbapi_connection, _connection_record) -> None:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.close()
+
     with engine.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():

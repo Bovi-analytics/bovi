@@ -5,6 +5,7 @@ Or test against a deployed instance:
   API_BASE_URL=https://your-func.azurewebsites.net pytest
 """
 
+import asyncio
 import os
 from collections.abc import Generator
 
@@ -31,8 +32,30 @@ def sample_data() -> dict[str, list[int] | list[float]]:
     }
 
 
+class ASGITestClient:
+    """Small sync wrapper around httpx ASGITransport for local app tests."""
+
+    def __init__(self, app) -> None:
+        self._app = app
+
+    def get(self, path: str, **kwargs) -> httpx.Response:
+        return asyncio.run(self._request("GET", path, **kwargs))
+
+    def post(self, path: str, **kwargs) -> httpx.Response:
+        return asyncio.run(self._request("POST", path, **kwargs))
+
+    async def _request(self, method: str, path: str, **kwargs) -> httpx.Response:
+        transport = httpx.ASGITransport(app=self._app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+            timeout=30,
+        ) as client:
+            return await client.request(method, path, **kwargs)
+
+
 @pytest.fixture
-def api() -> Generator[httpx.Client, None, None]:
+def api() -> Generator[httpx.Client | ASGITestClient, None, None]:
     """HTTP client for testing the lactation-curves API.
 
     When API_BASE_URL is set, tests run against that live server.
@@ -44,7 +67,5 @@ def api() -> Generator[httpx.Client, None, None]:
             yield client
     else:
         from main import app
-        from starlette.testclient import TestClient
 
-        with TestClient(app, base_url="http://testserver") as client:
-            yield client
+        yield ASGITestClient(app)

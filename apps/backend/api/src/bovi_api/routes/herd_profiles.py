@@ -37,6 +37,7 @@ class HerdProfileUploadResponse(BaseModel):
     cows: list[CowRecordPayload] = []
 
 
+@router.get("", response_model=list[HerdProfileRead], include_in_schema=False)
 @router.get("/", response_model=list[HerdProfileRead])
 async def list_herd_profiles(
     session: AsyncSession = Depends(get_session),
@@ -46,6 +47,7 @@ async def list_herd_profiles(
     return list(result.scalars().all())
 
 
+@router.post("", response_model=HerdProfileRead, status_code=201, include_in_schema=False)
 @router.post("/", response_model=HerdProfileRead, status_code=201)
 async def create_herd_profile(
     profile: HerdProfileCreate,

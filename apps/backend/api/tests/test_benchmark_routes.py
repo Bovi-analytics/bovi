@@ -7,7 +7,7 @@ import bovi_api.routes.benchmark as benchmark_routes
 import pytest
 from bovi_api.database import get_session
 from bovi_api.models import Challenge, Submission
-from bovi_api.routes.benchmark import _dispatch_model
+from bovi_api.routes.benchmark import MilkBotRunOptions, _dispatch_model
 from bovi_api.routes.datasets import PresetCow, PresetDatasetResponse
 from bovi_api.settings import Settings
 
@@ -110,6 +110,43 @@ class _FakeClient:
         )
 
 
+class _AutoencoderFakeClient:
+    def __init__(self):
+        self.calls = []
+
+    async def post(self, url, content, headers):
+        self.calls.append(
+            {
+                "url": url,
+                "payload": json.loads(content),
+                "headers": headers,
+            }
+        )
+        return _FakeResponse(
+            {
+                "results": [
+                    {"predictions": [1.0] * 304},
+                    {"predictions": [2.0] * 304},
+                ]
+            }
+        )
+
+
+class _CharacteristicFakeClient:
+    def __init__(self):
+        self.calls = []
+
+    async def post(self, url, content, headers):
+        self.calls.append(
+            {
+                "url": url,
+                "payload": json.loads(content),
+                "headers": headers,
+            }
+        )
+        return _FakeResponse({"value": 9000.0 + len(self.calls)})
+
+
 @pytest.mark.parametrize(
     ("model", "expected_path"),
     [
@@ -151,6 +188,102 @@ def test_dispatch_yield_estimators_call_matching_lactation_curve_endpoint(
             },
             "headers": {"Content-Type": "application/json"},
         }
+    ]
+
+
+def test_dispatch_autoencoder_sends_parity_and_herd_id(monkeypatch):
+    """Autoencoder benchmark dispatch preserves per-cow metadata in the batch payload."""
+    fake_client = _AutoencoderFakeClient()
+    monkeypatch.setattr(benchmark_routes, "_get_client", lambda: fake_client)
+
+    cow_metadata = {
+        "cow-1": {"dim": [10, 40], "milk_kg": [22.0, 31.0], "parity": 2, "herd_id": 2942694},
+        "cow-2": {"dim": [12, 45], "milk_kg": [24.0, 33.0], "parity": 3, "herd_id": 991},
+    }
+
+    result = asyncio.run(
+        _dispatch_model(
+            "autoencoder",
+            cow_metadata,
+            Settings(lactation_autoencoder_url="https://autoencoder.example"),
+        )
+    )
+
+    assert result == {"cow-1": 304.0, "cow-2": 608.0}
+    assert fake_client.calls == [
+        {
+            "url": "https://autoencoder.example/predict/batch",
+            "payload": {
+                "items": [
+                    {
+                        "milk": [None] * 9 + [22.0] + [None] * 29 + [31.0] + [None] * 264,
+                        "parity": 2,
+                        "herd_id": 2942694,
+                    },
+                    {
+                        "milk": [None] * 11 + [24.0] + [None] * 32 + [33.0] + [None] * 259,
+                        "parity": 3,
+                        "herd_id": 991,
+                    },
+                ],
+                "imputation_method": "forward_fill",
+            },
+            "headers": {"Content-Type": "application/json"},
+        }
+    ]
+
+
+def test_dispatch_milkbot_sends_bayesian_options_per_cow(monkeypatch):
+    """MilkBot benchmark dispatch forwards Bayesian fitting options to /characteristic."""
+    fake_client = _CharacteristicFakeClient()
+    monkeypatch.setattr(benchmark_routes, "_get_client", lambda: fake_client)
+
+    cow_metadata = {
+        "cow-1": {"dim": [10, 40], "milk_kg": [22.0, 31.0], "parity": 2},
+        "cow-2": {"dim": [12, 45], "milk_kg": [24.0, 33.0], "parity": 4},
+    }
+
+    result = asyncio.run(
+        _dispatch_model(
+            "milkbot",
+            cow_metadata,
+            Settings(lactation_curves_url="https://curves.example"),
+            MilkBotRunOptions(fitting="bayesian", breed="J", continent="CHEN"),
+        )
+    )
+
+    assert result == {"cow-1": 9001.0, "cow-2": 9002.0}
+    assert fake_client.calls == [
+        {
+            "url": "https://curves.example/characteristic",
+            "payload": {
+                "dim": [10, 40],
+                "milkrecordings": [22.0, 31.0],
+                "model": "milkbot",
+                "characteristic": "cumulative_milk_yield",
+                "parity": 2,
+                "lactation_length": 305,
+                "fitting": "bayesian",
+                "breed": "J",
+                "continent": "CHEN",
+            },
+            "headers": {"Content-Type": "application/json"},
+        },
+        {
+            "url": "https://curves.example/characteristic",
+            "payload": {
+                "dim": [12, 45],
+                "milkrecordings": [24.0, 33.0],
+                "model": "milkbot",
+                "characteristic": "cumulative_milk_yield",
+                "parity": 4,
+                "lactation_length": 305,
+                "fitting": "bayesian",
+                "breed": "J",
+                "continent": "CHEN",
+            },
+            "headers": {"Content-Type": "application/json"},
+        },
     ]
 
 

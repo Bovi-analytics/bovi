@@ -17,9 +17,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY pyproject.toml ./
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip compile pyproject.toml --no-header --no-annotate -o /tmp/requirements.txt \
+    && uv pip install --system -r /tmp/requirements.txt
+
 COPY src ./src
 
-RUN uv pip install --system .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system --no-deps .
 
 # SQLite file lives on a mounted volume.
 ENV DATABASE_URL=sqlite+aiosqlite:////data/bovi.db

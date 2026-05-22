@@ -1,29 +1,54 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { Alert, Badge, Group, Loader, Paper, SegmentedControl, Stack, Text, UnstyledButton } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Group,
+  Loader,
+  Paper,
+  SegmentedControl,
+  Stack,
+  Text,
+  UnstyledButton,
+} from "@mantine/core";
 import { AlertCircle } from "lucide-react";
 import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
+import { usePresetCounts } from "@/app/(dashboard)/curves/hooks/use-preset-counts";
 import { usePresetDataset } from "@/app/(dashboard)/curves/hooks/use-preset-dataset";
 import type { PresetDatasetKey, PresetPeriodKey, PresetSizeKey } from "@/types/api";
 
-const DATASET_OPTIONS: { value: PresetDatasetKey | "none"; label: string; description: string }[] = [
-  { value: "none", label: "None", description: "Use uploaded CSV or manual input" },
-  { value: "aurora", label: "Aurora Ridge", description: "5,102 cows · 2023–2025" },
-  { value: "sunnyside", label: "Sunnyside", description: "1,000+ cows · 2000–2026" },
-];
+const DATASET_OPTIONS: { value: PresetDatasetKey | "none"; label: string; description: string }[] =
+  [
+    { value: "none", label: "None", description: "Use uploaded CSV or manual input" },
+    { value: "aurora", label: "Preset cohort A", description: "Anonymized herd · 2023-2025" },
+    { value: "sunnyside", label: "Preset cohort B", description: "Anonymized herd · 2000-2026" },
+  ];
 
 const SIZE_OPTIONS = [
-  { value: "small", label: "Small (~200)" },
-  { value: "medium", label: "Medium (~1k)" },
-  { value: "large", label: "Large (all)" },
-];
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+] satisfies Array<{ value: PresetSizeKey; label: string }>;
 
 const PERIOD_OPTIONS = [
   { value: "recent", label: "Recent" },
   { value: "old", label: "Old" },
   { value: "mixed", label: "Mixed" },
 ];
+
+function sizeOptionsWithCounts(
+  counts: Record<string, Record<string, number>> | undefined,
+  period: PresetPeriodKey
+): Array<{ value: PresetSizeKey; label: string }> {
+  return SIZE_OPTIONS.map((option) => {
+    const count = counts?.[period]?.[option.value];
+    return {
+      ...option,
+      label: count === undefined ? option.label : `${option.label} (${count.toLocaleString()})`,
+    };
+  });
+}
 
 export function PresetHerdPicker(): ReactElement {
   const { activePreset, setActivePreset } = useUploadedCows();
@@ -32,11 +57,12 @@ export function PresetHerdPicker(): ReactElement {
   const selectedSize = activePreset?.size ?? "small";
   const selectedPeriod = activePreset?.period ?? "mixed";
 
-  const { data: presetData, isLoading, isError } = usePresetDataset(
-    selectedDataset,
-    selectedSize,
-    selectedPeriod
-  );
+  const {
+    data: presetData,
+    isLoading,
+    isError,
+  } = usePresetDataset(selectedDataset, selectedSize, selectedPeriod);
+  const { data: presetCounts } = usePresetCounts(selectedDataset);
 
   function handleSelectDataset(value: PresetDatasetKey | "none") {
     if (value === "none") {
@@ -48,22 +74,30 @@ export function PresetHerdPicker(): ReactElement {
 
   function handleSizeChange(size: string) {
     if (!selectedDataset) return;
-    setActivePreset({ dataset: selectedDataset, size: size as PresetSizeKey, period: selectedPeriod });
+    setActivePreset({
+      dataset: selectedDataset,
+      size: size as PresetSizeKey,
+      period: selectedPeriod,
+    });
   }
 
   function handlePeriodChange(period: string) {
     if (!selectedDataset) return;
-    setActivePreset({ dataset: selectedDataset, size: selectedSize, period: period as PresetPeriodKey });
+    setActivePreset({
+      dataset: selectedDataset,
+      size: selectedSize,
+      period: period as PresetPeriodKey,
+    });
   }
 
   return (
     <Stack gap="sm">
       <Text size="sm" fw={500}>
-        Preset farm datasets
+        Anonymized preset datasets
       </Text>
       <Text size="xs">
-        Pick a real farm dataset as the active herd. The selected cows will be available in the
-        Curves tab for individual lactation analysis.
+        Pick an anonymized preset dataset as the active herd. The selected cows will be available in
+        the Curves tab for individual lactation analysis.
       </Text>
 
       <Group gap="sm">
@@ -86,9 +120,7 @@ export function PresetHerdPicker(): ReactElement {
                 <Text size="sm" fw={600}>
                   {opt.label}
                 </Text>
-                <Text size="xs">
-                  {opt.description}
-                </Text>
+                <Text size="xs">{opt.description}</Text>
               </Paper>
             </UnstyledButton>
           );
@@ -99,20 +131,16 @@ export function PresetHerdPicker(): ReactElement {
         <Stack gap="xs">
           <Group gap="xl" align="flex-start">
             <Stack gap={4}>
-              <Text size="xs">
-                Sample size
-              </Text>
+              <Text size="xs">Sample size</Text>
               <SegmentedControl
                 size="xs"
                 value={selectedSize}
                 onChange={handleSizeChange}
-                data={SIZE_OPTIONS}
+                data={sizeOptionsWithCounts(presetCounts?.counts, selectedPeriod)}
               />
             </Stack>
             <Stack gap={4}>
-              <Text size="xs">
-                Time period
-              </Text>
+              <Text size="xs">Time period</Text>
               <SegmentedControl
                 size="xs"
                 value={selectedPeriod}

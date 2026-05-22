@@ -63,6 +63,14 @@ ChallengerOrBenchmark = Literal[
 ]
 
 
+class MilkBotRunOptions(BaseModel):
+    """Optional MilkBot fitting options for benchmark model runs."""
+
+    fitting: Literal["frequentist", "bayesian"] = "frequentist"
+    breed: Literal["H", "J"] = "H"
+    continent: Literal["USA", "EU", "CHEN"] = "USA"
+
+
 def _actual_yields_are_plausible(actual_yields: dict | None) -> bool:
     if not actual_yields:
         return True
@@ -91,7 +99,12 @@ async def _repair_preset_challenge_if_needed(
         )
 
     challenge.cow_metadata = {
-        cow.cow_id: {"parity": cow.parity, "dim": cow.dim, "milk_kg": cow.milk_kg}
+        cow.cow_id: {
+            "parity": cow.parity,
+            "herd_id": cow.herd_id,
+            "dim": cow.dim,
+            "milk_kg": cow.milk_kg,
+        }
         for cow in preset.cows
         if cow.cow_id in preset.actual_yields
     }
@@ -169,6 +182,7 @@ async def _call_curve_characteristic(
     cow_metadata: dict[str, dict],
     model: str,
     settings: Settings,
+    options: MilkBotRunOptions | None = None,
 ) -> dict[str, float]:
     """Per-cow POST /characteristic - failed cows are omitted."""
     client = _get_client()
@@ -185,6 +199,14 @@ async def _call_curve_characteristic(
             "parity": meta.get("parity") or 1,
             "lactation_length": 305,
         }
+        if model == "milkbot" and options is not None:
+            payload.update(
+                {
+                    "fitting": options.fitting,
+                    "breed": options.breed,
+                    "continent": options.continent,
+                }
+            )
         try:
             resp = await client.post(
                 url,
@@ -223,7 +245,10 @@ async def _call_autoencoder(
         for d, m in zip(meta["dim"], meta["milk_kg"]):
             if 1 <= d <= 304:
                 milk[d - 1] = float(m)
-        items.append({"milk": milk, "parity": meta.get("parity") or 1})
+        item = {"milk": milk, "parity": meta.get("parity") or 1}
+        if meta.get("herd_id") is not None:
+            item["herd_id"] = meta["herd_id"]
+        items.append(item)
 
     payload = {"items": items, "imputation_method": "forward_fill"}
     client = _get_client()
@@ -255,12 +280,13 @@ async def _dispatch_model(
     model: str,
     cow_metadata: dict[str, dict],
     settings: Settings,
+    options: MilkBotRunOptions | None = None,
 ) -> dict[str, float]:
     """Run the requested model on all cows and return {cow_id: 305-day yield}."""
     if model in YIELD_ESTIMATORS:
         return await _call_yield_estimator(cow_metadata, settings, YIELD_ESTIMATORS[model])
     if model in CURVE_MODELS:
-        return await _call_curve_characteristic(cow_metadata, model, settings)
+        return await _call_curve_characteristic(cow_metadata, model, settings, options)
     if model == "autoencoder":
         return await _call_autoencoder(cow_metadata, settings)
     raise HTTPException(status_code=422, detail=f"Unknown model '{model}'.")
@@ -295,7 +321,12 @@ async def create_challenge_preset(
         )
 
     cow_metadata: dict[str, dict] = {
-        cow.cow_id: {"parity": cow.parity, "dim": cow.dim, "milk_kg": cow.milk_kg}
+        cow.cow_id: {
+            "parity": cow.parity,
+            "herd_id": cow.herd_id,
+            "dim": cow.dim,
+            "milk_kg": cow.milk_kg,
+        }
         for cow in preset.cows
     }
     # Keep only cows that have ALY (defensive - already filtered by generator)
@@ -403,11 +434,12 @@ async def export_challenge(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["cow_id", "parity", "dim", "milk_kg"])
+    writer.writerow(["cow_id", "herd_id", "parity", "dim", "milk_kg"])
     for cow_id, meta in challenge.cow_metadata.items():
+        herd_id = meta.get("herd_id", "")
         parity = meta.get("parity", "")
         for d, m in zip(meta["dim"], meta["milk_kg"]):
-            writer.writerow([cow_id, parity, d, m])
+            writer.writerow([cow_id, herd_id, parity, d, m])
 
     content = output.getvalue().encode("utf-8")
     return Response(
@@ -426,6 +458,8 @@ class SubmissionBoviBody(BaseModel):
     submission_type: Literal["bovi_model"] = "bovi_model"
     challenger: ChallengerOrBenchmark = "wood"
     benchmark: ChallengerOrBenchmark = "tim"
+    challenger_options: MilkBotRunOptions | None = None
+    benchmark_options: MilkBotRunOptions | None = None
     organization: str | None = None
     country: str | None = None
     notes: str | None = None
@@ -434,6 +468,10 @@ class SubmissionBoviBody(BaseModel):
     def _challenger_differs(self) -> "SubmissionBoviBody":
         if self.challenger == self.benchmark:
             raise ValueError("Challenger and benchmark must differ.")
+        if self.challenger != "milkbot" and self.challenger_options is not None:
+            raise ValueError("challenger_options are only supported for MilkBot.")
+        if self.benchmark != "milkbot" and self.benchmark_options is not None:
+            raise ValueError("benchmark_options are only supported for MilkBot.")
         return self
 
 
@@ -457,8 +495,8 @@ async def create_submission_bovi(
         )
 
     challenger_yields, benchmark_yields = await asyncio.gather(
-        _dispatch_model(body.challenger, challenge.cow_metadata, settings),
-        _dispatch_model(body.benchmark, challenge.cow_metadata, settings),
+        _dispatch_model(body.challenger, challenge.cow_metadata, settings, body.challenger_options),
+        _dispatch_model(body.benchmark, challenge.cow_metadata, settings, body.benchmark_options),
     )
 
     parities = {cid: meta.get("parity", 1) or 1 for cid, meta in challenge.cow_metadata.items()}
@@ -478,6 +516,14 @@ async def create_submission_bovi(
         organization=body.organization,
         country=body.country,
         notes=body.notes,
+        run_options={
+            "challenger": body.challenger_options.model_dump()
+            if body.challenger_options is not None
+            else None,
+            "benchmark": body.benchmark_options.model_dump()
+            if body.benchmark_options is not None
+            else None,
+        },
         submitted_yields=challenger_yields,
         bovi_yields=benchmark_yields,
         stats=stats,
@@ -498,6 +544,9 @@ async def create_submission_upload(
     challenge_id: int,
     file: UploadFile = File(...),
     benchmark: str = Form(default="tim"),
+    benchmark_fitting: str | None = Form(default=None),
+    benchmark_breed: str | None = Form(default=None),
+    benchmark_continent: str | None = Form(default=None),
     organization: str | None = Form(default=None),
     country: str | None = Form(default=None),
     calculation_method: str | None = Form(default=None),
@@ -516,6 +565,26 @@ async def create_submission_upload(
         )
     if benchmark not in ALL_MODELS:
         raise HTTPException(status_code=422, detail=f"Unknown benchmark '{benchmark}'.")
+    benchmark_options = None
+    has_benchmark_options = any(
+        value is not None for value in (benchmark_fitting, benchmark_breed, benchmark_continent)
+    )
+    if benchmark == "milkbot" and has_benchmark_options:
+        try:
+            benchmark_options = MilkBotRunOptions.model_validate(
+                {
+                    "fitting": benchmark_fitting or "frequentist",
+                    "breed": benchmark_breed or "H",
+                    "continent": benchmark_continent or "USA",
+                }
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    elif has_benchmark_options:
+        raise HTTPException(
+            status_code=422,
+            detail="Benchmark options are only supported for MilkBot.",
+        )
 
     filename = file.filename or ""
     if not filename.lower().endswith(".csv"):
@@ -540,7 +609,9 @@ async def create_submission_upload(
             ),
         )
 
-    benchmark_yields = await _dispatch_model(benchmark, challenge.cow_metadata, settings)
+    benchmark_yields = await _dispatch_model(
+        benchmark, challenge.cow_metadata, settings, benchmark_options
+    )
 
     parities = {cid: meta.get("parity", 1) or 1 for cid, meta in challenge.cow_metadata.items()}
     stats = calculate_comparison_stats_v2(
@@ -559,6 +630,9 @@ async def create_submission_upload(
         country=country,
         calculation_method=calculation_method,
         notes=notes,
+        run_options={
+            "benchmark": benchmark_options.model_dump() if benchmark_options is not None else None
+        },
         submitted_yields=challenger_yields,
         bovi_yields=benchmark_yields,
         stats=stats,

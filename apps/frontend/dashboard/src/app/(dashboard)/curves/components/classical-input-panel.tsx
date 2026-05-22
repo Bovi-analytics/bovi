@@ -2,23 +2,34 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { Checkbox, Modal } from "@mantine/core";
+import { Checkbox, Group, Modal, SegmentedControl, Select, Stack, Text } from "@mantine/core";
 import { Info } from "lucide-react";
 import { ALL_MODELS, MODEL_METADATA } from "@/data/model-metadata";
 import { ModelInfo } from "@/app/(dashboard)/models/components/model-info";
-import type { Model } from "@/types/api";
+import type { MilkBotRunOptions, Model } from "@/types/api";
 import type { ModelMetadata } from "@/data/model-metadata";
 
 interface ClassicalInputPanelProps {
   readonly selectedModels: Model[];
   readonly onToggleModel: (model: Model) => void;
+  readonly parity: number;
+  readonly milkbotOptions: MilkBotRunOptions;
+  readonly onMilkbotOptionsChange: (options: MilkBotRunOptions) => void;
 }
 
 export function ClassicalInputPanel({
   selectedModels,
   onToggleModel,
+  parity,
+  milkbotOptions,
+  onMilkbotOptionsChange,
 }: ClassicalInputPanelProps): ReactElement {
   const [modalModel, setModalModel] = useState<ModelMetadata | null>(null);
+  const showMilkBotOptions = selectedModels.includes("milkbot");
+
+  function updateMilkBotOptions(patch: Partial<MilkBotRunOptions>): void {
+    onMilkbotOptionsChange({ ...milkbotOptions, ...patch });
+  }
 
   return (
     <>
@@ -45,6 +56,57 @@ export function ClassicalInputPanel({
             </div>
           ))}
         </div>
+        {showMilkBotOptions && (
+          <Stack gap="xs" mt="md">
+            <Text size="xs" fw={700} tt="uppercase" c="dimmed">
+              MilkBot fitting
+            </Text>
+            <SegmentedControl
+              size="xs"
+              value={milkbotOptions.fitting}
+              onChange={(value) =>
+                updateMilkBotOptions({ fitting: value as MilkBotRunOptions["fitting"] })
+              }
+              data={[
+                { value: "frequentist", label: "Frequentist" },
+                { value: "bayesian", label: "Bayesian" },
+              ]}
+            />
+            <Group grow align="start">
+              <Select
+                size="xs"
+                label="Prior source"
+                value={milkbotOptions.continent}
+                onChange={(value) =>
+                  value &&
+                  updateMilkBotOptions({ continent: value as MilkBotRunOptions["continent"] })
+                }
+                data={[
+                  { value: "USA", label: "USA" },
+                  { value: "EU", label: "EU" },
+                  { value: "CHEN", label: "Chen et al." },
+                ]}
+                allowDeselect={false}
+              />
+              <Select
+                size="xs"
+                label="Breed"
+                value={milkbotOptions.breed}
+                onChange={(value) =>
+                  value && updateMilkBotOptions({ breed: value as MilkBotRunOptions["breed"] })
+                }
+                data={[
+                  { value: "H", label: "Holstein" },
+                  { value: "J", label: "Jersey" },
+                ]}
+                allowDeselect={false}
+              />
+            </Group>
+            <Text size="xs" c="dimmed">
+              Parity {parity} is sent with Bayesian MilkBot requests.
+            </Text>
+          </Stack>
+        )}
       </div>
 
       <Modal

@@ -121,7 +121,7 @@ class Challenge(ChallengeBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     cow_metadata: dict = Field(
         sa_column=Column(JSON),
-        description="{cow_id: {parity, dim[], milk_kg[]}} - test-day records per cow",
+        description="{cow_id: {parity, herd_id, dim[], milk_kg[]}} - test-day records per cow",
     )
     reference_yields: dict | None = Field(
         default=None,
@@ -177,6 +177,11 @@ class SubmissionBase(SQLModel):
     calculation_method: str | None = Field(default=None)
     notes: str | None = Field(default=None)
     user_id: str | None = Field(default=None)
+    run_options: dict | None = Field(
+        default_factory=dict,
+        sa_column=Column(JSON, nullable=True),
+        description="Model run options, e.g. MilkBot fitting configuration.",
+    )
 
 
 class Submission(SubmissionBase, table=True):

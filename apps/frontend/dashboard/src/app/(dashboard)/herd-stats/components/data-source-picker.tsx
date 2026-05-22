@@ -23,6 +23,7 @@ import Link from "next/link";
 import { HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
 import { statsToHerdProfileFields } from "@/lib/herd-profile-utils";
 import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
+import { usePresetCounts } from "@/app/(dashboard)/curves/hooks/use-preset-counts";
 import { usePresetDataset } from "@/app/(dashboard)/curves/hooks/use-preset-dataset";
 import type {
   HerdProfileUploadResponse,
@@ -50,13 +51,13 @@ interface SourceOption {
 const SOURCE_OPTIONS: SourceOption[] = [
   {
     value: "aurora",
-    label: "Aurora Ridge",
-    description: "5,102 cows · US dairy · 2023–2025",
+    label: "Preset cohort A",
+    description: "Anonymized herd · 2023-2025",
   },
   {
     value: "sunnyside",
-    label: "Sunnyside",
-    description: "1,000+ cows · US dairy · 2000–2026",
+    label: "Preset cohort B",
+    description: "Anonymized herd · 2000-2026",
   },
   {
     value: "upload",
@@ -66,16 +67,29 @@ const SOURCE_OPTIONS: SourceOption[] = [
 ];
 
 const SIZE_OPTIONS = [
-  { value: "small", label: "Small (~200)" },
-  { value: "medium", label: "Medium (~1k)" },
-  { value: "large", label: "Large (all)" },
-];
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+] satisfies Array<{ value: PresetSizeKey; label: string }>;
 
 const PERIOD_OPTIONS = [
   { value: "recent", label: "Recent" },
   { value: "old", label: "Old" },
   { value: "mixed", label: "Mixed" },
 ];
+
+function sizeOptionsWithCounts(
+  counts: Record<string, Record<string, number>> | undefined,
+  period: PresetPeriodKey
+): Array<{ value: PresetSizeKey; label: string }> {
+  return SIZE_OPTIONS.map((option) => {
+    const count = counts?.[period]?.[option.value];
+    return {
+      ...option,
+      label: count === undefined ? option.label : `${option.label} (${count.toLocaleString()})`,
+    };
+  });
+}
 
 interface FormatMeta {
   label: string;
@@ -140,7 +154,11 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
     columns: [
       { name: "ID", description: "Unique cow identifier", required: true },
       { name: "DIM", description: "Days in milk for this test day", required: true },
-      { name: "MILK", description: "Daily milk yield in lbs (auto-converted to kg)", required: true },
+      {
+        name: "MILK",
+        description: "Daily milk yield in lbs (auto-converted to kg)",
+        required: true,
+      },
       { name: "305ME", description: "305-day mature equivalent in lbs", required: false },
     ],
     template: () => DAIRYCOM_TEMPLATE,
@@ -174,11 +192,12 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
   );
 
   // Always fetch based on local selection → user gets a live preview before clicking "Use"
-  const { data: presetData, isLoading, isError } = usePresetDataset(
-    dataset,
-    selectedSize,
-    selectedPeriod
-  );
+  const {
+    data: presetData,
+    isLoading,
+    isError,
+  } = usePresetDataset(dataset, selectedSize, selectedPeriod);
+  const { data: presetCounts } = usePresetCounts(dataset);
 
   const isActive =
     activePreset?.dataset === dataset &&
@@ -192,16 +211,20 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
   return (
     <Stack gap="lg">
       <Stack gap={6}>
-        <Text size="sm" fw={600}>Sample size</Text>
+        <Text size="sm" fw={600}>
+          Sample size
+        </Text>
         <SegmentedControl
           size="sm"
           value={selectedSize}
           onChange={(v) => setSelectedSize(v as PresetSizeKey)}
-          data={SIZE_OPTIONS}
+          data={sizeOptionsWithCounts(presetCounts?.counts, selectedPeriod)}
         />
       </Stack>
       <Stack gap={6}>
-        <Text size="sm" fw={600}>Time period</Text>
+        <Text size="sm" fw={600}>
+          Time period
+        </Text>
         <SegmentedControl
           size="sm"
           value={selectedPeriod}
@@ -218,12 +241,7 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
           </Badge>
         )}
         {!isActive && (
-          <Button
-            size="md"
-            color="violet"
-            onClick={activate}
-            disabled={isLoading || !presetData}
-          >
+          <Button size="md" color="violet" onClick={activate} disabled={isLoading || !presetData}>
             Use this dataset
           </Button>
         )}
@@ -237,12 +255,12 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
             </Text>
             <Button
               component={Link}
-              href="/curves"
+              href="/herd-profiles"
               size="sm"
               color="violet"
               rightSection={<ChevronRight size={14} />}
             >
-              Go to Curves
+              Go to Herd Profiles
             </Button>
           </Group>
         </Alert>
@@ -320,7 +338,9 @@ function UploadPanel(): ReactElement {
   return (
     <Stack gap="lg">
       <Stack gap={6}>
-        <Text size="sm" fw={600}>File format</Text>
+        <Text size="sm" fw={600}>
+          File format
+        </Text>
         <SegmentedControl
           size="sm"
           value={selectedFormat}
@@ -330,13 +350,17 @@ function UploadPanel(): ReactElement {
             label: FORMATS[k].label,
           }))}
         />
-        <Text size="sm" mt={4}>{activeFormat.blurb}</Text>
+        <Text size="sm" mt={4}>
+          {activeFormat.blurb}
+        </Text>
       </Stack>
 
       <Accordion variant="contained">
         <Accordion.Item value="columns">
           <Accordion.Control>
-            <Text size="sm" fw={600}>Expected columns</Text>
+            <Text size="sm" fw={600}>
+              Expected columns
+            </Text>
           </Accordion.Control>
           <Accordion.Panel>
             <Stack gap="sm">
@@ -351,11 +375,15 @@ function UploadPanel(): ReactElement {
                 <Table.Tbody>
                   {activeFormat.columns.map((c) => (
                     <Table.Tr key={c.name}>
-                      <Table.Td><Code>{c.name}</Code></Table.Td>
+                      <Table.Td>
+                        <Code>{c.name}</Code>
+                      </Table.Td>
                       <Table.Td>{c.description}</Table.Td>
                       <Table.Td>
                         {c.required ? (
-                          <Badge size="sm" color="red" variant="light">required</Badge>
+                          <Badge size="sm" color="red" variant="light">
+                            required
+                          </Badge>
                         ) : (
                           <Text size="sm">optional</Text>
                         )}
@@ -404,8 +432,8 @@ function UploadPanel(): ReactElement {
         <Stack gap="sm">
           {detectedMismatch && (
             <Alert icon={<AlertCircle size={14} />} color="blue">
-              Detected format: <Code>{FORMAT_LABELS[preview.format_detected]}</Code>. Switched
-              from <Code>{FORMAT_LABELS[selectedFormat]}</Code>.
+              Detected format: <Code>{FORMAT_LABELS[preview.format_detected]}</Code>. Switched from{" "}
+              <Code>{FORMAT_LABELS[selectedFormat]}</Code>.
             </Alert>
           )}
           <Group gap="xs">
@@ -417,12 +445,18 @@ function UploadPanel(): ReactElement {
             </Text>
           </Group>
           {preview.warnings.map((w, i) => (
-            <Alert key={i} icon={<AlertCircle size={14} />} color="yellow">{w}</Alert>
+            <Alert key={i} icon={<AlertCircle size={14} />} color="yellow">
+              {w}
+            </Alert>
           ))}
           {preview.cows.length > 0 && uploadedFilename && (
             <Alert icon={<CheckCircle2 size={14} />} color="green">
-              {preview.cows.length} cow records from <Code>{uploadedFilename}</Code> ready for the{" "}
-              <Link href="/curves" style={{ textDecoration: "underline" }}>Curves tab</Link>.
+              {preview.cows.length} cow records from <Code>{uploadedFilename}</Code> ready. Continue
+              to the{" "}
+              <Link href="/herd-profiles" style={{ textDecoration: "underline" }}>
+                Herd Profiles tab
+              </Link>{" "}
+              before opening Curves.
             </Alert>
           )}
           <Table striped withColumnBorders fz="xs">
@@ -513,6 +547,7 @@ function UploadPanel(): ReactElement {
 
 export function DataSourcePicker(): ReactElement {
   const { activePreset, dataset: uploadedDataset } = useUploadedCows();
+  const activePresetDataset = activePreset?.dataset;
 
   // Derive initial active source from context state
   const [activeSource, setActiveSource] = useState<SourceKey | null>(() => {
@@ -523,20 +558,23 @@ export function DataSourcePicker(): ReactElement {
 
   // Keep active source in sync when the active preset changes from outside
   // (e.g. set on another page). Only depends on activePreset.dataset so a local
-  // tile click is not immediately undone — the user can preview a different
-  // preset (e.g. Aurora) before activating it.
+  // tile click is not immediately undone - the user can preview a different
+  // preset before activating it.
   useEffect(() => {
-    if (activePreset) {
-      setActiveSource(activePreset.dataset);
+    if (activePresetDataset) {
+      setActiveSource(activePresetDataset);
     }
-  }, [activePreset?.dataset]);
+  }, [activePresetDataset]);
 
   return (
     <Stack gap="md">
       <div>
-        <Text size="md" fw={700}>Data source</Text>
+        <Text size="md" fw={700}>
+          Data source
+        </Text>
         <Text size="sm" mt={4}>
-          Pick a preset farm dataset or upload your own file to start analyzing lactation curves.
+          Pick an anonymized preset dataset or upload your own file to start analyzing lactation
+          curves.
         </Text>
       </div>
 
@@ -562,8 +600,12 @@ export function DataSourcePicker(): ReactElement {
                   transition: "border-color 0.12s",
                 }}
               >
-                <Text size="md" fw={700}>{opt.label}</Text>
-                <Text size="sm" mt={4}>{opt.description}</Text>
+                <Text size="md" fw={700}>
+                  {opt.label}
+                </Text>
+                <Text size="sm" mt={4}>
+                  {opt.description}
+                </Text>
               </Paper>
             </UnstyledButton>
           );

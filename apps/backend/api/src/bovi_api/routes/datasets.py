@@ -1,13 +1,15 @@
 """Preset cow-dataset endpoints.
 
 Serves pre-generated JSON blobs from Azure Blob Storage or local presets.
-Azure blobs live under preset-datasets/{aurora|sunnyside}/{size}_{period}.json
-in the icarwebsite container. Local presets live under data/datasets/presets.
+Azure blobs live under data/datasets/presets/{aurora|sunnyside}/{size}_{period}.json.
+Local presets live under data/datasets/presets.
 """
 
 from __future__ import annotations
 
 import json
+import logging
+import re
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -25,14 +27,18 @@ from bovi_api.herd_stats_ingestion import (
 from bovi_api.settings import Settings, get_settings
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
+logger = logging.getLogger(__name__)
 
-_CONTAINER = "icarwebsite"
-_BLOB_PREFIX = "preset-datasets"
+_BLOB_PREFIX = "data/datasets/presets"
 _LOCAL_PRESETS_DIR = Path(__file__).resolve().parents[6] / "data" / "datasets" / "presets"
 
 DatasetKey = Literal["aurora", "sunnyside", "icar"]
 SizeKey = Literal["small", "medium", "large", "full"]
 PeriodKey = Literal["recent", "old", "mixed", "all"]
+_PUBLIC_DATASETS: tuple[DatasetKey, ...] = ("aurora", "sunnyside")
+_PUBLIC_SIZES: tuple[SizeKey, ...] = ("small", "medium", "large")
+_PUBLIC_PERIODS: tuple[PeriodKey, ...] = ("recent", "old", "mixed")
+_COW_COUNT_RE = re.compile(rb'"cow_count"\s*:\s*(\d+)')
 
 _MANIFEST: dict[str, dict] = {
     "aurora": {
@@ -64,6 +70,7 @@ class PresetCow(BaseModel):
     cow_id: str
     display_name: str
     parity: int | None
+    herd_id: int | None = None
     dim: list[int]
     milk_kg: list[float]
 
@@ -79,19 +86,62 @@ class PresetDatasetResponse(BaseModel):
     actual_yields: dict[str, float] | None = None
 
 
+class PresetCountsResponse(BaseModel):
+    """Cow counts for every public size/period combination of one preset dataset."""
+
+    dataset: str
+    counts: dict[str, dict[str, int]]
+
+
 class LocalPresetUnavailableError(RuntimeError):
     """Raised when a preset cannot be read from local JSON."""
 
 
 def _get_blob_client(settings: Settings) -> BlobServiceClient:
-    if not settings.connection_string:
+    connection_string = settings.connection_string
+    if (
+        not connection_string
+        and settings.storage_account_name_icar
+        and settings.storage_account_key_icar
+    ):
+        connection_string = (
+            "DefaultEndpointsProtocol=https;"
+            f"AccountName={settings.storage_account_name_icar};"
+            f"AccountKey={settings.storage_account_key_icar};"
+            "EndpointSuffix=core.windows.net"
+        )
+    if not connection_string:
         raise HTTPException(
             status_code=503,
             detail=(
-                "Azure Blob Storage is not configured on this server (CONNECTION_STRING missing)."
+                "Azure Blob Storage is not configured on this server "
+                "(CONNECTION_STRING or STORAGE_ACCOUNT_NAME_ICAR/STORAGE_ACCOUNT_KEY_ICAR missing)."
             ),
         )
-    return BlobServiceClient.from_connection_string(settings.connection_string)
+    return BlobServiceClient.from_connection_string(connection_string)
+
+
+def _get_blob_container(settings: Settings) -> str:
+    if not settings.storage_account_container_icar:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Azure Blob Storage is not configured on this server "
+                "(STORAGE_ACCOUNT_CONTAINER_ICAR missing)."
+            ),
+        )
+    return settings.storage_account_container_icar
+
+
+def _has_blob_config(settings: Settings) -> bool:
+    return bool(
+        settings.connection_string
+        or (
+            settings.storage_account_name_icar
+            and settings.storage_account_key_icar
+            and settings.storage_account_container_icar
+        )
+    )
 
 
 def _preset_blob_path(dataset: DatasetKey, size: SizeKey, period: PeriodKey) -> str:
@@ -108,8 +158,29 @@ def _fetch_blob_preset(
 ) -> PresetDatasetResponse:
     blob_path = _preset_blob_path(dataset, size, period)
     client = _get_blob_client(settings)
-    data = client.get_blob_client(_CONTAINER, blob_path).download_blob().readall()
+    data = (
+        client.get_blob_client(_get_blob_container(settings), blob_path).download_blob().readall()
+    )
     return PresetDatasetResponse(**json.loads(data))
+
+
+def _fetch_blob_preset_count(
+    dataset: DatasetKey,
+    size: SizeKey,
+    period: PeriodKey,
+    settings: Settings,
+) -> int:
+    blob_path = _preset_blob_path(dataset, size, period)
+    client = _get_blob_client(settings)
+    data = (
+        client.get_blob_client(_get_blob_container(settings), blob_path)
+        .download_blob(offset=0, length=8192)
+        .readall()
+    )
+    match = _COW_COUNT_RE.search(data)
+    if not match:
+        raise AzureError(f"Preset cow_count not found in blob prefix: {blob_path}")
+    return int(match.group(1))
 
 
 def _fetch_local_preset(
@@ -123,6 +194,43 @@ def _fetch_local_preset(
     if not local_path.exists():
         raise LocalPresetUnavailableError(f"Local preset not found: {local_path}")
     return PresetDatasetResponse(**json.loads(local_path.read_text()))
+
+
+def _fetch_local_preset_count(
+    dataset: DatasetKey,
+    size: SizeKey,
+    period: PeriodKey,
+) -> int:
+    return _fetch_local_preset(dataset, size, period).cow_count
+
+
+def fetch_preset_counts(dataset: DatasetKey, settings: Settings) -> PresetCountsResponse:
+    """Fetch cow counts for public preset size/period combinations."""
+    if dataset not in _PUBLIC_DATASETS:
+        raise HTTPException(status_code=404, detail=f"Preset counts unavailable for: {dataset}.")
+
+    counts: dict[str, dict[str, int]] = {}
+    for period in _PUBLIC_PERIODS:
+        counts[period] = {}
+        for size in _PUBLIC_SIZES:
+            try:
+                if _has_blob_config(settings):
+                    counts[period][size] = _fetch_blob_preset_count(dataset, size, period, settings)
+                else:
+                    counts[period][size] = _fetch_local_preset_count(dataset, size, period)
+            except ResourceNotFoundError as exc:
+                blob_path = _preset_blob_path(dataset, size, period)
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Preset dataset not found: {blob_path}.",
+                ) from exc
+            except (AzureError, LocalPresetUnavailableError) as exc:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Preset counts unavailable for {dataset}: {exc}",
+                ) from exc
+
+    return PresetCountsResponse(dataset=dataset, counts=counts)
 
 
 def fetch_preset_cows(
@@ -147,18 +255,29 @@ def fetch_preset_cows(
 
     """
     blob_error: HTTPException | AzureError | None = None
-    if settings.connection_string:
+    if _has_blob_config(settings):
         try:
             return _fetch_blob_preset(dataset, size, period, settings)
         except ResourceNotFoundError as exc:
             blob_error = exc
         except AzureError as exc:
             blob_error = exc
+        logger.warning(
+            "Preset blob fetch failed; trying local fallback",
+            extra={
+                "dataset": dataset,
+                "size": size,
+                "period": period,
+                "blob_path": _preset_blob_path(dataset, size, period),
+                "error": str(blob_error),
+            },
+        )
     else:
         blob_error = HTTPException(
             status_code=503,
             detail=(
-                "Azure Blob Storage is not configured on this server (CONNECTION_STRING missing)."
+                "Azure Blob Storage is not configured on this server "
+                "(CONNECTION_STRING or ICAR storage settings missing)."
             ),
         )
 
@@ -181,6 +300,15 @@ def fetch_preset_cows(
 def list_presets() -> dict:
     """Return a static manifest of all available preset dataset combinations."""
     return _MANIFEST
+
+
+@router.get("/presets/{dataset}/counts", response_model=PresetCountsResponse)
+def get_preset_counts(
+    dataset: DatasetKey,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> PresetCountsResponse:
+    """Return cow counts for all size/period combinations of a preset dataset."""
+    return fetch_preset_counts(dataset, settings)
 
 
 @router.get("/presets/{dataset}/{size}/{period}", response_model=PresetDatasetResponse)

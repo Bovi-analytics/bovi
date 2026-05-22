@@ -76,9 +76,9 @@ dev: stop run
 run-api:
     cd apps/backend/api && uv run python -m uvicorn bovi_api.app:app --reload --port $PORT_API
 
-# Apply DB migrations manually (the API also does this automatically on startup)
+# Apply DB migrations manually before rolling a new API revision.
 db-migrate:
-    cd apps/backend/api && uv run alembic upgrade head
+    cd apps/backend/api && uv run python -m bovi_api.migrations
 
 # ── Containerised API (SQLite on a Docker volume) ────────────
 api-build:
@@ -111,6 +111,56 @@ api-smoke:
     done
     echo "✗ /health did not respond in time"
     docker compose down
+    exit 1
+
+# ── Containerised stack (migration job + API + dashboard) ───
+compose-build:
+    docker compose build
+
+compose-up:
+    docker compose up -d
+
+compose-down:
+    docker compose down
+
+compose-logs:
+    docker compose logs -f
+
+# Build, start, hit API + dashboard, then stop — quick smoke test
+compose-smoke:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    docker compose build
+    docker compose up -d
+    trap 'docker compose down >/dev/null 2>&1 || true' EXIT
+    echo "Waiting for API and dashboard to be ready..."
+    for i in $(seq 1 30); do
+        if curl -sf "http://localhost:$PORT_API/" >/dev/null 2>&1; then
+            echo "✓ API / OK"
+            break
+        fi
+        if [ "$i" -eq 30 ]; then
+            echo "✗ API / did not respond in time"
+            exit 1
+        fi
+        sleep 1
+    done
+    for i in $(seq 1 30); do
+        if curl -sf "http://localhost:$PORT_DASHBOARD/" >/dev/null 2>&1; then
+            echo "✓ Dashboard / OK"
+            break
+        fi
+        if [ "$i" -eq 30 ]; then
+            echo "✗ Dashboard / did not respond in time"
+            exit 1
+        fi
+        sleep 1
+    done
+    if curl -sf "http://localhost:$PORT_DASHBOARD/api/bovi/health" >/dev/null 2>&1; then
+        echo "✓ Dashboard API proxy /api/bovi/health OK"
+        exit 0
+    fi
+    echo "✗ Dashboard API proxy did not respond"
     exit 1
 
 run-models:

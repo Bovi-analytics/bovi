@@ -4,11 +4,11 @@ import logging
 import time
 import uuid
 from collections.abc import Sequence
-from typing import Literal, Self
+from typing import Literal, Self, TypedDict
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -170,8 +170,8 @@ MODEL_DESC = (
     " Fischer (3-param), or MilkBot (4-param)."
 )
 FITTING_DESC = (
-    "Fitting method. Currently only frequentist"
-    " (scipy optimization) is supported via this endpoint."
+    "Fitting method. Frequentist uses scipy optimization."
+    " Bayesian is supported for MilkBot via the external MilkBot API."
 )
 CHARACTERISTIC_DESC = (
     "Which lactation characteristic to compute."
@@ -248,7 +248,7 @@ class FitRequest(BaseModel):
         default="wood",
         description=MODEL_DESC,
     )
-    fitting: Literal["frequentist"] = Field(
+    fitting: Literal["frequentist", "bayesian"] = Field(
         default="frequentist",
         description=FITTING_DESC,
     )
@@ -261,9 +261,9 @@ class FitRequest(BaseModel):
         ge=1,
         description="Lactation number. Parities >= 3 are one group.",
     )
-    continent: Literal["USA", "EU"] = Field(
+    continent: Literal["USA", "EU", "CHEN"] = Field(
         default="USA",
-        description="Continent for priors: USA or EU",
+        description="Prior source: USA, EU, or CHEN literature priors.",
     )
     custom_priors: MilkBotPriors | Literal["CHEN"] | None = Field(
         default=None,
@@ -277,7 +277,7 @@ class FitRequest(BaseModel):
             " priors are used."
         ),
     )
-    milk_unit: Literal["kg", "lbs"] = Field(
+    milk_unit: Literal["kg", "lb"] = Field(
         default="kg",
         description="Unit of milk yield",
     )
@@ -291,6 +291,8 @@ class FitRequest(BaseModel):
                 f"got {len(self.dim)} and {len(self.milkrecordings)}"
             )
             raise ValueError(msg)
+        if self.fitting == "bayesian" and self.model != "milkbot":
+            raise ValueError("Bayesian fitting is currently only implemented for MilkBot")
         return self
 
 
@@ -322,7 +324,7 @@ class CharacteristicRequest(BaseModel):
         default="cumulative_milk_yield",
         description=CHARACTERISTIC_DESC,
     )
-    fitting: Literal["frequentist"] = Field(
+    fitting: Literal["frequentist", "bayesian"] = Field(
         default="frequentist",
         description=FITTING_DESC,
     )
@@ -335,9 +337,9 @@ class CharacteristicRequest(BaseModel):
         ge=1,
         description="Lactation number. Parities >= 3 are one group.",
     )
-    continent: Literal["USA", "EU"] = Field(
+    continent: Literal["USA", "EU", "CHEN"] = Field(
         default="USA",
-        description="Continent for priors: USA or EU",
+        description="Prior source: USA, EU, or CHEN literature priors.",
     )
     custom_priors: MilkBotPriors | Literal["CHEN"] | None = Field(
         default=None,
@@ -351,7 +353,7 @@ class CharacteristicRequest(BaseModel):
             " priors are used."
         ),
     )
-    milk_unit: Literal["kg", "lbs"] = Field(
+    milk_unit: Literal["kg", "lb"] = Field(
         default="kg",
         description="Unit of milk yield",
     )
@@ -374,6 +376,8 @@ class CharacteristicRequest(BaseModel):
                 f"got {len(self.dim)} and {len(self.milkrecordings)}"
             )
             raise ValueError(msg)
+        if self.fitting == "bayesian" and self.model != "milkbot":
+            raise ValueError("Bayesian fitting is currently only implemented for MilkBot")
         return self
 
 
@@ -420,19 +424,52 @@ class YieldEstimateRequest(TestIntervalRequest):
     """Request body for 305-day yield estimators using test-day records."""
 
 
+class _BayesianMilkBotKwargs(TypedDict):
+    continent: str
+    custom_priors: MilkBotPriors | Literal["CHEN"] | None
+    key: str | None
+
+
+def _bayesian_milkbot_kwargs(
+    request: FitRequest | CharacteristicRequest,
+) -> _BayesianMilkBotKwargs:
+    """Return normalized fitting kwargs for package calls."""
+    custom_priors: MilkBotPriors | Literal["CHEN"] | None = request.custom_priors
+    continent = request.continent
+    key: str | None = None
+
+    if request.fitting == "bayesian":
+        milkbot_key = getattr(settings, "milkbot_key", "")
+        if not milkbot_key:
+            raise HTTPException(
+                status_code=503,
+                detail="MILKBOT_KEY is required for Bayesian MilkBot fitting.",
+            )
+        key = milkbot_key
+        if request.continent == "CHEN":
+            continent = "USA"
+            custom_priors = "CHEN"
+
+    return {
+        "continent": continent,
+        "custom_priors": custom_priors,
+        "key": key,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
 
 @app.get("/")
-def health() -> dict[str, str]:
+async def health() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok"}
 
 
 @app.post("/predict")
-def predict(request: MilkBotPredictRequest) -> dict[str, list[float]]:
+async def predict(request: MilkBotPredictRequest) -> dict[str, list[float]]:
     """Evaluate the MilkBot model with known parameters.
 
     Use this when you already have the four MilkBot parameters
@@ -450,7 +487,7 @@ def predict(request: MilkBotPredictRequest) -> dict[str, list[float]]:
 
 
 @app.post("/fit")
-def fit(request: FitRequest) -> dict[str, list[float]]:
+async def fit(request: FitRequest) -> dict[str, list[float]]:
     """Fit a lactation curve model to test-day milk recordings.
 
     Takes observed test-day data (DIM + milk yields) and fits the
@@ -459,6 +496,7 @@ def fit(request: FitRequest) -> dict[str, list[float]]:
 
     The response contains 305+ predicted values, one per day.
     """
+    bayesian_kwargs = _bayesian_milkbot_kwargs(request)
     predictions = fit_lactation_curve(
         dim=request.dim,
         milkrecordings=request.milkrecordings,
@@ -466,15 +504,16 @@ def fit(request: FitRequest) -> dict[str, list[float]]:
         fitting=request.fitting,
         breed=request.breed,
         parity=request.parity,
-        continent=request.continent,
-        custom_priors=request.custom_priors,
+        continent=bayesian_kwargs["continent"],
+        custom_priors=bayesian_kwargs["custom_priors"],
+        key=bayesian_kwargs["key"],
         milk_unit=request.milk_unit,
     )
     return {"predictions": predictions.tolist()}
 
 
 @app.post("/characteristic")
-def characteristic(
+async def characteristic(
     request: CharacteristicRequest,
 ) -> dict[str, float | None]:
     """Compute a single lactation characteristic from milk recordings.
@@ -487,6 +526,7 @@ def characteristic(
 
     Returns a single numeric value, or null if no sensible value exists.
     """
+    bayesian_kwargs = _bayesian_milkbot_kwargs(request)
     value = calculate_characteristic(
         dim=request.dim,
         milkrecordings=request.milkrecordings,
@@ -495,8 +535,9 @@ def characteristic(
         fitting=request.fitting,
         parity=request.parity,
         breed=request.breed,
-        continent=request.continent,
-        custom_priors=request.custom_priors,
+        continent=bayesian_kwargs["continent"],
+        custom_priors=bayesian_kwargs["custom_priors"],
+        key=bayesian_kwargs["key"],
         milk_unit=request.milk_unit,
         persistency_method=request.persistency_method,
         lactation_length=request.lactation_length,
@@ -507,7 +548,7 @@ def characteristic(
 
 
 @app.post("/test-interval")
-def test_interval(
+async def test_interval(
     request: TestIntervalRequest,
 ) -> dict[str, list[dict]]:
     """Calculate 305-day milk yield using the ICAR Test Interval Method.
@@ -539,7 +580,7 @@ def test_interval(
 
 
 @app.post("/islc")
-def islc(
+async def islc(
     request: YieldEstimateRequest,
 ) -> dict[str, list[dict]]:
     """Calculate lactation milk yield using the ISLC ICAR-style method."""
@@ -562,7 +603,7 @@ def islc(
 
 
 @app.post("/best-predict")
-def best_predict(
+async def best_predict(
     request: YieldEstimateRequest,
 ) -> dict[str, list[dict]]:
     """Calculate 305-day milk yield using best prediction."""

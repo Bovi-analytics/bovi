@@ -17,17 +17,11 @@ export const BreedSchema = z.enum(["H", "J"]);
 
 export const ContinentSchema = z.enum(["USA", "EU", "CHEN"]);
 
-export const FittingSchema = z.enum(["frequentist"]);
+export const FittingSchema = z.enum(["frequentist", "bayesian"]);
 
 export const PersistencyMethodSchema = z.enum(["derived", "literature"]);
 
-export const ImputationMethodSchema = z.enum([
-  "forward_fill",
-  "backward_fill",
-  "linear",
-  "zero",
-  "mean",
-]);
+export const ImputationMethodSchema = z.enum(["forward_fill", "backward_fill", "linear"]);
 
 /* Inferred types - use these in components and function signatures */
 export type Model = z.infer<typeof ModelSchema>;
@@ -37,6 +31,13 @@ export type Continent = z.infer<typeof ContinentSchema>;
 export type Fitting = z.infer<typeof FittingSchema>;
 export type PersistencyMethod = z.infer<typeof PersistencyMethodSchema>;
 export type ImputationMethod = z.infer<typeof ImputationMethodSchema>;
+
+export const MilkBotRunOptionsSchema = z.object({
+  fitting: FittingSchema.default("frequentist"),
+  breed: BreedSchema.default("H"),
+  continent: ContinentSchema.default("USA"),
+});
+export type MilkBotRunOptions = z.infer<typeof MilkBotRunOptionsSchema>;
 
 /* ------------------------------------------------------------------ */
 /*  Request schemas                                                    */
@@ -205,6 +206,7 @@ export const PresetCowSchema = z.object({
   cow_id: z.string(),
   display_name: z.string(),
   parity: z.number().nullable(),
+  herd_id: z.number().int().nullable().optional(),
   dim: z.array(z.number()),
   milk_kg: z.array(z.number()),
 });
@@ -215,6 +217,11 @@ export const PresetDatasetResponseSchema = z.object({
   period: z.string(),
   cow_count: z.number(),
   cows: z.array(PresetCowSchema),
+});
+
+export const PresetCountsResponseSchema = z.object({
+  dataset: z.string(),
+  counts: z.record(PresetPeriodKeySchema, z.record(PresetSizeKeySchema, z.number())),
 });
 
 export const PresetHerdStatsResponseSchema = z.object({
@@ -233,6 +240,7 @@ export type PresetSizeKey = z.infer<typeof PresetSizeKeySchema>;
 export type PresetPeriodKey = z.infer<typeof PresetPeriodKeySchema>;
 export type PresetCow = z.infer<typeof PresetCowSchema>;
 export type PresetDatasetResponse = z.infer<typeof PresetDatasetResponseSchema>;
+export type PresetCountsResponse = z.infer<typeof PresetCountsResponseSchema>;
 export type PresetHerdStatsResponse = z.infer<typeof PresetHerdStatsResponseSchema>;
 
 /* ------------------------------------------------------------------ */
@@ -292,12 +300,17 @@ export const ComparisonStatsSchema = z.object({
 });
 export type ComparisonStats = z.infer<typeof ComparisonStatsSchema>;
 
+const RunOptionsSchema = z
+  .union([z.record(z.string(), z.unknown()), z.null(), z.undefined()])
+  .transform((value): Record<string, unknown> => value ?? {});
+
 export const SubmissionReadSchema = z.object({
   id: z.number(),
   challenge_id: z.number(),
   submission_type: z.string(),
   model_type: z.string().nullable(),
   benchmark_model: z.string().nullable().optional(),
+  run_options: RunOptionsSchema,
   organization: z.string().nullable(),
   country: z.string().nullable(),
   calculation_method: z.string().nullable(),

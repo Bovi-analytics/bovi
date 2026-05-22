@@ -186,6 +186,18 @@ class HerdStatsEnrichmentTransform(UniversalTransform):
 
         return self._convert_stats_to_array(stats_dict, fallback_level)
 
+    def _coerce_optional_int(self, value: object | None) -> int | None:
+        if value is None:
+            return None
+        try:
+            if isinstance(value, np.ndarray):
+                if value.size == 0:
+                    return None
+                value = value.flat[0]
+            return int(float(str(value)))
+        except (TypeError, ValueError):
+            return None
+
     def _convert_stats_to_array(
         self,
         stats_dict: npt.NDArray[np.float32] | dict[str, float] | None,
@@ -237,16 +249,16 @@ class HerdStatsEnrichmentTransform(UniversalTransform):
         Returns:
             Data dict with 'herd_stats' added.
         """
-        herd_id_raw = data.get("herd_id")
-        parity_raw = data.get("parity")
+        if data.get("herd_stats") is not None:
+            return data
 
-        if herd_id_raw is not None and parity_raw is not None:
-            herd_id_int = herd_id_raw if isinstance(herd_id_raw, int) else int(str(herd_id_raw))
-            parity_int = parity_raw if isinstance(parity_raw, int) else int(str(parity_raw))
-            herd_stats = self._get_herd_stats_with_fallback(herd_id_int, parity_int)
-        else:
-            logger.warning("Missing herd_id or parity in data dict")
-            herd_stats = self._get_herd_stats_with_fallback(None, None)
+        herd_id_int = self._coerce_optional_int(data.get("herd_id"))
+        parity_int = self._coerce_optional_int(data.get("parity"))
+
+        if herd_id_int is None and parity_int is None:
+            logger.warning("Missing herd_id and parity in data dict")
+
+        herd_stats = self._get_herd_stats_with_fallback(herd_id_int, parity_int)
 
         data["herd_stats"] = herd_stats
         return data

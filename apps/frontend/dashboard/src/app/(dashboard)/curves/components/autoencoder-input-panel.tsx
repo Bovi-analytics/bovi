@@ -20,41 +20,12 @@ import { useState } from "react";
 import { HerdStatsForm } from "@/app/(dashboard)/autoencoder/components/herd-stats-form";
 import { useHerdProfiles } from "@/app/(dashboard)/herd-stats/hooks/use-herd-profiles";
 import { herdProfileToStats } from "@/lib/herd-profile-utils";
-import type { ImputationMethod } from "@/types/api";
-
-const IMPUTATION_OPTIONS = [
-  {
-    value: "forward_fill",
-    label: "Forward fill",
-    description: "Uses the most recent known milk value for later missing days.",
-  },
-  {
-    value: "backward_fill",
-    label: "Backward fill",
-    description: "Uses the next known milk value for earlier missing days.",
-  },
-  {
-    value: "linear",
-    label: "Linear interpolation",
-    description: "Draws a straight line between neighboring known values.",
-  },
-  {
-    value: "zero",
-    label: "Zero fill",
-    description: "Replaces missing values with 0 kg milk. This is not the same as ignoring them.",
-  },
-  {
-    value: "mean",
-    label: "Mean fill",
-    description: "Uses the average of the known values in this cow's sequence.",
-  },
-] as const;
 
 const HERD_STATS_SOURCE_COPY: Record<HerdStatsSourceKind, { label: string; description: string }> =
   {
     dataset: {
       label: "Active dataset",
-      description: "Compute herd-level averages from the dataset selected in Herd Stats.",
+      description: "Compute herd-level averages from the dataset selected in Data Upload.",
     },
     default: {
       label: "Model default",
@@ -75,8 +46,6 @@ export type HerdStatsSourceKind = "dataset" | "default" | "profile" | "manual";
 interface AutoencoderInputPanelProps {
   readonly parity: number;
   readonly onParityChange: (parity: number) => void;
-  readonly imputationMethod: ImputationMethod;
-  readonly onImputationMethodChange: (method: ImputationMethod) => void;
   readonly herdStatsSource: HerdStatsSourceKind;
   readonly onHerdStatsSourceChange: (source: HerdStatsSourceKind) => void;
   readonly selectedProfileId: number | null;
@@ -93,8 +62,6 @@ interface AutoencoderInputPanelProps {
 export function AutoencoderInputPanel({
   parity,
   onParityChange,
-  imputationMethod,
-  onImputationMethodChange,
   herdStatsSource,
   onHerdStatsSourceChange,
   selectedProfileId,
@@ -122,7 +89,7 @@ export function AutoencoderInputPanel({
       label: datasetLabel ? `Dataset: ${datasetLabel}` : HERD_STATS_SOURCE_COPY.dataset.label,
       description: datasetLabel
         ? HERD_STATS_SOURCE_COPY.dataset.description
-        : "Load a dataset in Herd Stats to use this option.",
+        : "Load a dataset in Data Upload to use this option.",
       disabled: !datasetLabel,
     },
     { value: "default", ...HERD_STATS_SOURCE_COPY.default },
@@ -131,8 +98,6 @@ export function AutoencoderInputPanel({
   ];
 
   const profileOptions = profiles.map((p) => ({ value: String(p.id), label: p.name }));
-  const selectedImputationOption =
-    IMPUTATION_OPTIONS.find((option) => option.value === imputationMethod) ?? IMPUTATION_OPTIONS[0];
 
   return (
     <div className="space-y-4">
@@ -254,7 +219,7 @@ export function AutoencoderInputPanel({
             )}
             {herdStatsSource === "profile" && profileOptions.length === 0 && (
               <Text size="xs" c="dimmed">
-                Create a saved profile in Herd Stats first, or use dataset/default/manual here.
+                Create a saved profile in Herd Profiles first, or use dataset/default/manual here.
               </Text>
             )}
             {herdStatsSource === "manual" && (
@@ -264,52 +229,6 @@ export function AutoencoderInputPanel({
             )}
           </Stack>
 
-          <Select
-            label={
-              <span className="inline-flex items-center gap-1">
-                Imputation method
-                <Tooltip
-                  label="How to fill missing (null) values in the milk sequence before prediction"
-                  withArrow
-                  multiline
-                  w={250}
-                >
-                  <Info size={14} className="cursor-help text-muted-foreground" />
-                </Tooltip>
-              </span>
-            }
-            data={IMPUTATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-            renderOption={({ option }) => {
-              const imputationOption = IMPUTATION_OPTIONS.find(
-                (item) => item.value === option.value
-              );
-
-              return (
-                <Tooltip
-                  label={imputationOption?.description ?? ""}
-                  withArrow
-                  multiline
-                  w={280}
-                  position="right"
-                >
-                  <div className="flex w-full min-w-0 flex-col">
-                    <span className="text-sm font-medium">{option.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {imputationOption?.description}
-                    </span>
-                  </div>
-                </Tooltip>
-              );
-            }}
-            value={imputationMethod}
-            onChange={(val) => {
-              if (val) onImputationMethodChange(val as ImputationMethod);
-            }}
-            size="sm"
-          />
-          <Text size="xs" c="dimmed">
-            {selectedImputationOption.description}
-          </Text>
         </Stack>
 
         <Button
