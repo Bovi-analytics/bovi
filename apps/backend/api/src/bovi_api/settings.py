@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     connection_string: str | None = (
         None  # Azure Storage connection string (CONNECTION_STRING env var)
     )
+    storage_account_name_icar: str | None = None
+    storage_account_key_icar: str | None = None
+    storage_account_container_icar: str | None = None
 
     model_config = {"env_file": find_dotenv(), "env_file_encoding": "utf-8", "extra": "ignore"}
 

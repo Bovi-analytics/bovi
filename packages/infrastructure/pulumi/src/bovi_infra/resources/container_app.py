@@ -36,6 +36,7 @@ class ContainerAppArgs:
     registry_username: pulumi.Input[str] | None = None
     registry_password: pulumi.Input[str] | None = None
     registry_password_secret_name: str = "ghcr-token"
+    secret_env: dict[str, pulumi.Input[str]] = field(default_factory=dict)
     tags: ResourceTags | None = None
 
 
@@ -102,6 +103,10 @@ def _registry_args(
     return secrets, registries
 
 
+def _env_secret_name(env_name: str) -> str:
+    return env_name.lower().replace("_", "-")
+
+
 def create_container_app(name: str, args: ContainerAppArgs) -> ContainerAppResult:
     # Link the Azure Files share to the Container App Environment
     env_storage = app.ManagedEnvironmentsStorage(
@@ -122,12 +127,16 @@ def create_container_app(name: str, args: ContainerAppArgs) -> ContainerAppResul
     env_vars = [
         app.EnvironmentVarArgs(name="DATABASE_URL", value=SQLITE_DATABASE_URL),
         *[app.EnvironmentVarArgs(name=k, value=v) for k, v in args.env.items()],
+        *[app.EnvironmentVarArgs(name=k, secret_ref=_env_secret_name(k)) for k in args.secret_env],
     ]
     secrets, registries = _registry_args(
         registry_server=args.registry_server,
         registry_username=args.registry_username,
         registry_password=args.registry_password,
         registry_password_secret_name=args.registry_password_secret_name,
+    )
+    secrets.extend(
+        app.SecretArgs(name=_env_secret_name(k), value=v) for k, v in args.secret_env.items()
     )
 
     container_app = app.ContainerApp(

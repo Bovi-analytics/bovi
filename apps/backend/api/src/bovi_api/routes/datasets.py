@@ -1,8 +1,8 @@
 """Preset cow-dataset endpoints.
 
 Serves pre-generated JSON blobs from Azure Blob Storage or local presets.
-Azure blobs live under data/datasets/presets/{aurora|sunnyside}/{size}_{period}.json
-in the icarwebsite container. Local presets live under data/datasets/presets.
+Azure blobs live under data/datasets/presets/{aurora|sunnyside}/{size}_{period}.json.
+Local presets live under data/datasets/presets.
 """
 
 from __future__ import annotations
@@ -26,7 +26,6 @@ from bovi_api.settings import Settings, get_settings
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
-_CONTAINER = "icarwebsite"
 _BLOB_PREFIX = "data/datasets/presets"
 _LOCAL_PRESETS_DIR = Path(__file__).resolve().parents[6] / "data" / "datasets" / "presets"
 
@@ -85,14 +84,50 @@ class LocalPresetUnavailableError(RuntimeError):
 
 
 def _get_blob_client(settings: Settings) -> BlobServiceClient:
-    if not settings.connection_string:
+    connection_string = settings.connection_string
+    if (
+        not connection_string
+        and settings.storage_account_name_icar
+        and settings.storage_account_key_icar
+    ):
+        connection_string = (
+            "DefaultEndpointsProtocol=https;"
+            f"AccountName={settings.storage_account_name_icar};"
+            f"AccountKey={settings.storage_account_key_icar};"
+            "EndpointSuffix=core.windows.net"
+        )
+    if not connection_string:
         raise HTTPException(
             status_code=503,
             detail=(
-                "Azure Blob Storage is not configured on this server (CONNECTION_STRING missing)."
+                "Azure Blob Storage is not configured on this server "
+                "(CONNECTION_STRING or STORAGE_ACCOUNT_NAME_ICAR/STORAGE_ACCOUNT_KEY_ICAR missing)."
             ),
         )
-    return BlobServiceClient.from_connection_string(settings.connection_string)
+    return BlobServiceClient.from_connection_string(connection_string)
+
+
+def _get_blob_container(settings: Settings) -> str:
+    if not settings.storage_account_container_icar:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Azure Blob Storage is not configured on this server "
+                "(STORAGE_ACCOUNT_CONTAINER_ICAR missing)."
+            ),
+        )
+    return settings.storage_account_container_icar
+
+
+def _has_blob_config(settings: Settings) -> bool:
+    return bool(
+        settings.connection_string
+        or (
+            settings.storage_account_name_icar
+            and settings.storage_account_key_icar
+            and settings.storage_account_container_icar
+        )
+    )
 
 
 def _preset_blob_path(dataset: DatasetKey, size: SizeKey, period: PeriodKey) -> str:
@@ -109,7 +144,9 @@ def _fetch_blob_preset(
 ) -> PresetDatasetResponse:
     blob_path = _preset_blob_path(dataset, size, period)
     client = _get_blob_client(settings)
-    data = client.get_blob_client(_CONTAINER, blob_path).download_blob().readall()
+    data = (
+        client.get_blob_client(_get_blob_container(settings), blob_path).download_blob().readall()
+    )
     return PresetDatasetResponse(**json.loads(data))
 
 
@@ -148,7 +185,7 @@ def fetch_preset_cows(
 
     """
     blob_error: HTTPException | AzureError | None = None
-    if settings.connection_string:
+    if _has_blob_config(settings):
         try:
             return _fetch_blob_preset(dataset, size, period, settings)
         except ResourceNotFoundError as exc:
@@ -159,7 +196,8 @@ def fetch_preset_cows(
         blob_error = HTTPException(
             status_code=503,
             detail=(
-                "Azure Blob Storage is not configured on this server (CONNECTION_STRING missing)."
+                "Azure Blob Storage is not configured on this server "
+                "(CONNECTION_STRING or ICAR storage settings missing)."
             ),
         )
 
