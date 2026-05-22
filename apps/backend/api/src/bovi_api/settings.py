@@ -13,12 +13,17 @@ class Settings(BaseSettings):
     lactation_autoencoder_url: str = "http://localhost:8002"
     database_url: str = "sqlite+aiosqlite:///./bovi.db"
     cors_origins: list[str] = ["http://localhost:3000"]
+    azure_ad_client_id: str = ""
+    azure_ad_tenant_id: str = ""
+    auth_disabled: bool = False
+    dev_mode: bool = False
     connection_string: str | None = (
         None  # Azure Storage connection string (CONNECTION_STRING env var)
     )
     storage_account_name_icar: str | None = None
     storage_account_key_icar: str | None = None
     storage_account_container_icar: str | None = None
+    upload_container: str = "bovi-uploads"
 
     model_config = {"env_file": find_dotenv(), "env_file_encoding": "utf-8", "extra": "ignore"}
 

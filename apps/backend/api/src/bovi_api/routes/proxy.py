@@ -3,14 +3,15 @@
 import logging
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
+from bovi_api.auth import require_auth
 from bovi_api.settings import get_settings
 
 logger = logging.getLogger("bovi_api.proxy")
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_auth)])
 
 _http_client: httpx.AsyncClient | None = None
 

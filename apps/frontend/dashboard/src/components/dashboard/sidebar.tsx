@@ -4,11 +4,18 @@ import type { ReactElement } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Select } from "@mantine/core";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_NAVIGATION } from "./navigation";
 
 export function Sidebar(): ReactElement {
   const pathname = usePathname();
+  const { user, selectedOrganizationId, setSelectedOrganizationId } = useAuth();
+  const organizationOptions = [
+    ...(user?.is_admin ? [{ value: "all", label: "All organizations" }] : []),
+    ...(user?.organizations.map((org) => ({ value: String(org.id), label: org.name })) ?? []),
+  ];
 
   return (
     <aside className="sticky top-0 hidden h-screen w-52 shrink-0 border-r border-border/40 bg-card/80 p-3 text-sm text-muted-foreground md:flex md:flex-col">
@@ -23,6 +30,22 @@ export function Sidebar(): ReactElement {
           className="h-auto w-full max-w-[160px]"
         />
         <h2 className="text-base font-semibold text-foreground">Lactation Curves</h2>
+        {organizationOptions.length > 0 && (
+          <Select
+            aria-label="Organization"
+            size="xs"
+            data={organizationOptions}
+            value={selectedOrganizationId === null ? null : String(selectedOrganizationId)}
+            onChange={(value) => {
+              if (value === "all") {
+                setSelectedOrganizationId("all");
+              } else if (value) {
+                setSelectedOrganizationId(Number.parseInt(value, 10));
+              }
+            }}
+            comboboxProps={{ withinPortal: false }}
+          />
+        )}
       </div>
 
       {/* Navigation */}

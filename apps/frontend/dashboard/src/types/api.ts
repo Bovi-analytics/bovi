@@ -145,6 +145,8 @@ export type TestIntervalResponse = z.infer<typeof TestIntervalResponseSchema>;
 
 export const HerdProfileSchema = z.object({
   id: z.number(),
+  user_id: z.number().nullable().optional(),
+  organization_id: z.number().nullable().optional(),
   name: z.string().max(100),
   description: z.string().max(500),
   achieved_21_milk: z.number().min(0).max(1),
@@ -163,9 +165,10 @@ export const HerdProfileSchema = z.object({
 
 export const HerdProfileCreateSchema = HerdProfileSchema.omit({
   id: true,
+  user_id: true,
   created_at: true,
   updated_at: true,
-});
+}).extend({ organization_id: z.number() });
 
 export const HerdProfileListSchema = z.array(HerdProfileSchema);
 
@@ -248,7 +251,8 @@ export const ChallengeReadSchema = z.object({
   period: z.string(),
   name: z.string().nullable().optional(),
   source: z.string().nullable().optional(),
-  user_id: z.string().nullable(),
+  user_id: z.number().nullable(),
+  organization_id: z.number().nullable().optional(),
   created_at: z.string().nullable(),
 });
 export type ChallengeRead = z.infer<typeof ChallengeReadSchema>;
@@ -259,6 +263,7 @@ export const ChallengeCreatePresetSchema = z.object({
   source: z.literal("preset").default("preset"),
   preset: z.literal("icar").default("icar"),
   name: z.string().optional(),
+  organization_id: z.number(),
 });
 export type ChallengeCreatePreset = z.infer<typeof ChallengeCreatePresetSchema>;
 
@@ -309,7 +314,8 @@ export const SubmissionReadSchema = z.object({
   country: z.string().nullable(),
   calculation_method: z.string().nullable(),
   notes: z.string().nullable(),
-  user_id: z.string().nullable(),
+  user_id: z.number().nullable(),
+  organization_id: z.number().nullable().optional(),
   stats: ComparisonStatsSchema,
   failed_cow_ids: z.array(z.string()),
   created_at: z.string().nullable(),

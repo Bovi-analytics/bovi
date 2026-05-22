@@ -48,8 +48,10 @@ from bovi_infra.resources.observability import (
     create_log_analytics,
 )
 from bovi_infra.resources.storage import (
+    BlobContainerArgs,
     FilesShareArgs,
     StorageAccountArgs,
+    create_blob_container,
     create_files_share,
     create_storage_account,
 )
@@ -65,6 +67,12 @@ subscription_id = config.require("subscriptionId")
 resource_group_name = config.require("resourceGroup")
 dashboard_origin = config.get("dashboardOrigin") or "http://localhost:3000"
 milkbot_key = config.get_secret("milkbotKey") or ""
+azure_ad_client_id = config.get("azureAdClientId") or os.getenv("AZURE_AD_CLIENT_ID") or ""
+azure_ad_api_scope = (
+    config.get("azureAdApiScope")
+    or os.getenv("NEXT_PUBLIC_AZURE_AD_API_SCOPE")
+    or (f"api://{azure_ad_client_id}/access_as_user" if azure_ad_client_id else "")
+)
 api_image = (
     os.getenv("API_IMAGE")
     or config.get("apiImage")
@@ -126,6 +134,15 @@ files_share_result = create_files_share(
         account_name=storage_result.account.name,
         share_name="bovidata",
         quota_gb=1,
+    ),
+)
+
+uploads_container_result = create_blob_container(
+    "uploads-container",
+    BlobContainerArgs(
+        resource_group_name=resource_group.name,
+        account_name=storage_result.account.name,
+        container_name="bovi-uploads",
     ),
 )
 
@@ -261,6 +278,11 @@ api_result = create_container_app(
             "APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string,
             "STORAGE_ACCOUNT_NAME_ICAR": icar_storage_account_name,
             "STORAGE_ACCOUNT_CONTAINER_ICAR": icar_storage_container,
+            "CONNECTION_STRING": storage_result.connection_string,
+            "UPLOAD_CONTAINER": "bovi-uploads",
+            "AZURE_AD_CLIENT_ID": azure_ad_client_id,
+            "AUTH_DISABLED": "false",
+            "DEV_MODE": "false",
         },
         secret_env={"STORAGE_ACCOUNT_KEY_ICAR": icar_storage_account_key},
         tags=tags,
@@ -315,6 +337,10 @@ dashboard_result = create_stateless_container_app(
         env={
             "NODE_ENV": "production",
             "NEXT_PUBLIC_API_URL": api_result.url,
+            "NEXT_PUBLIC_AZURE_AD_CLIENT_ID": azure_ad_client_id,
+            "NEXT_PUBLIC_AZURE_AD_API_SCOPE": azure_ad_api_scope,
+            "NEXT_PUBLIC_AUTH_DISABLED": "false",
+            "NEXT_PUBLIC_DEV_MODE": "false",
         },
         tags=tags,
     ),
@@ -325,6 +351,7 @@ dashboard_result = create_stateless_container_app(
 # ---------------------------------------------------------------------------
 pulumi.export("resource_group_name", resource_group.name)
 pulumi.export("storage_account_name", storage_result.account.name)
+pulumi.export("uploads_container_name", uploads_container_result.container.name)
 pulumi.export("curves_app_name", curves_result.app.name)
 pulumi.export("curves_app_url", curves_result.url)
 pulumi.export("autoencoder_app_name", autoencoder_result.app.name)
