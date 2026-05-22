@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Generate preset cow-dataset JSON blobs for the Curves tab.
 
-Reads Aurora and Sunnyside CSVs from Azure Blob Storage (icarwebsite container,
-data/raw/ folder), generates 9 JSON samples per dataset (3 sizes × 3 periods),
-and uploads them back as data/datasets/presets/{aurora|sunnyside}/{size}_{period}.json.
+Reads Aurora and Sunnyside CSVs from Azure Blob Storage (data/raw/ folder),
+generates 9 JSON samples per dataset (3 sizes × 3 periods), and uploads them
+back as data/datasets/presets/{aurora|sunnyside}/{size}_{period}.json.
 
 Usage:
     uv run python scripts/generate_preset_datasets.py [--dry-run]
 
-Requires CONNECTION_STRING env var (full Azure Storage connection string).
+Requires either CONNECTION_STRING or STORAGE_ACCOUNT_NAME_ICAR/STORAGE_ACCOUNT_KEY_ICAR,
+plus STORAGE_ACCOUNT_CONTAINER_ICAR.
 """
 
 from __future__ import annotations
@@ -25,7 +26,6 @@ import pandas as pd
 from azure.storage.blob import BlobServiceClient
 
 LBS_TO_KG = 0.45359237
-CONTAINER = "icarwebsite"
 RAW_PREFIX = "data/raw"
 PRESET_PREFIX = "data/datasets/presets"
 
@@ -63,10 +63,41 @@ DATASET_CONFIGS: dict[str, dict] = {
 }
 
 
-def _read_blob_csv(client: BlobServiceClient, blob_path: str) -> pd.DataFrame:
+def _build_connection_string() -> str:
+    connection_string = os.environ.get("CONNECTION_STRING")
+    account_name = os.environ.get("STORAGE_ACCOUNT_NAME_ICAR")
+    account_key = os.environ.get("STORAGE_ACCOUNT_KEY_ICAR")
+    if connection_string:
+        return connection_string
+    if account_name and account_key:
+        return (
+            "DefaultEndpointsProtocol=https;"
+            f"AccountName={account_name};"
+            f"AccountKey={account_key};"
+            "EndpointSuffix=core.windows.net"
+        )
+    print(
+        "ERROR: CONNECTION_STRING or STORAGE_ACCOUNT_NAME_ICAR/STORAGE_ACCOUNT_KEY_ICAR "
+        "environment variables must be set.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
+def _get_container_name() -> str:
+    container = os.environ.get("STORAGE_ACCOUNT_CONTAINER_ICAR")
+    if not container:
+        print(
+            "ERROR: STORAGE_ACCOUNT_CONTAINER_ICAR environment variable not set.", file=sys.stderr
+        )
+        sys.exit(1)
+    return container
+
+
+def _read_blob_csv(client: BlobServiceClient, container: str, blob_path: str) -> pd.DataFrame:
     """Download a CSV blob and return as a DataFrame. Auto-detects separator."""
     print(f"  Downloading {blob_path} …", end=" ", flush=True)
-    data = client.get_blob_client(CONTAINER, blob_path).download_blob().readall()
+    data = client.get_blob_client(container, blob_path).download_blob().readall()
     print(f"{len(data) / 1_048_576:.1f} MB")
     # Sniff separator from the first line
     first_line = data[: data.index(b"\n")].decode("utf-8", errors="replace")
@@ -212,7 +243,7 @@ def _generate_blob(
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
-def _build_icar_preset(client: BlobServiceClient) -> bytes:
+def _build_icar_preset(client: BlobServiceClient, container: str) -> bytes:
     """Build the ICAR preset blob with cows + actual ground-truth yields.
 
     Reads data/raw/TestDataSet.csv (sparse test-day records) and
@@ -220,8 +251,8 @@ def _build_icar_preset(client: BlobServiceClient) -> bytes:
     icarwebsite container, joins on TestId, and emits cohort + actual_yields.
     """
     print("\n=== ICAR ===")
-    test_df = _read_blob_csv(client, f"{RAW_PREFIX}/TestDataSet.csv")
-    aly_df = _read_blob_csv(client, f"{RAW_PREFIX}/ActualMilkYields.csv")
+    test_df = _read_blob_csv(client, container, f"{RAW_PREFIX}/TestDataSet.csv")
+    aly_df = _read_blob_csv(client, container, f"{RAW_PREFIX}/ActualMilkYields.csv")
 
     # Identify columns flexibly (case-insensitive)
     cols = {c.lower(): c for c in test_df.columns}
@@ -327,16 +358,12 @@ def _build_icar_preset(client: BlobServiceClient) -> bytes:
 
 
 def main(dry_run: bool = False) -> None:
-    conn_str = os.environ.get("CONNECTION_STRING")
-    if not conn_str:
-        print("ERROR: CONNECTION_STRING environment variable not set.", file=sys.stderr)
-        sys.exit(1)
-
-    client = BlobServiceClient.from_connection_string(conn_str)
+    client = BlobServiceClient.from_connection_string(_build_connection_string())
+    container = _get_container_name()
 
     for dataset_key, config in DATASET_CONFIGS.items():
         print(f"\n=== {dataset_key.upper()} ===")
-        df = _read_blob_csv(client, config["blob_path"])
+        df = _read_blob_csv(client, container, config["blob_path"])
 
         for period in ["recent", "old", "mixed"]:
             print(f"  Period: {period}")
@@ -349,18 +376,18 @@ def main(dry_run: bool = False) -> None:
                 kb = len(blob_data) / 1024
                 print(f"    {size_key:6s}: {cow_count:5,} cows, {kb:.0f} KB -> {dest_path}")
                 if not dry_run:
-                    client.get_blob_client(CONTAINER, dest_path).upload_blob(
+                    client.get_blob_client(container, dest_path).upload_blob(
                         blob_data, overwrite=True, content_type="application/json"
                     )
 
     # ICAR — single blob with cows + actual_yields
-    icar_blob = _build_icar_preset(client)
+    icar_blob = _build_icar_preset(client, container)
     icar_path = f"{PRESET_PREFIX}/icar/full.json"
     icar_kb = len(icar_blob) / 1024
     icar_count = json.loads(icar_blob)["cow_count"]
     print(f"  ICAR: {icar_count:,} cows, {icar_kb:.0f} KB -> {icar_path}")
     if not dry_run:
-        client.get_blob_client(CONTAINER, icar_path).upload_blob(
+        client.get_blob_client(container, icar_path).upload_blob(
             icar_blob, overwrite=True, content_type="application/json"
         )
 

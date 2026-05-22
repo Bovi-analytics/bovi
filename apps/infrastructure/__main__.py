@@ -80,6 +80,19 @@ ghcr_token = os.getenv("GHCR_TOKEN")
 if bool(ghcr_username) != bool(ghcr_token):
     raise ValueError("GHCR_USERNAME and GHCR_TOKEN must be set together")
 
+icar_storage_account_name = os.getenv("STORAGE_ACCOUNT_NAME_ICAR")
+icar_storage_account_key = os.getenv("STORAGE_ACCOUNT_KEY_ICAR")
+icar_storage_container = os.getenv("STORAGE_ACCOUNT_CONTAINER_ICAR")
+if (
+    icar_storage_account_name is None
+    or icar_storage_account_key is None
+    or icar_storage_container is None
+):
+    raise ValueError(
+        "STORAGE_ACCOUNT_NAME_ICAR, STORAGE_ACCOUNT_KEY_ICAR, and "
+        "STORAGE_ACCOUNT_CONTAINER_ICAR must be set for preset dataset blob access"
+    )
+
 # Storage accounts must be globally unique — derive a short suffix from the subscription ID
 storage_suffix = hashlib.md5(subscription_id.encode()).hexdigest()[:6]
 tags = {"environment": stack, "project": "bovi"}
@@ -248,7 +261,12 @@ api_result = create_container_app(
         registry_server="ghcr.io" if ghcr_username and ghcr_token else None,
         registry_username=ghcr_username,
         registry_password=pulumi.Output.secret(ghcr_token) if ghcr_token else None,
-        env={"APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string},
+        env={
+            "APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string,
+            "STORAGE_ACCOUNT_NAME_ICAR": icar_storage_account_name,
+            "STORAGE_ACCOUNT_CONTAINER_ICAR": icar_storage_container,
+        },
+        secret_env={"STORAGE_ACCOUNT_KEY_ICAR": icar_storage_account_key},
         tags=tags,
     ),
 )
