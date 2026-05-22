@@ -161,7 +161,8 @@ def ali_schaeffer_model(t, a, b, c, d, k) -> np.floating | np.ndarray:
         Predicted milk yield at `t`.
 
     Notes:
-        Uses `t_scaled = t / 305` and `log_term = ln(305 / t)`.
+        Formula: `t_scaled = t / 305` and `log_term = ln(305 / t)`
+        then `y(t) = a + b * t_scaled + c * t_scaled^2 + d * log_term + k * log_term^2`.
     """
     t_scaled = t / 305
     log_term = np.log(305 / t)
