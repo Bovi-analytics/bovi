@@ -23,6 +23,7 @@ import Link from "next/link";
 import { HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
 import { statsToHerdProfileFields } from "@/lib/herd-profile-utils";
 import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
+import { usePresetCounts } from "@/app/(dashboard)/curves/hooks/use-preset-counts";
 import { usePresetDataset } from "@/app/(dashboard)/curves/hooks/use-preset-dataset";
 import type {
   HerdProfileUploadResponse,
@@ -51,12 +52,12 @@ const SOURCE_OPTIONS: SourceOption[] = [
   {
     value: "aurora",
     label: "Preset cohort A",
-    description: "Anonymized herd · 5,102 cows · 2023-2025",
+    description: "Anonymized herd · 2023-2025",
   },
   {
     value: "sunnyside",
     label: "Preset cohort B",
-    description: "Anonymized herd · 1,000+ cows · 2000-2026",
+    description: "Anonymized herd · 2000-2026",
   },
   {
     value: "upload",
@@ -66,16 +67,29 @@ const SOURCE_OPTIONS: SourceOption[] = [
 ];
 
 const SIZE_OPTIONS = [
-  { value: "small", label: "Small (~200)" },
-  { value: "medium", label: "Medium (~1k)" },
-  { value: "large", label: "Large (all)" },
-];
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+] satisfies Array<{ value: PresetSizeKey; label: string }>;
 
 const PERIOD_OPTIONS = [
   { value: "recent", label: "Recent" },
   { value: "old", label: "Old" },
   { value: "mixed", label: "Mixed" },
 ];
+
+function sizeOptionsWithCounts(
+  counts: Record<string, Record<string, number>> | undefined,
+  period: PresetPeriodKey
+): Array<{ value: PresetSizeKey; label: string }> {
+  return SIZE_OPTIONS.map((option) => {
+    const count = counts?.[period]?.[option.value];
+    return {
+      ...option,
+      label: count === undefined ? option.label : `${option.label} (${count.toLocaleString()})`,
+    };
+  });
+}
 
 interface FormatMeta {
   label: string;
@@ -183,6 +197,7 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
     isLoading,
     isError,
   } = usePresetDataset(dataset, selectedSize, selectedPeriod);
+  const { data: presetCounts } = usePresetCounts(dataset);
 
   const isActive =
     activePreset?.dataset === dataset &&
@@ -203,7 +218,7 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
           size="sm"
           value={selectedSize}
           onChange={(v) => setSelectedSize(v as PresetSizeKey)}
-          data={SIZE_OPTIONS}
+          data={sizeOptionsWithCounts(presetCounts?.counts, selectedPeriod)}
         />
       </Stack>
       <Stack gap={6}>

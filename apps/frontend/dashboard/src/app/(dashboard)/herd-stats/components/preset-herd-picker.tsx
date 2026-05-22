@@ -14,6 +14,7 @@ import {
 } from "@mantine/core";
 import { AlertCircle } from "lucide-react";
 import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
+import { usePresetCounts } from "@/app/(dashboard)/curves/hooks/use-preset-counts";
 import { usePresetDataset } from "@/app/(dashboard)/curves/hooks/use-preset-dataset";
 import type { PresetDatasetKey, PresetPeriodKey, PresetSizeKey } from "@/types/api";
 
@@ -25,16 +26,29 @@ const DATASET_OPTIONS: { value: PresetDatasetKey | "none"; label: string; descri
   ];
 
 const SIZE_OPTIONS = [
-  { value: "small", label: "Small (~200)" },
-  { value: "medium", label: "Medium (~1k)" },
-  { value: "large", label: "Large (all)" },
-];
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+] satisfies Array<{ value: PresetSizeKey; label: string }>;
 
 const PERIOD_OPTIONS = [
   { value: "recent", label: "Recent" },
   { value: "old", label: "Old" },
   { value: "mixed", label: "Mixed" },
 ];
+
+function sizeOptionsWithCounts(
+  counts: Record<string, Record<string, number>> | undefined,
+  period: PresetPeriodKey
+): Array<{ value: PresetSizeKey; label: string }> {
+  return SIZE_OPTIONS.map((option) => {
+    const count = counts?.[period]?.[option.value];
+    return {
+      ...option,
+      label: count === undefined ? option.label : `${option.label} (${count.toLocaleString()})`,
+    };
+  });
+}
 
 export function PresetHerdPicker(): ReactElement {
   const { activePreset, setActivePreset } = useUploadedCows();
@@ -48,6 +62,7 @@ export function PresetHerdPicker(): ReactElement {
     isLoading,
     isError,
   } = usePresetDataset(selectedDataset, selectedSize, selectedPeriod);
+  const { data: presetCounts } = usePresetCounts(selectedDataset);
 
   function handleSelectDataset(value: PresetDatasetKey | "none") {
     if (value === "none") {
@@ -121,7 +136,7 @@ export function PresetHerdPicker(): ReactElement {
                 size="xs"
                 value={selectedSize}
                 onChange={handleSizeChange}
-                data={SIZE_OPTIONS}
+                data={sizeOptionsWithCounts(presetCounts?.counts, selectedPeriod)}
               />
             </Stack>
             <Stack gap={4}>

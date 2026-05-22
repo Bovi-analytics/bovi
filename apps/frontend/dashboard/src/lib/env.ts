@@ -12,8 +12,8 @@ export function getRuntimeApiBaseUrl(): string {
   return url.replace(/\/+$/, "");
 }
 
-export function buildRuntimeApiUrl(path: string[], search = ""): string {
+export function buildRuntimeApiUrl(path: string[], search = "", trailingSlash = false): string {
   const normalizedPath = path.map((segment) => encodeURIComponent(segment)).join("/");
-  const suffix = normalizedPath ? `/${normalizedPath}` : "";
+  const suffix = normalizedPath ? `/${normalizedPath}${trailingSlash ? "/" : ""}` : "";
   return `${getRuntimeApiBaseUrl()}${suffix}${search}`;
 }

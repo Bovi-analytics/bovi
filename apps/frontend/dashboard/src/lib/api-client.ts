@@ -7,6 +7,7 @@ import {
   HerdProfileListSchema,
   HerdProfileSchema,
   HerdProfileUploadResponseSchema,
+  PresetCountsResponseSchema,
   PresetDatasetResponseSchema,
   PresetHerdStatsResponseSchema,
   PredictResponseSchema,
@@ -29,6 +30,7 @@ import type {
   HerdProfileCreate,
   HerdProfileUploadResponse,
   MilkBotRunOptions,
+  PresetCountsResponse,
   PresetDatasetKey,
   PresetDatasetResponse,
   PresetHerdStatsResponse,
@@ -181,6 +183,10 @@ export async function getPresetDataset(
   period: PresetPeriodKey
 ): Promise<PresetDatasetResponse> {
   return apiGet(`/datasets/presets/${dataset}/${size}/${period}`, PresetDatasetResponseSchema);
+}
+
+export async function getPresetCounts(dataset: PresetDatasetKey): Promise<PresetCountsResponse> {
+  return apiGet(`/datasets/presets/${dataset}/counts`, PresetCountsResponseSchema);
 }
 
 export async function getPresetHerdStats(

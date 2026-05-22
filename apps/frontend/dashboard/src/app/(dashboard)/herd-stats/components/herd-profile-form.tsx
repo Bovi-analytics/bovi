@@ -59,19 +59,16 @@ export function HerdProfileForm({
         minRows={2}
       />
       <div>
-        <p className="mb-3 text-xs text-foreground">All values normalized 0–1.</p>
-        <HerdStatsForm values={stats} onChange={setStats} />
+        <p className="mb-3 text-xs text-foreground">
+          Left values use original units; right values are normalized 0-1.
+        </p>
+        <HerdStatsForm values={stats} onChange={setStats} showBoth />
       </div>
       <Group justify="flex-end">
         <Button variant="subtle" onClick={onCancel} disabled={isLoading}>
           Cancel
         </Button>
-        <Button
-          onClick={handleSubmit}
-          loading={isLoading}
-          disabled={!name.trim()}
-          color="violet"
-        >
+        <Button onClick={handleSubmit} loading={isLoading} disabled={!name.trim()} color="violet">
           {initial ? "Save changes" : "Create profile"}
         </Button>
       </Group>

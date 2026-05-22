@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -34,6 +35,10 @@ _LOCAL_PRESETS_DIR = Path(__file__).resolve().parents[6] / "data" / "datasets" /
 DatasetKey = Literal["aurora", "sunnyside", "icar"]
 SizeKey = Literal["small", "medium", "large", "full"]
 PeriodKey = Literal["recent", "old", "mixed", "all"]
+_PUBLIC_DATASETS: tuple[DatasetKey, ...] = ("aurora", "sunnyside")
+_PUBLIC_SIZES: tuple[SizeKey, ...] = ("small", "medium", "large")
+_PUBLIC_PERIODS: tuple[PeriodKey, ...] = ("recent", "old", "mixed")
+_COW_COUNT_RE = re.compile(rb'"cow_count"\s*:\s*(\d+)')
 
 _MANIFEST: dict[str, dict] = {
     "aurora": {
@@ -79,6 +84,13 @@ class PresetDatasetResponse(BaseModel):
     cow_count: int
     cows: list[PresetCow]
     actual_yields: dict[str, float] | None = None
+
+
+class PresetCountsResponse(BaseModel):
+    """Cow counts for every public size/period combination of one preset dataset."""
+
+    dataset: str
+    counts: dict[str, dict[str, int]]
 
 
 class LocalPresetUnavailableError(RuntimeError):
@@ -152,6 +164,25 @@ def _fetch_blob_preset(
     return PresetDatasetResponse(**json.loads(data))
 
 
+def _fetch_blob_preset_count(
+    dataset: DatasetKey,
+    size: SizeKey,
+    period: PeriodKey,
+    settings: Settings,
+) -> int:
+    blob_path = _preset_blob_path(dataset, size, period)
+    client = _get_blob_client(settings)
+    data = (
+        client.get_blob_client(_get_blob_container(settings), blob_path)
+        .download_blob(offset=0, length=8192)
+        .readall()
+    )
+    match = _COW_COUNT_RE.search(data)
+    if not match:
+        raise AzureError(f"Preset cow_count not found in blob prefix: {blob_path}")
+    return int(match.group(1))
+
+
 def _fetch_local_preset(
     dataset: DatasetKey,
     size: SizeKey,
@@ -163,6 +194,43 @@ def _fetch_local_preset(
     if not local_path.exists():
         raise LocalPresetUnavailableError(f"Local preset not found: {local_path}")
     return PresetDatasetResponse(**json.loads(local_path.read_text()))
+
+
+def _fetch_local_preset_count(
+    dataset: DatasetKey,
+    size: SizeKey,
+    period: PeriodKey,
+) -> int:
+    return _fetch_local_preset(dataset, size, period).cow_count
+
+
+def fetch_preset_counts(dataset: DatasetKey, settings: Settings) -> PresetCountsResponse:
+    """Fetch cow counts for public preset size/period combinations."""
+    if dataset not in _PUBLIC_DATASETS:
+        raise HTTPException(status_code=404, detail=f"Preset counts unavailable for: {dataset}.")
+
+    counts: dict[str, dict[str, int]] = {}
+    for period in _PUBLIC_PERIODS:
+        counts[period] = {}
+        for size in _PUBLIC_SIZES:
+            try:
+                if _has_blob_config(settings):
+                    counts[period][size] = _fetch_blob_preset_count(dataset, size, period, settings)
+                else:
+                    counts[period][size] = _fetch_local_preset_count(dataset, size, period)
+            except ResourceNotFoundError as exc:
+                blob_path = _preset_blob_path(dataset, size, period)
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Preset dataset not found: {blob_path}.",
+                ) from exc
+            except (AzureError, LocalPresetUnavailableError) as exc:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Preset counts unavailable for {dataset}: {exc}",
+                ) from exc
+
+    return PresetCountsResponse(dataset=dataset, counts=counts)
 
 
 def fetch_preset_cows(
@@ -232,6 +300,15 @@ def fetch_preset_cows(
 def list_presets() -> dict:
     """Return a static manifest of all available preset dataset combinations."""
     return _MANIFEST
+
+
+@router.get("/presets/{dataset}/counts", response_model=PresetCountsResponse)
+def get_preset_counts(
+    dataset: DatasetKey,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> PresetCountsResponse:
+    """Return cow counts for all size/period combinations of a preset dataset."""
+    return fetch_preset_counts(dataset, settings)
 
 
 @router.get("/presets/{dataset}/{size}/{period}", response_model=PresetDatasetResponse)
