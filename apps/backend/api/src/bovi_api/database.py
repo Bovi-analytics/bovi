@@ -41,11 +41,16 @@ def _create_engine(database_url: str) -> AsyncEngine:
 
     engine = create_async_engine(database_url, **kwargs)
     if _is_sqlite_url(database_url):
-        _configure_sqlite(engine)
+        _configure_sqlite(engine, database_url)
     return engine
 
 
-def _configure_sqlite(engine: AsyncEngine) -> None:
+def _is_azure_files_sqlite(database_url: str) -> bool:
+    """Return whether SQLite is backed by the Azure Files mount used in prod."""
+    return database_url.startswith("sqlite+aiosqlite:////data/")
+
+
+def _configure_sqlite(engine: AsyncEngine, database_url: str) -> None:
     """Apply SQLite pragmas to every new DB-API connection."""
 
     @event.listens_for(engine.sync_engine, "connect")
@@ -54,7 +59,13 @@ def _configure_sqlite(engine: AsyncEngine) -> None:
         try:
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.execute("PRAGMA busy_timeout=30000")
-            cursor.execute("PRAGMA journal_mode=WAL")
+            if not _is_azure_files_sqlite(database_url):
+                try:
+                    cursor.execute("PRAGMA journal_mode=WAL")
+                except Exception:
+                    # WAL is a performance preference, not a startup requirement.
+                    # Some mounted filesystems reject or lock during journal changes.
+                    pass
         finally:
             cursor.close()
 
