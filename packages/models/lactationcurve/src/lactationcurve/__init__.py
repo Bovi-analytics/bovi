@@ -11,7 +11,7 @@ using the **ICAR guideline**.
 
 > **Initial authored:** 2025‑08‑12
 
-> **Updated:** 2026‑05‑20
+> **Updated:** 2026‑05‑25
 
 ---
 
@@ -34,7 +34,7 @@ using the **ICAR guideline**.
   accessible software implementation to improve standardization,
   enhance documentation, support continuous development, and increase
   the accuracy of 305 day yield estimation.
-	 
+
   To achieve this, the ICAR guideline was translated into an
   open-source Python package that serves as a reference implementation
   for 305-day yield calculation, with lactation curve modelling at its
@@ -108,7 +108,6 @@ characteristics (LCC) derivations:
 * **Wood** : `y(t) = a * t^b * exp(-c * t)`
 * **Wilmink** : `y(t) = a + b * t + c * exp(k * t)` with default `k = -0.05`
 * **Ali & Schaeffer** :  `t_scaled = t / 305`, `L = ln(305 / t)`
-
   `y(t) = a + b*t_scaled + c*t_scaled^2 + d*L + k*L^2`
 * **Fischer** : `y(t) = a - b*t - a*exp(-c*t)`
 * **MilkBot** : `y(t) = a * (1 - exp((c - t)/b) / 2) * exp(-d*t)`
@@ -181,32 +180,48 @@ and will create a `TestId` column with all values set to 0.
 
 ---
 
+## Often used abreviations
+
+- **DIM**: Days in Milk (the days since calving in the current lactation)
+- **LC**: Lactation Curve
+- **LCC**: Lactation Curve Characteristic
+- **ISLC**: Interpolation using the Standard Lactation Curve
+- **ICAR**: International Committee for Animal Recording
+- **API**: Application Programming Interface
+
+
+---
+
 ## Bayesian Fitting (MilkBot API)
 
 * Set `fitting="bayesian"` and `model="milkbot"` in
   `fit_lactation_curve` or `calculate_characteristic`.
 * Provide an **API key** via .env
 * Choose priors via custom_priors:
-    - "[CHEN](https://github.com/Bovi-analytics/Chen-et-al-2023b)" → Chen et al. 2023 published priors
+    - "[CHEN](https://github.com/Bovi-analytics/Chen-et-al-2023b)" → Chen et al. 2023
+      published priors
     - dict    → Custom priors in MilkBot format (overrides `continent`)
       Custom priors have a specific format, to help you build them, 
-      use the `build_prior` helper function. To make your own prior you need for each MilkBot parameter 
+      use the `build_prior` helper function. To make your own prior you need
+      for each MilkBot parameter 
       (scale,ramp,decay,onset) to specify a mean and a standard deviation (std). 
-      Also provide a standard deviation for milk yield through seMilk to specify the expected noise in the data.
-      This is default set to 4 kg to reflect typical day-to-day variation in milk yield, 
+      Also provide a standard deviation for milk yield through seMilk to
+      specify the expected noise in the data.
+      This seMilk is default set to 4 kg to reflect typical day-to-day variation in milk yield, 
       but you can adjust it based on the expected variability in your data. 
 
 * if no custom priors are provided, the default MilkBot priors will be used:
     In that case set cutsom_priors to None and specify the desired continent and breed.
     continent options:
     - "USA"   → MilkBot USA priors (default)
-    - "EU"    → MilkBot EU priors > estimates lower milk production
+    - "EU"    → MilkBot EU priors > mainly estimates lower milk production
 
     breed options: 
     - H → Holstein (default)
     - J → Jersey
 
-    If also parity is provided, the continent-specific priors will be further refined by parity-specific priors.
+    If also parity is provided, the continent-specific priors will be
+    further refined by parity-specific priors.
     The priors are sensitive to the used metric. The default is kg, but if you use lb, 
     specify milk_unit="lb" to use the appropriate priors.
   
@@ -240,7 +255,8 @@ in lactation curve shape and magnitude with the MilkBot
 lactation model. PeerJ 1, e54.
 https://doi.org/10.7717/peerj.54*
 
-If you use the 305-day yield calculation methods based on the ICAR guideline, please also cite the following paper:
+If you use the 305-day yield calculation methods based on the ICAR guideline,
+please also cite the following paper:
 Best Predict method:
 *VanRaden, P. M. (1997). Lactation yields and accuracies computed from test 
 day yields and (co) variances by best prediction. 
@@ -250,6 +266,11 @@ ISLC:
 *Wilmink, J. B. M. (1987). 
 Comparison of different methods of predicting 305-day milk yield using means 
 calculated from within-herd lactation curves. Livestock Production Science, 17, 1-17.* 
+
+Test Interval Method:
+*Sargent, F. D., V. H. Lyton, and 0. G. Wall, J r . 1968. 
+Test interval method of calculating Dairy Herd Improvement Association records. 
+Journal of dairy science, 51-170.*
 
 ---
 

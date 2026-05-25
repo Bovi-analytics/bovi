@@ -19,6 +19,18 @@ Key Entry Points
 - ``best_predict_method_single_lac``: Predict one lactation.
 - ``fit_autocorrelation_matrix``: Fit covariance structure from reference data.
 
+Column Flexibility
+------------------
+The functions accept several case-insensitive column name aliases and can
+create a default ``TestId`` if one is missing. Recognized aliases:
+
+- Days in Milk: `["daysinmilk", "dim", "testday"]`
+- Milk Yield: `["milkingyield", "testdaymilkyield", "milkyield", "yield"]`
+- Test Id: `["animalid", "testid", "id"]`
+
+It is also possible to provide your own column names so the function 
+can be applied to dataframes with different column naming conventions.
+
 Defaults
 --------
 - ``STANDARD_CURVE``: Baseline expected lactation curve for days 1..305 (Wood).
@@ -30,11 +42,21 @@ Notes
 - Users can fit curve and covariance ingredients from their own reference
     population.
 
-Reference
+References
 ---------
 VanRaden, P. M. (1997). Lactation yields and accuracies computed from test 
 day yields and (co) variances by best prediction. 
 Journal of dairy science, 80(11), 3015-3022.
+
+A Manual for Use of BESTPRED: A Program for Estimation of Lactation Yield
+and Persistency Using Best Prediction
+Release 2.0 rc 7
+J. B. Cole and P. M. VanRaden
+August 12, 2009
+Revised April 27, 2015
+Animal Genomics and Improvement Laboratory, Agricultural Research Service, United States
+Department of Agriculture, Room 306 Bldg 005 BARC-West, 10300 Baltimore Avenue,
+Beltsville, MD 20705-2350
 
 Original code for best predict can be found on [GitHub](https://github.com/wintermind/bestpred)
 

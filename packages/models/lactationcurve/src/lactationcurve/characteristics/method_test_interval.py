@@ -48,11 +48,15 @@ create a default ``TestId`` if one is missing. Recognized aliases:
 - Milk Yield: `["milkingyield", "testdaymilkyield", "milkyield", "yield"]`
 - Test Id: `["animalid", "testid", "id"]`
 
+It is also possible to provide your own column names so the function 
+can be applied to dataframes with different column naming conventions.
+
 Returns a DataFrame with columns: ``["TestId", "LactationMilkYield"]``.
 
 Notes
 -----
-- Units: DIM is measured in days, and milk yield can be in kg or lb. The
+- Units: DIM (days in milk) is measured in days, 
+    and milk yield can be in kg or lb. The
     output stays in the same unit as the input.
 - Records with ``DIM > max_dim`` are excluded before computation.
 - This method's main strength is its ease of use and simplicity.
@@ -61,6 +65,14 @@ Notes
     especially for lactations with few test days or irregular patterns.
     Outliers in test-day records can also have a large influence on the final
     result.
+- When a full lactation is known (i.e., test days up to DIM 305), 
+this method will give a higher cumulative milk yield then the sum off all test days, 
+because of the way the start and end contributions are calculated.
+
+Reference
+---------
+Sargent, F. D., V. H. Lyton, and 0. G. Wall, J r . 1968. Test interval method of
+calculating Dairy Herd Improvement Association records. J. Dairy Sci. 51:170. 
 
 Author: Meike van Leerdam
 Date: 07-31-2025
