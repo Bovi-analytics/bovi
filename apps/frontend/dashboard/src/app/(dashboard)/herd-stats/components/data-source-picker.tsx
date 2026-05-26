@@ -16,9 +16,10 @@ import {
   Stack,
   Table,
   Text,
+  Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import { AlertCircle, CheckCircle2, ChevronRight, Download } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronRight, Download, Info } from "lucide-react";
 import Link from "next/link";
 import { HERD_STATS_METADATA, VISIBLE_HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
 import { statsToHerdProfileFields } from "@/lib/herd-profile-utils";
@@ -41,6 +42,7 @@ import { useCreateHerdProfile } from "../hooks/use-herd-profiles";
 
 type SourceKey = PresetDatasetKey | "upload";
 type FormatKey = "aggregated" | "icar_test_day" | "dairycom_test_day";
+type SelectableFormatKey = Exclude<FormatKey, "dairycom_test_day">;
 
 interface SourceOption {
   value: SourceKey;
@@ -62,7 +64,7 @@ const SOURCE_OPTIONS: SourceOption[] = [
   {
     value: "upload",
     label: "Upload a file",
-    description: "Bring your own CSV from farm software",
+    description: "Upload your own csv with milk production data",
   },
 ];
 
@@ -111,22 +113,17 @@ function sizeOptionsWithCounts(
 interface FormatMeta {
   label: string;
   blurb: string;
-  columns: Array<{ name: string; description: string; required: boolean }>;
+  columns: Array<{ name: string; description: string; required: boolean; help?: string }>;
   template: () => string;
   templateName: string;
 }
 
 const ICAR_TEMPLATE =
-  "TestId,TestDate,EventType,CalvingDate,BirthDate,Parity,DaysInMilk,DailyMilkingYield\n" +
-  "1483,6/18/2019,MilkRecording,6/3/2019,2/9/2009,7,15,49.1\n" +
-  "1483,7/16/2019,MilkRecording,6/3/2019,2/9/2009,7,43,53.4\n" +
-  "1483,8/13/2019,MilkRecording,6/3/2019,2/9/2009,7,71,52.1\n" +
-  "1528,6/18/2019,MilkRecording,6/5/2019,1/3/2011,5,13,45.8\n";
-
-const DAIRYCOM_TEMPLATE =
-  '"ID";"TestDate";"DIM";"MILK";"PCTF";"PCTP";"FCM";"305ME";"RELV";"SCC";"LS";"PEN";\n' +
-  "     407 ;09/27/24; 181 ; 97  ;  3,1 ;  3,0 ; 91 ;29920 ;  97 ;   22 ;0,8 ;  6 ;\n" +
-  "     512 ;09/27/24;  42 ;110  ;  3,2 ;  3,0 ;107 ;28500 ;  95 ;   18 ;0,6 ;  6 ;\n";
+  "TestId,TestDate,CalvingDate,BirthDate,Parity,DaysInMilk,DailyMilkingYield\n" +
+  "1483,6/18/2019,6/3/2019,2/9/2009,7,15,49.1\n" +
+  "1483,7/16/2019,6/3/2019,2/9/2009,7,43,53.4\n" +
+  "1483,8/13/2019,6/3/2019,2/9/2009,7,71,52.1\n" +
+  "1528,6/18/2019,6/5/2019,1/3/2011,5,13,45.8\n";
 
 function buildAggregatedTemplate(): string {
   const headers = VISIBLE_HERD_STATS_METADATA.map((m) => m.name).join(",");
@@ -137,7 +134,31 @@ function buildAggregatedTemplate(): string {
   return `${headers}\n${exampleRow}\n`;
 }
 
-const FORMATS: Record<FormatKey, FormatMeta> = {
+const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
+  icar_test_day: {
+    label: "Milk Recordings",
+    blurb:
+      "One row per cow per recording date - the raw export you get from milk recording software. We calculate herd averages from these records automatically. Also extracts individual cow data for use on the Curves tab.",
+    columns: [
+      {
+        name: "TestId",
+        description: "Unique lactation identifier",
+        required: true,
+        help:
+          "The TestId is an unique identifier for a lactation, which can be used to group records belonging to the same lactation together. It is not the same as a cow ID, as a cow can have multiple lactations (e.g., across different calvings).",
+      },
+      { name: "DaysInMilk", description: "Days since calving", required: true },
+      {
+        name: "DailyMilkingYield",
+        description:
+          "Summed cumulative milk yield of all milkings of one day (24h milk yield).",
+        required: true,
+      },
+      { name: "Parity", description: "Lactation number", required: false },
+    ],
+    template: () => ICAR_TEMPLATE,
+    templateName: "herd_stats_template_icar.csv",
+  },
   aggregated: {
     label: "Herd summary",
     blurb:
@@ -149,37 +170,6 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
     })),
     template: buildAggregatedTemplate,
     templateName: "herd_stats_template_aggregated.csv",
-  },
-  icar_test_day: {
-    label: "Milk recordings",
-    blurb:
-      "One row per cow per recording date - the raw export you get from milk recording software. We calculate herd averages from these records automatically. Also extracts individual cow data for use on the Curves tab.",
-    columns: [
-      { name: "TestId", description: "Unique cow identifier", required: true },
-      { name: "DaysInMilk", description: "Days since calving", required: true },
-      { name: "DailyMilkingYield", description: "Daily milk yield in kg", required: true },
-      { name: "Parity", description: "Lactation number", required: false },
-      { name: "EventType", description: "Only MilkRecording rows are used", required: false },
-    ],
-    template: () => ICAR_TEMPLATE,
-    templateName: "herd_stats_template_icar.csv",
-  },
-  dairycom_test_day: {
-    label: "DairyCom export",
-    blurb:
-      "Semicolon-separated export from DairyCom (Cornell-style software). Milk values in lbs are converted to kg automatically. European decimal notation (3,1) is handled.",
-    columns: [
-      { name: "ID", description: "Unique cow identifier", required: true },
-      { name: "DIM", description: "Days in milk for this test day", required: true },
-      {
-        name: "MILK",
-        description: "Daily milk yield in lbs (auto-converted to kg)",
-        required: true,
-      },
-      { name: "305ME", description: "305-day mature equivalent in lbs", required: false },
-    ],
-    template: () => DAIRYCOM_TEMPLATE,
-    templateName: "herd_stats_template_dairycom.csv",
   },
 };
 
@@ -259,7 +249,7 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
         )}
         {!isActive && (
           <Button size="md" color="violet" onClick={activate} disabled={isLoading || !presetData}>
-            Use this dataset
+            Use this demo herd
           </Button>
         )}
       </Group>
@@ -268,7 +258,7 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
         <Alert color="violet" variant="light">
           <Group justify="space-between" align="center">
             <Text size="sm">
-              Dataset active - {presetData?.cow_count.toLocaleString()} cows ready.
+              Demo herd active - {presetData?.cow_count.toLocaleString()} cows ready.
             </Text>
             <Button
               component={Link}
@@ -285,7 +275,7 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
 
       {isError && (
         <Alert icon={<AlertCircle size={16} />} color="red">
-          Dataset unavailable - make sure CONNECTION_STRING is configured and the preprocessing
+          Demo herd unavailable - make sure CONNECTION_STRING is configured and the preprocessing
           script has been run.
         </Alert>
       )}
@@ -298,7 +288,7 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
 /* ------------------------------------------------------------------ */
 
 function UploadPanel(): ReactElement {
-  const [selectedFormat, setSelectedFormat] = useState<FormatKey>("icar_test_day");
+  const [selectedFormat, setSelectedFormat] = useState<SelectableFormatKey>("icar_test_day");
   const [preview, setPreview] = useState<HerdProfileUploadResponse | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
@@ -321,8 +311,7 @@ function UploadPanel(): ReactElement {
         setUploadedFilename(filename);
         if (
           response.cows.length > 0 &&
-          (response.format_detected === "icar_test_day" ||
-            response.format_detected === "dairycom_test_day")
+          response.format_detected === "icar_test_day"
         ) {
           setDataset({
             name: filename,
@@ -349,7 +338,7 @@ function UploadPanel(): ReactElement {
   const FORMAT_LABELS: Record<FormatKey, string> = {
     aggregated: FORMATS.aggregated.label,
     icar_test_day: FORMATS.icar_test_day.label,
-    dairycom_test_day: FORMATS.dairycom_test_day.label,
+    dairycom_test_day: "Dairy Comp",
   };
 
   return (
@@ -361,8 +350,8 @@ function UploadPanel(): ReactElement {
         <SegmentedControl
           size="sm"
           value={selectedFormat}
-          onChange={(v) => setSelectedFormat(v as FormatKey)}
-          data={(Object.keys(FORMATS) as FormatKey[]).map((k) => ({
+          onChange={(v) => setSelectedFormat(v as SelectableFormatKey)}
+          data={(Object.keys(FORMATS) as SelectableFormatKey[]).map((k) => ({
             value: k,
             label: FORMATS[k].label,
           }))}
@@ -393,7 +382,14 @@ function UploadPanel(): ReactElement {
                   {activeFormat.columns.map((c) => (
                     <Table.Tr key={c.name}>
                       <Table.Td>
-                        <Code>{c.name}</Code>
+                        <Group gap={4} wrap="nowrap">
+                          <Code>{c.name}</Code>
+                          {c.help && (
+                            <Tooltip label={c.help} multiline w={320}>
+                              <Info size={14} className="text-muted-foreground" />
+                            </Tooltip>
+                          )}
+                        </Group>
                       </Table.Td>
                       <Table.Td>{c.description}</Table.Td>
                       <Table.Td>
@@ -590,8 +586,8 @@ export function DataSourcePicker(): ReactElement {
           Data source
         </Text>
         <Text size="sm" mt={4}>
-          Pick an anonymized preset dataset or upload your own file to start analyzing lactation
-          curves.
+          Pick a built-in demo herd or upload your own file to start analyzing milk production
+          data.
         </Text>
       </div>
 

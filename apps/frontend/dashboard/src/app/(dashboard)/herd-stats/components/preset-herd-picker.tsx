@@ -93,11 +93,11 @@ export function PresetHerdPicker(): ReactElement {
   return (
     <Stack gap="sm">
       <Text size="sm" fw={500}>
-        Anonymized preset datasets
+        Demo herds
       </Text>
       <Text size="xs">
-        Pick an anonymized preset dataset as the active herd. The selected cows will be available in
-        the Curves tab for individual lactation analysis.
+        Pick a built-in demo herd as the active herd. The selected cows will be available in the
+        Curves tab for individual lactation analysis.
       </Text>
 
       <Group gap="sm">
