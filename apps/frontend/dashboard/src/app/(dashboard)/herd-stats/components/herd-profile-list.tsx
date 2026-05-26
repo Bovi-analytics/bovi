@@ -15,8 +15,8 @@ import type { HerdProfile, HerdProfileCreate } from "@/types/api";
 import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
 
 const PRESET_LABELS: Record<string, string> = {
-  aurora: "Preset cohort A",
-  sunnyside: "Preset cohort B",
+  aurora: "Demo herd A",
+  sunnyside: "Demo herd B",
 };
 const PERIOD_LABELS: Record<string, string> = { recent: "Recent", old: "Old", mixed: "Mixed" };
 const SIZE_LABELS: Record<string, string> = { small: "Small", medium: "Medium", large: "Large" };

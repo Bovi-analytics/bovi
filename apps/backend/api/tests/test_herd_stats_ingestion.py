@@ -235,11 +235,11 @@ def test_real_icar_dataset():
     assert all(0 <= y <= 80 for y in sample.milk_kg)
 
 
-@pytest.mark.skipif(not DAIRYCOM_FIXTURE.exists(), reason="DairyCom fixture not present")
+@pytest.mark.skipif(not DAIRYCOM_FIXTURE.exists(), reason="Dairy Comp fixture not present")
 def test_real_dairycom_dataset():
     result = parse_csv(DAIRYCOM_FIXTURE.read_bytes())
     assert result.format_detected == "dairycom_test_day"
-    # Some cows in the Cornell export only have zero-milk rows and get filtered out;
+    # Some cows in this export only have zero-milk rows and get filtered out;
     # we expect close to the 1011 unique IDs in the file.
     assert result.cow_count is not None
     assert 1000 <= result.cow_count <= 1011

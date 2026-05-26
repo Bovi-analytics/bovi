@@ -58,8 +58,8 @@ const UPLOADED_COWS_VISIBLE_CAP = 20;
 const PRESET_COWS_VISIBLE_CAP = 50;
 
 const PRESET_DATASET_LABELS: Record<PresetDatasetKey, string> = {
-  aurora: "Preset cohort A",
-  sunnyside: "Preset cohort B",
+  aurora: "Demo herd A",
+  sunnyside: "Demo herd B",
 };
 const PRESET_PERIOD_LABELS = {
   recent: "Recent",
@@ -235,7 +235,7 @@ export default function CurvesPage(): ReactElement {
   const [manualHerdStats, setManualHerdStats] = useState<number[]>([...DEFAULT_HERD_STATS]);
   const [predictEnabled, setPredictEnabled] = useState(false);
 
-  // Fetch herd stats computed from the active preset dataset (only when needed).
+  // Fetch herd stats computed from the active demo herd (only when needed).
   const {
     statsArray: datasetHerdStats,
     isLoading: datasetHerdStatsLoading,
@@ -519,7 +519,7 @@ export default function CurvesPage(): ReactElement {
   }
 
   function handleRandomCow() {
-    // Prefer active preset dataset
+    // Prefer active demo herd
     if (presetData && activePreset && presetData.cows.length > 0) {
       const cow = presetData.cows[Math.floor(Math.random() * presetData.cows.length)];
       setActiveLactation(presetCowToLactation(cow, activePreset.dataset));

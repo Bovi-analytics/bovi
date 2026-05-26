@@ -21,8 +21,8 @@ import type { PresetDatasetKey, PresetPeriodKey, PresetSizeKey } from "@/types/a
 const DATASET_OPTIONS: { value: PresetDatasetKey | "none"; label: string; description: string }[] =
   [
     { value: "none", label: "None", description: "Use uploaded CSV or manual input" },
-    { value: "aurora", label: "Preset cohort A", description: "Anonymized herd · 2023-2025" },
-    { value: "sunnyside", label: "Preset cohort B", description: "Anonymized herd · 2000-2026" },
+    { value: "aurora", label: "Demo herd A", description: "Anonymized herd · 2023-2025" },
+    { value: "sunnyside", label: "Demo herd B", description: "Anonymized herd · 2000-2026" },
   ];
 
 const SIZE_OPTIONS = [
@@ -93,11 +93,11 @@ export function PresetHerdPicker(): ReactElement {
   return (
     <Stack gap="sm">
       <Text size="sm" fw={500}>
-        Anonymized preset datasets
+        Demo herds
       </Text>
       <Text size="xs">
-        Pick an anonymized preset dataset as the active herd. The selected cows will be available in
-        the Curves tab for individual lactation analysis.
+        Pick a built-in demo herd as the active herd. The selected cows will be available in the
+        Curves tab for individual lactation analysis.
       </Text>
 
       <Group gap="sm">

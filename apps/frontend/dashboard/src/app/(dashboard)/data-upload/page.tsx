@@ -11,8 +11,8 @@ export default function DataUploadPage(): ReactElement {
         <div>
           <h1 className="text-2xl font-semibold">Data Upload</h1>
           <p className="mt-1 text-sm text-foreground">
-            Start here by loading a preset herd dataset or uploading your own milk-recording CSV.
-            The selected cow records are then available to Herd Profiles and Curves.
+            Choose the data you would like to work with. Upload your own milk recording data or
+            explore the platform using one of the built-in demo herds.
           </p>
         </div>
         <Button
@@ -29,7 +29,7 @@ export default function DataUploadPage(): ReactElement {
         <Group gap="sm" align="center">
           <Database size={18} className="text-primary" />
           <Text fw={700} size="md">
-            Dataset source
+            Data source
           </Text>
           <Badge size="xs" variant="light" color="violet">
             step 1

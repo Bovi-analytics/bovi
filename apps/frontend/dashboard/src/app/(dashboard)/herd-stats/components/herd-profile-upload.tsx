@@ -26,6 +26,7 @@ import { useHerdProfileUpload } from "../hooks/use-herd-profile-upload";
 import { useCreateHerdProfile } from "../hooks/use-herd-profiles";
 
 type FormatKey = "aggregated" | "icar_test_day" | "dairycom_test_day";
+type SelectableFormatKey = Exclude<FormatKey, "dairycom_test_day">;
 
 interface FormatMeta {
   label: string;
@@ -36,22 +37,14 @@ interface FormatMeta {
 }
 
 const ICAR_TEMPLATE =
-  "TestId,TestDate,EventType,CalvingDate,BirthDate,Parity,DaysInMilk,DailyMilkingYield\n" +
-  "1483,6/18/2019,MilkRecording,6/3/2019,2/9/2009,7,15,49.1\n" +
-  "1483,7/16/2019,MilkRecording,6/3/2019,2/9/2009,7,43,53.4\n" +
-  "1483,8/13/2019,MilkRecording,6/3/2019,2/9/2009,7,71,52.1\n" +
-  "1483,9/10/2019,MilkRecording,6/3/2019,2/9/2009,7,99,48.3\n" +
-  "1528,6/18/2019,MilkRecording,6/5/2019,1/3/2011,5,13,45.8\n" +
-  "1528,7/16/2019,MilkRecording,6/5/2019,1/3/2011,5,41,50.2\n" +
-  "1528,8/13/2019,MilkRecording,6/5/2019,1/3/2011,5,69,47.0\n";
-
-const DAIRYCOM_TEMPLATE =
-  '"ID";"TestDate";"DIM";"MILK";"PCTF";"PCTP";"FCM";"305ME";"RELV";"SCC";"LS";"PEN";\n' +
-  "     407 ;09/27/24; 181 ; 97  ;  3,1 ;  3,0 ; 91 ;29920 ;  97 ;   22 ;0,8 ;  6 ;\n" +
-  "     407 ;10/25/24; 209 ; 95  ;  3,9 ;  3,1 ;101 ;31020 ; 101 ;   54 ;2,1 ;  6 ;\n" +
-  "     407 ;11/22/24; 237 ; 93  ;  4,0 ;  3,2 ; 99 ;31960 ; 104 ;   27 ;1,1 ; 15 ;\n" +
-  "     512 ;09/27/24;  42 ;110  ;  3,2 ;  3,0 ;107 ;28500 ;  95 ;   18 ;0,6 ;  6 ;\n" +
-  "     512 ;10/25/24;  70 ;103  ;  3,5 ;  3,0 ;102 ;29100 ;  97 ;   21 ;0,7 ;  6 ;\n";
+  "TestId,TestDate,CalvingDate,BirthDate,Parity,DaysInMilk,DailyMilkingYield\n" +
+  "1483,6/18/2019,6/3/2019,2/9/2009,7,15,49.1\n" +
+  "1483,7/16/2019,6/3/2019,2/9/2009,7,43,53.4\n" +
+  "1483,8/13/2019,6/3/2019,2/9/2009,7,71,52.1\n" +
+  "1483,9/10/2019,6/3/2019,2/9/2009,7,99,48.3\n" +
+  "1528,6/18/2019,6/5/2019,1/3/2011,5,13,45.8\n" +
+  "1528,7/16/2019,6/5/2019,1/3/2011,5,41,50.2\n" +
+  "1528,8/13/2019,6/5/2019,1/3/2011,5,69,47.0\n";
 
 function buildAggregatedTemplate(): string {
   const headers = HERD_STATS_METADATA.map((m) => m.name).join(",");
@@ -62,35 +55,23 @@ function buildAggregatedTemplate(): string {
   return `${headers}\n${exampleRow}\n`;
 }
 
-const FORMATS: Record<FormatKey, FormatMeta> = {
-  aggregated: {
-    label: "Aggregated herd stats",
-    blurb:
-      "One row per herd summary, with the 10 canonical columns already pre-averaged. Column order is flexible; missing columns are left at slider defaults. Use this format if your herd-management platform already exports per-herd aggregates.",
-    columns: HERD_STATS_METADATA.map((m) => ({
-      name: m.name,
-      description: `${m.description} (${m.unit || "0–1 score"}, typical ${m.rawMin}–${m.rawMax})`,
-      required: false,
-    })),
-    template: buildAggregatedTemplate,
-    templateName: "herd_stats_template_aggregated.csv",
-  },
+const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
   icar_test_day: {
-    label: "Standard test-day records",
+    label: "Milk Recordings",
     blurb:
       "One row per cow per milk recording, as exported by milk-recording software. We aggregate across cows to derive AchievedMilk, Achieved21Milk, Achieved75Milk, Achieved305Milk (trapezoidal test-interval method) and DaysInMilk. Parity is also detected and shown as a hint for the autoencoder. All other herd stats remain at slider defaults.",
     columns: [
-      { name: "TestId", description: "Unique cow identifier", required: true },
+      { name: "TestId", description: "Unique lactation identifier", required: true },
       { name: "DaysInMilk", description: "Days since calving for this record", required: true },
-      { name: "DailyMilkingYield", description: "Daily milk yield in kg", required: true },
+      {
+        name: "DailyMilkingYield",
+        description:
+          "Summed cumulative milk yield of all milkings of one day (24h milk yield).",
+        required: true,
+      },
       {
         name: "Parity",
         description: "Lactation number - used to pick the dominant parity across the herd",
-        required: false,
-      },
-      {
-        name: "EventType",
-        description: "Only rows with value MilkRecording are kept",
         required: false,
       },
       {
@@ -102,31 +83,17 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
     template: () => ICAR_TEMPLATE,
     templateName: "herd_stats_template_icar.csv",
   },
-  dairycom_test_day: {
-    label: "DairyCom export",
+  aggregated: {
+    label: "Herd summary",
     blurb:
-      "Semicolon-separated DairyCom (Cornell-style) export. Milk values in pounds are converted to kilograms automatically. We use the 305ME column directly as the 305-day equivalent yield; the remaining milk stats are derived from MILK at the standard DIM windows. European decimal notation (3,1) is handled.",
-    columns: [
-      { name: "ID", description: "Unique cow identifier", required: true },
-      { name: "DIM", description: "Days in milk for this test day", required: true },
-      {
-        name: "MILK",
-        description: "Daily milk yield in lbs (auto-converted to kg)",
-        required: true,
-      },
-      {
-        name: "305ME",
-        description: "305-day mature equivalent in lbs (preferred source for Achieved305Milk)",
-        required: false,
-      },
-      {
-        name: "PCTF / PCTP / FCM / RELV / SCC / LS / PEN",
-        description: "Ignored for herd-stat aggregation, accepted in the file",
-        required: false,
-      },
-    ],
-    template: () => DAIRYCOM_TEMPLATE,
-    templateName: "herd_stats_template_dairycom.csv",
+      "One row per herd summary, with the 10 canonical columns already pre-averaged. Column order is flexible; missing columns are left at slider defaults. Use this format if your herd-management platform already exports per-herd aggregates.",
+    columns: HERD_STATS_METADATA.map((m) => ({
+      name: m.name,
+      description: `${m.description} (${m.unit || "0–1 score"}, typical ${m.rawMin}–${m.rawMax})`,
+      required: false,
+    })),
+    template: buildAggregatedTemplate,
+    templateName: "herd_stats_template_aggregated.csv",
   },
 };
 
@@ -141,9 +108,9 @@ function downloadText(content: string, filename: string): void {
 }
 
 const FORMAT_LABELS: Record<FormatKey, string> = {
-  aggregated: "Aggregated",
-  icar_test_day: "Standard test-day",
-  dairycom_test_day: "DairyCom",
+  aggregated: "Herd summary",
+  icar_test_day: "Milk Recordings",
+  dairycom_test_day: "Dairy Comp",
 };
 
 export function HerdProfileUpload(): ReactElement {
@@ -153,7 +120,7 @@ export function HerdProfileUpload(): ReactElement {
   const { setDataset } = useUploadedCows();
   const [preview, setPreview] = useState<HerdProfileUploadResponse | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState<FormatKey>("icar_test_day");
+  const [selectedFormat, setSelectedFormat] = useState<SelectableFormatKey>("icar_test_day");
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -166,8 +133,7 @@ export function HerdProfileUpload(): ReactElement {
         setUploadedFilename(filename);
         if (
           response.cows.length > 0 &&
-          (response.format_detected === "icar_test_day" ||
-            response.format_detected === "dairycom_test_day")
+          response.format_detected === "icar_test_day"
         ) {
           setDataset({
             name: filename,
@@ -209,8 +175,8 @@ export function HerdProfileUpload(): ReactElement {
         <SegmentedControl
           size="xs"
           value={selectedFormat}
-          onChange={(v) => setSelectedFormat(v as FormatKey)}
-          data={(Object.keys(FORMATS) as FormatKey[]).map((k) => ({
+          onChange={(v) => setSelectedFormat(v as SelectableFormatKey)}
+          data={(Object.keys(FORMATS) as SelectableFormatKey[]).map((k) => ({
             value: k,
             label: FORMAT_LABELS[k],
           }))}

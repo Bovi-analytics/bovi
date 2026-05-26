@@ -18,7 +18,7 @@ interface UsePresetHerdStatsResult {
 }
 
 /**
- * Fetch the 10 normalized herd_stats computed from a preset dataset slice.
+ * Fetch the 10 normalized herd_stats computed from a demo herd slice.
  *
  * Returns both the raw response and a `statsArray` ordered to match
  * HERD_STATS_METADATA — i.e. ready to send as the autoencoder `herd_stats`
