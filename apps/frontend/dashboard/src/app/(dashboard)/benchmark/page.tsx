@@ -21,7 +21,7 @@ export default function BenchmarkPage(): ReactElement {
           <h1 className="text-2xl font-semibold">Benchmark</h1>
           <Text size="sm" c="var(--benchmark-muted-text)">
             Compare a 305-day milk yield calculation against ground-truth Actual Lactation Yield
-            (ALY) on a cohort of cows with daily milk meter data.
+            (ALY) on a reference dataset of lactations with daily milk meter data.
           </Text>
         </Stack>
         <Button leftSection={<Plus size={14} />} onClick={() => router.push("/benchmark/new")}>
@@ -32,11 +32,12 @@ export default function BenchmarkPage(): ReactElement {
       <Alert color="blue" variant="light" title="How the benchmark works">
         <Stack gap={4}>
           <Text size="sm">
-            A challenge consists of a group of cows for which the ground-truth ALY (Actual Lactation
-            Yield based on daily milk meter recordings) is known, while only sampled test-day milk
-            recordings are provided as input. You can use the built-in reference dataset or upload
-            your own test-day records together with corresponding daily milk meter data as ground
-            truth. The goal is to estimate the 305-day cumulative milk yield for each lactation.
+            A challenge consists of a group of lactations for which the ground-truth ALY (Actual
+            Lactation Yield based on daily milk meter recordings) is known, while only sampled
+            test-day milk recordings are provided as input. You can use the built-in reference
+            dataset or upload your own test-day records together with corresponding daily milk meter
+            data as ground truth. The goal is to estimate the 305-day cumulative milk yield for each
+            lactation.
           </Text>
           <Text size="sm">
             For each challenge, you select both a challenger and a benchmark. Benchmarks include

@@ -57,7 +57,7 @@ const FLOW: FlowStep[] = [
     cta: "Open Curves",
     sparkle: true,
     description:
-      "Experiment with different lactation curve models on individual lactations, calculate key curve characteristics, and visualize the lactation shape of your own cows.",
+      "Experiment with different lactation curve models on individual lactations, calculate key curve characteristics, and visualize the lactation shape of your selected lactations.",
   },
   {
     number: "4",

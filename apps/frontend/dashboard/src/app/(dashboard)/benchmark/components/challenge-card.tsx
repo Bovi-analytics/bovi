@@ -10,7 +10,7 @@ interface Props {
 }
 
 const DATASET_LABEL: Record<string, string> = {
-  icar: "Reference cohort",
+  icar: "Reference dataset",
   upload: "Custom upload",
 };
 

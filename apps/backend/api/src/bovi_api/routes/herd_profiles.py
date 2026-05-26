@@ -9,6 +9,7 @@ from sqlmodel import col, select
 from bovi_api.database import get_session
 from bovi_api.herd_stats_ingestion import DEFAULT_STAT_RANGES, normalize_herd_stats, parse_csv
 from bovi_api.models import HerdProfile, HerdProfileCreate, HerdProfileRead
+from bovi_api.settings import Settings, get_settings
 
 router = APIRouter(tags=["herd-profiles"])
 
@@ -70,6 +71,7 @@ async def create_herd_profile(
 @router.post("/csv-preview", response_model=HerdProfileUploadResponse)
 async def csv_preview(
     file: UploadFile = File(...),
+    settings: Settings = Depends(get_settings),
 ) -> HerdProfileUploadResponse:
     """Parse and normalize an uploaded CSV. Returns a preview; does NOT save to DB."""
     filename = file.filename or ""
@@ -81,7 +83,7 @@ async def csv_preview(
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
 
     try:
-        result = parse_csv(content)
+        result = parse_csv(content, allow_dairy_comp=settings.allow_dairy_comp_uploads)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

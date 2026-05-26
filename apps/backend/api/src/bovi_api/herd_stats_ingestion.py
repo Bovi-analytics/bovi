@@ -1,20 +1,27 @@
 """CSV ingestion and normalization utility for herd stats upload.
 
-Three input formats are supported, auto-detected from the header row:
+Two input formats are supported by default, auto-detected from the header row:
 
 1. ``aggregated`` - one row per herd profile, columns named after canonical
    stats (e.g. ``Achieved305Milk``, ``DaysInMilk``). The original format.
-2. ``icar_test_day`` - one row per cow per milk recording, as produced by the
-   ICAR platform. Required columns: ``TestId``, ``DaysInMilk``,
-   ``DailyMilkingYield`` (and optionally ``Parity``, ``EventType``).
-3. ``dairycom_test_day`` - Dairy Comp (American herd management system) export with European
-   decimals (``,``) and milk in **lbs**. Required columns: ``ID``, ``DIM``,
-   ``MILK`` (and optionally ``305ME`` with the 305-d mature equivalent).
+2. ``icar_test_day`` - one row per lactation per milk recording. Required
+   columns: ``TestId``, ``DaysInMilk``, ``DailyMilkingYield`` (and optionally
+   ``Parity``, ``EventType``).
 
-For the two test-day formats the parser aggregates raw records into herd-level
-stats: per-cow averages at DIM windows (21, 75), overall mean daily yield, mean
-days-in-milk per cow, and a 305-day yield estimate (Dairy Comp uses the ``305ME``
-column directly; ICAR uses a trapezoidal test-interval integration).
+The Dairy Comp parser is retained behind an explicit feature flag because the
+export requires more validation before it is safe for users.
+
+Disabled format:
+
+``dairycom_test_day`` - Dairy Comp (American herd management system) export with European
+decimals (``,``) and milk in **lbs**. Required columns: ``ID``, ``DIM``,
+``MILK`` (and optionally ``305ME`` with the 305-d mature equivalent).
+
+For test-day formats the parser aggregates raw records into herd-level
+stats: per-lactation averages at DIM windows (21, 75), overall mean daily
+yield, mean days-in-milk per lactation, and a 305-day yield estimate. ICAR
+uses a trapezoidal test-interval integration. When explicitly enabled, Dairy
+Comp uses the ``305ME`` column directly.
 
 Normalization is inlined (not imported from lactation_autoencoder) to keep the
 central API free of ML framework dependencies.
@@ -96,15 +103,15 @@ def _normalise_header(h: str) -> str:
     return h.strip().lower().replace(" ", "").replace("_", "")
 
 
-def _detect_format(header: list[str]) -> FormatDetected:
+def _detect_format(header: list[str], *, allow_dairy_comp: bool = False) -> FormatDetected:
     """Classify a CSV header row into one of the supported formats.
 
     Args:
         header (list[str]): Raw header fields from the first row of the CSV.
 
     Returns:
-        FormatDetected: ``"icar_test_day"``, ``"dairycom_test_day"`` or
-        ``"aggregated"``.
+        FormatDetected: ``"icar_test_day"`` or ``"aggregated"`` by default.
+        ``"dairycom_test_day"`` is returned only when explicitly enabled.
 
     Raises:
         ValueError: If the header does not look like any supported format.
@@ -120,6 +127,11 @@ def _detect_format(header: list[str]) -> FormatDetected:
     dairycom_required = {"id", "dim", "milk"}
     dairycom_signals = {"305me", "pctf", "pctp", "fcm", "relv", "scc", "pen"}
     if dairycom_required <= norm and norm & dairycom_signals:
+        if not allow_dairy_comp:
+            raise ValueError(
+                "Dairy Comp uploads are temporarily disabled. Please upload milk recording data "
+                "with TestId, DaysInMilk, and DailyMilkingYield columns."
+            )
         return "dairycom_test_day"
 
     if any(_resolve_aggregated_column(h) for h in header):
@@ -128,8 +140,7 @@ def _detect_format(header: list[str]) -> FormatDetected:
     raise ValueError(
         "Could not detect CSV format. Expected aggregated herd stats "
         "(columns like Achieved305Milk), ICAR test-day records (TestId, "
-        "DaysInMilk, DailyMilkingYield) or a Dairy Comp export (ID, DIM, MILK, "
-        "305ME)."
+        "DaysInMilk, DailyMilkingYield)."
     )
 
 
@@ -197,7 +208,12 @@ class IngestionResult:
     cows: list[CowRecord] | None = None
 
 
-def parse_csv(content: bytes, max_rows: int = 200_000) -> IngestionResult:
+def parse_csv(
+    content: bytes,
+    max_rows: int = 200_000,
+    *,
+    allow_dairy_comp: bool = False,
+) -> IngestionResult:
     """Parse uploaded CSV bytes into raw herd stats.
 
     The header row is used to auto-detect the format; the appropriate parser
@@ -207,6 +223,9 @@ def parse_csv(content: bytes, max_rows: int = 200_000) -> IngestionResult:
         content (bytes): Raw CSV bytes from the uploaded file.
         max_rows (int): Maximum rows to process; excess rows are truncated
             with a warning.
+        allow_dairy_comp (bool): Enables the provisional Dairy Comp parser.
+            Defaults to ``False`` so the format is not usable by users until
+            the import flow has been validated.
 
     Returns:
         IngestionResult: Parsed stats plus metadata. ``raw_stats`` contains
@@ -241,7 +260,7 @@ def parse_csv(content: bytes, max_rows: int = 200_000) -> IngestionResult:
     if not data_rows:
         raise ValueError("Not a valid CSV file - no data rows found")
 
-    fmt = _detect_format(header)
+    fmt = _detect_format(header, allow_dairy_comp=allow_dairy_comp)
 
     warnings: list[str] = []
     if len(data_rows) > max_rows:
@@ -285,8 +304,8 @@ def parse_csv(content: bytes, max_rows: int = 200_000) -> IngestionResult:
     trimmed_cows = cows[:max_cows_in_payload]
     if len(cows) > max_cows_in_payload:
         warnings.append(
-            f"Only the first {max_cows_in_payload} cow records are returned to the client "
-            f"(the full upload had {len(cows)} cows)."
+            f"Only the first {max_cows_in_payload} lactation records are returned to the client "
+            f"(the full upload had {len(cows)} lactations)."
         )
 
     cow_records = [
@@ -692,7 +711,8 @@ def _aggregate_test_days(
             stats["Achieved305Milk"] = statistics.fmean(estimates)
             if dropped / max(len(cows), 1) > 0.2:
                 warnings.append(
-                    f"Dropped {dropped} cow(s) from 305-d estimate (too few test-day records)."
+                    f"Dropped {dropped} lactation(s) from 305-d estimate "
+                    "(too few test-day records)."
                 )
         else:
             warnings.append("Could not estimate Achieved305Milk - left to slider default.")

@@ -51,7 +51,7 @@ export default function ChallengeDetailPage(): ReactElement {
         </Group>
         <Text size="sm" c="var(--benchmark-muted-text)">
           Submit a challenger - a Bovi model or your own CSV - and select a benchmark for this
-          cohort.
+          reference dataset.
         </Text>
       </Stack>
 

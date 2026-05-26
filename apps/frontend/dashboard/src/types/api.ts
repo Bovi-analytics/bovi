@@ -184,7 +184,7 @@ export type CowRecord = z.infer<typeof CowRecordSchema>;
 export const HerdProfileUploadResponseSchema = z.object({
   stats: z.record(z.string(), z.number()),
   raw_stats: z.record(z.string(), z.number()),
-  format_detected: z.enum(["aggregated", "icar_test_day", "dairycom_test_day"]),
+  format_detected: z.enum(["aggregated", "icar_test_day"]),
   row_count: z.number(),
   warnings: z.array(z.string()),
   cow_count: z.number().nullable().optional(),

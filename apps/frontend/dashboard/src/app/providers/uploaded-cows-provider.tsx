@@ -13,7 +13,7 @@ export interface UploadedCow {
 
 export interface UploadedDataset {
   readonly name: string;
-  readonly format: "icar_test_day" | "dairycom_test_day";
+  readonly format: "icar_test_day";
   readonly uploadedAt: string;
   readonly cows: readonly UploadedCow[];
 }

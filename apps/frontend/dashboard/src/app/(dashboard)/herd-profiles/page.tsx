@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
-import { Badge, Button, Group, Stack, Text } from "@mantine/core";
+import { Anchor, Badge, Button, Group, Stack, Text } from "@mantine/core";
 import { ChevronRight, ClipboardList } from "lucide-react";
 import { HerdProfileList } from "../herd-stats/components/herd-profile-list";
 
@@ -40,8 +40,10 @@ export default function HerdProfilesPage(): ReactElement {
       </Stack>
 
       <Text size="xs" c="dimmed">
-        Interested in how the herd profile is used? Take a look at the following paper:
-        10.1016/j.compag.2020.105600
+        Interested in how the herd profile is used? Take a look at the following paper:{" "}
+        <Anchor href="https://doi.org/10.1016/j.compag.2020.105600" target="_blank" size="xs">
+          10.1016/j.compag.2020.105600
+        </Anchor>
       </Text>
     </div>
   );

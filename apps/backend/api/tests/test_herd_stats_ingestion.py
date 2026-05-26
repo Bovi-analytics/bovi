@@ -189,7 +189,7 @@ DAIRYCOM_CSV = (
 
 
 def test_parse_dairycom_detects_and_converts_lbs_to_kg():
-    result = parse_csv(DAIRYCOM_CSV)
+    result = parse_csv(DAIRYCOM_CSV, allow_dairy_comp=True)
     assert result.format_detected == "dairycom_test_day"
     assert result.cow_count == 2
     assert result.detected_parity is None
@@ -202,10 +202,15 @@ def test_parse_dairycom_detects_and_converts_lbs_to_kg():
 
 
 def test_parse_dairycom_strips_star_flags():
-    result = parse_csv(DAIRYCOM_CSV)
+    result = parse_csv(DAIRYCOM_CSV, allow_dairy_comp=True)
     # The "55*" cell in the fixture should still be included (flag stripped)
     # If it were excluded, cow 101's cumulative yield would drop; ensure the value is plausible
     assert result.raw_stats["AchievedMilk"] > 1000
+
+
+def test_parse_dairycom_is_disabled_by_default():
+    with pytest.raises(ValueError, match="Dairy Comp uploads are temporarily disabled"):
+        parse_csv(DAIRYCOM_CSV)
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +242,7 @@ def test_real_icar_dataset():
 
 @pytest.mark.skipif(not DAIRYCOM_FIXTURE.exists(), reason="Dairy Comp fixture not present")
 def test_real_dairycom_dataset():
-    result = parse_csv(DAIRYCOM_FIXTURE.read_bytes())
+    result = parse_csv(DAIRYCOM_FIXTURE.read_bytes(), allow_dairy_comp=True)
     assert result.format_detected == "dairycom_test_day"
     # Some cows in this export only have zero-milk rows and get filtered out;
     # we expect close to the 1011 unique IDs in the file.
