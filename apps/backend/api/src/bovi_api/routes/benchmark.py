@@ -184,14 +184,14 @@ async def _call_curve_characteristic(
     settings: Settings,
     options: MilkBotRunOptions | None = None,
 ) -> dict[str, float]:
-    """Per-cow POST /characteristic - failed cows are omitted."""
+    """Call batch POST /characteristic/batch - failed cows are omitted."""
     client = _get_client()
-    url = f"{settings.lactation_curves_url}/characteristic"
-
-    async def one(cow_id: str, meta: dict) -> tuple[str, float | None]:
+    items: list[dict] = []
+    for cow_id, meta in cow_metadata.items():
         if len(meta.get("dim", [])) < 2:
-            return cow_id, None
-        payload = {
+            continue
+        item = {
+            "id": cow_id,
             "dim": meta["dim"],
             "milkrecordings": meta["milk_kg"],
             "model": model,
@@ -200,36 +200,42 @@ async def _call_curve_characteristic(
             "lactation_length": 305,
         }
         if model == "milkbot" and options is not None:
-            payload.update(
+            item.update(
                 {
                     "fitting": options.fitting,
                     "breed": options.breed,
                     "continent": options.continent,
                 }
             )
-        try:
-            resp = await client.post(
-                url,
-                content=json.dumps(payload),
-                headers={"Content-Type": "application/json"},
-            )
-            resp.raise_for_status()
-        except httpx.HTTPError:
-            return cow_id, None
-        data = resp.json()
-        val = data.get("value")
-        if val is None:
-            return cow_id, None
-        return cow_id, float(val)
+        items.append(item)
 
-    sem = asyncio.Semaphore(20)
+    if not items:
+        return {}
 
-    async def guarded(cow_id: str, meta: dict):
-        async with sem:
-            return await one(cow_id, meta)
+    try:
+        resp = await client.post(
+            f"{settings.lactation_curves_url}/characteristic/batch",
+            content=json.dumps({"items": items}),
+            headers={"Content-Type": "application/json"},
+            timeout=300.0,
+        )
+        resp.raise_for_status()
+    except httpx.RequestError as exc:
+        logger.exception("Curve characteristic batch proxy error: %s", exc)
+        raise HTTPException(
+            status_code=502, detail="Upstream lactation-curves service unavailable."
+        )
+    except httpx.HTTPStatusError:
+        return {}
 
-    results = await asyncio.gather(*(guarded(cid, m) for cid, m in cow_metadata.items()))
-    return {cid: val for cid, val in results if val is not None}
+    out: dict[str, float] = {}
+    for item in resp.json().get("results", []):
+        cow_id = item.get("id")
+        val = item.get("value")
+        if cow_id is None or val is None:
+            continue
+        out[str(cow_id)] = float(val)
+    return out
 
 
 async def _call_autoencoder(

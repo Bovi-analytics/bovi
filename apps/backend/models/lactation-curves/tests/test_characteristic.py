@@ -100,6 +100,89 @@ def test_characteristic_allows_null_value(api: httpx.Client, sample_data: dict, 
     assert r.json() == {"value": None}
 
 
+def test_characteristic_batch_returns_ordered_values(
+    api: httpx.Client, sample_data: dict, monkeypatch: pytest.MonkeyPatch
+):
+    import main
+
+    calls = []
+
+    def fake_calculate_characteristic(**kwargs):
+        calls.append(kwargs)
+        return len(calls) * 10.0
+
+    monkeypatch.setattr(main, "calculate_characteristic", fake_calculate_characteristic)
+
+    r = api.post(
+        "/characteristic/batch",
+        json={
+            "items": [
+                {**sample_data, "id": "peak", "characteristic": "peak_yield"},
+                {**sample_data, "id": "total", "characteristic": "cumulative_milk_yield"},
+            ]
+        },
+    )
+
+    assert r.status_code == 200
+    assert r.json() == {
+        "results": [
+            {"id": "peak", "value": 10.0},
+            {"id": "total", "value": 20.0},
+        ]
+    }
+    assert [call["characteristic"] for call in calls] == [
+        "peak_yield",
+        "cumulative_milk_yield",
+    ]
+
+
+def test_characteristic_batch_bayesian_milkbot_uses_configured_key(
+    api: httpx.Client, sample_data: dict, monkeypatch: pytest.MonkeyPatch
+):
+    import main
+
+    calls = []
+
+    def fake_calculate_characteristic(**kwargs):
+        calls.append(kwargs)
+        return 123.0
+
+    monkeypatch.setattr(main.settings, "milkbot_key", "test-key")
+    monkeypatch.setattr(main, "calculate_characteristic", fake_calculate_characteristic)
+
+    r = api.post(
+        "/characteristic/batch",
+        json={
+            "items": [
+                {
+                    **sample_data,
+                    "id": "cow-1",
+                    "model": "milkbot",
+                    "characteristic": "cumulative_milk_yield",
+                    "fitting": "bayesian",
+                    "breed": "J",
+                    "parity": 2,
+                    "continent": "CHEN",
+                }
+            ]
+        },
+    )
+
+    assert r.status_code == 200
+    assert r.json() == {"results": [{"id": "cow-1", "value": 123.0}]}
+    assert calls[0]["key"] == "test-key"
+    assert calls[0]["fitting"] == "bayesian"
+    assert calls[0]["breed"] == "J"
+    assert calls[0]["parity"] == 2
+    assert calls[0]["continent"] == "USA"
+    assert calls[0]["custom_priors"] == "CHEN"
+
+
+def test_characteristic_batch_rejects_empty_items(api: httpx.Client):
+    r = api.post("/characteristic/batch", json={"items": []})
+    assert r.status_code == 422
+
+
 def test_characteristic_missing_dim(api: httpx.Client):
     """Missing required field dim should return 422."""
     r = api.post("/characteristic", json={"milkrecordings": [15.0, 25.0, 30.0]})
