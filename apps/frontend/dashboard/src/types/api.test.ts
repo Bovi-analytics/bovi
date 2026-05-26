@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { FittingSchema, MilkBotRunOptionsSchema, SubmissionReadSchema } from "./api";
+import {
+  CharacteristicBatchRequestSchema,
+  CharacteristicBatchResponseSchema,
+  FittingSchema,
+  MilkBotRunOptionsSchema,
+  SubmissionReadSchema,
+} from "./api";
 
 describe("api schemas", () => {
   test("accepts Bayesian MilkBot fitting options", () => {
@@ -37,5 +43,39 @@ describe("api schemas", () => {
     });
 
     expect(parsed.run_options).toEqual({});
+  });
+
+  test("accepts batch characteristic requests and responses", () => {
+    expect(
+      CharacteristicBatchRequestSchema.parse({
+        items: [
+          {
+            id: "wood:peak_yield",
+            dim: [10, 30],
+            milkrecordings: [20, 25],
+            model: "wood",
+            characteristic: "peak_yield",
+          },
+        ],
+      })
+    ).toEqual({
+      items: [
+        {
+          id: "wood:peak_yield",
+          dim: [10, 30],
+          milkrecordings: [20, 25],
+          model: "wood",
+          characteristic: "peak_yield",
+        },
+      ],
+    });
+
+    expect(
+      CharacteristicBatchResponseSchema.parse({
+        results: [{ id: "wood:peak_yield", value: 30.5 }],
+      })
+    ).toEqual({
+      results: [{ id: "wood:peak_yield", value: 30.5 }],
+    });
   });
 });

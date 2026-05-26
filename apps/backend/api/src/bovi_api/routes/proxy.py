@@ -75,6 +75,12 @@ async def proxy_curves_characteristic(request: Request) -> JSONResponse:
     return await _proxy_post(settings.lactation_curves_url, "/characteristic", request)
 
 
+@router.post("/curves/characteristic/batch")
+async def proxy_curves_characteristic_batch(request: Request) -> JSONResponse:
+    """Proxy: compute lactation characteristics in batch."""
+    return await _proxy_post(settings.lactation_curves_url, "/characteristic/batch", request)
+
+
 @router.post("/curves/test-interval")
 async def proxy_curves_test_interval(request: Request) -> JSONResponse:
     """Proxy: calculate 305-day yield via ICAR Test Interval Method."""

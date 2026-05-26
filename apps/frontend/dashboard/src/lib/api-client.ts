@@ -2,6 +2,7 @@ import type { z } from "zod";
 import { getApiBaseUrl } from "@/lib/env";
 import {
   AutoencoderPredictResponseSchema,
+  CharacteristicBatchResponseSchema,
   CharacteristicResponseSchema,
   FitResponseSchema,
   HerdProfileListSchema,
@@ -23,6 +24,8 @@ import type {
   AutoencoderPredictResponse,
   BenchmarkModel,
   CharacteristicRequest,
+  CharacteristicBatchRequest,
+  CharacteristicBatchResponse,
   CharacteristicResponse,
   FitRequest,
   FitResponse,
@@ -122,6 +125,12 @@ export async function getCharacteristic(
   request: CharacteristicRequest
 ): Promise<CharacteristicResponse> {
   return apiFetch("/curves/characteristic", CharacteristicResponseSchema, request);
+}
+
+export async function getCharacteristicsBatch(
+  request: CharacteristicBatchRequest
+): Promise<CharacteristicBatchResponse> {
+  return apiFetch("/curves/characteristic/batch", CharacteristicBatchResponseSchema, request);
 }
 
 export async function predictMilkbot(request: PredictRequest): Promise<PredictResponse> {
