@@ -6,12 +6,39 @@ This module implements the best-prediction approach described by VanRaden
 (1997) for ICAR Procedure 2, Section 2 (computing accumulated lactation
 yield).
 
-Method Summary
+Method Summary 
 --------------
+Adapted from the Best Predict Manual by Cole and VanRaden (2015)
+
 Best prediction combines a population-level standard lactation curve with
 correlation-based corrections derived from observed test-day deviations.
 The method projects observed deviations onto the full 305-day curve using a
 covariance structure estimated from reference data.
+
+Individual daily yield can be modeled as the expected value of a management
+group plus a deviation from that mean:
+yi = E(yi) + ti
+where yi
+is an individual yield on test day i, E(yi) is the expected yield for an
+animal in the same management group
+(Wiggans, Misztal, and Van Vleck 1988) on the same test day, and ti
+is a deviation from the group mean on the same
+test day. Suppose that µ is a vector of expected values for each day of
+lactation for a single trait, t is a vector of 305
+test day deviations for the trait, and tm is a vector of only the measured
+deviations. The means and variances of t
+and tm are assumed known with V (t) = V and V (tm) = Vm. The covariance
+between t and tm, C, is also assumed
+known.
+
+**Lactation yield**: A cow’s true 305-d yield (y) is the sum of the expected
+values for each day (1′µ) plus the sum of her
+305 deviations from expectations (1′t), where 1′
+is a vector of 1s of length 305. The cow’s true yield, and the best
+prediction of that yield (yˆ), are:
+y = 1′t
+yˆ = 1′CVm^−1 * tm
+
 
 Key Entry Points
 ----------------
@@ -41,6 +68,33 @@ Notes
 - The default assets are loaded from the package ``data`` directory.
 - Users can fit curve and covariance ingredients from their own reference
     population.
+- The method can be applied to lactations without any measurements,
+    in which case the result will be the population mean from the standard curve.
+- Currently it is not yet possible to predict lactation yields for lactation windows 
+    other than 305 days, but this is on the roadmap for future updates.
+- The method currently assumes that the standard curves and covariance structure is the same 
+    for all lactations,
+    but future updates may allow using different standard curves and covariance structures for 
+    different subgroups of lactations (e.g., by breed or parity).
+- For the used standard lactation curve currently the Wood LC model is used, it is possible to
+    use other methods aswell. 
+- Strengths of Best Predction includes its ability to leverage the full covariance structure 
+    of the lactation curve and to therefore potentially provide more accurate predictions
+    especially for lactations with few test days. This is because the inherent shape of the 
+    lactation curve is taken into account in the projection of observed deviations to unobserved days.
+    It has fewer in between steps then ISLC and is therefore easier to use. 
+- Disadvantages of Best Prediction include its computational intensity, 
+    especially when fitting the covariance structure from data. 
+    And the method is not as easy to understand as a simpler method such as the test interval method, 
+    which can make it less transparent to users.  
+    The best results are obtained when the standard curve and covariance matrix 
+    are from the same population as the data, 
+    which can be a barrier for users without access to a large reference dataset.
+    This also causes inconsistencies in cumulative milk yield results 
+    depending on which standard curves are used. 
+    A cow with the exact same test-day records 
+    can have a different cumulative milk yield estimates depending 
+    on the standard curve used, which can be considered unfair.
 
 References
 ---------
@@ -112,7 +166,7 @@ def pivot_milk_recordings_to_matrix(df: pd.DataFrame) -> np.ndarray:
     return Y
 
 
-def fit_standard_lc(df: pd.DataFrame) -> np.ndarray:
+def fit_standard_lc(df: pd.DataFrame, lc_model: str = "Wood") -> np.ndarray:
     """Fit a population-level standard lactation curve.
 
     The curve is fit with the package's frequentist Wood model and returned on
@@ -120,6 +174,8 @@ def fit_standard_lc(df: pd.DataFrame) -> np.ndarray:
 
     Args:
         df: Reference dataframe containing ``DaysInMilk`` and ``MilkingYield``.
+        lc_model: The lactation curve model to fit. 
+        Default is the "Wood" lactation curve model.
 
     Returns:
         A NumPy array of expected daily milk yield for days 1..305.
@@ -132,7 +188,7 @@ def fit_standard_lc(df: pd.DataFrame) -> np.ndarray:
         fit_lactation_curve(
             df["DaysInMilk"].values,
             df["MilkingYield"].values,
-            model="wood",
+            model=lc_model,
             fitting="frequentist",
         ),
         index=range(1, 306),
@@ -334,6 +390,11 @@ def best_predict_method_single_lac(
     covariance structure and then added to the baseline cumulative standard
     curve.
 
+    By default this function uses the package-provided standard curve and covariance matrix.
+    But it is also possible to provide your own standard curve and covariance matrix, 
+    for example when you want to fit these ingredients from your own reference population.
+
+
     Args:
         lactation: Observed records for one lactation.
         standard_lc: Population mean daily yield profile.
@@ -401,14 +462,39 @@ def best_predict_method(
 ) -> pd.DataFrame:
     """Apply best prediction to one or more lactations.
 
+    By default this function uses the package-provided standard curve and covariance matrix.
+    But it is also possible to provide your own standard curve and covariance matrix, 
+    for example when you want to fit these ingredients from your own reference population.
+    This can be done in two ways: either by fitting the covariance matrix and standard curve 
+    directly from a reference dataset by providing a pandas dataframe at 'reference_df =' 
+    when ``fit_standard_lc_from_data`` is True.
+    Alternative for customization is to set standard_lc_305 and covariance_matrix 
+    directly in the function call.
+
     Args:
         df: Input observations. If ``TestId`` is missing, all rows are treated
             as one lactation.
-        standard_lc: Expected daily milk yield profile on days 1..305.
+        standard_lc: Expected daily milk yield lactation curve on days 1..305.
+            If not provided, the package's default curve is used.
+            Or fit your own standard curve from a reference dataset by 
+            providing a pandas dataframe at 'reference_df =' 
+            when ``fit_standard_lc_from_data`` is True.
+        days_in_milk_col: Optional input column name for days in milk. If
+            provided, it is mapped to ``DaysInMilk``.
+        milking_yield_col: Optional input column name for milk yield. If
+            provided, it is mapped to ``MilkingYield``.
+        test_id_col: Optional input column name for lactation/test identifier.
+            If provided, it is mapped to ``TestId``.
+        default_test_id: Fallback test id used when no test-id column is
+            available.
         covariance_matrix: Optional prefit covariance matrix. If omitted,
-            ``reference_df`` is used to fit one.
-        reference_df: Reference dataframe used when ``covariance_matrix`` is
-            not provided.
+            the default matrix is used or
+             ``reference_df`` can be used to fit one for your own data.
+        fit_standard_lc_from_data: Whether to fit covariance information from
+            ``reference_df`` instead of using a provided covariance matrix.
+        reference_df: Reference dataframe used when ``covariance_matrix`` and 
+            ``standard_lc`` are not provided and ``fit_standard_lc_from_data`` 
+            is True.
 
     Returns:
         Dataframe with columns ``TestId`` and ``LactationMilkYield``.

@@ -72,6 +72,10 @@ Notes
     while in the original method only the interpolated values on the grid are used.
     The new method can also be applied to lactation extending beyond 305 days, 
     while the original method is strictly for 305-day yield estimation.
+- The method currently assumes that the standard curves are the same 
+    for all lactations,
+    but future updates may allow using different standard curves and covariance structures for 
+    different subgroups of lactations (e.g., by breed or parity).
 - ISLC's strenght is that its caclulation is broken up in multiple steps, 
     which makes it more computer memory friendly than the best predict method, 
     which requires the inversion of a large covariance matrix. 
