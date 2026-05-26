@@ -121,6 +121,7 @@ Date: 24-04-2026
 Last update: 21-May-2026
 """
 
+import inspect
 from pathlib import Path
 from typing import cast
 
@@ -136,6 +137,19 @@ from lactationcurve.preprocessing import standardize_lactation_columns
 DATA_DIR = Path(__file__).resolve().parent / "data"
 COV_MATRIX = np.load(DATA_DIR / "covariance_matrix_best_predict.npy")
 STANDARD_CURVE = np.load(DATA_DIR / "standard_lc_wood.npy")
+
+
+# Lightweight repr-only wrapper for cleaner generated signatures in docs
+class _DocDefault:
+    def __init__(self, label: str) -> None:
+        self.label = label
+
+    def __repr__(self) -> str:  # pragma: no cover - docs-only
+        return self.label
+
+
+_DOC_STANDARD_CURVE = _DocDefault("STANDARD_CURVE")
+_DOC_COV_MATRIX = _DocDefault("COV_MATRIX")
 
 # functions to fit you own standard curve and covariance matrix
 
@@ -570,6 +584,26 @@ def demo() -> None:
     print("Predictions with provided covariance matrix:")
     print(result_cov)
 
+
+def _set_doc_signatures() -> None:
+    """Override displayed defaults in docs without changing runtime behavior."""
+    doc_defaults = {
+        "standard_lc": _DOC_STANDARD_CURVE,
+        "covariance_matrix": _DOC_COV_MATRIX,
+    }
+
+    for func in (best_predict_method_single_lac, best_predict_method):
+        signature = inspect.signature(func)
+        params = [
+            param.replace(default=doc_defaults[param.name])
+            if param.name in doc_defaults
+            else param
+            for param in signature.parameters.values()
+        ]
+        func.__signature__ = signature.replace(parameters=params)
+
+
+_set_doc_signatures()
 
 if __name__ == "__main__":
     demo()
