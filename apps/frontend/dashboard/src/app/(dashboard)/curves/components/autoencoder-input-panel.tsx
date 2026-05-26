@@ -29,7 +29,7 @@ const HERD_STATS_SOURCE_COPY: Record<HerdStatsSourceKind, { label: string; descr
     },
     default: {
       label: "Model default",
-      description: "Let the autoencoder use its global training-set average.",
+      description: "Let the AI autoencoder use its global training-set average.",
     },
     profile: {
       label: "Saved profile",
@@ -102,7 +102,7 @@ export function AutoencoderInputPanel({
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-3 text-base font-semibold text-foreground">Autoencoder</h3>
+        <h3 className="mb-3 text-base font-semibold text-foreground">AI autoencoder</h3>
 
         <Stack gap="sm">
           <NumberInput
@@ -135,7 +135,7 @@ export function AutoencoderInputPanel({
               <span className="inline-flex items-center gap-1">
                 Herd stats
                 <Tooltip
-                  label="Herd-level context for the autoencoder. Pick the active dataset to compute stats from it, fall back to the model's training-set average, load a saved profile, or edit values manually."
+                  label="Herd-level context for the AI autoencoder. Pick the active dataset to compute stats from it, fall back to the model's training-set average, load a saved profile, or edit values manually."
                   withArrow
                   multiline
                   w={280}
@@ -192,7 +192,7 @@ export function AutoencoderInputPanel({
             )}
             {herdStatsSource === "default" && (
               <Text size="xs" c="dimmed">
-                The autoencoder will use its global training-set average.
+                The AI autoencoder will use its global training-set average.
               </Text>
             )}
             {herdStatsSource === "profile" && (
@@ -228,7 +228,6 @@ export function AutoencoderInputPanel({
               </Badge>
             )}
           </Stack>
-
         </Stack>
 
         <Button
@@ -264,7 +263,7 @@ export function AutoencoderInputPanel({
               <p className="mb-4 text-xs text-muted-foreground">
                 {showRaw
                   ? "Values shown in original units. These are converted to 0–1 before prediction."
-                  : "All values are normalized between 0 and 1. Adjust to reflect herd-level statistics for the autoencoder."}
+                  : "All values are normalized between 0 and 1. Adjust to reflect herd-level statistics for the AI autoencoder."}
               </p>
               <HerdStatsForm
                 values={manualHerdStats}

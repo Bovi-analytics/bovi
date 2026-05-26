@@ -51,12 +51,12 @@ interface SourceOption {
 const SOURCE_OPTIONS: SourceOption[] = [
   {
     value: "aurora",
-    label: "Preset cohort A",
+    label: "Demo herd A",
     description: "Anonymized herd · 2023-2025",
   },
   {
     value: "sunnyside",
-    label: "Preset cohort B",
+    label: "Demo herd B",
     description: "Anonymized herd · 2000-2026",
   },
   {

@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { Table } from "@mantine/core";
+import { Table, Tooltip } from "@mantine/core";
+import { Info } from "lucide-react";
 import { useWeightUnit } from "@/app/providers/unit-provider";
 import { formatWeight, getUnitLabel } from "@/lib/units";
 import type { WeightUnit } from "@/lib/units";
@@ -68,7 +69,19 @@ export function StatsComparisonTable({ rows }: StatsComparisonTableProps): React
             <Table.Th>Peak Yield</Table.Th>
             <Table.Th>Time to Peak</Table.Th>
             <Table.Th>Cumul. Yield</Table.Th>
-            <Table.Th>Persistency</Table.Th>
+            <Table.Th>
+              <span className="inline-flex items-center gap-1">
+                Persistency
+                <Tooltip
+                  label="Average slope from time to peak until 305 days in milk"
+                  withArrow
+                  multiline
+                  w={230}
+                >
+                  <Info size={12} className="cursor-help text-muted-foreground" />
+                </Tooltip>
+              </span>
+            </Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>

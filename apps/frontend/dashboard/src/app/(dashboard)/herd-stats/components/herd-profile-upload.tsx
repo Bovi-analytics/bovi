@@ -78,7 +78,7 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
   icar_test_day: {
     label: "Standard test-day records",
     blurb:
-      "One row per cow per milk recording, as exported by milk-recording software. We aggregate across cows to derive AchievedMilk, Achieved21Milk, Achieved75Milk, Achieved305Milk (trapezoidal test-interval method) and DaysInMilk. Parity is also detected and shown as a hint for the autoencoder. All other herd stats remain at slider defaults.",
+      "One row per cow per milk recording, as exported by milk-recording software. We aggregate across cows to derive AchievedMilk, Achieved21Milk, Achieved75Milk, Achieved305Milk (trapezoidal test-interval method) and DaysInMilk. Parity is also detected and shown as a hint for the AI autoencoder. All other herd stats remain at slider defaults.",
     columns: [
       { name: "TestId", description: "Unique cow identifier", required: true },
       { name: "DaysInMilk", description: "Days since calving for this record", required: true },

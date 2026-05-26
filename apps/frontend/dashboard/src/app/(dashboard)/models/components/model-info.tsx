@@ -17,29 +17,35 @@ export function ModelInfo({ model, fittedValues }: ModelInfoProps): ReactElement
         <p className="font-mono text-sm text-foreground">{model.formula}</p>
       </div>
 
-      {/* Parameter table */}
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-muted-foreground">
-            <th className="pb-2 font-medium">Parameter</th>
-            <th className="pb-2 font-medium">Description</th>
-            {fittedValues && <th className="pb-2 text-right font-medium">Value</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {model.parameters.map((param) => (
-            <tr key={param.name} className="border-b border-border/50">
-              <td className="py-2 font-mono text-foreground">{param.name}</td>
-              <td className="py-2 text-muted-foreground">{param.description}</td>
-              {fittedValues && (
-                <td className="py-2 text-right font-mono text-foreground">
-                  {fittedValues[param.name]?.toFixed(4) ?? "-"}
-                </td>
-              )}
+      {model.parameters.length > 0 ? (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-muted-foreground">
+              <th className="pb-2 font-medium">Parameter</th>
+              <th className="pb-2 font-medium">Description</th>
+              {fittedValues && <th className="pb-2 text-right font-medium">Value</th>}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {model.parameters.map((param) => (
+              <tr key={param.name} className="border-b border-border/50">
+                <td className="py-2 font-mono text-foreground">{param.name}</td>
+                <td className="py-2 text-muted-foreground">{param.description}</td>
+                {fittedValues && (
+                  <td className="py-2 text-right font-mono text-foreground">
+                    {fittedValues[param.name]?.toFixed(4) ?? "-"}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          This model has {model.parameterCount} fitted coefficients. They are shown as model
+          coefficients rather than directly interpretable lactation traits.
+        </p>
+      )}
     </div>
   );
 }
