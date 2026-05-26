@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MODEL_METADATA } from "./model-metadata";
+import { LACTATION_CURVE_DOCUMENTATION_URL, MODEL_METADATA } from "./model-metadata";
 
 describe("MODEL_METADATA", () => {
   test("shows the 305-day Ali and Schaeffer formula", () => {
@@ -15,5 +15,12 @@ describe("MODEL_METADATA", () => {
     expect(MODEL_METADATA.wilmink.parameters).toHaveLength(0);
     expect(MODEL_METADATA.ali_schaeffer.parameters).toHaveLength(0);
     expect(MODEL_METADATA.fischer.parameters).toHaveLength(0);
+  });
+
+  test("links classical model details to the lactationcurve package documentation", () => {
+    const url = new URL(LACTATION_CURVE_DOCUMENTATION_URL);
+
+    expect(url.hostname).toBe("github.com");
+    expect(url.pathname).toContain("/Bovi-analytics/bovi/tree/main/packages/models/lactationcurve");
   });
 });
