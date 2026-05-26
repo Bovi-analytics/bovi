@@ -588,7 +588,6 @@ jobs:
           az storage container create \
             --connection-string "$dest_connection_string" \
             --name "$container" \
-            --fail-on-exist false \
             >/dev/null
 
           destination_complete=true
