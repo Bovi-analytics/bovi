@@ -8,7 +8,7 @@ on:
       - "apps/backend/**"
       - "apps/frontend/dashboard/**"
       - "apps/infrastructure/**"
-      - ".github/workflows/deploy.yml"
+      - ".github/actions/**"
       - "docker-compose.yml"
       - "pyproject.toml"
       - "uv.lock"
@@ -20,6 +20,19 @@ on:
       - "packages/models/lactation-autoencoder/src/**"
       - "packages/models/lactation-autoencoder/pyproject.toml"
   workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target
+        required: true
+        default: autoencoder
+        type: choice
+        options:
+          - autoencoder
+          - curves
+          - api
+          - dashboard
+          - infra
+          - all
 
 permissions:
   id-token: write
@@ -40,13 +53,13 @@ jobs:
       infra: ${{ steps.filter.outputs.infra }}
       api: ${{ steps.filter.outputs.api }}
       dashboard: ${{ steps.filter.outputs.dashboard }}
-      functions: ${{ steps.filter.outputs.functions }}
       functions_curves: ${{ steps.filter.outputs.functions_curves }}
       functions_autoencoder: ${{ steps.filter.outputs.functions_autoencoder }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -54,25 +67,32 @@ jobs:
             infra:
               - "apps/infrastructure/**"
               - "packages/infrastructure/**"
+              - ".github/actions/setup-python-uv/**"
+              - ".github/actions/azure-login/**"
+              - ".github/actions/install-infra-dependencies/**"
+              - ".github/actions/resolve-current-image/**"
+              - ".github/actions/pulumi-up/**"
             api:
               - "apps/backend/api/**"
+              - ".github/actions/docker-build-push/**"
+              - ".github/actions/setup-python-uv/**"
+              - ".github/actions/azure-login/**"
+              - ".github/actions/install-infra-dependencies/**"
+              - ".github/actions/resolve-current-image/**"
+              - ".github/actions/pulumi-up/**"
+              - ".github/actions/run-api-migrations/**"
+              - ".github/actions/check-containerapp-health/**"
             dashboard:
               - "apps/frontend/dashboard/**"
-              - ".github/workflows/deploy.yml"
               - "docker-compose.yml"
-            functions:
-              - ".github/workflows/deploy.yml"
-              - "apps/backend/models/**"
-              - "pyproject.toml"
-              - "uv.lock"
-              - "packages/bovi-core/src/**"
-              - "packages/bovi-core/pyproject.toml"
-              - "packages/models/lactationcurve/src/**"
-              - "packages/models/lactationcurve/pyproject.toml"
-              - "packages/models/lactation-autoencoder/src/**"
-              - "packages/models/lactation-autoencoder/pyproject.toml"
+              - ".github/actions/docker-build-push/**"
+              - ".github/actions/setup-python-uv/**"
+              - ".github/actions/azure-login/**"
+              - ".github/actions/install-infra-dependencies/**"
+              - ".github/actions/resolve-current-image/**"
+              - ".github/actions/pulumi-up/**"
+              - ".github/actions/check-containerapp-health/**"
             functions_curves:
-              - ".github/workflows/deploy.yml"
               - "apps/backend/models/lactation-curves/**"
               - "pyproject.toml"
               - "uv.lock"
@@ -80,8 +100,15 @@ jobs:
               - "packages/bovi-core/pyproject.toml"
               - "packages/models/lactationcurve/src/**"
               - "packages/models/lactationcurve/pyproject.toml"
+              - ".github/actions/setup-python-uv/**"
+              - ".github/actions/azure-login/**"
+              - ".github/actions/install-functions-core-tools/**"
+              - ".github/actions/build-function-wheels/**"
+              - ".github/actions/prepare-curves-function-package/**"
+              - ".github/actions/deploy-function-app/**"
+              - ".github/actions/check-function-triggers/**"
+              - ".github/actions/smoke-curves-fit/**"
             functions_autoencoder:
-              - ".github/workflows/deploy.yml"
               - "apps/backend/models/lactation-autoencoder/**"
               - "pyproject.toml"
               - "uv.lock"
@@ -89,80 +116,51 @@ jobs:
               - "packages/bovi-core/pyproject.toml"
               - "packages/models/lactation-autoencoder/src/**"
               - "packages/models/lactation-autoencoder/pyproject.toml"
+              - ".github/actions/setup-python-uv/**"
+              - ".github/actions/azure-login/**"
+              - ".github/actions/install-functions-core-tools/**"
+              - ".github/actions/build-function-wheels/**"
+              - ".github/actions/prepare-autoencoder-function-package/**"
+              - ".github/actions/sync-autoencoder-assets/**"
+              - ".github/actions/deploy-function-app/**"
+              - ".github/actions/check-function-triggers/**"
+              - ".github/actions/smoke-function-health/**"
 
   build-api-image:
     needs: detect-changes
-    if: needs.detect-changes.outputs.api == 'true'
+    if: |
+      needs.detect-changes.outputs.api == 'true' ||
+      (github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all'))
     runs-on: ubuntu-latest
     outputs:
-      image: ${{ steps.image.outputs.sha }}
+      image: ${{ steps.build.outputs.image }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - id: build
+        uses: ./.github/actions/docker-build-push
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set API image name
-        id: image
-        run: |
-          name="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/bovi-api"
-          echo "name=${name}" >> "$GITHUB_OUTPUT"
-          echo "sha=${name}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push API image
-        uses: docker/build-push-action@v6
-        with:
+          image-name: bovi-api
           context: apps/backend/api
-          push: true
-          tags: |
-            ${{ steps.image.outputs.name }}:latest
-            ${{ steps.image.outputs.name }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   build-dashboard-image:
     needs: detect-changes
-    if: needs.detect-changes.outputs.dashboard == 'true'
+    if: |
+      needs.detect-changes.outputs.dashboard == 'true' ||
+      (github.event_name == 'workflow_dispatch' && (inputs.target == 'dashboard' || inputs.target == 'all'))
     runs-on: ubuntu-latest
     outputs:
-      image: ${{ steps.image.outputs.sha }}
+      image: ${{ steps.build.outputs.image }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - id: build
+        uses: ./.github/actions/docker-build-push
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set dashboard image name
-        id: image
-        run: |
-          name="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/bovi-dashboard"
-          echo "name=${name}" >> "$GITHUB_OUTPUT"
-          echo "sha=${name}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push dashboard image
-        uses: docker/build-push-action@v6
-        with:
+          image-name: bovi-dashboard
           context: apps/frontend/dashboard
-          push: true
-          tags: |
-            ${{ steps.image.outputs.name }}:latest
-            ${{ steps.image.outputs.name }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   infra:
     needs: [detect-changes, build-api-image, build-dashboard-image]
@@ -171,566 +169,345 @@ jobs:
       (
         needs.detect-changes.outputs.infra == 'true' ||
         needs.detect-changes.outputs.api == 'true' ||
-        needs.detect-changes.outputs.dashboard == 'true'
+        needs.detect-changes.outputs.dashboard == 'true' ||
+        (github.event_name == 'workflow_dispatch' && (inputs.target == 'infra' || inputs.target == 'api' || inputs.target == 'dashboard' || inputs.target == 'all'))
       ) &&
       (needs.detect-changes.outputs.api != 'true' || needs.build-api-image.result == 'success') &&
-      (needs.detect-changes.outputs.dashboard != 'true' || needs.build-dashboard-image.result == 'success')
+      (needs.detect-changes.outputs.dashboard != 'true' || needs.build-dashboard-image.result == 'success') &&
+      (!(github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all')) || needs.build-api-image.result == 'success') &&
+      (!(github.event_name == 'workflow_dispatch' && (inputs.target == 'dashboard' || inputs.target == 'all')) || needs.build-dashboard-image.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-      - run: uv python install ${{ env.PYTHON_VERSION }}
 
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: ./.github/actions/azure-login
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install infrastructure dependencies
-        working-directory: ${{ env.INFRA_DIR }}
-        run: uv sync
-
-      - name: Resolve current API image
-        id: current-api-image
-        run: |
-          default_image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/bovi-api:latest"
-          image="$(az containerapp show \
-            --name "bovi-api-${{ env.PULUMI_STACK }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)"
-          if [ -z "$image" ]; then
-            image="$default_image"
-          fi
-          echo "image=${image}" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve current dashboard image
-        id: current-dashboard-image
-        run: |
-          default_image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/bovi-dashboard:latest"
-          image="$(az containerapp show \
-            --name "bovi-dashboard-${{ env.PULUMI_STACK }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)"
-          if [ -z "$image" ]; then
-            image="$default_image"
-          fi
-          echo "image=${image}" >> "$GITHUB_OUTPUT"
-
-      - name: Pulumi up infrastructure
-        uses: pulumi/actions@v6
+      - uses: ./.github/actions/install-infra-dependencies
         with:
-          command: up
+          infra-dir: ${{ env.INFRA_DIR }}
+
+      - name: Set default image names
+        id: defaults
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "api=ghcr.io/${owner}/bovi-api:latest" >> "$GITHUB_OUTPUT"
+          echo "dashboard=ghcr.io/${owner}/bovi-dashboard:latest" >> "$GITHUB_OUTPUT"
+
+      - id: current-api-image
+        uses: ./.github/actions/resolve-current-image
+        with:
+          containerapp-name: bovi-api-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          default-image: ${{ steps.defaults.outputs.api }}
+
+      - id: current-dashboard-image
+        uses: ./.github/actions/resolve-current-image
+        with:
+          containerapp-name: bovi-dashboard-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          default-image: ${{ steps.defaults.outputs.dashboard }}
+
+      - uses: ./.github/actions/pulumi-up
+        with:
           stack-name: ${{ env.PULUMI_STACK }}
           work-dir: ${{ env.INFRA_DIR }}
           cloud-url: azblob://pulumi-state
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
-          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
-          STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
-          STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
-          STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          AUTOENCODER_MODEL_VERSION: ${{ env.AUTOENCODER_MODEL_VERSION }}
-          API_IMAGE: ${{ steps.current-api-image.outputs.image }}
-          DASHBOARD_IMAGE: ${{ steps.current-dashboard-image.outputs.image }}
+          pulumi-config-passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          azure-storage-account: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          azure-storage-key: ${{ secrets.AZURE_STORAGE_KEY }}
+          storage-account-name-icar: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
+          storage-account-key-icar: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
+          storage-account-container-icar: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
+          ghcr-username: ${{ secrets.GHCR_USERNAME }}
+          ghcr-token: ${{ secrets.GHCR_TOKEN }}
+          autoencoder-model-version: ${{ env.AUTOENCODER_MODEL_VERSION }}
+          api-image: ${{ needs.build-api-image.result == 'success' && needs.build-api-image.outputs.image || steps.current-api-image.outputs.image }}
+          dashboard-image: ${{ needs.build-dashboard-image.result == 'success' && needs.build-dashboard-image.outputs.image || steps.current-dashboard-image.outputs.image }}
 
   migrate-api:
     needs: [detect-changes, build-api-image, infra]
     if: |
       always() &&
-      needs.detect-changes.outputs.api == 'true' &&
+      (
+        needs.detect-changes.outputs.api == 'true' ||
+        (github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all'))
+      ) &&
       needs.build-api-image.result == 'success' &&
       needs.infra.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/azure-login
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Run API migrations
-        env:
-          API_IMAGE: ${{ needs.build-api-image.outputs.image }}
-          API_MIGRATION_JOB: bovi-api-migrate-${{ env.PULUMI_STACK }}
-        run: |
-          az containerapp job update \
-            --name "$API_MIGRATION_JOB" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --image "$API_IMAGE"
-
-          execution_name="$(az containerapp job start \
-            --name "$API_MIGRATION_JOB" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "name" -o tsv)"
-          if [ -z "$execution_name" ]; then
-            execution_name="$(az containerapp job execution list \
-              --name "$API_MIGRATION_JOB" \
-              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-              --query "[-1].name" -o tsv)"
-          fi
-          if [ -z "$execution_name" ]; then
-            echo "Could not determine Container Apps Job execution name"
-            exit 1
-          fi
-          echo "Started migration execution: $execution_name"
-
-          deadline=$((SECONDS + 600))
-          while [ "$SECONDS" -lt "$deadline" ]; do
-            status="$(az containerapp job execution show \
-              --name "$API_MIGRATION_JOB" \
-              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-              --job-execution-name "$execution_name" \
-              --query "properties.status" -o tsv 2>/dev/null || true)"
-            echo "Migration status: $status"
-            case "$status" in
-              Succeeded)
-                exit 0
-                ;;
-              Failed|Canceled)
-                exit 1
-                ;;
-            esac
-            sleep 10
-          done
-
-          echo "Migration job timed out"
-          exit 1
+      - uses: ./.github/actions/run-api-migrations
+        with:
+          api-image: ${{ needs.build-api-image.outputs.image }}
+          migration-job: bovi-api-migrate-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
 
   rollout-api:
     needs: [detect-changes, build-api-image, migrate-api]
     if: |
       always() &&
-      needs.detect-changes.outputs.api == 'true' &&
+      (
+        needs.detect-changes.outputs.api == 'true' ||
+        (github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all'))
+      ) &&
       needs.build-api-image.result == 'success' &&
       needs.migrate-api.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-      - run: uv python install ${{ env.PYTHON_VERSION }}
 
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: ./.github/actions/azure-login
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install infrastructure dependencies
-        working-directory: ${{ env.INFRA_DIR }}
-        run: uv sync
-
-      - name: Resolve current dashboard image
-        id: current-dashboard-image
-        run: |
-          default_image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/bovi-dashboard:latest"
-          image="$(az containerapp show \
-            --name "bovi-dashboard-${{ env.PULUMI_STACK }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)"
-          if [ -z "$image" ]; then
-            image="$default_image"
-          fi
-          echo "image=${image}" >> "$GITHUB_OUTPUT"
-
-      - name: Pulumi up API image
-        uses: pulumi/actions@v6
+      - uses: ./.github/actions/install-infra-dependencies
         with:
-          command: up
+          infra-dir: ${{ env.INFRA_DIR }}
+
+      - name: Set default image names
+        id: defaults
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "dashboard=ghcr.io/${owner}/bovi-dashboard:latest" >> "$GITHUB_OUTPUT"
+
+      - id: current-dashboard-image
+        uses: ./.github/actions/resolve-current-image
+        with:
+          containerapp-name: bovi-dashboard-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          default-image: ${{ steps.defaults.outputs.dashboard }}
+
+      - uses: ./.github/actions/pulumi-up
+        with:
           stack-name: ${{ env.PULUMI_STACK }}
           work-dir: ${{ env.INFRA_DIR }}
           cloud-url: azblob://pulumi-state
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
-          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
-          STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
-          STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
-          STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          API_IMAGE: ${{ needs.build-api-image.outputs.image }}
-          DASHBOARD_IMAGE: ${{ steps.current-dashboard-image.outputs.image }}
+          pulumi-config-passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          azure-storage-account: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          azure-storage-key: ${{ secrets.AZURE_STORAGE_KEY }}
+          storage-account-name-icar: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
+          storage-account-key-icar: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
+          storage-account-container-icar: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
+          ghcr-username: ${{ secrets.GHCR_USERNAME }}
+          ghcr-token: ${{ secrets.GHCR_TOKEN }}
+          autoencoder-model-version: ${{ env.AUTOENCODER_MODEL_VERSION }}
+          api-image: ${{ needs.build-api-image.outputs.image }}
+          dashboard-image: ${{ steps.current-dashboard-image.outputs.image }}
 
-      - name: Check API health
-        run: |
-          fqdn="$(az containerapp show \
-            --name "bovi-api-${{ env.PULUMI_STACK }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.configuration.ingress.fqdn" -o tsv)"
-          health_url="https://${fqdn}/health"
-          echo "Checking API health at ${health_url}"
-          for attempt in $(seq 1 30); do
-            echo "Health check attempt ${attempt}/30"
-            if curl --connect-timeout 5 --max-time 10 -fsS "$health_url"; then
-              exit 0
-            fi
-            sleep 10
-          done
-          az containerapp revision list \
-            --name "bovi-api-${{ env.PULUMI_STACK }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "[].{name:name,active:properties.active,health:properties.healthState,image:properties.template.containers[0].image}" \
-            -o table
-          exit 1
+      - uses: ./.github/actions/check-containerapp-health
+        with:
+          containerapp-name: bovi-api-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          path: /health
 
   rollout-dashboard:
     needs: [detect-changes, build-dashboard-image, infra, rollout-api]
     if: |
       always() &&
-      needs.detect-changes.outputs.dashboard == 'true' &&
+      (
+        needs.detect-changes.outputs.dashboard == 'true' ||
+        (github.event_name == 'workflow_dispatch' && (inputs.target == 'dashboard' || inputs.target == 'all'))
+      ) &&
       needs.build-dashboard-image.result == 'success' &&
       needs.infra.result == 'success' &&
-      (needs.detect-changes.outputs.api != 'true' || needs.rollout-api.result == 'success')
+      (
+        !(
+          needs.detect-changes.outputs.api == 'true' ||
+          (github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all'))
+        ) ||
+        needs.rollout-api.result == 'success'
+      )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-      - run: uv python install ${{ env.PYTHON_VERSION }}
 
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: ./.github/actions/azure-login
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install infrastructure dependencies
-        working-directory: ${{ env.INFRA_DIR }}
-        run: uv sync
-
-      - name: Resolve current API image
-        id: current-api-image
-        run: |
-          default_image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/bovi-api:latest"
-          image="$(az containerapp show \
-            --name "bovi-api-${{ env.PULUMI_STACK }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)"
-          if [ -z "$image" ]; then
-            image="$default_image"
-          fi
-          echo "image=${image}" >> "$GITHUB_OUTPUT"
-
-      - name: Pulumi up dashboard image
-        uses: pulumi/actions@v6
+      - uses: ./.github/actions/install-infra-dependencies
         with:
-          command: up
+          infra-dir: ${{ env.INFRA_DIR }}
+
+      - name: Set default image names
+        id: defaults
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "api=ghcr.io/${owner}/bovi-api:latest" >> "$GITHUB_OUTPUT"
+
+      - id: current-api-image
+        uses: ./.github/actions/resolve-current-image
+        with:
+          containerapp-name: bovi-api-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          default-image: ${{ steps.defaults.outputs.api }}
+
+      - uses: ./.github/actions/pulumi-up
+        with:
           stack-name: ${{ env.PULUMI_STACK }}
           work-dir: ${{ env.INFRA_DIR }}
           cloud-url: azblob://pulumi-state
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
-          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
-          STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
-          STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
-          STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          API_IMAGE: ${{ steps.current-api-image.outputs.image }}
-          DASHBOARD_IMAGE: ${{ needs.build-dashboard-image.outputs.image }}
+          pulumi-config-passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          azure-storage-account: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          azure-storage-key: ${{ secrets.AZURE_STORAGE_KEY }}
+          storage-account-name-icar: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
+          storage-account-key-icar: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
+          storage-account-container-icar: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
+          ghcr-username: ${{ secrets.GHCR_USERNAME }}
+          ghcr-token: ${{ secrets.GHCR_TOKEN }}
+          autoencoder-model-version: ${{ env.AUTOENCODER_MODEL_VERSION }}
+          api-image: ${{ steps.current-api-image.outputs.image }}
+          dashboard-image: ${{ needs.build-dashboard-image.outputs.image }}
 
-      - name: Check dashboard health
-        run: |
-          fqdn="$(az containerapp show \
-            --name "bovi-dashboard-${{ env.PULUMI_STACK }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.configuration.ingress.fqdn" -o tsv)"
-          health_url="https://${fqdn}/"
-          echo "Checking dashboard health at ${health_url}"
-          for attempt in $(seq 1 30); do
-            echo "Health check attempt ${attempt}/30"
-            if curl --connect-timeout 5 --max-time 10 -fsS "$health_url" > /dev/null; then
-              exit 0
-            fi
-            sleep 10
-          done
-          az containerapp revision list \
-            --name "bovi-dashboard-${{ env.PULUMI_STACK }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "[].{name:name,active:properties.active,health:properties.healthState,image:properties.template.containers[0].image}" \
-            -o table
-          exit 1
+      - uses: ./.github/actions/check-containerapp-health
+        with:
+          containerapp-name: bovi-dashboard-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          path: /
+          discard-output: "true"
 
-  deploy-functions:
+  deploy-lactation-curves:
     needs: [detect-changes, infra, rollout-api]
     if: |
       always() &&
       (
         needs.detect-changes.outputs.functions_curves == 'true' ||
-        needs.detect-changes.outputs.functions_autoencoder == 'true'
+        (github.event_name == 'workflow_dispatch' && (inputs.target == 'curves' || inputs.target == 'all'))
       ) &&
       (needs.infra.result == 'skipped' || needs.infra.result == 'success') &&
-      (needs.detect-changes.outputs.api != 'true' || needs.rollout-api.result == 'success')
+      (
+        !(
+          needs.detect-changes.outputs.api == 'true' ||
+          (github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all'))
+        ) ||
+        needs.rollout-api.result == 'success'
+      )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-      - run: uv python install ${{ env.PYTHON_VERSION }}
 
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: ./.github/actions/azure-login
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install Azure Functions Core Tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y azure-functions-core-tools-4
+      - uses: ./.github/actions/install-functions-core-tools
 
-      - name: Build Function App workspace wheels
-        run: |
-          set -euo pipefail
-          wheel_dir="/tmp/bovi-function-wheels"
-          rm -rf "$wheel_dir"
-          mkdir -p "$wheel_dir"
-          uv build --package lactationcurve --wheel --out-dir "$wheel_dir"
-          uv build --package bovi-core --wheel --out-dir "$wheel_dir"
-          uv build --package lactation-autoencoder --wheel --out-dir "$wheel_dir"
+      - uses: ./.github/actions/build-function-wheels
 
-      - name: Generate requirements.txt for lactation-curves
-        if: needs.detect-changes.outputs.functions_curves == 'true'
-        run: |
-          set -euo pipefail
-          app_dir="apps/backend/models/lactation-curves"
-          rm -rf "$app_dir/wheels"
-          mkdir -p "$app_dir/wheels"
-          cp /tmp/bovi-function-wheels/lactationcurve-*.whl "$app_dir/wheels/"
-          uv export \
-            --no-dev \
-            --no-emit-workspace \
-            --no-hashes \
-            --package bovi-lactation-curves-app \
-            -o "$app_dir/requirements.txt"
-          wheel="$(basename "$app_dir"/wheels/lactationcurve-*.whl)"
-          printf '\n./wheels/%s\n' "$wheel" >> "$app_dir/requirements.txt"
+      - uses: ./.github/actions/prepare-curves-function-package
+        with:
+          app-dir: apps/backend/models/lactation-curves
 
-      - name: Deploy lactation-curves
-        if: needs.detect-changes.outputs.functions_curves == 'true'
-        working-directory: apps/backend/models/lactation-curves
-        run: |
-          set -euo pipefail
-          if func azure functionapp publish "curves-${{ env.PULUMI_STACK }}" --python 2>&1 | tee /tmp/curves-publish.log; then
-            exit 0
-          fi
-          if grep -q "Deployment successful" /tmp/curves-publish.log && grep -q "Error calling sync triggers" /tmp/curves-publish.log; then
-            echo "Upload succeeded but trigger sync failed; continuing to explicit trigger check."
-            exit 0
-          fi
-          exit 1
+      - uses: ./.github/actions/deploy-function-app
+        with:
+          app-dir: apps/backend/models/lactation-curves
+          function-app-name: curves-${{ env.PULUMI_STACK }}
+          publish-log: /tmp/curves-publish.log
 
-      - name: Check lactation-curves triggers
-        if: needs.detect-changes.outputs.functions_curves == 'true'
-        run: |
-          set -euo pipefail
-          app_name="curves-${{ env.PULUMI_STACK }}"
-          for attempt in $(seq 1 18); do
-            function_count="$(az functionapp function list \
-              --name "$app_name" \
-              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-              --query "length(@)" -o tsv)"
-            function_count="${function_count:-0}"
-            echo "${app_name} indexed functions: ${function_count}"
-            if [ "$function_count" -gt 0 ]; then
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "No functions indexed for ${app_name}"
-          exit 1
+      - uses: ./.github/actions/check-function-triggers
+        with:
+          function-app-name: curves-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
 
-      - name: Smoke lactation-curves fit endpoint
-        if: needs.detect-changes.outputs.functions_curves == 'true'
-        run: |
-          set -euo pipefail
-          host_name="$(az functionapp show \
-            --name "curves-${{ env.PULUMI_STACK }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "defaultHostName" -o tsv)"
-          curl --connect-timeout 5 --max-time 60 --retry 5 --retry-all-errors -fsS \
-            -H "content-type: application/json" \
-            --data '{"dim":[10,30,60,90,150,220,280],"milkrecordings":[22,32,41,39,34,28,22],"model":"wood"}' \
-            "https://${host_name}/fit" > /tmp/curves-fit.json
+      - uses: ./.github/actions/smoke-curves-fit
+        with:
+          function-app-name: curves-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
 
-      - name: Generate requirements.txt for lactation-autoencoder
-        if: needs.detect-changes.outputs.functions_autoencoder == 'true'
-        run: |
-          set -euo pipefail
-          app_dir="apps/backend/models/lactation-autoencoder"
-          rm -rf "$app_dir/wheels"
-          mkdir -p "$app_dir/wheels"
-          cp /tmp/bovi-function-wheels/bovi_core-*.whl "$app_dir/wheels/"
-          cp /tmp/bovi-function-wheels/lactation_autoencoder-*.whl "$app_dir/wheels/"
-          uv export \
-            --no-dev \
-            --no-emit-workspace \
-            --no-hashes \
-            --package bovi-lactation-autoencoder-app \
-            -o "$app_dir/requirements.txt"
-          bovi_core_wheel="$(basename "$app_dir"/wheels/bovi_core-*.whl)"
-          autoencoder_wheel="$(basename "$app_dir"/wheels/lactation_autoencoder-*.whl)"
-          printf '\n./wheels/%s\n./wheels/%s\n' "$bovi_core_wheel" "$autoencoder_wheel" \
-            >> "$app_dir/requirements.txt"
+  deploy-lactation-autoencoder:
+    needs: [detect-changes, infra, rollout-api]
+    if: |
+      always() &&
+      (
+        needs.detect-changes.outputs.functions_autoencoder == 'true' ||
+        (github.event_name == 'workflow_dispatch' && (inputs.target == 'autoencoder' || inputs.target == 'all'))
+      ) &&
+      (needs.infra.result == 'skipped' || needs.infra.result == 'success') &&
+      (
+        !(
+          needs.detect-changes.outputs.api == 'true' ||
+          (github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all'))
+        ) ||
+        needs.rollout-api.result == 'success'
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Sync lactation-autoencoder model assets
-        if: needs.detect-changes.outputs.functions_autoencoder == 'true'
-        env:
-          STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
-          STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
-          STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
-          AUTOENCODER_MODEL_VERSION: ${{ env.AUTOENCODER_MODEL_VERSION }}
-        run: |
-          set -euo pipefail
-          prefix="data/models/lactation_autoencoder/versions/${AUTOENCODER_MODEL_VERSION}"
-          container="model-assets"
-          app_name="autoencoder-${{ env.PULUMI_STACK }}"
-          required_blobs=(
-            "${prefix}/config/config.yaml"
-            "${prefix}/inputs/inference/pkl/event_to_idx_dict.pkl"
-            "${prefix}/weights/autoencoder/saved_model.pb"
-            "${prefix}/weights/autoencoder/variables/variables.index"
-          )
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
-          for var in STORAGE_ACCOUNT_NAME_ICAR STORAGE_ACCOUNT_KEY_ICAR STORAGE_ACCOUNT_CONTAINER_ICAR; do
-            if [ -z "${!var:-}" ]; then
-              echo "${var} is required to sync autoencoder model assets."
-              exit 1
-            fi
-          done
+      - uses: ./.github/actions/azure-login
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-          dest_connection_string="$(az functionapp config appsettings list \
-            --name "$app_name" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "[?name=='AzureWebJobsStorage'].value | [0]" -o tsv)"
-          if [ -z "$dest_connection_string" ]; then
-            echo "AzureWebJobsStorage is not configured for ${app_name}."
-            exit 1
-          fi
+      - uses: ./.github/actions/install-functions-core-tools
 
-          echo "Ensuring ${container} exists in Function Storage."
-          az storage container create \
-            --connection-string "$dest_connection_string" \
-            --name "$container" \
-            >/dev/null
+      - uses: ./.github/actions/build-function-wheels
 
-          destination_complete=true
-          for blob in "${required_blobs[@]}"; do
-            if [ "$(az storage blob exists \
-              --connection-string "$dest_connection_string" \
-              --container-name "$container" \
-              --name "$blob" \
-              --query exists -o tsv)" != "true" ]; then
-              destination_complete=false
-              break
-            fi
-          done
-          if [ "$(az storage blob list \
-            --connection-string "$dest_connection_string" \
-            --container-name "$container" \
-            --prefix "${prefix}/weights/autoencoder/variables/variables.data-" \
-            --query "length(@)" -o tsv)" = "0" ]; then
-            destination_complete=false
-          fi
-          if [ "$destination_complete" = "true" ]; then
-            echo "Autoencoder model assets already present in Function Storage."
-            exit 0
-          fi
+      - uses: ./.github/actions/prepare-autoencoder-function-package
+        with:
+          app-dir: apps/backend/models/lactation-autoencoder
 
-          for blob in "${required_blobs[@]}"; do
-            if [ "$(az storage blob exists \
-              --account-name "$STORAGE_ACCOUNT_NAME_ICAR" \
-              --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
-              --container-name "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
-              --name "$blob" \
-              --query exists -o tsv)" != "true" ]; then
-              echo "Required autoencoder source asset missing in ICAR Storage: ${blob}"
-              exit 1
-            fi
-          done
+      - uses: ./.github/actions/sync-autoencoder-assets
+        with:
+          storage-account-name-icar: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
+          storage-account-key-icar: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
+          storage-account-container-icar: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
+          autoencoder-model-version: ${{ env.AUTOENCODER_MODEL_VERSION }}
+          function-app-name: autoencoder-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
 
-          mapfile -t variable_data_blobs < <(az storage blob list \
-            --account-name "$STORAGE_ACCOUNT_NAME_ICAR" \
-            --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
-            --container-name "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
-            --prefix "${prefix}/weights/autoencoder/variables/variables.data-" \
-            --query "[].name" -o tsv)
-          if [ "${#variable_data_blobs[@]}" -eq 0 ]; then
-            echo "Required autoencoder source asset missing in ICAR Storage: variables.data-*"
-            exit 1
-          fi
+      - uses: ./.github/actions/deploy-function-app
+        with:
+          app-dir: apps/backend/models/lactation-autoencoder
+          function-app-name: autoencoder-${{ env.PULUMI_STACK }}
+          publish-log: /tmp/autoencoder-publish.log
 
-          tmp_dir="$(mktemp -d)"
-          sync_blobs=("${required_blobs[@]}" "${variable_data_blobs[@]}")
-          for blob in "${sync_blobs[@]}"; do
-            local_path="${tmp_dir}/${blob}"
-            mkdir -p "$(dirname "$local_path")"
-            az storage blob download \
-              --account-name "$STORAGE_ACCOUNT_NAME_ICAR" \
-              --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
-              --container-name "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
-              --name "$blob" \
-              --file "$local_path" \
-              --overwrite true \
-              --only-show-errors
-            az storage blob upload \
-              --connection-string "$dest_connection_string" \
-              --container-name "$container" \
-              --name "$blob" \
-              --file "$local_path" \
-              --overwrite true \
-              --only-show-errors
-          done
+      - uses: ./.github/actions/check-function-triggers
+        with:
+          function-app-name: autoencoder-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
 
-      - name: Deploy lactation-autoencoder
-        if: needs.detect-changes.outputs.functions_autoencoder == 'true'
-        working-directory: apps/backend/models/lactation-autoencoder
-        run: |
-          set -euo pipefail
-          if func azure functionapp publish "autoencoder-${{ env.PULUMI_STACK }}" --python 2>&1 | tee /tmp/autoencoder-publish.log; then
-            exit 0
-          fi
-          if grep -q "Deployment successful" /tmp/autoencoder-publish.log && grep -q "Error calling sync triggers" /tmp/autoencoder-publish.log; then
-            echo "Upload succeeded but trigger sync failed; continuing to explicit trigger check."
-            exit 0
-          fi
-          exit 1
-
-      - name: Check lactation-autoencoder triggers
-        if: needs.detect-changes.outputs.functions_autoencoder == 'true'
-        run: |
-          set -euo pipefail
-          app_name="autoencoder-${{ env.PULUMI_STACK }}"
-          for attempt in $(seq 1 18); do
-            function_count="$(az functionapp function list \
-              --name "$app_name" \
-              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-              --query "length(@)" -o tsv)"
-            function_count="${function_count:-0}"
-            echo "${app_name} indexed functions: ${function_count}"
-            if [ "$function_count" -gt 0 ]; then
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "No functions indexed for ${app_name}"
-          exit 1
-
-      - name: Smoke lactation-autoencoder health endpoint
-        if: needs.detect-changes.outputs.functions_autoencoder == 'true'
-        run: |
-          set -euo pipefail
-          host_name="$(az functionapp show \
-            --name "autoencoder-${{ env.PULUMI_STACK }}" \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --query "defaultHostName" -o tsv)"
-          curl --connect-timeout 5 --max-time 30 --retry 5 --retry-all-errors -fsS \
-            "https://${host_name}/health" > /tmp/autoencoder-health.json
+      - uses: ./.github/actions/smoke-function-health
+        with:
+          function-app-name: autoencoder-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          output-file: /tmp/autoencoder-health.json

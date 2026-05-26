@@ -1,0 +1,29 @@
+name: Prepare lactation-autoencoder Function package
+description: Generate requirements.txt and copy wheels for the lactation-autoencoder Function App.
+
+inputs:
+  app-dir:
+    description: Function App directory.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        app_dir="${{ inputs.app-dir }}"
+        rm -rf "$app_dir/wheels"
+        mkdir -p "$app_dir/wheels"
+        cp /tmp/bovi-function-wheels/bovi_core-*.whl "$app_dir/wheels/"
+        cp /tmp/bovi-function-wheels/lactation_autoencoder-*.whl "$app_dir/wheels/"
+        uv export \
+          --no-dev \
+          --no-emit-workspace \
+          --no-hashes \
+          --package bovi-lactation-autoencoder-app \
+          -o "$app_dir/requirements.txt"
+        bovi_core_wheel="$(basename "$app_dir"/wheels/bovi_core-*.whl)"
+        autoencoder_wheel="$(basename "$app_dir"/wheels/lactation_autoencoder-*.whl)"
+        printf '\n./wheels/%s\n./wheels/%s\n' "$bovi_core_wheel" "$autoencoder_wheel" \
+          >> "$app_dir/requirements.txt"

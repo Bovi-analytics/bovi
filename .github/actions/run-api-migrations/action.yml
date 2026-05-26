@@ -1,0 +1,62 @@
+name: Run API migrations
+description: Update and run the API migration Container Apps job.
+
+inputs:
+  api-image:
+    description: API image to run migrations with.
+    required: true
+  migration-job:
+    description: Container Apps migration job name.
+    required: true
+  resource-group:
+    description: Azure resource group.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        az containerapp job update \
+          --name "${{ inputs.migration-job }}" \
+          --resource-group "${{ inputs.resource-group }}" \
+          --image "${{ inputs.api-image }}"
+
+        execution_name="$(az containerapp job start \
+          --name "${{ inputs.migration-job }}" \
+          --resource-group "${{ inputs.resource-group }}" \
+          --query "name" -o tsv)"
+        if [ -z "$execution_name" ]; then
+          execution_name="$(az containerapp job execution list \
+            --name "${{ inputs.migration-job }}" \
+            --resource-group "${{ inputs.resource-group }}" \
+            --query "[-1].name" -o tsv)"
+        fi
+        if [ -z "$execution_name" ]; then
+          echo "Could not determine Container Apps Job execution name"
+          exit 1
+        fi
+        echo "Started migration execution: $execution_name"
+
+        deadline=$((SECONDS + 600))
+        while [ "$SECONDS" -lt "$deadline" ]; do
+          status="$(az containerapp job execution show \
+            --name "${{ inputs.migration-job }}" \
+            --resource-group "${{ inputs.resource-group }}" \
+            --job-execution-name "$execution_name" \
+            --query "properties.status" -o tsv 2>/dev/null || true)"
+          echo "Migration status: $status"
+          case "$status" in
+            Succeeded)
+              exit 0
+              ;;
+            Failed|Canceled)
+              exit 1
+              ;;
+          esac
+          sleep 10
+        done
+
+        echo "Migration job timed out"
+        exit 1

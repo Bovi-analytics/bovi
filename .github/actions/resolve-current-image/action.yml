@@ -1,0 +1,34 @@
+name: Resolve current Container App image
+description: Return the current Container App image, falling back to a default image.
+
+inputs:
+  containerapp-name:
+    description: Container App name.
+    required: true
+  resource-group:
+    description: Azure resource group.
+    required: true
+  default-image:
+    description: Default image when the Container App does not exist or has no image.
+    required: true
+
+outputs:
+  image:
+    description: Current or default image reference.
+    value: ${{ steps.current.outputs.image }}
+
+runs:
+  using: composite
+  steps:
+    - id: current
+      shell: bash
+      run: |
+        set -euo pipefail
+        image="$(az containerapp show \
+          --name "${{ inputs.containerapp-name }}" \
+          --resource-group "${{ inputs.resource-group }}" \
+          --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)"
+        if [ -z "$image" ]; then
+          image="${{ inputs.default-image }}"
+        fi
+        echo "image=${image}" >> "$GITHUB_OUTPUT"

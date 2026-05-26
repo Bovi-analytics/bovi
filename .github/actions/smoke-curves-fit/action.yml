@@ -1,0 +1,25 @@
+name: Smoke lactation-curves fit endpoint
+description: Call the lactation-curves fit endpoint with a small sample payload.
+
+inputs:
+  function-app-name:
+    description: Azure Function App name.
+    required: true
+  resource-group:
+    description: Azure resource group.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        host_name="$(az functionapp show \
+          --name "${{ inputs.function-app-name }}" \
+          --resource-group "${{ inputs.resource-group }}" \
+          --query "defaultHostName" -o tsv)"
+        curl --connect-timeout 5 --max-time 60 --retry 5 --retry-all-errors -fsS \
+          -H "content-type: application/json" \
+          --data '{"dim":[10,30,60,90,150,220,280],"milkrecordings":[22,32,41,39,34,28,22],"model":"wood"}' \
+          "https://${host_name}/fit" > /tmp/curves-fit.json
