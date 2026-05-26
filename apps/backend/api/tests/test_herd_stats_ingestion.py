@@ -65,6 +65,58 @@ def test_parse_alias_dim_maps_to_days_in_milk():
     assert result.raw_stats["DaysInMilk"] == pytest.approx(180.0)
 
 
+def test_benchmark_test_day_columns_detect_as_test_day_with_mapping_review():
+    csv_bytes = (
+        b"TestId,herd_id,parity,dim,milk_kg\n"
+        b"cow1,2942694,2,10,25.5\n"
+        b"cow1,2942694,2,20,28.0\n"
+        b"cow2,2942694,3,12,30.0\n"
+        b"cow2,2942694,3,24,33.0\n"
+    )
+
+    result = parse_csv(csv_bytes)
+
+    assert result.format_detected == "icar_test_day"
+    assert result.mapping_required is True
+    assert result.column_mapping == {
+        "cow_id": "TestId",
+        "dim": "dim",
+        "milk_kg": "milk_kg",
+        "parity": "parity",
+        "herd_id": "herd_id",
+    }
+    assert result.cow_count == 2
+    assert result.cows is not None
+    assert result.cows[0].cow_id == "cow1"
+
+
+def test_parse_test_day_with_explicit_column_mapping():
+    csv_bytes = (
+        b"lactation,days,milk,par\ncow1,10,25.5,2\ncow1,20,28.0,2\ncow2,12,30.0,3\ncow2,24,33.0,3\n"
+    )
+
+    result = parse_csv(
+        csv_bytes,
+        column_mapping={
+            "cow_id": "lactation",
+            "dim": "days",
+            "milk_kg": "milk",
+            "parity": "par",
+        },
+    )
+
+    assert result.format_detected == "icar_test_day"
+    assert result.mapping_required is False
+    assert result.column_mapping == {
+        "cow_id": "lactation",
+        "dim": "days",
+        "milk_kg": "milk",
+        "parity": "par",
+    }
+    assert result.cow_count == 2
+    assert result.detected_parity in (2, 3)
+
+
 def test_parse_row_cap_truncates_with_warning():
     header = f"{FULL_HEADER}\n".encode()
     row = f"{FULL_ROW}\n".encode()

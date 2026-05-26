@@ -1,6 +1,8 @@
 """CRUD endpoints for user-managed herd stat profiles."""
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+import json
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,6 +38,9 @@ class HerdProfileUploadResponse(BaseModel):
     cow_count: int | None = None
     detected_parity: int | None = None
     cows: list[CowRecordPayload] = []
+    columns: list[str] = []
+    column_mapping: dict[str, str] = {}
+    mapping_required: bool = False
 
 
 @router.get("", response_model=list[HerdProfileRead], include_in_schema=False)
@@ -71,6 +76,7 @@ async def create_herd_profile(
 @router.post("/csv-preview", response_model=HerdProfileUploadResponse)
 async def csv_preview(
     file: UploadFile = File(...),
+    column_mapping: str | None = Form(default=None),
     settings: Settings = Depends(get_settings),
 ) -> HerdProfileUploadResponse:
     """Parse and normalize an uploaded CSV. Returns a preview; does NOT save to DB."""
@@ -82,8 +88,24 @@ async def csv_preview(
     if len(content) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
 
+    parsed_mapping: dict[str, str] | None = None
+    if column_mapping:
+        try:
+            decoded = json.loads(column_mapping)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Invalid column mapping JSON.") from exc
+        if not isinstance(decoded, dict) or not all(
+            isinstance(key, str) and isinstance(value, str) for key, value in decoded.items()
+        ):
+            raise HTTPException(status_code=400, detail="Column mapping must be a string map.")
+        parsed_mapping = decoded
+
     try:
-        result = parse_csv(content, allow_dairy_comp=settings.allow_dairy_comp_uploads)
+        result = parse_csv(
+            content,
+            allow_dairy_comp=settings.allow_dairy_comp_uploads,
+            column_mapping=parsed_mapping,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -97,6 +119,9 @@ async def csv_preview(
         warnings=result.warnings,
         cow_count=result.cow_count,
         detected_parity=result.detected_parity,
+        columns=result.columns or [],
+        column_mapping=result.column_mapping or {},
+        mapping_required=result.mapping_required,
         cows=[
             CowRecordPayload(
                 cow_id=c.cow_id,

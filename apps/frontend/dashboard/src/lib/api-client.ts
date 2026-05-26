@@ -14,6 +14,7 @@ import {
   TestIntervalResponseSchema,
   YieldEstimateResponseSchema,
   ChallengeListSchema,
+  ChallengeDetailSchema,
   ChallengeReadSchema,
   SubmissionListSchema,
   SubmissionReadSchema,
@@ -43,6 +44,7 @@ import type {
   YieldEstimateRequest,
   YieldEstimateResponse,
   ChallengeCreatePreset,
+  ChallengeDetail,
   ChallengeRead,
   SubmissionRead,
 } from "@/types/api";
@@ -202,9 +204,15 @@ export async function getPresetHerdStats(
   );
 }
 
-export async function uploadHerdProfileCsv(file: File): Promise<HerdProfileUploadResponse> {
+export async function uploadHerdProfileCsv(
+  file: File,
+  columnMapping?: Record<string, string>
+): Promise<HerdProfileUploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
+  if (columnMapping) {
+    formData.append("column_mapping", JSON.stringify(columnMapping));
+  }
   const response = await fetch(`${getApiBaseUrl()}/herd-profiles/csv-preview`, {
     method: "POST",
     body: formData,
@@ -246,12 +254,24 @@ export async function createChallengeUpload(
   return ChallengeReadSchema.parse(await response.json());
 }
 
+export async function createChallengeFromSavedDataset(
+  name: string,
+  cowMetadata: ChallengeDetail["cow_metadata"],
+  actualYields: NonNullable<ChallengeDetail["actual_yields"]>
+): Promise<ChallengeRead> {
+  return apiFetch("/benchmark/challenges/saved-dataset", ChallengeReadSchema, {
+    name,
+    cow_metadata: cowMetadata,
+    actual_yields: actualYields,
+  });
+}
+
 export async function listChallenges(): Promise<ChallengeRead[]> {
   return apiGet("/benchmark/challenges", ChallengeListSchema);
 }
 
-export async function getChallenge(id: number): Promise<ChallengeRead> {
-  return apiGet(`/benchmark/challenges/${id}`, ChallengeReadSchema);
+export async function getChallenge(id: number): Promise<ChallengeDetail> {
+  return apiGet(`/benchmark/challenges/${id}`, ChallengeDetailSchema);
 }
 
 export function exportChallengeUrl(id: number): string {

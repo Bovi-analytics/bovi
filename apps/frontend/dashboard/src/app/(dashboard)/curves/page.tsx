@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import {
   Alert,
-  Badge,
   Button,
   Group,
   Paper,
@@ -16,7 +15,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import { AlertTriangle, Database, Dice5, Info } from "lucide-react";
+import { AlertTriangle, Dice5, Info } from "lucide-react";
 import Link from "next/link";
 import { MODEL_METADATA } from "@/data/model-metadata";
 import { EXAMPLE_LACTATIONS, DEFAULT_LACTATION } from "@/data/example-lactations";
@@ -50,6 +49,7 @@ import type { ExampleLactation } from "@/data/example-lactations";
 import type { ExampleAutoencoderData } from "@/data/example-autoencoder";
 import { useWeightUnit } from "@/app/providers/unit-provider";
 import { useUploadedCows, type UploadedCow } from "@/app/providers/uploaded-cows-provider";
+import { ActiveDatasetPanel, useActiveDatasetLabel } from "@/components/dashboard/active-dataset-panel";
 
 const AUTOENCODER_COLOR = "#ec4899";
 const AUTOENCODER_LABEL = "AI autoencoder";
@@ -202,6 +202,7 @@ function computeAutoencoderStats(
 export default function CurvesPage(): ReactElement {
   const { weightUnit, toggleWeightUnit } = useWeightUnit();
   const { dataset: uploadedDataset, getCow, getRandomCow, activePreset } = useUploadedCows();
+  const activeDatasetLabel = useActiveDatasetLabel();
 
   // Data mode
   const [dataMode, setDataMode] = useState<DataMode>("testday");
@@ -568,19 +569,6 @@ export default function CurvesPage(): ReactElement {
     (uploadedDataset && uploadedDataset.cows.length > 0) ||
     (presetData && presetData.cows.length > 0);
 
-  // Human-readable label for the active dataset
-  const activeDatasetLabel = (() => {
-    if (activePreset && presetData) {
-      const name = PRESET_DATASET_LABELS[activePreset.dataset];
-      const period = PRESET_PERIOD_LABELS[activePreset.period];
-      return `${name} · ${period} · ${presetData.cow_count.toLocaleString()} lactations`;
-    }
-    if (uploadedDataset) {
-      return `${uploadedDataset.name} · ${uploadedDataset.cows.length.toLocaleString()} lactations`;
-    }
-    return null;
-  })();
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -591,44 +579,13 @@ export default function CurvesPage(): ReactElement {
         </p>
       </div>
 
-      {/* Active dataset indicator */}
-      <Group gap="sm" align="center">
-        <Database size={14} className="text-muted-foreground" />
-        {activeDatasetLabel ? (
-          <>
-            <Text size="xs" c="dimmed">
-              Dataset:
-            </Text>
-            <Badge variant="light" color="violet" size="sm">
-              {activeDatasetLabel}
-            </Badge>
-            <Link href="/data-upload">
-              <Text
-                size="xs"
-                c="dimmed"
-                style={{ textDecoration: "underline", textUnderlineOffset: 2 }}
-              >
-                Change
-              </Text>
-            </Link>
-          </>
-        ) : (
-          <>
-            <Text size="xs" c="dimmed">
-              No dataset loaded -
-            </Text>
-            <Link href="/data-upload">
-              <Text
-                size="xs"
-                c="violet"
-                style={{ textDecoration: "underline", textUnderlineOffset: 2 }}
-              >
-                load one in Data Upload
-              </Text>
-            </Link>
-          </>
-        )}
-      </Group>
+      <ActiveDatasetPanel
+        emptyText="No dataset loaded."
+        actionHref="/data-upload"
+        actionLabel={activeDatasetLabel ? "Change" : "Data Upload"}
+        showActionWithoutDataset
+        compact
+      />
 
       {/* Data mode toggle + dataset selector on one row */}
       <div className="flex flex-wrap items-center gap-4">

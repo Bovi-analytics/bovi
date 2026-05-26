@@ -7,6 +7,10 @@ import { ActionIcon, Alert, Button, Group, Modal, Stack, Table, Text } from "@ma
 import { CheckCircle2, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { HerdProfileForm } from "./herd-profile-form";
 import {
+  ActiveDatasetPanel,
+  useActiveDatasetLabel,
+} from "@/components/dashboard/active-dataset-panel";
+import {
   useCreateHerdProfile,
   useDeleteHerdProfile,
   useHerdProfiles,
@@ -14,7 +18,7 @@ import {
 } from "../hooks/use-herd-profiles";
 import type { HerdProfile, HerdProfileCreate } from "@/types/api";
 import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
-import { DEFAULT_HERD_STATS } from "@/data/herd-stats-metadata";
+import { DEFAULT_HERD_STATS, HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
 import { usePresetHerdStats } from "@/app/(dashboard)/curves/hooks/use-preset-herd-stats";
 
 const PRESET_LABELS: Record<string, string> = {
@@ -27,6 +31,7 @@ const SIZE_LABELS: Record<string, string> = { small: "Small", medium: "Medium", 
 export function HerdProfileList(): ReactElement {
   const { data: profiles = [], isLoading } = useHerdProfiles();
   const { activePreset, dataset: uploadedDataset } = useUploadedCows();
+  const activeDatasetLabel = useActiveDatasetLabel();
   const {
     statsArray: activePresetStats,
     isLoading: activePresetStatsLoading,
@@ -45,14 +50,20 @@ export function HerdProfileList(): ReactElement {
   const [editTarget, setEditTarget] = useState<HerdProfile | null>(null);
   const [createdProfileName, setCreatedProfileName] = useState<string | null>(null);
 
-  const activeDatasetLabel = activePreset
-    ? `${PRESET_LABELS[activePreset.dataset]} · ${PERIOD_LABELS[activePreset.period]} · ${SIZE_LABELS[activePreset.size]} sample`
-    : uploadedDataset
-      ? `${uploadedDataset.name} · ${uploadedDataset.cows.length.toLocaleString()} lactations`
-      : null;
+  const uploadedDatasetStats = uploadedDataset?.stats
+    ? HERD_STATS_METADATA.map((meta) => uploadedDataset.stats?.[meta.name] ?? meta.default)
+    : null;
 
   const datasetFormStats =
-    createMode === "dataset" && activePresetStats ? activePresetStats : [...DEFAULT_HERD_STATS];
+    createMode === "dataset" && activePresetStats
+      ? activePresetStats
+      : createMode === "dataset" && uploadedDatasetStats
+        ? uploadedDatasetStats
+        : [...DEFAULT_HERD_STATS];
+
+  const canDetermineFromDataset =
+    (activePreset && activePresetStats && !activePresetStatsError) ||
+    (!activePreset && uploadedDatasetStats);
 
   function handleCreate(data: HerdProfileCreate) {
     createMutation.mutate(data, {
@@ -79,28 +90,12 @@ export function HerdProfileList(): ReactElement {
   return (
     <>
       <Stack gap="md">
-        <Alert color={activeDatasetLabel ? "violet" : "gray"} variant="light">
-          <Group justify="space-between" align="center" gap="sm">
-            <div>
-              <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-                Active dataset
-              </Text>
-              <Text size="sm">
-                {activeDatasetLabel ??
-                  "No dataset selected. Load a preset or upload a file in Data Upload first."}
-              </Text>
-            </div>
-            <Button
-              component={Link}
-              href="/data-upload"
-              variant="subtle"
-              size="xs"
-              rightSection={<ChevronRight size={14} />}
-            >
-              Data Upload
-            </Button>
-          </Group>
-        </Alert>
+        <ActiveDatasetPanel
+          emptyText="No dataset selected. Load a preset or upload a file in Data Upload first."
+          actionHref="/data-upload"
+          actionLabel="Data Upload"
+          showActionWithoutDataset
+        />
 
         <Group justify="space-between" align="flex-start">
           <div>
@@ -114,7 +109,7 @@ export function HerdProfileList(): ReactElement {
             <Button
               size="sm"
               variant="light"
-              disabled={!activePreset || !activePresetStats || activePresetStatsError}
+              disabled={!canDetermineFromDataset}
               loading={activePresetStatsLoading}
               onClick={() => {
                 setCreateMode("dataset");
@@ -135,12 +130,6 @@ export function HerdProfileList(): ReactElement {
             </Button>
           </Group>
         </Group>
-
-        {uploadedDataset && !activePreset && (
-          <Text size="xs" c="dimmed">
-            Uploaded files can be saved as profiles from the upload preview on the Data Upload page.
-          </Text>
-        )}
 
         {profiles.length === 0 ? (
           <Text size="sm">No profiles yet. Create one to save a set of herd statistics.</Text>
@@ -204,12 +193,16 @@ export function HerdProfileList(): ReactElement {
           defaultName={
             createMode === "dataset" && activePreset
               ? `${PRESET_LABELS[activePreset.dataset]} - ${PERIOD_LABELS[activePreset.period]} (${SIZE_LABELS[activePreset.size]})`
-              : undefined
+              : createMode === "dataset" && uploadedDataset
+                ? `${uploadedDataset.name} profile`
+                : undefined
           }
           defaultDescription={
             createMode === "dataset" && activePreset
               ? `Herd statistics derived from ${PRESET_LABELS[activePreset.dataset]} (${PERIOD_LABELS[activePreset.period].toLowerCase()} period, ${SIZE_LABELS[activePreset.size].toLowerCase()} sample).`
-              : undefined
+              : createMode === "dataset" && uploadedDataset
+                ? `Herd statistics derived from uploaded dataset ${uploadedDataset.name}.`
+                : undefined
           }
           sourceSummary={
             createMode === "dataset" && activeDatasetLabel
