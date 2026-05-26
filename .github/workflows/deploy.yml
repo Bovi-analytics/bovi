@@ -31,6 +31,7 @@ env:
   PULUMI_STACK: dev
   INFRA_DIR: apps/infrastructure
   AZURE_RESOURCE_GROUP: Bovi-Analytics-Tools
+  AUTOENCODER_MODEL_VERSION: v15
 
 jobs:
   detect-changes:
@@ -211,6 +212,7 @@ jobs:
           STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          AUTOENCODER_MODEL_VERSION: ${{ env.AUTOENCODER_MODEL_VERSION }}
           API_IMAGE: ${{ steps.current-api-image.outputs.image }}
           DASHBOARD_IMAGE: ${{ steps.current-dashboard-image.outputs.image }}
 
@@ -548,6 +550,104 @@ jobs:
           autoencoder_wheel="$(basename "$app_dir"/wheels/lactation_autoencoder-*.whl)"
           printf '\n./wheels/%s\n./wheels/%s\n' "$bovi_core_wheel" "$autoencoder_wheel" \
             >> "$app_dir/requirements.txt"
+
+      - name: Sync lactation-autoencoder model assets
+        env:
+          STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
+          STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
+          STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
+          AUTOENCODER_MODEL_VERSION: ${{ env.AUTOENCODER_MODEL_VERSION }}
+        run: |
+          set -euo pipefail
+          prefix="data/models/lactation_autoencoder/versions/${AUTOENCODER_MODEL_VERSION}"
+          container="model-assets"
+          app_name="autoencoder-${{ env.PULUMI_STACK }}"
+          required_blobs=(
+            "${prefix}/config/config.yaml"
+            "${prefix}/inputs/inference/pkl/event_to_idx_dict.pkl"
+            "${prefix}/weights/autoencoder/saved_model.pb"
+            "${prefix}/weights/autoencoder/variables/variables.index"
+          )
+
+          for var in STORAGE_ACCOUNT_NAME_ICAR STORAGE_ACCOUNT_KEY_ICAR STORAGE_ACCOUNT_CONTAINER_ICAR; do
+            if [ -z "${!var:-}" ]; then
+              echo "${var} is required to sync autoencoder model assets."
+              exit 1
+            fi
+          done
+
+          dest_connection_string="$(az functionapp config appsettings list \
+            --name "$app_name" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --query "[?name=='AzureWebJobsStorage'].value | [0]" -o tsv)"
+          if [ -z "$dest_connection_string" ]; then
+            echo "AzureWebJobsStorage is not configured for ${app_name}."
+            exit 1
+          fi
+
+          az storage container create \
+            --connection-string "$dest_connection_string" \
+            --name "$container" \
+            --fail-on-exist false \
+            >/dev/null
+
+          destination_complete=true
+          for blob in "${required_blobs[@]}"; do
+            if [ "$(az storage blob exists \
+              --connection-string "$dest_connection_string" \
+              --container-name "$container" \
+              --name "$blob" \
+              --query exists -o tsv)" != "true" ]; then
+              destination_complete=false
+              break
+            fi
+          done
+          if [ "$(az storage blob list \
+            --connection-string "$dest_connection_string" \
+            --container-name "$container" \
+            --prefix "${prefix}/weights/autoencoder/variables/variables.data-" \
+            --query "length(@)" -o tsv)" = "0" ]; then
+            destination_complete=false
+          fi
+          if [ "$destination_complete" = "true" ]; then
+            echo "Autoencoder model assets already present in Function Storage."
+            exit 0
+          fi
+
+          for blob in "${required_blobs[@]}"; do
+            if [ "$(az storage blob exists \
+              --account-name "$STORAGE_ACCOUNT_NAME_ICAR" \
+              --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
+              --container-name "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
+              --name "$blob" \
+              --query exists -o tsv)" != "true" ]; then
+              echo "Required autoencoder source asset missing in ICAR Storage: ${blob}"
+              exit 1
+            fi
+          done
+          if [ "$(az storage blob list \
+            --account-name "$STORAGE_ACCOUNT_NAME_ICAR" \
+            --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
+            --container-name "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
+            --prefix "${prefix}/weights/autoencoder/variables/variables.data-" \
+            --query "length(@)" -o tsv)" = "0" ]; then
+            echo "Required autoencoder source asset missing in ICAR Storage: variables.data-*"
+            exit 1
+          fi
+
+          tmp_dir="$(mktemp -d)"
+          az storage blob download-batch \
+            --account-name "$STORAGE_ACCOUNT_NAME_ICAR" \
+            --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
+            --source "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
+            --destination "$tmp_dir" \
+            --pattern "${prefix}/*"
+          az storage blob upload-batch \
+            --connection-string "$dest_connection_string" \
+            --destination "$container" \
+            --source "$tmp_dir" \
+            --pattern "${prefix}/*" \
+            --overwrite true
 
       - name: Deploy lactation-autoencoder
         working-directory: apps/backend/models/lactation-autoencoder
