@@ -41,8 +41,12 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       dashboard: ${{ steps.filter.outputs.dashboard }}
       functions: ${{ steps.filter.outputs.functions }}
+      functions_curves: ${{ steps.filter.outputs.functions_curves }}
+      functions_autoencoder: ${{ steps.filter.outputs.functions_autoencoder }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -65,6 +69,24 @@ jobs:
               - "packages/bovi-core/pyproject.toml"
               - "packages/models/lactationcurve/src/**"
               - "packages/models/lactationcurve/pyproject.toml"
+              - "packages/models/lactation-autoencoder/src/**"
+              - "packages/models/lactation-autoencoder/pyproject.toml"
+            functions_curves:
+              - ".github/workflows/deploy.yml"
+              - "apps/backend/models/lactation-curves/**"
+              - "pyproject.toml"
+              - "uv.lock"
+              - "packages/bovi-core/src/**"
+              - "packages/bovi-core/pyproject.toml"
+              - "packages/models/lactationcurve/src/**"
+              - "packages/models/lactationcurve/pyproject.toml"
+            functions_autoencoder:
+              - ".github/workflows/deploy.yml"
+              - "apps/backend/models/lactation-autoencoder/**"
+              - "pyproject.toml"
+              - "uv.lock"
+              - "packages/bovi-core/src/**"
+              - "packages/bovi-core/pyproject.toml"
               - "packages/models/lactation-autoencoder/src/**"
               - "packages/models/lactation-autoencoder/pyproject.toml"
 
@@ -441,7 +463,10 @@ jobs:
     needs: [detect-changes, infra, rollout-api]
     if: |
       always() &&
-      needs.detect-changes.outputs.functions == 'true' &&
+      (
+        needs.detect-changes.outputs.functions_curves == 'true' ||
+        needs.detect-changes.outputs.functions_autoencoder == 'true'
+      ) &&
       (needs.infra.result == 'skipped' || needs.infra.result == 'success') &&
       (needs.detect-changes.outputs.api != 'true' || needs.rollout-api.result == 'success')
     runs-on: ubuntu-latest
@@ -473,6 +498,7 @@ jobs:
           uv build --package lactation-autoencoder --wheel --out-dir "$wheel_dir"
 
       - name: Generate requirements.txt for lactation-curves
+        if: needs.detect-changes.outputs.functions_curves == 'true'
         run: |
           set -euo pipefail
           app_dir="apps/backend/models/lactation-curves"
@@ -489,6 +515,7 @@ jobs:
           printf '\n./wheels/%s\n' "$wheel" >> "$app_dir/requirements.txt"
 
       - name: Deploy lactation-curves
+        if: needs.detect-changes.outputs.functions_curves == 'true'
         working-directory: apps/backend/models/lactation-curves
         run: |
           set -euo pipefail
@@ -502,6 +529,7 @@ jobs:
           exit 1
 
       - name: Check lactation-curves triggers
+        if: needs.detect-changes.outputs.functions_curves == 'true'
         run: |
           set -euo pipefail
           app_name="curves-${{ env.PULUMI_STACK }}"
@@ -521,6 +549,7 @@ jobs:
           exit 1
 
       - name: Smoke lactation-curves fit endpoint
+        if: needs.detect-changes.outputs.functions_curves == 'true'
         run: |
           set -euo pipefail
           host_name="$(az functionapp show \
@@ -533,6 +562,7 @@ jobs:
             "https://${host_name}/fit" > /tmp/curves-fit.json
 
       - name: Generate requirements.txt for lactation-autoencoder
+        if: needs.detect-changes.outputs.functions_autoencoder == 'true'
         run: |
           set -euo pipefail
           app_dir="apps/backend/models/lactation-autoencoder"
@@ -552,6 +582,7 @@ jobs:
             >> "$app_dir/requirements.txt"
 
       - name: Sync lactation-autoencoder model assets
+        if: needs.detect-changes.outputs.functions_autoencoder == 'true'
         env:
           STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
           STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
@@ -625,31 +656,42 @@ jobs:
               exit 1
             fi
           done
-          if [ "$(az storage blob list \
+
+          mapfile -t variable_data_blobs < <(az storage blob list \
             --account-name "$STORAGE_ACCOUNT_NAME_ICAR" \
             --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
             --container-name "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
             --prefix "${prefix}/weights/autoencoder/variables/variables.data-" \
-            --query "length(@)" -o tsv)" = "0" ]; then
+            --query "[].name" -o tsv)
+          if [ "${#variable_data_blobs[@]}" -eq 0 ]; then
             echo "Required autoencoder source asset missing in ICAR Storage: variables.data-*"
             exit 1
           fi
 
           tmp_dir="$(mktemp -d)"
-          az storage blob download-batch \
-            --account-name "$STORAGE_ACCOUNT_NAME_ICAR" \
-            --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
-            --source "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
-            --destination "$tmp_dir" \
-            --pattern "${prefix}/*"
-          az storage blob upload-batch \
-            --connection-string "$dest_connection_string" \
-            --destination "$container" \
-            --source "$tmp_dir" \
-            --pattern "${prefix}/*" \
-            --overwrite true
+          sync_blobs=("${required_blobs[@]}" "${variable_data_blobs[@]}")
+          for blob in "${sync_blobs[@]}"; do
+            local_path="${tmp_dir}/${blob}"
+            mkdir -p "$(dirname "$local_path")"
+            az storage blob download \
+              --account-name "$STORAGE_ACCOUNT_NAME_ICAR" \
+              --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
+              --container-name "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
+              --name "$blob" \
+              --file "$local_path" \
+              --overwrite true \
+              --only-show-errors
+            az storage blob upload \
+              --connection-string "$dest_connection_string" \
+              --container-name "$container" \
+              --name "$blob" \
+              --file "$local_path" \
+              --overwrite true \
+              --only-show-errors
+          done
 
       - name: Deploy lactation-autoencoder
+        if: needs.detect-changes.outputs.functions_autoencoder == 'true'
         working-directory: apps/backend/models/lactation-autoencoder
         run: |
           set -euo pipefail
@@ -663,6 +705,7 @@ jobs:
           exit 1
 
       - name: Check lactation-autoencoder triggers
+        if: needs.detect-changes.outputs.functions_autoencoder == 'true'
         run: |
           set -euo pipefail
           app_name="autoencoder-${{ env.PULUMI_STACK }}"
@@ -682,6 +725,7 @@ jobs:
           exit 1
 
       - name: Smoke lactation-autoencoder health endpoint
+        if: needs.detect-changes.outputs.functions_autoencoder == 'true'
         run: |
           set -euo pipefail
           host_name="$(az functionapp show \
