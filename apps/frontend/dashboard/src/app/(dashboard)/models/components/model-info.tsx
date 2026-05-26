@@ -1,5 +1,9 @@
 import type { ReactElement } from "react";
-import type { ModelMetadata } from "@/data/model-metadata";
+import { ExternalLink } from "lucide-react";
+import {
+  LACTATION_CURVE_DOCUMENTATION_URL,
+  type ModelMetadata,
+} from "@/data/model-metadata";
 
 interface ModelInfoProps {
   readonly model: ModelMetadata;
@@ -11,6 +15,15 @@ export function ModelInfo({ model, fittedValues }: ModelInfoProps): ReactElement
     <div className="space-y-4">
       {/* Description */}
       <p className="text-sm text-muted-foreground">{model.description}</p>
+      <a
+        href={LACTATION_CURVE_DOCUMENTATION_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+      >
+        Package documentation and citations
+        <ExternalLink size={14} aria-hidden="true" />
+      </a>
 
       {/* Formula */}
       <div className="rounded-lg bg-muted/50 px-4 py-3">
