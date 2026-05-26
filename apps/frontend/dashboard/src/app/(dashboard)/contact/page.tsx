@@ -16,6 +16,7 @@ import type { LucideIcon } from "lucide-react";
 interface ContactLink {
   readonly label: string;
   readonly description: string;
+  readonly value: string;
   readonly href: string;
   readonly icon: LucideIcon;
   readonly external?: boolean;
@@ -25,6 +26,7 @@ const CONTACT_LINKS: readonly ContactLink[] = [
   {
     label: "GitHub issues",
     description: "Report bugs or request improvements in the public project tracker.",
+    value: "github.com/Bovi-analytics/bovi/issues",
     href: "https://github.com/Bovi-analytics/bovi/issues",
     icon: Github,
     external: true,
@@ -32,12 +34,14 @@ const CONTACT_LINKS: readonly ContactLink[] = [
   {
     label: "Email",
     description: "Contact the maintainers directly for questions that do not fit an issue.",
+    value: "mbv32@cornell.edu",
     href: "mailto:mbv32@cornell.edu",
     icon: Mail,
   },
   {
     label: "Bovi Analytics",
     description: "Visit the broader Bovi Analytics website.",
+    value: "bovi-analytics.org",
     href: "https://bovi-analytics.org/",
     icon: Globe,
     external: true,
@@ -45,6 +49,7 @@ const CONTACT_LINKS: readonly ContactLink[] = [
   {
     label: "ICAR",
     description: "Learn more about the International Committee for Animal Recording.",
+    value: "icar.org",
     href: "https://www.icar.org/",
     icon: Handshake,
     external: true,
@@ -89,6 +94,9 @@ export default function ContactPage(): ReactElement {
                     <Title order={3}>{item.label}</Title>
                     <Text size="sm" c="dimmed" mt={4}>
                       {item.description}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={6}>
+                      {item.value}
                     </Text>
                   </div>
                 </Group>
