@@ -28,6 +28,14 @@ const PRESET_LABELS: Record<string, string> = {
 const PERIOD_LABELS: Record<string, string> = { recent: "Recent", old: "Old", mixed: "Mixed" };
 const SIZE_LABELS: Record<string, string> = { small: "Small", medium: "Medium", large: "Large" };
 
+function profileSource(profile: HerdProfile): string {
+  const description = profile.description.toLowerCase();
+  if (description.includes("uploaded dataset")) return "Uploaded dataset";
+  if (description.includes("demo herd")) return "Demo dataset";
+  if (description.includes("derived from")) return "Dataset";
+  return "Manual";
+}
+
 export function HerdProfileList(): ReactElement {
   const { data: profiles = [], isLoading } = useHerdProfiles();
   const { activePreset, dataset: uploadedDataset } = useUploadedCows();
@@ -93,7 +101,7 @@ export function HerdProfileList(): ReactElement {
         <ActiveDatasetPanel
           emptyText="No dataset selected. Load a preset or upload a file in Data Upload first."
           actionHref="/data-upload"
-          actionLabel="Data Upload"
+          actionLabel={activeDatasetLabel ? "Change" : "Data Upload"}
           showActionWithoutDataset
         />
 
@@ -138,6 +146,7 @@ export function HerdProfileList(): ReactElement {
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Name</Table.Th>
+                <Table.Th>Source</Table.Th>
                 <Table.Th>Description</Table.Th>
                 <Table.Th>Created</Table.Th>
                 <Table.Th />
@@ -147,6 +156,7 @@ export function HerdProfileList(): ReactElement {
               {profiles.map((profile) => (
                 <Table.Tr key={profile.id}>
                   <Table.Td>{profile.name}</Table.Td>
+                  <Table.Td>{profileSource(profile)}</Table.Td>
                   <Table.Td>{profile.description || "-"}</Table.Td>
                   <Table.Td>
                     {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "-"}

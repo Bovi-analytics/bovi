@@ -39,6 +39,7 @@ interface UploadedCowsContextValue {
   readonly savedDatasets: readonly UploadedDataset[];
   readonly saveDataset: (d: UploadedDataset) => void;
   readonly selectSavedDataset: (id: string) => void;
+  readonly deleteSavedDataset: (id: string) => void;
   readonly getCow: (cowId: string) => UploadedCow | undefined;
   readonly getRandomCow: () => UploadedCow | undefined;
   readonly activePreset: ActivePreset | null;
@@ -52,6 +53,7 @@ const UploadedCowsContext = createContext<UploadedCowsContextValue>({
   savedDatasets: [],
   saveDataset: () => {},
   selectSavedDataset: () => {},
+  deleteSavedDataset: () => {},
   getCow: () => undefined,
   getRandomCow: () => undefined,
   activePreset: null,
@@ -169,6 +171,20 @@ export function UploadedCowsProvider({ children }: UploadedCowsProviderProps): R
     setActivePresetState(null);
   }, []);
 
+  const deleteSavedDataset = useCallback(
+    (id: string) => {
+      setSavedDatasetsState((current) => {
+        const next = current.filter((item) => item.id !== id);
+        persistSavedDatasets(next);
+        return next;
+      });
+      if (dataset?.id === id) {
+        clearDataset();
+      }
+    },
+    [clearDataset, dataset?.id, persistSavedDatasets]
+  );
+
   const getCow = useCallback(
     (cowId: string) => dataset?.cows.find((c) => c.cowId === cowId),
     [dataset]
@@ -200,6 +216,7 @@ export function UploadedCowsProvider({ children }: UploadedCowsProviderProps): R
         savedDatasets,
         saveDataset,
         selectSavedDataset,
+        deleteSavedDataset,
         getCow,
         getRandomCow,
         activePreset,

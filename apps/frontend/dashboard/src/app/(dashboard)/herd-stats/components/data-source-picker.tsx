@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import {
   Accordion,
+  ActionIcon,
   Alert,
   Badge,
   Button,
@@ -17,10 +18,11 @@ import {
   Stack,
   Table,
   Text,
+  TextInput,
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import { AlertCircle, CheckCircle2, ChevronRight, Download, Info } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronRight, Download, Info, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { VISIBLE_HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
 import { useUploadedCows, type UploadedDataset } from "@/app/providers/uploaded-cows-provider";
@@ -186,11 +188,13 @@ function downloadText(content: string, filename: string): void {
 function toUploadedDataset(
   response: HerdProfileUploadResponse,
   filename: string,
+  datasetName: string,
   uploadedAt = new Date().toISOString()
 ): UploadedDataset {
+  const name = datasetName.trim() || cleanDatasetName(filename);
   return {
-    id: `${Date.now()}-${filename}`,
-    name: filename,
+    id: `${Date.now()}-${name}`,
+    name,
     format: "icar_test_day",
     uploadedAt,
     rowCount: response.row_count,
@@ -214,6 +218,10 @@ function mappingSummary(mapping: Readonly<Record<string, string>> | undefined): 
   return REQUIRED_MAPPING_KEYS.map((key) => `${MAPPING_LABELS[key]}: ${mapping[key] ?? "-"}`).join(
     " · "
   );
+}
+
+function cleanDatasetName(filename: string): string {
+  return filename.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || filename;
 }
 
 function formatUploadDate(value: string): string {
@@ -333,6 +341,7 @@ function UploadPanel(): ReactElement {
   const [selectedFormat, setSelectedFormat] = useState<SelectableFormatKey>("icar_test_day");
   const [preview, setPreview] = useState<HerdProfileUploadResponse | null>(null);
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
+  const [datasetName, setDatasetName] = useState("");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [mappingOpen, setMappingOpen] = useState(false);
   const [mappingDraft, setMappingDraft] = useState<Record<TestDayMappingKey, string>>({
@@ -355,7 +364,7 @@ function UploadPanel(): ReactElement {
     setPreview(response);
     setUploadedFilename(filename);
     if (response.cows.length > 0 && response.format_detected === "icar_test_day") {
-      saveDataset(toUploadedDataset(response, filename));
+      saveDataset(toUploadedDataset(response, filename, datasetName));
     }
   }
 
@@ -364,6 +373,7 @@ function UploadPanel(): ReactElement {
     if (!file) return;
     const filename = file.name;
     setPendingFile(file);
+    setDatasetName(cleanDatasetName(filename));
     uploadMutation.mutate({ file }, {
       onSuccess: (response) => {
         setUploadedFilename(filename);
@@ -606,6 +616,13 @@ function UploadPanel(): ReactElement {
         size="lg"
       >
         <Stack gap="md">
+          <TextInput
+            label="Dataset name"
+            value={datasetName}
+            onChange={(event) => setDatasetName(event.currentTarget.value)}
+            maxLength={80}
+            required
+          />
           <Text size="sm">
             Match the uploaded columns to the fields needed for milk-recording datasets.
           </Text>
@@ -640,7 +657,9 @@ function UploadPanel(): ReactElement {
 }
 
 function SavedDatasetsPanel(): ReactElement {
-  const { dataset: uploadedDataset, savedDatasets, selectSavedDataset } = useUploadedCows();
+  const { dataset: uploadedDataset, savedDatasets, selectSavedDataset, deleteSavedDataset } =
+    useUploadedCows();
+  const [expandedMappingId, setExpandedMappingId] = useState<string | null>(null);
 
   if (savedDatasets.length === 0) {
     return (
@@ -669,53 +688,82 @@ function SavedDatasetsPanel(): ReactElement {
           {savedDatasets.map((saved) => {
             const active = uploadedDataset?.id === saved.id;
             return (
-              <Table.Tr key={saved.id}>
-                <Table.Td>
-                  {active ? (
-                    <Badge color="violet" variant="filled">
-                      Active
-                    </Badge>
-                  ) : (
-                    <Badge color="gray" variant="light">
-                      Saved
-                    </Badge>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" fw={600}>
-                    {saved.name}
-                  </Text>
-                  {saved.detectedParity != null && (
-                    <Text size="xs" c="dimmed">
-                      Dominant parity {saved.detectedParity}
+              <Fragment key={saved.id}>
+                <Table.Tr>
+                  <Table.Td>
+                    {active ? (
+                      <Badge color="violet" variant="filled">
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge color="gray" variant="light">
+                        Saved
+                      </Badge>
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm" fw={600} maw={180} lineClamp={1} title={saved.name}>
+                      {saved.name}
                     </Text>
-                  )}
-                </Table.Td>
-                <Table.Td>{formatUploadDate(saved.uploadedAt)}</Table.Td>
-                <Table.Td>{saved.rowCount?.toLocaleString() ?? "-"}</Table.Td>
-                <Table.Td>
-                  {(saved.cowCount ?? saved.cows.length).toLocaleString()}
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs">{mappingSummary(saved.columnMapping)}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs" lineClamp={2}>
-                    {saved.columns?.join(", ") ?? "-"}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Button
-                    size="xs"
-                    variant={active ? "light" : "filled"}
-                    color="violet"
-                    disabled={active}
-                    onClick={() => selectSavedDataset(saved.id)}
-                  >
-                    {active ? "Selected" : "Select"}
-                  </Button>
-                </Table.Td>
-              </Table.Tr>
+                    {saved.detectedParity != null && (
+                      <Text size="xs" c="dimmed">
+                        Dominant parity {saved.detectedParity}
+                      </Text>
+                    )}
+                  </Table.Td>
+                  <Table.Td>{formatUploadDate(saved.uploadedAt)}</Table.Td>
+                  <Table.Td>{saved.rowCount?.toLocaleString() ?? "-"}</Table.Td>
+                  <Table.Td>{(saved.cowCount ?? saved.cows.length).toLocaleString()}</Table.Td>
+                  <Table.Td>
+                    <ActionIcon
+                      aria-label="Show column mapping"
+                      color="pink"
+                      radius="xl"
+                      variant="filled"
+                      onClick={() =>
+                        setExpandedMappingId(expandedMappingId === saved.id ? null : saved.id)
+                      }
+                    >
+                      <Info size={14} />
+                    </ActionIcon>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs" maw={260} lineClamp={2} title={saved.columns?.join(", ")}>
+                      {saved.columns?.join(", ") ?? "-"}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap="xs" wrap="nowrap">
+                      <Button
+                        size="xs"
+                        variant={active ? "light" : "filled"}
+                        color="violet"
+                        disabled={active}
+                        onClick={() => selectSavedDataset(saved.id)}
+                      >
+                        {active ? "Selected" : "Select"}
+                      </Button>
+                      <ActionIcon
+                        aria-label="Delete saved dataset"
+                        color="red"
+                        variant="subtle"
+                        onClick={() => deleteSavedDataset(saved.id)}
+                      >
+                        <Trash2 size={14} />
+                      </ActionIcon>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+                {expandedMappingId === saved.id && (
+                  <Table.Tr>
+                    <Table.Td colSpan={8}>
+                      <Text size="xs" c="dimmed">
+                        {mappingSummary(saved.columnMapping)}
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
+              </Fragment>
             );
           })}
         </Table.Tbody>
