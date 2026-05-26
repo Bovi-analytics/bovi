@@ -66,7 +66,7 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
     asyncio.run(_seed())
 
     csv_content = (
-        b"cow_id,yield_305day\n"
+        b"TestId,LactationYield\n"
         + b"".join(f"cow{i},bad_value\n".encode() for i in range(9))
         + b"cow9,8000.0\n"
     )
@@ -75,6 +75,68 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
         files={"file": ("results.csv", csv_content, "text/csv")},
     )
     assert resp.status_code == 422
+
+
+def test_export_challenge_uses_test_id_and_omits_empty_herd_id(client):
+    """Downloaded test data omits herd_id when all herd IDs are empty."""
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed() -> None:
+        async for session in override():
+            session.add(
+                Challenge(
+                    dataset="icar",
+                    size="full",
+                    period="all",
+                    source="preset",
+                    name="Reference dataset",
+                    cow_metadata={
+                        "lact-1": {"parity": 1, "herd_id": None, "dim": [10], "milk_kg": [25.0]}
+                    },
+                    reference_yields=None,
+                    actual_yields={"lact-1": 8000.0},
+                )
+            )
+            await session.commit()
+            break
+
+    asyncio.run(_seed())
+
+    resp = client.get("/benchmark/challenges/1/export")
+
+    assert resp.status_code == 200
+    assert resp.text.splitlines() == ["TestId,parity,dim,milk_kg", "lact-1,1,10,25.0"]
+
+
+def test_export_challenge_keeps_herd_id_when_available(client):
+    """Downloaded test data keeps herd_id for cohorts where it is populated."""
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed() -> None:
+        async for session in override():
+            session.add(
+                Challenge(
+                    dataset="upload",
+                    size="custom",
+                    period="custom",
+                    source="upload",
+                    name="Uploaded",
+                    cow_metadata={
+                        "lact-1": {"parity": 1, "herd_id": 123, "dim": [10], "milk_kg": [25.0]}
+                    },
+                    reference_yields=None,
+                    actual_yields={"lact-1": 8000.0},
+                )
+            )
+            await session.commit()
+            break
+
+    asyncio.run(_seed())
+
+    resp = client.get("/benchmark/challenges/1/export")
+
+    assert resp.status_code == 200
+    assert resp.text.splitlines() == ["TestId,herd_id,parity,dim,milk_kg", "lact-1,123,1,10,25.0"]
 
 
 class _FakeResponse:

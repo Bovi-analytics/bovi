@@ -24,7 +24,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCreateChallengePreset, useCreateChallengeUpload } from "../hooks/use-challenges";
 
-const TEST_DAY_EXAMPLE_CSV = `cow_id,parity,dim,milk_kg
+const TEST_DAY_EXAMPLE_CSV = `TestId,parity,dim,milk_kg
 1001,1,15,28.5
 1001,1,45,32.1
 1001,1,90,30.4
@@ -35,7 +35,7 @@ const TEST_DAY_EXAMPLE_CSV = `cow_id,parity,dim,milk_kg
 1002,3,150,30.0
 `;
 
-const ACTUAL_YIELDS_EXAMPLE_CSV = `cow_id,total_305_yield
+const ACTUAL_YIELDS_EXAMPLE_CSV = `TestId,LactationYield
 1001,8520
 1002,10450
 `;
@@ -58,15 +58,15 @@ function PresetTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
     <Stack gap="md">
       <Card withBorder padding="md">
         <Stack gap="sm">
-          <Text fw={600}>Reference cohort</Text>
+          <Text fw={600}>Reference dataset</Text>
           <Text size="sm" c="var(--benchmark-muted-text)">
             407 cows with sparse test-day records and ground-truth Actual Lactation Yield (ALY) from
-            daily-meter recordings. This is the built-in preset that can be used for ground-truth
-            benchmarking.
+            daily milk meter recordings. This is the built-in dataset that can be used for
+            ground-truth benchmarking.
           </Text>
           <TextInput
             label="Cohort name (optional)"
-            placeholder="Reference cohort"
+            placeholder="Reference dataset"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -85,7 +85,7 @@ function PresetTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
             loading={isPending}
             w="fit-content"
           >
-            Create reference challenge
+            Create reference dataset challenge
           </Button>
         </Stack>
       </Card>
@@ -104,8 +104,8 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
   return (
     <Stack gap="md">
       <Alert color="blue" variant="light" title="Why both files?">
-        Without ground-truth daily-meter yields we can&apos;t validate any calculation. Both the
-        test-day records <em>and</em> the actual-yields CSV are required.
+        Without ground-truth daily milk meter yields we can&apos;t validate any calculation. Both
+        the test-day records <em>and</em> the actual-yields CSV are required.
       </Alert>
 
       <TextInput
@@ -140,7 +140,7 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
               <Accordion.Panel>
                 <Stack gap={6}>
                   <Text size="xs">
-                    Required columns: <Code>cow_id</Code>, <Code>dim</Code>, <Code>milk_kg</Code>.
+                    Required columns: <Code>TestId</Code>, <Code>dim</Code>, <Code>milk_kg</Code>.
                     Optional: <Code>parity</Code>. One row per test-day; multiple rows per cow.
                     Comma or semicolon-separated, UTF-8.
                   </Text>
@@ -166,7 +166,7 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
             <Text fw={600} size="sm">
               Actual yields CSV (ground truth)
             </Text>
-            <Tooltip label="Daily-meter cumulative 305-day yield per cow.">
+            <Tooltip label="Daily milk meter cumulative 305-day yield per lactation.">
               <ActionIcon size="xs" variant="subtle" color="gray">
                 <Info size={14} />
               </ActionIcon>
@@ -184,8 +184,8 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
               <Accordion.Panel>
                 <Stack gap={6}>
                   <Text size="xs">
-                    Required columns: <Code>cow_id</Code>, <Code>total_305_yield</Code> (or
-                    <Code> yield_305day</Code>). One row per cow.
+                    Required columns: <Code>TestId</Code>, <Code>LactationYield</Code>. One row per
+                    lactation.
                   </Text>
                   <Code block>{ACTUAL_YIELDS_EXAMPLE_CSV}</Code>
                   <Button
@@ -245,13 +245,13 @@ export default function NewChallengePage(): ReactElement {
         <h1 className="text-2xl font-semibold">New Challenge</h1>
         <Text size="sm" c="var(--benchmark-muted-text)">
           Pick a cohort with ground-truth Actual Lactation Yield (ALY). Use the built-in reference
-          dataset, or upload your own test-day records together with daily-meter ground truth.
+          dataset, or upload your own test-day records together with daily milk meter ground truth.
         </Text>
       </Stack>
 
       <Tabs defaultValue="preset">
         <Tabs.List>
-          <Tabs.Tab value="preset">Reference preset</Tabs.Tab>
+          <Tabs.Tab value="preset">Reference dataset</Tabs.Tab>
           <Tabs.Tab value="upload">Upload own dataset</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="preset" pt="md">

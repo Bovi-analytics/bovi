@@ -84,7 +84,7 @@ async def _repair_preset_challenge_if_needed(
     session: AsyncSession,
     settings: Settings,
 ) -> bool:
-    """Refresh legacy ICAR preset challenges that stored bad concatenated ALY values."""
+    """Refresh legacy reference-dataset challenges that stored bad concatenated ALY values."""
     if challenge.dataset != "icar" or challenge.source != "preset":
         return False
     if _actual_yields_are_plausible(challenge.actual_yields):
@@ -95,7 +95,7 @@ async def _repair_preset_challenge_if_needed(
     if not preset.actual_yields:
         raise HTTPException(
             status_code=500,
-            detail="ICAR preset is missing actual_yields - regenerate the preset data.",
+            detail="Reference dataset is missing actual_yields - regenerate the preset data.",
         )
 
     challenge.cow_metadata = {
@@ -309,7 +309,7 @@ async def create_challenge_preset(
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> Challenge:
-    """Create a preset-backed challenge (ICAR cohort with ground-truth ALY)."""
+    """Create a preset-backed challenge with ground-truth ALY."""
     loop = asyncio.get_running_loop()
     preset = await loop.run_in_executor(
         None, fetch_preset_cows, body.preset, "full", "all", settings
@@ -317,7 +317,7 @@ async def create_challenge_preset(
     if not preset.actual_yields:
         raise HTTPException(
             status_code=500,
-            detail="ICAR preset is missing actual_yields - regenerate the preset blob.",
+            detail="Reference dataset is missing actual_yields - regenerate the preset blob.",
         )
 
     cow_metadata: dict[str, dict] = {
@@ -337,7 +337,7 @@ async def create_challenge_preset(
         size="full",
         period="all",
         source="preset",
-        name=body.name or "ICAR cohort",
+        name=body.name or "Reference dataset",
         cow_metadata=cow_metadata,
         reference_yields=None,
         actual_yields=preset.actual_yields,
@@ -434,12 +434,21 @@ async def export_challenge(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["cow_id", "herd_id", "parity", "dim", "milk_kg"])
+    include_herd_id = any(
+        meta.get("herd_id") not in (None, "") for meta in challenge.cow_metadata.values()
+    )
+    headers = ["TestId", "parity", "dim", "milk_kg"]
+    if include_herd_id:
+        headers.insert(1, "herd_id")
+    writer.writerow(headers)
     for cow_id, meta in challenge.cow_metadata.items():
         herd_id = meta.get("herd_id", "")
         parity = meta.get("parity", "")
         for d, m in zip(meta["dim"], meta["milk_kg"]):
-            writer.writerow([cow_id, herd_id, parity, d, m])
+            row = [cow_id, parity, d, m]
+            if include_herd_id:
+                row.insert(1, herd_id)
+            writer.writerow(row)
 
     content = output.getvalue().encode("utf-8")
     return Response(
@@ -704,7 +713,9 @@ async def download_report(
         actual_yields=challenge.actual_yields or {},
         parities=parities,
         challenge_name=challenge.name or challenge.dataset,
-        challenge_source=challenge.source or challenge.dataset,
+        challenge_source="reference dataset"
+        if challenge.dataset == "icar" and challenge.source == "preset"
+        else challenge.source or challenge.dataset,
         submission_type=sub.submission_type,
         challenger_label=sub.model_type or "own method",
         benchmark_label=sub.benchmark_model or "tim",

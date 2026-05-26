@@ -226,7 +226,7 @@ def _draw_cover(
     pdf.set_xy(0, 22)
     pdf.set_text_color(*GREY_TEXT)
     pdf.set_font("Helvetica", "", 9)
-    pdf.cell(0, 5, "Lactation calculation evaluation", align="R")
+    pdf.cell(0, 5, "Lactation yield calculation evaluation", align="R")
     pdf.set_x(-15)
 
     # Cyan accent line under header
@@ -265,7 +265,7 @@ def _draw_cover(
     intro = (
         "Each scatter plot below shows one point per cow in the cohort. The horizontal "
         "axis is the ground-truth Actual Lactation Yield (ALY) - the cumulative 305-day "
-        "milk production from daily-meter recordings. The vertical axis is the model's "
+        "milk production from daily milk meter recordings. The vertical axis is the model's "
         "calculated 305-day yield for the same cow, derived from the sparse test-day "
         "records. A perfect model places every point on the dashed diagonal (y = x). "
         "Points above the line indicate over-estimation, points below indicate "
@@ -284,7 +284,7 @@ def _draw_cover(
     pdf.multi_cell(
         0,
         5,
-        "ALY    Actual Lactation Yield - daily-meter ground truth (kg).\n"
+        "ALY    Actual Lactation Yield - daily milk meter ground truth (kg).\n"
         "SCALY  Submitted Calculated ALY - challenger's 305-day output.\n"
         "BCALY  Benchmark Calculated ALY - benchmark model's 305-day output.",
     )
