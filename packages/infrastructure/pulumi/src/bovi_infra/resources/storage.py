@@ -79,3 +79,26 @@ def create_files_share(name: str, args: FilesShareArgs) -> FilesShareResult:
         share_quota=args.quota_gb,
     )
     return FilesShareResult(share=share)
+
+
+@dataclass
+class BlobContainerArgs:
+    resource_group_name: pulumi.Input[str]
+    account_name: pulumi.Input[str]
+    container_name: str
+
+
+@dataclass
+class BlobContainerResult:
+    container: storage.BlobContainer
+
+
+def create_blob_container(name: str, args: BlobContainerArgs) -> BlobContainerResult:
+    container = storage.BlobContainer(
+        name,
+        resource_group_name=args.resource_group_name,
+        account_name=args.account_name,
+        container_name=args.container_name,
+        public_access=storage.PublicAccess.NONE,
+    )
+    return BlobContainerResult(container=container)

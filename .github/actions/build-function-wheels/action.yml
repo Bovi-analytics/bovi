@@ -1,0 +1,15 @@
+name: Build Function App workspace wheels
+description: Build the workspace wheels required by model Function Apps.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        wheel_dir="/tmp/bovi-function-wheels"
+        rm -rf "$wheel_dir"
+        mkdir -p "$wheel_dir"
+        uv build --package lactationcurve --wheel --out-dir "$wheel_dir"
+        uv build --package bovi-core --wheel --out-dir "$wheel_dir"
+        uv build --package lactation-autoencoder --wheel --out-dir "$wheel_dir"

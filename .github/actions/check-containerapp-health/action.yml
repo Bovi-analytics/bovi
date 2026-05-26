@@ -1,0 +1,47 @@
+name: Check Container App health
+description: Poll a Container App endpoint until it responds successfully.
+
+inputs:
+  containerapp-name:
+    description: Container App name.
+    required: true
+  resource-group:
+    description: Azure resource group.
+    required: true
+  path:
+    description: Health check path.
+    required: true
+  discard-output:
+    description: Whether to discard curl response output.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        fqdn="$(az containerapp show \
+          --name "${{ inputs.containerapp-name }}" \
+          --resource-group "${{ inputs.resource-group }}" \
+          --query "properties.configuration.ingress.fqdn" -o tsv)"
+        health_url="https://${fqdn}${{ inputs.path }}"
+        echo "Checking health at ${health_url}"
+        for attempt in $(seq 1 30); do
+          echo "Health check attempt ${attempt}/30"
+          if [ "${{ inputs.discard-output }}" = "true" ]; then
+            if curl --connect-timeout 5 --max-time 10 -fsS "$health_url" > /dev/null; then
+              exit 0
+            fi
+          elif curl --connect-timeout 5 --max-time 10 -fsS "$health_url"; then
+            exit 0
+          fi
+          sleep 10
+        done
+        az containerapp revision list \
+          --name "${{ inputs.containerapp-name }}" \
+          --resource-group "${{ inputs.resource-group }}" \
+          --query "[].{name:name,active:properties.active,health:properties.healthState,image:properties.template.containers[0].image}" \
+          -o table
+        exit 1
