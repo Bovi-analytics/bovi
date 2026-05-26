@@ -1,5 +1,8 @@
 import type { Model } from "@/types/api";
 
+export const LACTATION_CURVE_DOCUMENTATION_URL =
+  "https://github.com/Bovi-analytics/bovi/tree/main/packages/models/lactationcurve#readme";
+
 export interface ModelParameter {
   readonly name: string;
   readonly description: string;
