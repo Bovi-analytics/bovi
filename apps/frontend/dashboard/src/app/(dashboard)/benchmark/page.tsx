@@ -1,15 +1,36 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { Alert, Button, Grid, Group, Loader, Stack, Text } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Button,
+  Grid,
+  Group,
+  Loader,
+  SegmentedControl,
+  Stack,
+  Table,
+  Text,
+} from "@mantine/core";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { ChallengeCard } from "./components/challenge-card";
 import { useChallenges } from "./hooks/use-challenges";
+
+type ChallengeView = "cards" | "table";
+
+const DATASET_LABEL: Record<string, string> = {
+  icar: "Demo dataset",
+  upload: "Custom upload",
+  saved_upload: "Saved dataset",
+};
 
 export default function BenchmarkPage(): ReactElement {
   const router = useRouter();
   const { data: challenges, isLoading, error } = useChallenges();
+  const [view, setView] = useState<ChallengeView>("cards");
 
   if (isLoading) return <Loader />;
   if (error) return <Text c="red">Failed to load challenges.</Text>;
@@ -61,13 +82,78 @@ export default function BenchmarkPage(): ReactElement {
         </Text>
       )}
 
-      <Grid>
-        {challenges?.map((c) => (
-          <Grid.Col key={c.id} span={{ base: 12, sm: 6, md: 4 }}>
-            <ChallengeCard challenge={c} />
-          </Grid.Col>
-        ))}
-      </Grid>
+      {challenges && challenges.length > 0 && (
+        <Group justify="space-between" align="center">
+          <Text fw={600} size="sm">
+            Challenges
+          </Text>
+          <SegmentedControl
+            size="xs"
+            value={view}
+            onChange={(value) => setView(value as ChallengeView)}
+            data={[
+              { value: "cards", label: "Cards" },
+              { value: "table", label: "Table" },
+            ]}
+          />
+        </Group>
+      )}
+
+      {view === "cards" ? (
+        <Grid>
+          {challenges?.map((c) => (
+            <Grid.Col key={c.id} span={{ base: 12, sm: 6, md: 4 }}>
+              <ChallengeCard challenge={c} />
+            </Grid.Col>
+          ))}
+        </Grid>
+      ) : (
+        <Table striped highlightOnHover withColumnBorders fz="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Name</Table.Th>
+              <Table.Th>Dataset</Table.Th>
+              <Table.Th>Source</Table.Th>
+              <Table.Th>Created</Table.Th>
+              <Table.Th>Action</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {challenges?.map((challenge) => (
+              <Table.Tr key={challenge.id}>
+                <Table.Td>
+                  <Text size="sm" fw={600} maw={260} lineClamp={1}>
+                    {challenge.name ?? `Challenge #${challenge.id}`}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    #{challenge.id}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Badge size="xs" variant="light">
+                    {DATASET_LABEL[challenge.dataset] ?? challenge.dataset}
+                  </Badge>
+                </Table.Td>
+                <Table.Td>{challenge.source ?? "-"}</Table.Td>
+                <Table.Td>
+                  {challenge.created_at
+                    ? new Date(challenge.created_at).toLocaleDateString()
+                    : "-"}
+                </Table.Td>
+                <Table.Td>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    onClick={() => router.push(`/benchmark/${challenge.id}`)}
+                  >
+                    View &amp; Submit
+                  </Button>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      )}
     </div>
   );
 }
