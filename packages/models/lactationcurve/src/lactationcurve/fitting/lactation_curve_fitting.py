@@ -102,9 +102,9 @@ def wood_model(t, a, b, c) -> np.floating | np.ndarray:
 
     Args:
         t: Time since calving in days (DIM), scalar or array-like.
-        a: Scale parameter (numerical).
-        b: Shape parameter controlling rise (numerical).
-        c: Decay parameter (numerical).
+        a: Fitted coefficient (numerical).
+        b: Fitted coefficient (numerical).
+        c: Fitted coefficient (numerical).
 
     Returns:
         Predicted milk yield at `t`.
@@ -120,10 +120,10 @@ def wilmink_model(t, a, b, c, k=-0.05) -> np.floating | np.ndarray:
 
     Args:
         t: Time since calving in days (DIM), scalar or array-like.
-        a: Intercept-like parameter (numerical).
-        b: Linear trend coefficient (numerical).
-        c: Exponential-term scale (numerical).
-        k: Fixed exponential rate (numerical), default -0.05.
+        a: Fitted coefficient (numerical).
+        b: Fitted coefficient (numerical).
+        c: Fitted coefficient (numerical).
+        k: Fixed exponential coefficient (numerical), default -0.05.
 
     Returns:
         Predicted milk yield at `t`.
@@ -140,11 +140,11 @@ def ali_schaeffer_model(t, a, b, c, d, k) -> np.floating | np.ndarray:
 
     Args:
         t: Time since calving in days (DIM). Use `t >= 1` to avoid `log(0)`.
-        a: Intercept-like parameter (numerical).
-        b: Linear coefficient on scaled time `t/305` (numerical).
-        c: Quadratic coefficient on scaled time `t/305` (numerical).
-        d: Coefficient on `log(305/t)` (numerical).
-        k: Coefficient on `[log(305/t)]^2` (numerical).
+        a: Fitted coefficient (numerical).
+        b: Fitted coefficient (numerical).
+        c: Fitted coefficient (numerical).
+        d: Fitted coefficient (numerical).
+        k: Fitted coefficient (numerical).
 
     Returns:
         Predicted milk yield at `t`.
@@ -162,9 +162,9 @@ def fischer_model(t, a, b, c) -> np.floating | np.ndarray:
 
     Args:
         t: Time since calving in days (DIM).
-        a: Scale parameter (numerical).
-        b: Linear decline parameter (numerical).
-        c: Exponential decay parameter (numerical).
+        a: Fitted coefficient (numerical).
+        b: Fitted coefficient (numerical).
+        c: Fitted coefficient (numerical).
 
     Returns:
         Predicted milk yield at `t`.

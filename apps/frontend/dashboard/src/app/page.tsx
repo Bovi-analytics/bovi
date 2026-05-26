@@ -36,7 +36,7 @@ const FLOW: FlowStep[] = [
     href: "/data-upload",
     cta: "Load data",
     description:
-      "Start here. Pick an anonymized preset cohort or upload your own milk-recording CSV. The selected cow records feed the rest of the workflow.",
+      "Start here. Pick an anonymized demo herd or upload your own milk-recording CSV. The selected lactation records feed the rest of the workflow.",
   },
   {
     number: "2",
@@ -46,7 +46,7 @@ const FLOW: FlowStep[] = [
     href: "/herd-profiles",
     cta: "Open Herd Profiles",
     description:
-      "Review, create, and save the ten aggregate herd statistics used by the autoencoder. Profiles can come from the dataset you loaded first.",
+      "Review, create, and save the ten aggregate herd statistics used by the AI autoencoder. Profiles can come from the dataset you loaded first.",
   },
   {
     number: "3",

@@ -52,14 +52,15 @@ import { useWeightUnit } from "@/app/providers/unit-provider";
 import { useUploadedCows, type UploadedCow } from "@/app/providers/uploaded-cows-provider";
 
 const AUTOENCODER_COLOR = "#ec4899";
+const AUTOENCODER_LABEL = "AI autoencoder";
 const UPLOADED_COW_ID_PREFIX = "uploaded-";
 const DEFAULT_UPLOADED_PARITY = 3;
 const UPLOADED_COWS_VISIBLE_CAP = 20;
 const PRESET_COWS_VISIBLE_CAP = 50;
 
 const PRESET_DATASET_LABELS: Record<PresetDatasetKey, string> = {
-  aurora: "Preset cohort A",
-  sunnyside: "Preset cohort B",
+  aurora: "Demo herd A",
+  sunnyside: "Demo herd B",
 };
 const PRESET_PERIOD_LABELS = {
   recent: "Recent",
@@ -72,10 +73,10 @@ type DataMode = "testday" | "daily";
 function uploadedCowToLactation(cow: UploadedCow, datasetName: string): ExampleLactation {
   return {
     id: `${UPLOADED_COW_ID_PREFIX}${cow.cowId}`,
-    label: `${datasetName} - cow ${cow.cowId}${
+    label: `${datasetName} - lactation ${cow.cowId}${
       cow.parity != null ? ` (parity ${cow.parity})` : ""
     }`,
-    description: `Uploaded test-day records from ${datasetName}.${
+    description: `Uploaded test-day records from one lactation in ${datasetName}.${
       cow.parity == null
         ? ` Parity not available in the source file; defaulted to ${DEFAULT_UPLOADED_PARITY}.`
         : ""
@@ -91,8 +92,8 @@ function uploadedCowToLactation(cow: UploadedCow, datasetName: string): ExampleL
 function presetCowToLactation(cow: PresetCow, dataset: PresetDatasetKey): ExampleLactation {
   return {
     id: `preset:${dataset}:${cow.cow_id}`,
-    label: `Cow ${cow.cow_id}`,
-    description: `Anonymized preset test-day records from ${PRESET_DATASET_LABELS[dataset]}.`,
+    label: `Lactation ${cow.cow_id}`,
+    description: `Anonymized demo-herd test-day records from ${PRESET_DATASET_LABELS[dataset]}.`,
     parity: cow.parity ?? DEFAULT_UPLOADED_PARITY,
     breed: "H",
     dim: [...cow.dim],
@@ -167,7 +168,7 @@ function computeAutoencoderStats(
 ): StatsRow {
   if (!predictions || predictions.length === 0) {
     return {
-      name: "Autoencoder",
+      name: AUTOENCODER_LABEL,
       color: AUTOENCODER_COLOR,
       peakYield: null,
       timeToPeak: null,
@@ -184,7 +185,7 @@ function computeAutoencoderStats(
   const persistency = peakYield > 0 ? yieldAt200 / peakYield : 0;
 
   return {
-    name: "Autoencoder",
+    name: AUTOENCODER_LABEL,
     color: AUTOENCODER_COLOR,
     peakYield,
     timeToPeak,
@@ -336,7 +337,7 @@ export default function CurvesPage(): ReactElement {
     if (!autoencoderData || dataMode !== "daily") return [];
     return [
       {
-        name: "Autoencoder",
+        name: AUTOENCODER_LABEL,
         color: AUTOENCODER_COLOR,
         data: autoencoderData.predictions.map((val, i) => ({
           dim: i + 1,
@@ -426,13 +427,13 @@ export default function CurvesPage(): ReactElement {
       }
       const items = visible.map((c) => ({
         value: `${prefix}${c.cow_id}`,
-        label: `Cow ${c.cow_id}`,
+        label: `Lactation ${c.cow_id}`,
       }));
       const remaining = presetData.cow_count - visibleIds.size;
       if (remaining > 0)
         items.push({
           value: "__preset_overflow__",
-          label: `… and ${remaining} more - use 🎲 or type a cow ID`,
+          label: `... and ${remaining} more - use Random or type a lactation ID`,
         });
       const groupLabel = `${PRESET_DATASET_LABELS[activePreset.dataset]} - ${PRESET_PERIOD_LABELS[activePreset.period]} (${presetData.cow_count.toLocaleString()} cows)`;
       groups.push({ group: groupLabel, items });
@@ -448,13 +449,13 @@ export default function CurvesPage(): ReactElement {
       }
       const items = visible.map((c) => ({
         value: `${UPLOADED_COW_ID_PREFIX}${c.cowId}`,
-        label: `Cow ${c.cowId}${c.parity != null ? ` (parity ${c.parity})` : ""}`,
+        label: `Lactation ${c.cowId}${c.parity != null ? ` (parity ${c.parity})` : ""}`,
       }));
       const remaining = uploadedDataset.cows.length - visibleIds.size;
       if (remaining > 0)
         items.push({
           value: "__overflow__",
-          label: `… and ${remaining} more - use 🎲 or type a cow ID`,
+          label: `... and ${remaining} more - use Random or type a lactation ID`,
         });
       groups.push({ group: uploadedDataset.name, items });
     }
@@ -560,7 +561,7 @@ export default function CurvesPage(): ReactElement {
         return;
       }
     }
-    setCowIdError(`No cow with ID "${id}" found in loaded datasets.`);
+    setCowIdError(`No lactation with ID "${id}" found in loaded datasets.`);
   }
 
   const hasHerdData =
@@ -656,7 +657,7 @@ export default function CurvesPage(): ReactElement {
               value: "daily",
               label: (
                 <Tooltip
-                  label="Dense daily measurements, e.g. from a milking robot. The same prepared daily sequence is used for the autoencoder and classical models."
+                  label="Dense daily measurements, e.g. from a milking robot. The same prepared daily sequence is used for the AI autoencoder and classical models."
                   multiline
                   w={280}
                   withArrow
@@ -689,7 +690,8 @@ export default function CurvesPage(): ReactElement {
                 Select a cow
               </Text>
               <Text size="sm" c="dimmed" mt={4}>
-                Classical models are fit to the test-day records of one individual cow at a time.
+                Classical lactation curve models are fit to the test-day records of one individual
+                lactation at the time.
               </Text>
             </div>
 
@@ -736,10 +738,10 @@ export default function CurvesPage(): ReactElement {
                     data={herdSelectData}
                     allowDeselect={false}
                     searchable
-                    placeholder="Pick a cow…"
+                    placeholder="Pick a lactation..."
                     w={300}
                   />
-                  <Tooltip label="Pick a random cow from your dataset" withArrow>
+                  <Tooltip label="Pick a random lactation from your dataset" withArrow>
                     <Button
                       size="xs"
                       variant="light"
@@ -751,7 +753,7 @@ export default function CurvesPage(): ReactElement {
                   </Tooltip>
                   <TextInput
                     size="xs"
-                    placeholder="Cow ID…"
+                    placeholder="Lactation ID..."
                     value={cowIdInput}
                     onChange={(e) => {
                       setCowIdInput(e.target.value);
@@ -773,7 +775,7 @@ export default function CurvesPage(): ReactElement {
                   <Link href="/data-upload" className="underline underline-offset-2">
                     go to Data Upload
                   </Link>{" "}
-                  to pick an anonymized preset cohort or upload your own CSV.
+                  to pick an anonymized demo herd or upload your own CSV.
                 </Text>
               ))}
 
@@ -802,9 +804,9 @@ export default function CurvesPage(): ReactElement {
                 Select a cow
               </Text>
               <Text size="sm" c="dimmed" mt={4}>
-                Daily recordings enable both classical models and the autoencoder. Preset herd
-                datasets only contain periodic records - use the built-in examples for the
-                autoencoder.
+                Daily recordings enable both classical lactation curve models and the AI
+                autoencoder. As the demo herds only contain periodic records, different examples are
+                used for this feature.
               </Text>
             </div>
 
@@ -876,7 +878,7 @@ export default function CurvesPage(): ReactElement {
                   <Link href="/data-upload" className="underline underline-offset-2">
                     go to Data Upload
                   </Link>{" "}
-                  to pick an anonymized preset cohort or upload your own CSV.
+                  to pick an anonymized demo herd or upload your own CSV.
                 </Text>
               ))}
 

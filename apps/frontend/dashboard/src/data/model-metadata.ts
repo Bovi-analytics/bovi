@@ -21,11 +21,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     name: "Wood",
     formula: "y(t) = a · t^b · exp(-c · t)",
     parameterCount: 3,
-    parameters: [
-      { name: "a", description: "Scale factor" },
-      { name: "b", description: "Rate of increase to peak" },
-      { name: "c", description: "Rate of decline after peak" },
-    ],
+    parameters: [],
     color: "#2563eb",
     description:
       "An incomplete gamma-type function combining a power-law growth term with an exponential decay term.",
@@ -35,12 +31,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     name: "Wilmink",
     formula: "y(t) = a + b·t + c·exp(k·t)",
     parameterCount: 4,
-    parameters: [
-      { name: "a", description: "Base yield level" },
-      { name: "b", description: "Linear decline rate" },
-      { name: "c", description: "Initial rise magnitude" },
-      { name: "k", description: "Decay rate (default -0.05)" },
-    ],
+    parameters: [],
     color: "#16a34a",
     description:
       "A combination of an exponential and a linear component. In contrast to the Fischer model, the additional parameter scaling the exponential term increases flexibility in describing early-lactation dynamics and peak formation.",
@@ -48,15 +39,9 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
   ali_schaeffer: {
     id: "ali_schaeffer",
     name: "Ali & Schaeffer",
-    formula: "y(t) = a + b·(t/340) + c·(t/340)² + d·ln(340/t) + k·(ln(340/t))²",
+    formula: "y(t) = a + b·(t/305) + c·(t/305)² + d·ln(305/t) + k·(ln(305/t))²",
     parameterCount: 5,
-    parameters: [
-      { name: "a", description: "Intercept" },
-      { name: "b", description: "Linear coefficient" },
-      { name: "c", description: "Quadratic coefficient" },
-      { name: "d", description: "Logarithmic coefficient" },
-      { name: "k", description: "Squared logarithmic coefficient" },
-    ],
+    parameters: [],
     color: "#d97706",
     description:
       "A linear regression model based on quadratic polynomials in standardized time and in the log-transformed inverse time, where the log term increases flexibility in modelling the ascending phase and peak of lactation.",
@@ -66,11 +51,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     name: "Fischer",
     formula: "y(t) = a - b·t - a·exp(-c·t)",
     parameterCount: 3,
-    parameters: [
-      { name: "a", description: "Asymptotic yield level" },
-      { name: "b", description: "Linear decline rate" },
-      { name: "c", description: "Initial rise rate" },
-    ],
+    parameters: [],
     color: "#dc2626",
     description:
       "A combination of an exponential and a linear component, characterized by an early exponential phase followed by an approximately linear decline.",

@@ -21,8 +21,8 @@ import type { PresetDatasetKey, PresetPeriodKey, PresetSizeKey } from "@/types/a
 const DATASET_OPTIONS: { value: PresetDatasetKey | "none"; label: string; description: string }[] =
   [
     { value: "none", label: "None", description: "Use uploaded CSV or manual input" },
-    { value: "aurora", label: "Preset cohort A", description: "Anonymized herd · 2023-2025" },
-    { value: "sunnyside", label: "Preset cohort B", description: "Anonymized herd · 2000-2026" },
+    { value: "aurora", label: "Demo herd A", description: "Anonymized herd · 2023-2025" },
+    { value: "sunnyside", label: "Demo herd B", description: "Anonymized herd · 2000-2026" },
   ];
 
 const SIZE_OPTIONS = [

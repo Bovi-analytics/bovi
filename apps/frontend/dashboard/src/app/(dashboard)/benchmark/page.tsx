@@ -38,7 +38,7 @@ export default function BenchmarkPage(): ReactElement {
           </Text>
           <Text size="sm">
             On a challenge you pick a <em>challenger</em> and a <em>benchmark</em> - any combination
-            of TIM, Wood, Wilmink, Ali-Schaeffer, Fischer, MilkBot, or the autoencoder. The
+            of TIM, Wood, Wilmink, Ali-Schaeffer, Fischer, MilkBot, or the AI autoencoder. The
             challenger can also be your own calculation uploaded as a CSV. Bovi runs both on the
             same sparse test-day input and compares each against the ground-truth ALY (Pearson,
             RMSE, MAE, MAPE), overall and per parity.
