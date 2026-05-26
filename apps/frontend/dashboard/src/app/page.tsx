@@ -3,7 +3,7 @@
 import type { ReactElement } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Badge, Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
 import {
   ArrowDown,
   ClipboardList,
@@ -36,7 +36,7 @@ const FLOW: FlowStep[] = [
     href: "/data-upload",
     cta: "Load data",
     description:
-      "Start here. Pick an anonymized preset cohort or upload your own milk-recording CSV. The selected cow records feed the rest of the workflow.",
+      "Choose the data you would like to work with. Upload your own milk recording data or explore the platform using one of the built-in demo herds.",
   },
   {
     number: "2",
@@ -46,7 +46,7 @@ const FLOW: FlowStep[] = [
     href: "/herd-profiles",
     cta: "Open Herd Profiles",
     description:
-      "Review, create, and save the ten aggregate herd statistics used by the autoencoder. Profiles can come from the dataset you loaded first.",
+      "Optional: For the best performance with the AI autoencoder model, set the herd statistics for your uploaded data. You can enter these values manually or let the platform calculate them automatically. Save your herd profile for future analyses and faster setup.",
   },
   {
     number: "3",
@@ -57,7 +57,7 @@ const FLOW: FlowStep[] = [
     cta: "Open Curves",
     sparkle: true,
     description:
-      "Fit lactation curves on individual cows and compare them side-by-side. Pick the curves you want to evaluate further.",
+      "Experiment with different lactation curve models on individual lactations, calculate key curve characteristics, and visualize the lactation shape of your own cows.",
   },
   {
     number: "4",
@@ -68,7 +68,7 @@ const FLOW: FlowStep[] = [
     cta: "Open Benchmark",
     sparkle: true,
     description:
-      "Validate a 305-day yield calculation against the TIM reference. Either let Bovi run a built-in calculation for you, or upload the results of your own method as a CSV. Get a per-parity report and a downloadable PDF.",
+      "Validate and benchmark your cumulative lactation yield calculations with ease. Download a sample dataset, apply your own methods, and upload the results for instant evaluation. Compare your estimates against actual milk yield records or against built-in reference calculations. Explore detailed performance metrics, parity-specific breakdowns, and download a comprehensive PDF report. You can also compare built-in calculation methods side by side to discover which approach performs best for your herd or application.",
   },
 ];
 
@@ -93,9 +93,6 @@ export default function HomePage(): ReactElement {
               priority
               className="h-auto w-full max-w-[280px] drop-shadow-[0_0_24px_hsl(var(--primary)/0.35)]"
             />
-            <Badge size="lg" variant="light" color="blue" leftSection={<Sparkles size={12} />}>
-              Lactation Curve Platform
-            </Badge>
             <Title order={1} ta="center">
               From raw records to validated lactation curves
             </Title>
