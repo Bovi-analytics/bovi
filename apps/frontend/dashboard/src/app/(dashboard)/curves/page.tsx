@@ -236,7 +236,7 @@ export default function CurvesPage(): ReactElement {
   const [manualHerdStats, setManualHerdStats] = useState<number[]>([...DEFAULT_HERD_STATS]);
   const [predictEnabled, setPredictEnabled] = useState(false);
 
-  // Fetch herd stats computed from the active preset dataset (only when needed).
+  // Fetch herd stats computed from the active demo herd (only when needed).
   const {
     statsArray: datasetHerdStats,
     isLoading: datasetHerdStatsLoading,
@@ -520,7 +520,7 @@ export default function CurvesPage(): ReactElement {
   }
 
   function handleRandomCow() {
-    // Prefer active preset dataset
+    // Prefer active demo herd
     if (presetData && activePreset && presetData.cows.length > 0) {
       const cow = presetData.cows[Math.floor(Math.random() * presetData.cows.length)];
       setActiveLactation(presetCowToLactation(cow, activePreset.dataset));

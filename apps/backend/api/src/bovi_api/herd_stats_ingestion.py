@@ -7,13 +7,13 @@ Three input formats are supported, auto-detected from the header row:
 2. ``icar_test_day`` - one row per cow per milk recording, as produced by the
    ICAR platform. Required columns: ``TestId``, ``DaysInMilk``,
    ``DailyMilkingYield`` (and optionally ``Parity``, ``EventType``).
-3. ``dairycom_test_day`` - DairyCom (Cornell-style) export with European
+3. ``dairycom_test_day`` - Dairy Comp (American herd management system) export with European
    decimals (``,``) and milk in **lbs**. Required columns: ``ID``, ``DIM``,
    ``MILK`` (and optionally ``305ME`` with the 305-d mature equivalent).
 
 For the two test-day formats the parser aggregates raw records into herd-level
 stats: per-cow averages at DIM windows (21, 75), overall mean daily yield, mean
-days-in-milk per cow, and a 305-day yield estimate (DairyCom uses the ``305ME``
+days-in-milk per cow, and a 305-day yield estimate (Dairy Comp uses the ``305ME``
 column directly; ICAR uses a trapezoidal test-interval integration).
 
 Normalization is inlined (not imported from lactation_autoencoder) to keep the
@@ -128,7 +128,7 @@ def _detect_format(header: list[str]) -> FormatDetected:
     raise ValueError(
         "Could not detect CSV format. Expected aggregated herd stats "
         "(columns like Achieved305Milk), ICAR test-day records (TestId, "
-        "DaysInMilk, DailyMilkingYield) or a DairyCom export (ID, DIM, MILK, "
+        "DaysInMilk, DailyMilkingYield) or a Dairy Comp export (ID, DIM, MILK, "
         "305ME)."
     )
 
@@ -155,7 +155,7 @@ def _sniff_delimiter(sample: str) -> str:
 
 
 def _parse_number(cell: str) -> float | None:
-    """Parse a number, tolerating European decimals and DairyCom flag markers."""
+    """Parse a number, tolerating European decimals and Dairy Comp flag markers."""
     if cell is None:
         return None
     s = cell.strip().rstrip("*")
@@ -264,7 +264,7 @@ def parse_csv(content: bytes, max_rows: int = 200_000) -> IngestionResult:
         cows, parse_warnings = _parse_icar_test_day(header, data_rows)
     else:  # dairycom_test_day
         cows, parse_warnings = _parse_dairycom_test_day(header, data_rows)
-        warnings.append("Milk values converted from lbs to kg (DairyCom export).")
+        warnings.append("Milk values converted from lbs to kg (Dairy Comp export).")
     warnings.extend(parse_warnings)
 
     if not cows:
@@ -316,7 +316,7 @@ def aggregate_test_day_records(
     """Compute the canonical 10 herd stats from per-cow test-day records.
 
     Wraps the internal ``_aggregate_test_days`` helper so callers outside the
-    CSV-upload path (e.g. preset dataset endpoints) can derive the same stats
+    CSV-upload path (e.g. demo herd endpoints) can derive the same stats
     from already-parsed cow data.
 
     Args:
@@ -524,7 +524,7 @@ def _parse_dairycom_test_day(
     idx_305 = _header_index(header, "305me", "305ME")
 
     if idx_id is None or idx_dim is None or idx_milk is None:
-        raise ValueError("DairyCom export is missing required columns (ID, DIM, MILK).")
+        raise ValueError("Dairy Comp export is missing required columns (ID, DIM, MILK).")
 
     by_cow: dict[str, list[tuple[int, float]]] = defaultdict(list)
     latest_305: dict[str, float] = {}
