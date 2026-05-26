@@ -195,8 +195,8 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
               onMilkbotOptionsChange={setBenchmarkOptions}
             />
             <Text size="xs" c="dimmed">
-              Bovi runs this model server-side on the same cohort. Both your challenger and the
-              benchmark are then compared against the ground-truth ALY.
+              Bovi runs this model server-side on the same reference dataset. Both your challenger
+              and the benchmark are then compared against the ground-truth ALY.
             </Text>
           </Stack>
         </Card>

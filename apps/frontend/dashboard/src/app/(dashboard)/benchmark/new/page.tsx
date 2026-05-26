@@ -60,12 +60,12 @@ function PresetTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
         <Stack gap="sm">
           <Text fw={600}>Reference dataset</Text>
           <Text size="sm" c="var(--benchmark-muted-text)">
-            407 cows with sparse test-day records and ground-truth Actual Lactation Yield (ALY) from
-            daily milk meter recordings. This is the built-in dataset that can be used for
+            407 lactations with sparse test-day records and ground-truth Actual Lactation Yield
+            (ALY) from daily milk meter recordings. This is the built-in dataset that can be used for
             ground-truth benchmarking.
           </Text>
           <TextInput
-            label="Cohort name (optional)"
+            label="Challenge name (optional)"
             placeholder="Reference dataset"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -109,8 +109,8 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
       </Alert>
 
       <TextInput
-        label="Cohort name"
-        placeholder="My farm cohort 2025"
+        label="Challenge name"
+        placeholder="My farm lactations 2025"
         required
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -122,7 +122,7 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
             <Text fw={600} size="sm">
               Test-day records CSV
             </Text>
-            <Tooltip label="Sparse test-day milk recordings, multiple rows per cow.">
+            <Tooltip label="Sparse test-day milk recordings, multiple rows per lactation.">
               <ActionIcon size="xs" variant="subtle" color="gray">
                 <Info size={14} />
               </ActionIcon>
@@ -141,8 +141,8 @@ function UploadTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
                 <Stack gap={6}>
                   <Text size="xs">
                     Required columns: <Code>TestId</Code>, <Code>dim</Code>, <Code>milk_kg</Code>.
-                    Optional: <Code>parity</Code>. One row per test-day; multiple rows per cow.
-                    Comma or semicolon-separated, UTF-8.
+                    Optional: <Code>parity</Code>. One row per test-day; multiple rows per
+                    lactation. Comma or semicolon-separated, UTF-8.
                   </Text>
                   <Code block>{TEST_DAY_EXAMPLE_CSV}</Code>
                   <Button
@@ -244,8 +244,9 @@ export default function NewChallengePage(): ReactElement {
       <Stack gap={4}>
         <h1 className="text-2xl font-semibold">New Challenge</h1>
         <Text size="sm" c="var(--benchmark-muted-text)">
-          Pick a cohort with ground-truth Actual Lactation Yield (ALY). Use the built-in reference
-          dataset, or upload your own test-day records together with daily milk meter ground truth.
+          Pick a reference dataset with ground-truth Actual Lactation Yield (ALY). Use the built-in
+          reference dataset, or upload your own test-day records together with daily milk meter
+          ground truth.
         </Text>
       </Stack>
 
@@ -266,7 +267,7 @@ export default function NewChallengePage(): ReactElement {
         <Loader size="xs" style={{ display: "none" }} />
         <Text size="xs" c="var(--benchmark-muted-text)">
           Creating an upload challenge takes a few seconds. Once created, run the challenger and
-          benchmark on the cohort to see results.
+          benchmark on the reference dataset to see results.
         </Text>
       </Group>
     </div>

@@ -151,7 +151,7 @@ export function BenchmarkModelPicker({
             />
           </Group>
           <Text size="xs" c="dimmed">
-            Parity is read per cow from the benchmark cohort.
+            Parity is read per lactation from the reference dataset.
           </Text>
         </Stack>
       )}

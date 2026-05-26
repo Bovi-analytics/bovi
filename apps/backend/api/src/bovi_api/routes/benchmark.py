@@ -370,13 +370,13 @@ async def create_challenge_upload(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"actual-yields CSV: {exc}") from exc
 
-    # Coverage check: ALY must cover at least 80% of cows in the test-day file
+    # Coverage check: ALY must cover at least 80% of lactations in the test-day file
     overlap = sum(1 for cid in cow_metadata if cid in actual_yields)
     if not cow_metadata or overlap / len(cow_metadata) < 0.80:
         raise HTTPException(
             status_code=422,
             detail=(
-                f"Actual-yields CSV must cover at least 80% of cows from the test-day CSV "
+                f"Actual-yields CSV must cover at least 80% of lactations from the test-day CSV "
                 f"(got {overlap}/{len(cow_metadata)})."
             ),
         )

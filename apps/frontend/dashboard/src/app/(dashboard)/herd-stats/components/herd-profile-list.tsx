@@ -48,7 +48,7 @@ export function HerdProfileList(): ReactElement {
   const activeDatasetLabel = activePreset
     ? `${PRESET_LABELS[activePreset.dataset]} · ${PERIOD_LABELS[activePreset.period]} · ${SIZE_LABELS[activePreset.size]} sample`
     : uploadedDataset
-      ? `${uploadedDataset.name} · ${uploadedDataset.cows.length.toLocaleString()} cows`
+      ? `${uploadedDataset.name} · ${uploadedDataset.cows.length.toLocaleString()} lactations`
       : null;
 
   const datasetFormStats =

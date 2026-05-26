@@ -41,8 +41,8 @@ import { useCreateHerdProfile } from "../hooks/use-herd-profiles";
 /* ------------------------------------------------------------------ */
 
 type SourceKey = PresetDatasetKey | "upload";
-type FormatKey = "aggregated" | "icar_test_day" | "dairycom_test_day";
-type SelectableFormatKey = Exclude<FormatKey, "dairycom_test_day">;
+type FormatKey = "aggregated" | "icar_test_day";
+type SelectableFormatKey = FormatKey;
 
 interface SourceOption {
   value: SourceKey;
@@ -81,8 +81,8 @@ const PERIOD_OPTIONS = [
 ];
 
 const PRESET_LABELS: Record<PresetDatasetKey, string> = {
-  aurora: "Preset cohort A",
-  sunnyside: "Preset cohort B",
+  aurora: "Demo herd A",
+  sunnyside: "Demo herd B",
 };
 
 const PERIOD_LABELS: Record<PresetPeriodKey, string> = {
@@ -138,7 +138,7 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
   icar_test_day: {
     label: "Milk Recordings",
     blurb:
-      "One row per cow per recording date - the raw export you get from milk recording software. We calculate herd averages from these records automatically. Also extracts individual cow data for use on the Curves tab.",
+      "One row per lactation per recording date - the raw export you get from milk recording software. We calculate herd averages from these records automatically. Also extracts individual lactation data for use on the Curves tab.",
     columns: [
       {
         name: "TestId",
@@ -162,7 +162,7 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
   aggregated: {
     label: "Herd summary",
     blurb:
-      "A single row with the herd statistics already averaged across your herd. Use this when your farm software exports a per-herd aggregate rather than individual cow records.",
+      "A single row with the herd statistics already averaged across your herd. Use this when your farm software exports per-herd aggregates.",
     columns: VISIBLE_HERD_STATS_METADATA.map((m) => ({
       name: m.name,
       description: `${m.description} (${m.unit || "0–1 score"}, typical ${m.rawMin}–${m.rawMax})`,
@@ -244,7 +244,7 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
         {isLoading && <Loader size="sm" />}
         {presetData && !isLoading && (
           <Badge color="violet" variant="light" size="lg">
-            {presetData.cow_count.toLocaleString()} cows
+            {presetData.cow_count.toLocaleString()} lactations
           </Badge>
         )}
         {!isActive && (
@@ -258,7 +258,7 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
         <Alert color="violet" variant="light">
           <Group justify="space-between" align="center">
             <Text size="sm">
-              Demo herd active - {presetData?.cow_count.toLocaleString()} cows ready.
+              Demo herd active - {presetData?.cow_count.toLocaleString()} lactations ready.
             </Text>
             <Button
               component={Link}
@@ -338,7 +338,6 @@ function UploadPanel(): ReactElement {
   const FORMAT_LABELS: Record<FormatKey, string> = {
     aggregated: FORMATS.aggregated.label,
     icar_test_day: FORMATS.icar_test_day.label,
-    dairycom_test_day: "Dairy Comp",
   };
 
   return (
@@ -453,7 +452,7 @@ function UploadPanel(): ReactElement {
             <Badge variant="light">{FORMAT_LABELS[preview.format_detected]}</Badge>
             <Text size="xs">
               {preview.row_count.toLocaleString()} row(s)
-              {preview.cow_count != null && ` · ${preview.cow_count} cows`}
+              {preview.cow_count != null && ` · ${preview.cow_count} lactations`}
               {preview.detected_parity != null && ` · dominant parity ${preview.detected_parity}`}
             </Text>
           </Group>
@@ -464,8 +463,8 @@ function UploadPanel(): ReactElement {
           ))}
           {preview.cows.length > 0 && uploadedFilename && (
             <Alert icon={<CheckCircle2 size={14} />} color="green">
-              {preview.cows.length} cow records from <Code>{uploadedFilename}</Code> ready. Continue
-              to the{" "}
+              {preview.cows.length} lactation records from <Code>{uploadedFilename}</Code> ready.
+              Continue to the{" "}
               <Link href="/herd-profiles" style={{ textDecoration: "underline" }}>
                 Herd Profiles tab
               </Link>{" "}
@@ -604,7 +603,7 @@ export function DataSourcePicker(): ReactElement {
               </Text>
             ) : uploadedDataset ? (
               <Text size="sm">
-                {uploadedDataset.name} · {uploadedDataset.cows.length.toLocaleString()} cows
+                {uploadedDataset.name} · {uploadedDataset.cows.length.toLocaleString()} lactations
               </Text>
             ) : (
               <Text size="sm">No dataset selected yet.</Text>

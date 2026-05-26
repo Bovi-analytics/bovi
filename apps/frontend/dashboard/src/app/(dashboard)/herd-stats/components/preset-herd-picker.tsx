@@ -96,8 +96,8 @@ export function PresetHerdPicker(): ReactElement {
         Demo herds
       </Text>
       <Text size="xs">
-        Pick a built-in demo herd as the active herd. The selected cows will be available in the
-        Curves tab for individual lactation analysis.
+        Pick a built-in demo herd as the active herd. The selected lactations will be available in
+        the Curves tab for individual lactation analysis.
       </Text>
 
       <Group gap="sm">
@@ -152,7 +152,7 @@ export function PresetHerdPicker(): ReactElement {
               {isLoading && <Loader size="xs" />}
               {presetData && !isLoading && (
                 <Badge color="violet" variant="light">
-                  {presetData.cow_count.toLocaleString()} cows loaded
+                  {presetData.cow_count.toLocaleString()} lactations loaded
                 </Badge>
               )}
             </Stack>

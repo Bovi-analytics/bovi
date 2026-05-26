@@ -25,8 +25,8 @@ import { HerdProfileForm } from "./herd-profile-form";
 import { useHerdProfileUpload } from "../hooks/use-herd-profile-upload";
 import { useCreateHerdProfile } from "../hooks/use-herd-profiles";
 
-type FormatKey = "aggregated" | "icar_test_day" | "dairycom_test_day";
-type SelectableFormatKey = Exclude<FormatKey, "dairycom_test_day">;
+type FormatKey = "aggregated" | "icar_test_day";
+type SelectableFormatKey = FormatKey;
 
 interface FormatMeta {
   label: string;
@@ -59,7 +59,7 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
   icar_test_day: {
     label: "Milk Recordings",
     blurb:
-      "One row per cow per milk recording, as exported by milk-recording software. We aggregate across cows to derive AchievedMilk, Achieved21Milk, Achieved75Milk, Achieved305Milk (trapezoidal test-interval method) and DaysInMilk. Parity is also detected and shown as a hint for the AI autoencoder. All other herd stats remain at slider defaults.",
+      "One row per lactation per milk recording, as exported by milk-recording software. We aggregate across lactations to derive AchievedMilk, Achieved21Milk, Achieved75Milk, Achieved305Milk (trapezoidal test-interval method) and DaysInMilk. Parity is also detected and shown as a hint for the AI autoencoder. All other herd stats remain at slider defaults.",
     columns: [
       { name: "TestId", description: "Unique lactation identifier", required: true },
       { name: "DaysInMilk", description: "Days since calving for this record", required: true },
@@ -110,7 +110,6 @@ function downloadText(content: string, filename: string): void {
 const FORMAT_LABELS: Record<FormatKey, string> = {
   aggregated: "Herd summary",
   icar_test_day: "Milk Recordings",
-  dairycom_test_day: "Dairy Comp",
 };
 
 export function HerdProfileUpload(): ReactElement {
@@ -168,8 +167,8 @@ export function HerdProfileUpload(): ReactElement {
         </Text>
         <Text size="xs">
           Pick the format that matches your export, then upload the file. We auto-detect the format
-          server-side and aggregate per-cow records when needed. The detection hint below drives the
-          example template and the format docs only.
+          server-side and aggregate per-lactation records when needed. The detection hint below
+          drives the example template and the format docs only.
         </Text>
 
         <SegmentedControl
@@ -271,7 +270,7 @@ export function HerdProfileUpload(): ReactElement {
               <Badge variant="light">{FORMAT_LABELS[preview.format_detected]}</Badge>
               <Text size="xs">
                 {preview.row_count.toLocaleString()} row(s) processed
-                {preview.cow_count != null && ` · ${preview.cow_count} cows`}
+                {preview.cow_count != null && ` · ${preview.cow_count} lactations`}
                 {preview.detected_parity != null && ` · dominant parity ${preview.detected_parity}`}
               </Text>
             </Group>
@@ -282,8 +281,8 @@ export function HerdProfileUpload(): ReactElement {
             ))}
             {preview.cows.length > 0 && uploadedFilename && (
               <Alert icon={<CheckCircle2 size={14} />} color="green">
-                {preview.cows.length} cow record(s) from <Code>{uploadedFilename}</Code> saved.
-                Continue to the{" "}
+                {preview.cows.length} lactation record(s) from <Code>{uploadedFilename}</Code>{" "}
+                saved. Continue to the{" "}
                 <Link href="/herd-profiles" style={{ textDecoration: "underline" }}>
                   Herd Profiles tab
                 </Link>{" "}

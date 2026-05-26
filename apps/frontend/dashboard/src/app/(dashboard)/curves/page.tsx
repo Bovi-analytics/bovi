@@ -392,12 +392,12 @@ export default function CurvesPage(): ReactElement {
     }
   }
 
-  // The currently-active uploaded cow ID, if any
+  // The currently-active uploaded lactation ID, if any
   const activeUploadedCowId = activeLactation.id.startsWith(UPLOADED_COW_ID_PREFIX)
     ? activeLactation.id.slice(UPLOADED_COW_ID_PREFIX.length)
     : null;
 
-  // The currently-active preset cow info, if any
+  // The currently-active demo herd lactation info, if any
   const activePresetInfo = useMemo((): { dataset: PresetDatasetKey; cowId: string } | null => {
     for (const ds of ["aurora", "sunnyside"] as PresetDatasetKey[]) {
       const prefix = `preset:${ds}:`;
@@ -435,7 +435,7 @@ export default function CurvesPage(): ReactElement {
           value: "__preset_overflow__",
           label: `... and ${remaining} more - use Random or type a lactation ID`,
         });
-      const groupLabel = `${PRESET_DATASET_LABELS[activePreset.dataset]} - ${PRESET_PERIOD_LABELS[activePreset.period]} (${presetData.cow_count.toLocaleString()} cows)`;
+      const groupLabel = `${PRESET_DATASET_LABELS[activePreset.dataset]} - ${PRESET_PERIOD_LABELS[activePreset.period]} (${presetData.cow_count.toLocaleString()} lactations)`;
       groups.push({ group: groupLabel, items });
     } else if (uploadedDataset && uploadedDataset.cows.length > 0) {
       const visible = [...uploadedDataset.cows.slice(0, UPLOADED_COWS_VISIBLE_CAP)];
@@ -485,7 +485,7 @@ export default function CurvesPage(): ReactElement {
 
   function handleSelectLactation(id: string | null) {
     if (!id || id === "__overflow__" || id === "__preset_overflow__") return;
-    // Preset cow
+    // Demo herd lactation
     for (const ds of ["aurora", "sunnyside"] as PresetDatasetKey[]) {
       const prefix = `preset:${ds}:`;
       if (id.startsWith(prefix) && presetData) {
@@ -499,7 +499,7 @@ export default function CurvesPage(): ReactElement {
         return;
       }
     }
-    // Uploaded cow
+    // Uploaded lactation
     if (id.startsWith(UPLOADED_COW_ID_PREFIX) && uploadedDataset) {
       const cowId = id.slice(UPLOADED_COW_ID_PREFIX.length);
       const cow = getCow(cowId);
@@ -573,10 +573,10 @@ export default function CurvesPage(): ReactElement {
     if (activePreset && presetData) {
       const name = PRESET_DATASET_LABELS[activePreset.dataset];
       const period = PRESET_PERIOD_LABELS[activePreset.period];
-      return `${name} · ${period} · ${presetData.cow_count.toLocaleString()} cows`;
+      return `${name} · ${period} · ${presetData.cow_count.toLocaleString()} lactations`;
     }
     if (uploadedDataset) {
-      return `${uploadedDataset.name} · ${uploadedDataset.cows.length.toLocaleString()} cows`;
+      return `${uploadedDataset.name} · ${uploadedDataset.cows.length.toLocaleString()} lactations`;
     }
     return null;
   })();
@@ -681,13 +681,13 @@ export default function CurvesPage(): ReactElement {
         </button>
       </div>
 
-      {/* Cow selection (testday mode only) */}
+      {/* Lactation selection (testday mode only) */}
       {dataMode === "testday" && (
         <div className="rounded-lg border border-border bg-card p-4">
           <Stack gap="sm">
             <div>
               <Text size="md" fw={700}>
-                Select a cow
+                Select a lactation
               </Text>
               <Text size="sm" c="dimmed" mt={4}>
                 Classical lactation curve models are fit to the test-day records of one individual
@@ -795,13 +795,13 @@ export default function CurvesPage(): ReactElement {
         </div>
       )}
 
-      {/* Cow selection (daily mode) */}
+      {/* Lactation selection (daily mode) */}
       {dataMode === "daily" && (
         <div className="rounded-lg border border-border bg-card p-4">
           <Stack gap="sm">
             <div>
               <Text size="md" fw={700}>
-                Select a cow
+                Select a lactation
               </Text>
               <Text size="sm" c="dimmed" mt={4}>
                 Daily recordings enable both classical lactation curve models and the AI
@@ -842,7 +842,7 @@ export default function CurvesPage(): ReactElement {
               ))}
             </Group>
 
-            {/* Your data panel - preset/uploaded cows have periodic data only */}
+            {/* Your data panel - demo herd/uploaded lactations have periodic data only */}
             {cowSourceDaily === "data" &&
               (activePreset || uploadedDataset ? (
                 <Alert
@@ -869,7 +869,7 @@ export default function CurvesPage(): ReactElement {
                         Periodic Records
                       </Text>
                     </UnstyledButton>{" "}
-                    to analyze individual cows from your dataset.
+                    to analyze individual lactations from your dataset.
                   </Text>
                 </Alert>
               ) : (
