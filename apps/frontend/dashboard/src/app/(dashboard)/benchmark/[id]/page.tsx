@@ -11,8 +11,9 @@ import { useChallenge } from "../hooks/use-challenges";
 import { useSubmissions } from "../hooks/use-submissions";
 
 const DATASET_LABEL: Record<string, string> = {
-  icar: "Reference dataset",
+  icar: "Demo dataset",
   upload: "Custom upload",
+  saved_upload: "Saved dataset",
 };
 
 export default function ChallengeDetailPage(): ReactElement {
@@ -51,7 +52,7 @@ export default function ChallengeDetailPage(): ReactElement {
         </Group>
         <Text size="sm" c="var(--benchmark-muted-text)">
           Submit a challenger - a Bovi model or your own CSV - and select a benchmark for this
-          reference dataset.
+          benchmark dataset.
         </Text>
       </Stack>
 

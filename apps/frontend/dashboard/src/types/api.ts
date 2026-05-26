@@ -209,6 +209,9 @@ export const HerdProfileUploadResponseSchema = z.object({
   warnings: z.array(z.string()),
   cow_count: z.number().nullable().optional(),
   detected_parity: z.number().nullable().optional(),
+  columns: z.array(z.string()).default([]),
+  column_mapping: z.record(z.string(), z.string()).default({}),
+  mapping_required: z.boolean().default(false),
   cows: z.array(CowRecordSchema).default([]),
 });
 
@@ -278,6 +281,19 @@ export const ChallengeReadSchema = z.object({
   created_at: z.string().nullable(),
 });
 export type ChallengeRead = z.infer<typeof ChallengeReadSchema>;
+
+const BenchmarkCowMetadataSchema = z.object({
+  parity: z.number().nullable().optional(),
+  herd_id: z.number().nullable().optional(),
+  dim: z.array(z.number()),
+  milk_kg: z.array(z.number()),
+});
+
+export const ChallengeDetailSchema = ChallengeReadSchema.extend({
+  cow_metadata: z.record(z.string(), BenchmarkCowMetadataSchema),
+  actual_yields: z.record(z.string(), z.number()).nullable().optional(),
+});
+export type ChallengeDetail = z.infer<typeof ChallengeDetailSchema>;
 
 export const ChallengeListSchema = z.array(ChallengeReadSchema);
 

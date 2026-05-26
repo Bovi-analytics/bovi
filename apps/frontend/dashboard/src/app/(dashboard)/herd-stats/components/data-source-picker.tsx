@@ -13,6 +13,7 @@ import {
   Modal,
   Paper,
   SegmentedControl,
+  Select,
   Stack,
   Table,
   Text,
@@ -21,9 +22,9 @@ import {
 } from "@mantine/core";
 import { AlertCircle, CheckCircle2, ChevronRight, Download, Info } from "lucide-react";
 import Link from "next/link";
-import { HERD_STATS_METADATA, VISIBLE_HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
-import { statsToHerdProfileFields } from "@/lib/herd-profile-utils";
-import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
+import { VISIBLE_HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
+import { useUploadedCows, type UploadedDataset } from "@/app/providers/uploaded-cows-provider";
+import { ActiveDatasetPanel } from "@/components/dashboard/active-dataset-panel";
 import { usePresetCounts } from "@/app/(dashboard)/curves/hooks/use-preset-counts";
 import { usePresetDataset } from "@/app/(dashboard)/curves/hooks/use-preset-dataset";
 import type {
@@ -32,17 +33,16 @@ import type {
   PresetPeriodKey,
   PresetSizeKey,
 } from "@/types/api";
-import { HerdProfileForm } from "./herd-profile-form";
 import { useHerdProfileUpload } from "../hooks/use-herd-profile-upload";
-import { useCreateHerdProfile } from "../hooks/use-herd-profiles";
 
 /* ------------------------------------------------------------------ */
 /*  Types & constants                                                  */
 /* ------------------------------------------------------------------ */
 
-type SourceKey = PresetDatasetKey | "upload";
+type SourceKey = PresetDatasetKey | "upload" | "saved";
 type FormatKey = "aggregated" | "icar_test_day";
 type SelectableFormatKey = FormatKey;
+type TestDayMappingKey = "cow_id" | "dim" | "milk_kg" | "parity" | "herd_id" | "event_type";
 
 interface SourceOption {
   value: SourceKey;
@@ -68,6 +68,12 @@ const SOURCE_OPTIONS: SourceOption[] = [
   },
 ];
 
+const SAVED_SOURCE_OPTION: SourceOption = {
+  value: "saved",
+  label: "Saved datasets",
+  description: "Reuse your own uploaded datasets",
+};
+
 const SIZE_OPTIONS = [
   { value: "small", label: "Small" },
   { value: "medium", label: "Medium" },
@@ -79,23 +85,6 @@ const PERIOD_OPTIONS = [
   { value: "old", label: "Old" },
   { value: "mixed", label: "Mixed" },
 ];
-
-const PRESET_LABELS: Record<PresetDatasetKey, string> = {
-  aurora: "Demo herd A",
-  sunnyside: "Demo herd B",
-};
-
-const PERIOD_LABELS: Record<PresetPeriodKey, string> = {
-  recent: "Recent",
-  old: "Old",
-  mixed: "Mixed",
-};
-
-const SIZE_LABELS: Record<PresetSizeKey, string> = {
-  small: "Small",
-  medium: "Medium",
-  large: "Large",
-};
 
 function sizeOptionsWithCounts(
   counts: Record<string, Record<string, number>> | undefined,
@@ -173,6 +162,17 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
   },
 };
 
+const REQUIRED_MAPPING_KEYS: TestDayMappingKey[] = ["cow_id", "dim", "milk_kg"];
+const OPTIONAL_MAPPING_KEYS: TestDayMappingKey[] = ["parity", "herd_id", "event_type"];
+const MAPPING_LABELS: Record<TestDayMappingKey, string> = {
+  cow_id: "Lactation ID",
+  dim: "Days in milk",
+  milk_kg: "Milk yield",
+  parity: "Parity",
+  herd_id: "Herd ID",
+  event_type: "Event type",
+};
+
 function downloadText(content: string, filename: string): void {
   const blob = new Blob([content], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -181,6 +181,48 @@ function downloadText(content: string, filename: string): void {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function toUploadedDataset(
+  response: HerdProfileUploadResponse,
+  filename: string,
+  uploadedAt = new Date().toISOString()
+): UploadedDataset {
+  return {
+    id: `${Date.now()}-${filename}`,
+    name: filename,
+    format: "icar_test_day",
+    uploadedAt,
+    rowCount: response.row_count,
+    cowCount: response.cow_count ?? response.cows.length,
+    detectedParity: response.detected_parity ?? null,
+    columns: response.columns,
+    columnMapping: response.column_mapping,
+    stats: response.stats,
+    rawStats: response.raw_stats,
+    cows: response.cows.map((c) => ({
+      cowId: c.cow_id,
+      parity: c.parity,
+      dim: c.dim,
+      milkrecordings: c.milk_kg,
+    })),
+  };
+}
+
+function mappingSummary(mapping: Readonly<Record<string, string>> | undefined): string {
+  if (!mapping) return "-";
+  return REQUIRED_MAPPING_KEYS.map((key) => `${MAPPING_LABELS[key]}: ${mapping[key] ?? "-"}`).join(
+    " · "
+  );
+}
+
+function formatUploadDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -290,49 +332,74 @@ function PresetPanel({ dataset }: { dataset: PresetDatasetKey }): ReactElement {
 function UploadPanel(): ReactElement {
   const [selectedFormat, setSelectedFormat] = useState<SelectableFormatKey>("icar_test_day");
   const [preview, setPreview] = useState<HerdProfileUploadResponse | null>(null);
-  const [saveOpen, setSaveOpen] = useState(false);
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [mappingOpen, setMappingOpen] = useState(false);
+  const [mappingDraft, setMappingDraft] = useState<Record<TestDayMappingKey, string>>({
+    cow_id: "",
+    dim: "",
+    milk_kg: "",
+    parity: "",
+    herd_id: "",
+    event_type: "",
+  });
   const inputRef = useRef<HTMLInputElement>(null);
 
   const uploadMutation = useHerdProfileUpload();
-  const createMutation = useCreateHerdProfile();
-  const { setDataset } = useUploadedCows();
+  const { dataset: uploadedDataset, saveDataset } = useUploadedCows();
 
   const activeFormat = FORMATS[selectedFormat];
   const detectedMismatch = preview !== null && preview.format_detected !== selectedFormat;
+
+  function activateResponse(response: HerdProfileUploadResponse, filename: string) {
+    setPreview(response);
+    setUploadedFilename(filename);
+    if (response.cows.length > 0 && response.format_detected === "icar_test_day") {
+      saveDataset(toUploadedDataset(response, filename));
+    }
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const filename = file.name;
-    uploadMutation.mutate(file, {
+    setPendingFile(file);
+    uploadMutation.mutate({ file }, {
       onSuccess: (response) => {
-        setPreview(response);
         setUploadedFilename(filename);
-        if (
-          response.cows.length > 0 &&
-          response.format_detected === "icar_test_day"
-        ) {
-          setDataset({
-            name: filename,
-            format: response.format_detected,
-            uploadedAt: new Date().toISOString(),
-            cows: response.cows.map((c) => ({
-              cowId: c.cow_id,
-              parity: c.parity,
-              dim: c.dim,
-              milkrecordings: c.milk_kg,
-            })),
+        setPreview(response);
+        if (response.mapping_required) {
+          setMappingDraft({
+            cow_id: response.column_mapping.cow_id ?? "",
+            dim: response.column_mapping.dim ?? "",
+            milk_kg: response.column_mapping.milk_kg ?? "",
+            parity: response.column_mapping.parity ?? "",
+            herd_id: response.column_mapping.herd_id ?? "",
+            event_type: response.column_mapping.event_type ?? "",
           });
+          setMappingOpen(true);
+          return;
         }
+        activateResponse(response, filename);
       },
     });
     e.target.value = "";
   }
 
-  function getPreviewStatsArray(): number[] {
-    if (!preview) return [];
-    return HERD_STATS_METADATA.map((meta) => preview.stats[meta.name] ?? meta.default);
+  function confirmMapping() {
+    if (!pendingFile || !uploadedFilename) return;
+    const cleaned = Object.fromEntries(
+      Object.entries(mappingDraft).filter(([, value]) => value.trim())
+    );
+    uploadMutation.mutate(
+      { file: pendingFile, columnMapping: cleaned },
+      {
+        onSuccess: (response) => {
+          setMappingOpen(false);
+          activateResponse(response, uploadedFilename);
+        },
+      }
+    );
   }
 
   const FORMAT_LABELS: Record<FormatKey, string> = {
@@ -442,6 +509,11 @@ function UploadPanel(): ReactElement {
 
       {preview && (
         <Stack gap="sm">
+          {preview.mapping_required && (
+            <Alert icon={<AlertCircle size={14} />} color="blue">
+              Review the column mapping before this dataset is selected.
+            </Alert>
+          )}
           {detectedMismatch && (
             <Alert icon={<AlertCircle size={14} />} color="blue">
               Detected format: <Code>{FORMAT_LABELS[preview.format_detected]}</Code>. Switched from{" "}
@@ -463,12 +535,8 @@ function UploadPanel(): ReactElement {
           ))}
           {preview.cows.length > 0 && uploadedFilename && (
             <Alert icon={<CheckCircle2 size={14} />} color="green">
-              {preview.cows.length} lactation records from <Code>{uploadedFilename}</Code> ready.
-              Continue to the{" "}
-              <Link href="/herd-profiles" style={{ textDecoration: "underline" }}>
-                Herd Profiles tab
-              </Link>{" "}
-              before opening Curves.
+              {preview.cows.length} lactation records from <Code>{uploadedFilename}</Code>{" "}
+              {uploadedDataset?.name === uploadedFilename ? "selected as the active dataset." : "ready."}
             </Alert>
           )}
           <Table striped withColumnBorders fz="xs">
@@ -508,9 +576,22 @@ function UploadPanel(): ReactElement {
             </Table.Tbody>
           </Table>
           <Group>
-            <Button size="sm" color="violet" onClick={() => setSaveOpen(true)}>
-              Save as profile…
-            </Button>
+            {preview.mapping_required && (
+              <Button size="sm" color="violet" onClick={() => setMappingOpen(true)}>
+                Review column mapping
+              </Button>
+            )}
+            {uploadedDataset?.name === uploadedFilename && (
+              <Button
+                component={Link}
+                href="/herd-profiles"
+                size="sm"
+                color="violet"
+                rightSection={<ChevronRight size={14} />}
+              >
+                Go to Herd Profiles
+              </Button>
+            )}
             <Button size="sm" variant="subtle" onClick={() => setPreview(null)}>
               Discard
             </Button>
@@ -519,36 +600,147 @@ function UploadPanel(): ReactElement {
       )}
 
       <Modal
-        opened={saveOpen}
-        onClose={() => setSaveOpen(false)}
-        title="Save herd profile"
-        size="xl"
+        opened={mappingOpen}
+        onClose={() => setMappingOpen(false)}
+        title="Confirm column mapping"
+        size="lg"
       >
-        <HerdProfileForm
-          initial={
-            preview
-              ? {
-                  id: -1,
-                  name: "",
-                  description: "",
-                  created_at: null,
-                  updated_at: null,
-                  ...statsToHerdProfileFields(getPreviewStatsArray()),
-                }
-              : undefined
-          }
-          onSubmit={(data) => {
-            createMutation.mutate(data, {
-              onSuccess: () => {
-                setSaveOpen(false);
-                setPreview(null);
-              },
-            });
-          }}
-          onCancel={() => setSaveOpen(false)}
-          isLoading={createMutation.isPending}
-        />
+        <Stack gap="md">
+          <Text size="sm">
+            Match the uploaded columns to the fields needed for milk-recording datasets.
+          </Text>
+          {[...REQUIRED_MAPPING_KEYS, ...OPTIONAL_MAPPING_KEYS].map((key) => (
+            <Select
+              key={key}
+              label={MAPPING_LABELS[key]}
+              required={REQUIRED_MAPPING_KEYS.includes(key)}
+              clearable={!REQUIRED_MAPPING_KEYS.includes(key)}
+              value={mappingDraft[key] || null}
+              data={(preview?.columns ?? []).map((column) => ({ value: column, label: column }))}
+              onChange={(value) => setMappingDraft((current) => ({ ...current, [key]: value ?? "" }))}
+            />
+          ))}
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setMappingOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              color="violet"
+              onClick={confirmMapping}
+              loading={uploadMutation.isPending}
+              disabled={REQUIRED_MAPPING_KEYS.some((key) => !mappingDraft[key])}
+            >
+              Accept mapping
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
+    </Stack>
+  );
+}
+
+function SavedDatasetsPanel(): ReactElement {
+  const { dataset: uploadedDataset, savedDatasets, selectSavedDataset } = useUploadedCows();
+
+  if (savedDatasets.length === 0) {
+    return (
+      <Alert color="gray" variant="light">
+        <Text size="sm">No saved datasets yet. Upload a milk-recording CSV first.</Text>
+      </Alert>
+    );
+  }
+
+  return (
+    <Stack gap="md">
+      <Table striped withColumnBorders fz="sm">
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>Status</Table.Th>
+            <Table.Th>Dataset</Table.Th>
+            <Table.Th>Uploaded</Table.Th>
+            <Table.Th>Rows</Table.Th>
+            <Table.Th>Lactations</Table.Th>
+            <Table.Th>Mapping</Table.Th>
+            <Table.Th>Columns</Table.Th>
+            <Table.Th>Action</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {savedDatasets.map((saved) => {
+            const active = uploadedDataset?.id === saved.id;
+            return (
+              <Table.Tr key={saved.id}>
+                <Table.Td>
+                  {active ? (
+                    <Badge color="violet" variant="filled">
+                      Active
+                    </Badge>
+                  ) : (
+                    <Badge color="gray" variant="light">
+                      Saved
+                    </Badge>
+                  )}
+                </Table.Td>
+                <Table.Td>
+                  <Text size="sm" fw={600}>
+                    {saved.name}
+                  </Text>
+                  {saved.detectedParity != null && (
+                    <Text size="xs" c="dimmed">
+                      Dominant parity {saved.detectedParity}
+                    </Text>
+                  )}
+                </Table.Td>
+                <Table.Td>{formatUploadDate(saved.uploadedAt)}</Table.Td>
+                <Table.Td>{saved.rowCount?.toLocaleString() ?? "-"}</Table.Td>
+                <Table.Td>
+                  {(saved.cowCount ?? saved.cows.length).toLocaleString()}
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs">{mappingSummary(saved.columnMapping)}</Text>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs" lineClamp={2}>
+                    {saved.columns?.join(", ") ?? "-"}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Button
+                    size="xs"
+                    variant={active ? "light" : "filled"}
+                    color="violet"
+                    disabled={active}
+                    onClick={() => selectSavedDataset(saved.id)}
+                  >
+                    {active ? "Selected" : "Select"}
+                  </Button>
+                </Table.Td>
+              </Table.Tr>
+            );
+          })}
+        </Table.Tbody>
+      </Table>
+
+      {uploadedDataset && (
+        <Alert color="violet" variant="light">
+          <Group justify="space-between" align="center">
+            <Text size="sm">
+              {uploadedDataset.name} active -{" "}
+              {(uploadedDataset.cowCount ?? uploadedDataset.cows.length).toLocaleString()}{" "}
+              lactations ready.
+            </Text>
+            <Button
+              component={Link}
+              href="/herd-profiles"
+              size="sm"
+              color="violet"
+              rightSection={<ChevronRight size={14} />}
+            >
+              Go to Herd Profiles
+            </Button>
+          </Group>
+        </Alert>
+      )}
     </Stack>
   );
 }
@@ -558,7 +750,7 @@ function UploadPanel(): ReactElement {
 /* ------------------------------------------------------------------ */
 
 export function DataSourcePicker(): ReactElement {
-  const { activePreset, dataset: uploadedDataset } = useUploadedCows();
+  const { activePreset, dataset: uploadedDataset, savedDatasets } = useUploadedCows();
   const activePresetDataset = activePreset?.dataset;
 
   // Derive initial active source from context state
@@ -578,6 +770,9 @@ export function DataSourcePicker(): ReactElement {
     }
   }, [activePresetDataset]);
 
+  const sourceOptions =
+    savedDatasets.length > 0 ? [...SOURCE_OPTIONS, SAVED_SOURCE_OPTION] : SOURCE_OPTIONS;
+
   return (
     <Stack gap="md">
       <div>
@@ -590,36 +785,11 @@ export function DataSourcePicker(): ReactElement {
         </Text>
       </div>
 
-      <Alert color={activePreset || uploadedDataset ? "violet" : "gray"} variant="light">
-        <Group justify="space-between" align="center" gap="sm">
-          <div>
-            <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-              Active dataset
-            </Text>
-            {activePreset ? (
-              <Text size="sm">
-                {PRESET_LABELS[activePreset.dataset]} · {PERIOD_LABELS[activePreset.period]} ·{" "}
-                {SIZE_LABELS[activePreset.size]} sample
-              </Text>
-            ) : uploadedDataset ? (
-              <Text size="sm">
-                {uploadedDataset.name} · {uploadedDataset.cows.length.toLocaleString()} lactations
-              </Text>
-            ) : (
-              <Text size="sm">No dataset selected yet.</Text>
-            )}
-          </div>
-          {(activePreset || uploadedDataset) && (
-            <Badge color="violet" variant="filled">
-              Ready for Herd Profiles
-            </Badge>
-          )}
-        </Group>
-      </Alert>
+      <ActiveDatasetPanel actionHref="/herd-profiles" actionLabel="Go to Herd Profiles" />
 
       {/* Source tiles */}
       <Group gap="sm">
-        {SOURCE_OPTIONS.map((opt) => {
+        {sourceOptions.map((opt) => {
           const isActive = activeSource === opt.value;
           return (
             <UnstyledButton
@@ -655,6 +825,7 @@ export function DataSourcePicker(): ReactElement {
       {activeSource === "aurora" && <PresetPanel dataset="aurora" />}
       {activeSource === "sunnyside" && <PresetPanel dataset="sunnyside" />}
       {activeSource === "upload" && <UploadPanel />}
+      {activeSource === "saved" && <SavedDatasetsPanel />}
     </Stack>
   );
 }

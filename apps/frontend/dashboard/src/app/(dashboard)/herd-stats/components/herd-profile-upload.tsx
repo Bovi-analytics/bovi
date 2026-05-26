@@ -126,7 +126,7 @@ export function HerdProfileUpload(): ReactElement {
     const file = e.target.files?.[0];
     if (!file) return;
     const filename = file.name;
-    uploadMutation.mutate(file, {
+    uploadMutation.mutate({ file }, {
       onSuccess: (response) => {
         setPreview(response);
         setUploadedFilename(filename);
@@ -135,9 +135,17 @@ export function HerdProfileUpload(): ReactElement {
           response.format_detected === "icar_test_day"
         ) {
           setDataset({
+            id: `${Date.now()}-${filename}`,
             name: filename,
             format: response.format_detected,
             uploadedAt: new Date().toISOString(),
+            rowCount: response.row_count,
+            cowCount: response.cow_count ?? response.cows.length,
+            detectedParity: response.detected_parity ?? null,
+            columns: response.columns,
+            columnMapping: response.column_mapping,
+            stats: response.stats,
+            rawStats: response.raw_stats,
             cows: response.cows.map((c) => ({
               cowId: c.cow_id,
               parity: c.parity,

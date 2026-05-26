@@ -32,6 +32,27 @@ def test_list_submissions_empty(client):
     assert resp.json() == []
 
 
+def test_create_challenge_from_saved_dataset(client):
+    """POST /benchmark/challenges/saved-dataset creates an upload-backed challenge."""
+    resp = client.post(
+        "/benchmark/challenges/saved-dataset",
+        json={
+            "name": "Saved upload",
+            "cow_metadata": {
+                "cow1": {"parity": 2, "herd_id": 123, "dim": [10, 40], "milk_kg": [25.0, 31.0]},
+                "cow2": {"parity": 3, "herd_id": 123, "dim": [12, 42], "milk_kg": [28.0, 34.0]},
+            },
+            "actual_yields": {"cow1": 8500.0, "cow2": 9100.0},
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["dataset"] == "saved_upload"
+    assert data["source"] == "upload"
+    assert data["name"] == "Saved upload"
+
+
 def test_pad_b_upload_rejects_high_failure_rate(client):
     """POST upload with >20% bad rows → 422.
 

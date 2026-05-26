@@ -309,6 +309,12 @@ class ChallengeCreatePresetBody(BaseModel):
     name: str | None = None
 
 
+class ChallengeCreateSavedDatasetBody(BaseModel):
+    name: str
+    cow_metadata: dict[str, dict]
+    actual_yields: dict[str, float]
+
+
 @router.post("/challenges", response_model=ChallengeRead, status_code=201)
 async def create_challenge_preset(
     body: ChallengeCreatePresetBody,
@@ -343,10 +349,48 @@ async def create_challenge_preset(
         size="full",
         period="all",
         source="preset",
-        name=body.name or "Reference dataset",
+        name=body.name or "Demo dataset",
         cow_metadata=cow_metadata,
         reference_yields=None,
         actual_yields=preset.actual_yields,
+    )
+    session.add(challenge)
+    await session.commit()
+    await session.refresh(challenge)
+    return challenge
+
+
+@router.post("/challenges/saved-dataset", response_model=ChallengeRead, status_code=201)
+async def create_challenge_saved_dataset(
+    body: ChallengeCreateSavedDatasetBody,
+    session: AsyncSession = Depends(get_session),
+) -> Challenge:
+    """Create a challenge from a previously parsed upload-backed benchmark dataset."""
+    if not body.cow_metadata:
+        raise HTTPException(status_code=422, detail="Saved dataset has no test-day records.")
+    if not body.actual_yields:
+        raise HTTPException(status_code=422, detail="Saved dataset has no actual yields.")
+
+    overlap = sum(1 for cid in body.cow_metadata if cid in body.actual_yields)
+    if overlap / len(body.cow_metadata) < 0.80:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Actual yields must cover at least 80% of lactations from the test-day data "
+                f"(got {overlap}/{len(body.cow_metadata)})."
+            ),
+        )
+    cow_metadata = {cid: m for cid, m in body.cow_metadata.items() if cid in body.actual_yields}
+
+    challenge = Challenge(
+        dataset="saved_upload",
+        size="custom",
+        period="custom",
+        source="upload",
+        name=body.name,
+        cow_metadata=cow_metadata,
+        reference_yields=None,
+        actual_yields={cid: float(body.actual_yields[cid]) for cid in cow_metadata},
     )
     session.add(challenge)
     await session.commit()

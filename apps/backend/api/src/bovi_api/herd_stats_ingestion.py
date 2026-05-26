@@ -36,6 +36,24 @@ from typing import Literal
 
 FormatDetected = Literal["aggregated", "icar_test_day", "dairycom_test_day"]
 
+TEST_DAY_MAPPING_KEYS = ("cow_id", "dim", "milk_kg", "parity", "herd_id", "event_type")
+_TEST_DAY_REQUIRED_MAPPING_KEYS = ("cow_id", "dim", "milk_kg")
+_TEST_DAY_ALIASES: dict[str, tuple[str, ...]] = {
+    "cow_id": ("testid", "cow_id", "cowid", "id"),
+    "dim": ("daysinmilk", "days_in_milk", "dim"),
+    "milk_kg": ("dailymilkingyield", "milk_kg", "milk", "milkrecording"),
+    "parity": ("parity", "lact", "lactation"),
+    "herd_id": ("herd_id", "herdid", "herd", "farm_id", "farmid"),
+    "event_type": ("eventtype", "event_type"),
+}
+_EXACT_ICAR_COLUMNS = {
+    "cow_id": "TestId",
+    "dim": "DaysInMilk",
+    "milk_kg": "DailyMilkingYield",
+    "parity": "Parity",
+    "event_type": "EventType",
+}
+
 CANONICAL_NAMES: list[str] = [
     "Achieved21Milk",
     "Achieved305Milk",
@@ -94,6 +112,13 @@ class _CowLactation:
     milk_305d: float | None  # None unless the source provided a 305-d column
 
 
+@dataclass
+class _DetectedColumns:
+    format_detected: FormatDetected
+    mapping: dict[str, str]
+    mapping_required: bool
+
+
 # ---------------------------------------------------------------------------
 # Format detection
 # ---------------------------------------------------------------------------
@@ -103,7 +128,45 @@ def _normalise_header(h: str) -> str:
     return h.strip().lower().replace(" ", "").replace("_", "")
 
 
-def _detect_format(header: list[str], *, allow_dairy_comp: bool = False) -> FormatDetected:
+def _detect_test_day_mapping(header: list[str]) -> tuple[dict[str, str], bool]:
+    """Return likely test-day semantic column mapping and whether it needs review."""
+    by_norm = {_normalise_header(h): h for h in header}
+    mapping: dict[str, str] = {}
+    for semantic, aliases in _TEST_DAY_ALIASES.items():
+        for alias in aliases:
+            match = by_norm.get(_normalise_header(alias))
+            if match is not None:
+                mapping[semantic] = match
+                break
+
+    exact = all(
+        _normalise_header(mapping.get(key, "")) == _normalise_header(exact_name)
+        for key, exact_name in _EXACT_ICAR_COLUMNS.items()
+        if key in _TEST_DAY_REQUIRED_MAPPING_KEYS
+    )
+    return mapping, not exact
+
+
+def _coerce_column_mapping(header: list[str], mapping: dict[str, str]) -> dict[str, str]:
+    """Validate and normalize a user supplied test-day column mapping."""
+    by_norm = {_normalise_header(h): h for h in header}
+    resolved: dict[str, str] = {}
+    for key in TEST_DAY_MAPPING_KEYS:
+        value = (mapping.get(key) or "").strip()
+        if not value:
+            continue
+        match = by_norm.get(_normalise_header(value))
+        if match is None:
+            raise ValueError(f"Column mapping for '{key}' points to missing column '{value}'.")
+        resolved[key] = match
+
+    missing = [key for key in _TEST_DAY_REQUIRED_MAPPING_KEYS if key not in resolved]
+    if missing:
+        raise ValueError("Column mapping is missing required fields: " + ", ".join(missing))
+    return resolved
+
+
+def _detect_format(header: list[str], *, allow_dairy_comp: bool = False) -> _DetectedColumns:
     """Classify a CSV header row into one of the supported formats.
 
     Args:
@@ -119,11 +182,6 @@ def _detect_format(header: list[str], *, allow_dairy_comp: bool = False) -> Form
     """
     norm = {_normalise_header(h) for h in header}
 
-    icar_required = {"testid", "daysinmilk", "dailymilkingyield"}
-    icar_signals = {"eventtype", "calvingdate", "dailymilkingyield"}
-    if icar_required <= norm and norm & icar_signals:
-        return "icar_test_day"
-
     dairycom_required = {"id", "dim", "milk"}
     dairycom_signals = {"305me", "pctf", "pctp", "fcm", "relv", "scc", "pen"}
     if dairycom_required <= norm and norm & dairycom_signals:
@@ -132,10 +190,26 @@ def _detect_format(header: list[str], *, allow_dairy_comp: bool = False) -> Form
                 "Dairy Comp uploads are temporarily disabled. Please upload milk recording data "
                 "with TestId, DaysInMilk, and DailyMilkingYield columns."
             )
-        return "dairycom_test_day"
+        return _DetectedColumns(
+            format_detected="dairycom_test_day",
+            mapping={},
+            mapping_required=False,
+        )
+
+    test_day_mapping, mapping_required = _detect_test_day_mapping(header)
+    if all(key in test_day_mapping for key in _TEST_DAY_REQUIRED_MAPPING_KEYS):
+        return _DetectedColumns(
+            format_detected="icar_test_day",
+            mapping=test_day_mapping,
+            mapping_required=mapping_required,
+        )
 
     if any(_resolve_aggregated_column(h) for h in header):
-        return "aggregated"
+        return _DetectedColumns(
+            format_detected="aggregated",
+            mapping={},
+            mapping_required=False,
+        )
 
     raise ValueError(
         "Could not detect CSV format. Expected aggregated herd stats "
@@ -206,6 +280,9 @@ class IngestionResult:
     cow_count: int | None = None
     detected_parity: int | None = None
     cows: list[CowRecord] | None = None
+    columns: list[str] | None = None
+    column_mapping: dict[str, str] | None = None
+    mapping_required: bool = False
 
 
 def parse_csv(
@@ -213,6 +290,7 @@ def parse_csv(
     max_rows: int = 200_000,
     *,
     allow_dairy_comp: bool = False,
+    column_mapping: dict[str, str] | None = None,
 ) -> IngestionResult:
     """Parse uploaded CSV bytes into raw herd stats.
 
@@ -260,7 +338,15 @@ def parse_csv(
     if not data_rows:
         raise ValueError("Not a valid CSV file - no data rows found")
 
-    fmt = _detect_format(header, allow_dairy_comp=allow_dairy_comp)
+    if column_mapping is not None:
+        detected = _DetectedColumns(
+            format_detected="icar_test_day",
+            mapping=_coerce_column_mapping(header, column_mapping),
+            mapping_required=False,
+        )
+    else:
+        detected = _detect_format(header, allow_dairy_comp=allow_dairy_comp)
+    fmt = detected.format_detected
 
     warnings: list[str] = []
     if len(data_rows) > max_rows:
@@ -277,10 +363,13 @@ def parse_csv(
             format_detected="aggregated",
             row_count=row_count,
             warnings=warnings,
+            columns=header,
+            column_mapping={},
+            mapping_required=False,
         )
 
     if fmt == "icar_test_day":
-        cows, parse_warnings = _parse_icar_test_day(header, data_rows)
+        cows, parse_warnings = _parse_icar_test_day(header, data_rows, detected.mapping)
     else:  # dairycom_test_day
         cows, parse_warnings = _parse_dairycom_test_day(header, data_rows)
         warnings.append("Milk values converted from lbs to kg (Dairy Comp export).")
@@ -326,6 +415,9 @@ def parse_csv(
         cow_count=len(cows),
         detected_parity=detected_parity,
         cows=cow_records,
+        columns=header,
+        column_mapping=detected.mapping,
+        mapping_required=detected.mapping_required,
     )
 
 
@@ -461,23 +553,54 @@ def _parse_aggregated(
 
 def _header_index(header: list[str], *candidates: str) -> int | None:
     """Return the index of the first header matching any candidate (case-insensitive)."""
-    wanted = {c.lower() for c in candidates}
+    wanted = {_normalise_header(c) for c in candidates}
     for idx, name in enumerate(header):
         if _normalise_header(name) in wanted:
             return idx
     return None
 
 
+def _mapped_header_index(header: list[str], mapping: dict[str, str], semantic: str) -> int | None:
+    mapped = mapping.get(semantic)
+    if mapped:
+        return _header_index(header, mapped)
+    return None
+
+
+def _first_index(*values: int | None) -> int | None:
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
 def _parse_icar_test_day(
     header: list[str],
     data_rows: list[list[str]],
+    column_mapping: dict[str, str] | None = None,
 ) -> tuple[list[_CowLactation], list[str]]:
     warnings: list[str] = []
-    idx_id = _header_index(header, "testid")
-    idx_dim = _header_index(header, "daysinmilk", "dim")
-    idx_milk = _header_index(header, "dailymilkingyield", "milk")
-    idx_parity = _header_index(header, "parity")
-    idx_event = _header_index(header, "eventtype")
+    mapping = column_mapping or {}
+    idx_id = _first_index(
+        _mapped_header_index(header, mapping, "cow_id"),
+        _header_index(header, *_TEST_DAY_ALIASES["cow_id"]),
+    )
+    idx_dim = _first_index(
+        _mapped_header_index(header, mapping, "dim"),
+        _header_index(header, *_TEST_DAY_ALIASES["dim"]),
+    )
+    idx_milk = _first_index(
+        _mapped_header_index(header, mapping, "milk_kg"),
+        _header_index(header, *_TEST_DAY_ALIASES["milk_kg"]),
+    )
+    idx_parity = _first_index(
+        _mapped_header_index(header, mapping, "parity"),
+        _header_index(header, *_TEST_DAY_ALIASES["parity"]),
+    )
+    idx_event = _first_index(
+        _mapped_header_index(header, mapping, "event_type"),
+        _header_index(header, *_TEST_DAY_ALIASES["event_type"]),
+    )
 
     if idx_id is None or idx_dim is None or idx_milk is None:
         raise ValueError(
