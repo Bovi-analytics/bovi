@@ -27,6 +27,7 @@ Notes
 - Units: DIM in days, milk in kg or lbs.
 - Symbolic expressions can be complex; a light safety check is applied before
   lambdification (`is_valid_sympy_expr`) and large/invalid expressions are rejected.
+- The default laction curve model is the Wood model, but other models are supported as well.
 
 
 Author: Meike van Leerdam
@@ -113,7 +114,7 @@ def lactation_curve_characteristic_function(
             If `None` or unrecognized, a dict of all available characteristics is returned
             (with `persistency` possibly `None` if derivation is not feasible).
         lactation_length (int): Length of lactation in days used in persistency
-            computation (default 305).
+            and cumulative milk yield computation (default 305).
 
     Returns:
         tuple:
