@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { getPresetHerdStats } from "@/lib/api-client";
-import { HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
+import {
+  HERD_STATS_METADATA,
+  QUALITY_SEQUENCE_INDEX,
+  QUALITY_SEQUENCE_VALUE,
+} from "@/data/herd-stats-metadata";
 import type {
   PresetDatasetKey,
   PresetHerdStatsResponse,
@@ -41,8 +45,10 @@ export function usePresetHerdStats(
 
   const statsArray = useMemo(() => {
     if (!query.data) return undefined;
-    return HERD_STATS_METADATA.map(
-      (m) => query.data!.stats[m.name] ?? m.default
+    return HERD_STATS_METADATA.map((m) =>
+      m.index === QUALITY_SEQUENCE_INDEX
+        ? QUALITY_SEQUENCE_VALUE
+        : (query.data!.stats[m.name] ?? m.default)
     );
   }, [query.data]);
 

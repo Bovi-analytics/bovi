@@ -17,7 +17,7 @@ import {
 } from "@mantine/core";
 import { AlertCircle, CheckCircle2, Download } from "lucide-react";
 import Link from "next/link";
-import { HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
+import { HERD_STATS_METADATA, VISIBLE_HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
 import { statsToHerdProfileFields } from "@/lib/herd-profile-utils";
 import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
 import type { HerdProfileUploadResponse } from "@/types/api";
@@ -54,8 +54,8 @@ const DAIRYCOM_TEMPLATE =
   "     512 ;10/25/24;  70 ;103  ;  3,5 ;  3,0 ;102 ;29100 ;  97 ;   21 ;0,7 ;  6 ;\n";
 
 function buildAggregatedTemplate(): string {
-  const headers = HERD_STATS_METADATA.map((m) => m.name).join(",");
-  const exampleRow = HERD_STATS_METADATA.map((m) => {
+  const headers = VISIBLE_HERD_STATS_METADATA.map((m) => m.name).join(",");
+  const exampleRow = VISIBLE_HERD_STATS_METADATA.map((m) => {
     const mid = (m.rawMin + m.rawMax) / 2;
     return Math.round(mid * 100) / 100;
   }).join(",");
@@ -66,8 +66,8 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
   aggregated: {
     label: "Aggregated herd stats",
     blurb:
-      "One row per herd summary, with the 10 canonical columns already pre-averaged. Column order is flexible; missing columns are left at slider defaults. Use this format if your herd-management platform already exports per-herd aggregates.",
-    columns: HERD_STATS_METADATA.map((m) => ({
+      "One row per herd summary, with the canonical herd-stat columns already pre-averaged. Column order is flexible; missing columns are left at slider defaults. Use this format if your herd-management platform already exports per-herd aggregates.",
+    columns: VISIBLE_HERD_STATS_METADATA.map((m) => ({
       name: m.name,
       description: `${m.description} (${m.unit || "0–1 score"}, typical ${m.rawMin}–${m.rawMax})`,
       required: false,
@@ -333,7 +333,7 @@ export function HerdProfileUpload(): ReactElement {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {HERD_STATS_METADATA.map((meta) => {
+                {VISIBLE_HERD_STATS_METADATA.map((meta) => {
                   const filled = preview.stats[meta.name] !== undefined;
                   const raw = preview.raw_stats[meta.name];
                   const unit = meta.unit || "";

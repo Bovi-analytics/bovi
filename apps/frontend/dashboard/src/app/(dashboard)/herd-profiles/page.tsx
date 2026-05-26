@@ -12,7 +12,7 @@ export default function HerdProfilesPage(): ReactElement {
           <h1 className="text-2xl font-semibold">Herd Profiles</h1>
           <p className="mt-1 text-sm text-foreground">
             Save and manage the herd-level statistics used by the autoencoder. Profiles can be
-            created manually or from data loaded in Data Upload.
+            created manually, determined from active preset data, or saved from uploaded files.
           </p>
         </div>
         <Button
@@ -37,6 +37,11 @@ export default function HerdProfilesPage(): ReactElement {
         </Group>
         <HerdProfileList />
       </Stack>
+
+      <Text size="xs" c="dimmed">
+        Interested in how the herd profile is used? Take a look at the following paper:
+        10.1016/j.compag.2020.105600
+      </Text>
     </div>
   );
 }
