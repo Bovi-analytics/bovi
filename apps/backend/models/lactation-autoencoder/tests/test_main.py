@@ -12,6 +12,11 @@ class TestHealthEndpoint:
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
 
+    def test_platform_health_check(self):
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
 
 class TestPredictEndpoint:
     def test_predict_minimal(self):

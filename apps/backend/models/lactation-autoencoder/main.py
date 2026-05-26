@@ -227,6 +227,12 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/health")
+def health_check() -> dict[str, str]:
+    """Health check endpoint for platform probes."""
+    return {"status": "ok"}
+
+
 @app.post("/predict", response_model=AutoencoderPredictResponse)
 def predict(request: AutoencoderPredictRequest) -> AutoencoderPredictResponse:
     """Predict a full 304-day lactation curve from partial observations.

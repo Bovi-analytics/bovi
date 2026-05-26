@@ -8,12 +8,13 @@ from collections.abc import Sequence
 from typing import Literal, overload
 
 # Centralized column aliases - accepted in any case across all parsers.
-COW_ID_ALIASES = ("cow_id", "testid", "id")
+COW_ID_ALIASES = ("testid", "cow_id", "id")
 PARITY_ALIASES = ("parity", "lact", "lactation")
 HERD_ID_ALIASES = ("herd_id", "herdid", "herd", "farm_id", "farmid")
 DIM_ALIASES = ("dim", "daysinmilk", "days_in_milk")
 MILK_ALIASES = ("milk_kg", "milk", "dailymilkingyield", "milkrecording")
 YIELD_ALIASES = (
+    "lactationyield",
     "yield_305day",
     "total_305_yield",
     "totalactualproduction",
@@ -62,9 +63,9 @@ def parse_submission_csv(
     content: bytes,
     return_failed: bool = False,
 ) -> dict[str, float] | tuple[dict[str, float], list[str]]:
-    """Parse own-method CSV: cow_id + 305-day yield.
+    """Parse own-method CSV: TestId + LactationYield.
 
-    Accepts column-name aliases for both cow_id and yield columns.
+    Accepts column-name aliases for both lactation identifier and yield columns.
     """
     text = _decode(content)
     reader = _sniff_reader(text)
@@ -75,8 +76,8 @@ def parse_submission_csv(
     yield_col = _resolve(reader.fieldnames, YIELD_ALIASES)
     if cow_col is None or yield_col is None:
         raise ValueError(
-            "Missing required columns. Expected cow_id and a yield column "
-            f"(any of: {', '.join(YIELD_ALIASES)})."
+            "Missing required columns. Expected TestId and a yield column "
+            "(LactationYield; legacy aliases yield_305day and total_305_yield are accepted)."
         )
 
     results: dict[str, float] = {}
@@ -100,9 +101,9 @@ def parse_submission_csv(
 
 
 def parse_test_day_csv(content: bytes) -> dict[str, dict]:
-    """Parse a test-day CSV into {cow_id: {parity, herd_id, dim[], milk_kg[]}}.
+    """Parse a test-day CSV into {TestId: {parity, herd_id, dim[], milk_kg[]}}.
 
-    Required columns: cow_id, dim, milk_kg. Optional: parity, herd_id.
+    Required columns: TestId, dim, milk_kg. Optional: parity, herd_id.
     Multiple rows per cow are grouped together.
     """
     text = _decode(content)
@@ -117,7 +118,7 @@ def parse_test_day_csv(content: bytes) -> dict[str, dict]:
     herd_id_col = _resolve(reader.fieldnames, HERD_ID_ALIASES)
     if cow_col is None or dim_col is None or milk_col is None:
         raise ValueError(
-            "Test-day CSV missing required columns. Expected cow_id, dim, milk_kg "
+            "Test-day CSV missing required columns. Expected TestId, dim, milk_kg "
             "(or aliases). Optional: parity, herd_id."
         )
 
@@ -167,7 +168,7 @@ def parse_test_day_csv(content: bytes) -> dict[str, dict]:
 
 
 def parse_actual_yields_csv(content: bytes) -> dict[str, float]:
-    """Parse an actual-yields CSV into {cow_id: total_305_yield}."""
+    """Parse an actual-yields CSV into {TestId: LactationYield}."""
     text = _decode(content)
     reader = _sniff_reader(text)
     if reader.fieldnames is None:
@@ -177,7 +178,7 @@ def parse_actual_yields_csv(content: bytes) -> dict[str, float]:
     yield_col = _resolve(reader.fieldnames, YIELD_ALIASES)
     if cow_col is None or yield_col is None:
         raise ValueError(
-            "Actual-yields CSV missing required columns. Expected cow_id and a yield column."
+            "Actual-yields CSV missing required columns. Expected TestId and a yield column."
         )
 
     out: dict[str, float] = {}

@@ -7,10 +7,14 @@ Or test against a deployed instance:
 
 import asyncio
 import os
+import sys
 from collections.abc import Generator
+from pathlib import Path
 
 import httpx
 import pytest
+
+_APP_DIR = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
@@ -66,6 +70,12 @@ def api() -> Generator[httpx.Client | ASGITestClient, None, None]:
         with httpx.Client(base_url=base_url, timeout=30) as client:
             yield client
     else:
+        sys.path.insert(0, str(_APP_DIR))
+        loaded_main = sys.modules.get("main")
+        loaded_main_file = getattr(loaded_main, "__file__", None)
+        if loaded_main_file is not None and Path(loaded_main_file).resolve().parent != _APP_DIR:
+            sys.modules.pop("main")
+
         from main import app
 
         yield ASGITestClient(app)
