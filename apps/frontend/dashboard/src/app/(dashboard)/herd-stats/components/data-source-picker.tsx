@@ -64,7 +64,7 @@ const SOURCE_OPTIONS: SourceOption[] = [
   {
     value: "upload",
     label: "Upload a file",
-    description: "Upload your own csv with milk production data",
+    description: "Use your own CSV",
   },
 ];
 
@@ -723,22 +723,11 @@ function SavedDatasetsPanel(): ReactElement {
 
       {uploadedDataset && (
         <Alert color="violet" variant="light">
-          <Group justify="space-between" align="center">
-            <Text size="sm">
-              {uploadedDataset.name} active -{" "}
-              {(uploadedDataset.cowCount ?? uploadedDataset.cows.length).toLocaleString()}{" "}
-              lactations ready.
-            </Text>
-            <Button
-              component={Link}
-              href="/herd-profiles"
-              size="sm"
-              color="violet"
-              rightSection={<ChevronRight size={14} />}
-            >
-              Go to Herd Profiles
-            </Button>
-          </Group>
+          <Text size="sm">
+            {uploadedDataset.name} active -{" "}
+            {(uploadedDataset.cowCount ?? uploadedDataset.cows.length).toLocaleString()} lactations
+            ready.
+          </Text>
         </Alert>
       )}
     </Stack>
@@ -795,18 +784,21 @@ export function DataSourcePicker(): ReactElement {
             <UnstyledButton
               key={opt.value}
               onClick={() => setActiveSource(opt.value)}
-              style={{ flex: 1, minWidth: 140 }}
+              style={{ flex: 1, minWidth: 140, alignSelf: "stretch" }}
             >
               <Paper
                 withBorder
                 p="md"
                 radius="md"
-                h="100%"
+                h={104}
                 style={{
                   borderColor: isActive ? "var(--mantine-color-violet-6)" : undefined,
                   borderWidth: isActive ? 2 : 1,
                   cursor: "pointer",
                   transition: "border-color 0.12s",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
                 }}
               >
                 <Text size="md" fw={700}>
