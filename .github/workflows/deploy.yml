@@ -585,6 +585,7 @@ jobs:
             exit 1
           fi
 
+          echo "Ensuring ${container} exists in Function Storage."
           az storage container create \
             --connection-string "$dest_connection_string" \
             --name "$container" \
