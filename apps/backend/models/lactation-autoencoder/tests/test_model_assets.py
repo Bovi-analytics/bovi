@@ -77,6 +77,7 @@ def test_settings_accepts_azure_web_jobs_storage_alias(tmp_path):
     )
 
     assert settings.azure_web_jobs_storage == "UseDevelopmentStorage=true"
+    assert settings.autoencoder_model_cache_dir == str(tmp_path)
 
 
 def test_ensure_model_assets_downloads_prefix_to_cache(tmp_path):
