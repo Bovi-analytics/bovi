@@ -468,6 +468,12 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/health")
+async def health_check() -> dict[str, str]:
+    """Health check endpoint for platform probes."""
+    return {"status": "ok"}
+
+
 @app.post("/predict")
 async def predict(request: MilkBotPredictRequest) -> dict[str, list[float]]:
     """Evaluate the MilkBot model with known parameters.

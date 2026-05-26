@@ -20,7 +20,19 @@ lint:
     uv run ruff check --fix && uv run ruff format
 
 test:
-    uv run pytest -v
+    uv run python scripts/test_affected.py
+
+test-affected base="origin/main":
+    uv run python scripts/test_affected.py --base {{base}}
+
+test-affected-dry-run base="origin/main":
+    uv run python scripts/test_affected.py --base {{base}} --dry-run
+
+test-fast:
+    uv run python scripts/test_affected.py --fast
+
+test-all:
+    uv run pytest -c pyproject.toml -v
 
 # ── Run services ─────────────────────────────────────────────
 check-ports:

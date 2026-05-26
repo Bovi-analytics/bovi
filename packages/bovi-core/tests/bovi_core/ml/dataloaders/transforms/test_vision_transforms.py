@@ -11,6 +11,8 @@ A = pytest.importorskip(
     "albumentations", reason="Albumentations is required for vision transform tests"
 )
 
+pytestmark = [pytest.mark.core, pytest.mark.vision]
+
 
 @pytest.fixture
 def sample_image():
@@ -336,6 +338,8 @@ class TestTransformRegistry:
 
 class TestCrossFrameworkConsistency:
     """Test same transform works identically in PyTorch and TensorFlow loaders."""
+
+    pytestmark = [pytest.mark.slow, pytest.mark.torch, pytest.mark.tensorflow]
 
     def test_resize_same_output_pytorch_tensorflow(self, image_source, mock_dataloader_config):
         """Same resize transform produces same results across frameworks."""
