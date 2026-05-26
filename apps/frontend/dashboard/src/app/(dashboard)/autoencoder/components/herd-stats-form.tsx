@@ -2,7 +2,12 @@
 
 import type { ReactElement } from "react";
 import { NumberInput, Slider, Tooltip } from "@mantine/core";
-import { HERD_STATS_METADATA, toRaw, toNormalized } from "@/data/herd-stats-metadata";
+import {
+  HERD_STATS_METADATA,
+  VISIBLE_HERD_STATS_METADATA,
+  toNormalized,
+  toRaw,
+} from "@/data/herd-stats-metadata";
 
 interface HerdStatsFormProps {
   readonly values: number[];
@@ -39,8 +44,8 @@ export function HerdStatsForm({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-      {HERD_STATS_METADATA.map((stat) => {
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {VISIBLE_HERD_STATS_METADATA.map((stat) => {
         const normalized = values[stat.index];
         const displayValue = showRaw ? toRaw(stat, normalized) : normalized;
         const sliderMin = showRaw ? stat.rawMin : 0;
@@ -54,19 +59,21 @@ export function HerdStatsForm({
         const rawDecimalScale = stat.unit === "days" ? 0 : 2;
 
         return (
-          <div key={stat.name} className="space-y-1">
+          <div key={stat.name} className="rounded-md border border-border bg-background/60 p-3">
             <Tooltip label={stat.description} position="top" withArrow multiline w={250}>
-              <label className="block min-h-[2.5rem] cursor-help text-xs font-medium leading-tight text-muted-foreground">
+              <label className="block cursor-help text-sm font-semibold leading-tight text-foreground">
                 {stat.label}
                 {showRaw && stat.unit ? (
-                  <span className="ml-1 text-muted-foreground/60">({stat.unit})</span>
+                  <span className="ml-1 text-xs font-medium text-muted-foreground">
+                    ({stat.unit})
+                  </span>
                 ) : null}
               </label>
             </Tooltip>
             {showBoth ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="mt-2 grid grid-cols-2 gap-2">
                 <NumberInput
-                  label={stat.unit || "Raw"}
+                  label={stat.unit || "Raw value"}
                   value={rawValue}
                   onChange={(val) => {
                     if (typeof val === "number") handleRawChange(stat.index, val);
@@ -78,7 +85,7 @@ export function HerdStatsForm({
                   size="xs"
                 />
                 <NumberInput
-                  label="0-1"
+                  label="Normalized 0-1"
                   value={normalized}
                   onChange={(val) => {
                     if (typeof val === "number") handleNormalizedChange(stat.index, val);
@@ -91,7 +98,7 @@ export function HerdStatsForm({
                 />
               </div>
             ) : (
-              <>
+              <div className="mt-3 space-y-2">
                 <Slider
                   value={displayValue}
                   onChange={(val) => handleChange(stat.index, val)}
@@ -114,7 +121,7 @@ export function HerdStatsForm({
                   decimalScale={decimalScale}
                   size="xs"
                 />
-              </>
+              </div>
             )}
           </div>
         );

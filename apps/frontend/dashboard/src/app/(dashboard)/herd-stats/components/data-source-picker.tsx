@@ -20,7 +20,7 @@ import {
 } from "@mantine/core";
 import { AlertCircle, CheckCircle2, ChevronRight, Download } from "lucide-react";
 import Link from "next/link";
-import { HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
+import { HERD_STATS_METADATA, VISIBLE_HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
 import { statsToHerdProfileFields } from "@/lib/herd-profile-utils";
 import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
 import { usePresetCounts } from "@/app/(dashboard)/curves/hooks/use-preset-counts";
@@ -78,6 +78,23 @@ const PERIOD_OPTIONS = [
   { value: "mixed", label: "Mixed" },
 ];
 
+const PRESET_LABELS: Record<PresetDatasetKey, string> = {
+  aurora: "Preset cohort A",
+  sunnyside: "Preset cohort B",
+};
+
+const PERIOD_LABELS: Record<PresetPeriodKey, string> = {
+  recent: "Recent",
+  old: "Old",
+  mixed: "Mixed",
+};
+
+const SIZE_LABELS: Record<PresetSizeKey, string> = {
+  small: "Small",
+  medium: "Medium",
+  large: "Large",
+};
+
 function sizeOptionsWithCounts(
   counts: Record<string, Record<string, number>> | undefined,
   period: PresetPeriodKey
@@ -112,8 +129,8 @@ const DAIRYCOM_TEMPLATE =
   "     512 ;09/27/24;  42 ;110  ;  3,2 ;  3,0 ;107 ;28500 ;  95 ;   18 ;0,6 ;  6 ;\n";
 
 function buildAggregatedTemplate(): string {
-  const headers = HERD_STATS_METADATA.map((m) => m.name).join(",");
-  const exampleRow = HERD_STATS_METADATA.map((m) => {
+  const headers = VISIBLE_HERD_STATS_METADATA.map((m) => m.name).join(",");
+  const exampleRow = VISIBLE_HERD_STATS_METADATA.map((m) => {
     const mid = (m.rawMin + m.rawMax) / 2;
     return Math.round(mid * 100) / 100;
   }).join(",");
@@ -124,8 +141,8 @@ const FORMATS: Record<FormatKey, FormatMeta> = {
   aggregated: {
     label: "Herd summary",
     blurb:
-      "A single row with the 10 statistics already averaged across your herd. Use this when your farm software exports a per-herd aggregate rather than individual cow records.",
-    columns: HERD_STATS_METADATA.map((m) => ({
+      "A single row with the herd statistics already averaged across your herd. Use this when your farm software exports a per-herd aggregate rather than individual cow records.",
+    columns: VISIBLE_HERD_STATS_METADATA.map((m) => ({
       name: m.name,
       description: `${m.description} (${m.unit || "0–1 score"}, typical ${m.rawMin}–${m.rawMax})`,
       required: false,
@@ -468,7 +485,7 @@ function UploadPanel(): ReactElement {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {HERD_STATS_METADATA.map((meta) => {
+              {VISIBLE_HERD_STATS_METADATA.map((meta) => {
                 const filled = preview.stats[meta.name] !== undefined;
                 const raw = preview.raw_stats[meta.name];
                 const unit = meta.unit || "";
@@ -577,6 +594,33 @@ export function DataSourcePicker(): ReactElement {
           curves.
         </Text>
       </div>
+
+      <Alert color={activePreset || uploadedDataset ? "violet" : "gray"} variant="light">
+        <Group justify="space-between" align="center" gap="sm">
+          <div>
+            <Text size="xs" fw={700} tt="uppercase" c="dimmed">
+              Active dataset
+            </Text>
+            {activePreset ? (
+              <Text size="sm">
+                {PRESET_LABELS[activePreset.dataset]} · {PERIOD_LABELS[activePreset.period]} ·{" "}
+                {SIZE_LABELS[activePreset.size]} sample
+              </Text>
+            ) : uploadedDataset ? (
+              <Text size="sm">
+                {uploadedDataset.name} · {uploadedDataset.cows.length.toLocaleString()} cows
+              </Text>
+            ) : (
+              <Text size="sm">No dataset selected yet.</Text>
+            )}
+          </div>
+          {(activePreset || uploadedDataset) && (
+            <Badge color="violet" variant="filled">
+              Ready for Herd Profiles
+            </Badge>
+          )}
+        </Group>
+      </Alert>
 
       {/* Source tiles */}
       <Group gap="sm">

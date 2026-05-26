@@ -4,6 +4,7 @@
  */
 
 import type { HerdProfile, HerdProfileCreate } from "@/types/api";
+import { QUALITY_SEQUENCE_INDEX, QUALITY_SEQUENCE_VALUE } from "@/data/herd-stats-metadata";
 
 type StatField = keyof Omit<HerdProfileCreate, "name" | "description">;
 
@@ -26,12 +27,17 @@ export const HERD_PROFILE_FIELD_ORDER: StatField[] = [
 
 /** Convert a saved HerdProfile → number[] for HerdStatsForm. */
 export function herdProfileToStats(profile: HerdProfile): number[] {
-  return HERD_PROFILE_FIELD_ORDER.map((field) => profile[field] as number);
+  return HERD_PROFILE_FIELD_ORDER.map((field, index) =>
+    index === QUALITY_SEQUENCE_INDEX ? QUALITY_SEQUENCE_VALUE : (profile[field] as number)
+  );
 }
 
 /** Convert number[] from HerdStatsForm → stat fields for HerdProfileCreate. */
 export function statsToHerdProfileFields(stats: number[]): Record<StatField, number> {
   return Object.fromEntries(
-    HERD_PROFILE_FIELD_ORDER.map((field, i) => [field, stats[i] ?? 0])
+    HERD_PROFILE_FIELD_ORDER.map((field, i) => [
+      field,
+      i === QUALITY_SEQUENCE_INDEX ? QUALITY_SEQUENCE_VALUE : (stats[i] ?? 0),
+    ])
   ) as Record<StatField, number>;
 }
