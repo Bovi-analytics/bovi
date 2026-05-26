@@ -81,11 +81,13 @@ Notes
 - Strengths of Best Predction includes its ability to leverage the full covariance structure 
     of the lactation curve and to therefore potentially provide more accurate predictions
     especially for lactations with few test days. This is because the inherent shape of the 
-    lactation curve is taken into account in the projection of observed deviations to unobserved days.
+    lactation curve is taken into account in the projection of 
+    observed deviations to unobserved days.
     It has fewer in between steps then ISLC and is therefore easier to use. 
 - Disadvantages of Best Prediction include its computational intensity, 
     especially when fitting the covariance structure from data. 
-    And the method is not as easy to understand as a simpler method such as the test interval method, 
+    And the method is not as easy to understand 
+    as a simpler method such as the test interval method, 
     which can make it less transparent to users.  
     The best results are obtained when the standard curve and covariance matrix 
     are from the same population as the data, 
