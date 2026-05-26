@@ -68,6 +68,17 @@ def _required_blobs(prefix: str = "data/models/lactation_autoencoder/versions/v1
     }
 
 
+def test_settings_accepts_azure_web_jobs_storage_alias(tmp_path):
+    settings = Settings.model_validate(
+        {
+            "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+            "autoencoder_model_cache_dir": str(tmp_path),
+        }
+    )
+
+    assert settings.azure_web_jobs_storage == "UseDevelopmentStorage=true"
+
+
 def test_ensure_model_assets_downloads_prefix_to_cache(tmp_path):
     container = _FakeContainerClient(_required_blobs())
 
