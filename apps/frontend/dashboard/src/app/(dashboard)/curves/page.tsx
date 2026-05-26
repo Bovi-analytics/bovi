@@ -22,7 +22,11 @@ import { MODEL_METADATA } from "@/data/model-metadata";
 import { EXAMPLE_LACTATIONS, DEFAULT_LACTATION } from "@/data/example-lactations";
 import { EXAMPLE_AUTOENCODER_DATA, DEFAULT_AUTOENCODER_DATA } from "@/data/example-autoencoder";
 import { DEFAULT_HERD_STATS } from "@/data/herd-stats-metadata";
-import { DAILY_MODEL_INPUT_DAYS, prepareDailyModelInput } from "@/lib/daily-model-input";
+import {
+  DAILY_MODEL_INPUT_DAYS,
+  prepareDailyModelInput,
+  prepareObservedDailyModelInput,
+} from "@/lib/daily-model-input";
 import { LactationCurveChart } from "@/components/charts/lactation-curve-chart";
 import { ClassicalInputPanel } from "./components/classical-input-panel";
 import { AutoencoderInputPanel } from "./components/autoencoder-input-panel";
@@ -287,10 +291,15 @@ export default function CurvesPage(): ReactElement {
     [activeAutoData.milk, useImputation, imputationMethod]
   );
 
+  const observedDailyModelInput = useMemo(
+    () => prepareObservedDailyModelInput(activeAutoData.milk),
+    [activeAutoData.milk]
+  );
+
   // Choose dim/milkrecordings based on mode
-  const classicalDim = dataMode === "testday" ? activeLactation.dim : dailyModelInput.dim;
+  const classicalDim = dataMode === "testday" ? activeLactation.dim : observedDailyModelInput.dim;
   const classicalMilk =
-    dataMode === "testday" ? activeLactation.milkrecordings : dailyModelInput.milk;
+    dataMode === "testday" ? activeLactation.milkrecordings : observedDailyModelInput.milk;
   const classicalParity = dataMode === "testday" ? activeLactation.parity : parity;
 
   // Classical model results
