@@ -27,7 +27,7 @@ export function StatCard({ name, value, isLoading }: StatCardProps): ReactElemen
   const isWeight = WEIGHT_CHARACTERISTICS.has(name);
   const displayUnit = isWeight ? getUnitLabel(meta.unit, weightUnit) : meta.unit;
   const displayValue =
-    value !== null && isWeight ? formatWeight(value, weightUnit) : value?.toFixed(1) ?? null;
+    value !== null && isWeight ? formatWeight(value, weightUnit) : (value?.toFixed(1) ?? null);
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">

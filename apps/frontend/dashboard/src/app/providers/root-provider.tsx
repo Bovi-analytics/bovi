@@ -24,9 +24,7 @@ export function Providers({ children }: ProvidersProps): ReactElement {
     <QueryClientProvider client={queryClient}>
       <MantineProvider theme={theme} defaultColorScheme="dark">
         <UnitProvider>
-          <UploadedCowsProvider>
-            {children}
-          </UploadedCowsProvider>
+          <UploadedCowsProvider>{children}</UploadedCowsProvider>
         </UnitProvider>
       </MantineProvider>
     </QueryClientProvider>

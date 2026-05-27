@@ -1,9 +1,6 @@
 import type { ReactElement } from "react";
 import { ExternalLink } from "lucide-react";
-import {
-  LACTATION_CURVE_DOCUMENTATION_URL,
-  type ModelMetadata,
-} from "@/data/model-metadata";
+import { LACTATION_CURVE_DOCUMENTATION_URL, type ModelMetadata } from "@/data/model-metadata";
 
 interface ModelInfoProps {
   readonly model: ModelMetadata;

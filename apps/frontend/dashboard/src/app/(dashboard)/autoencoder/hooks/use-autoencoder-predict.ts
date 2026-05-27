@@ -20,15 +20,7 @@ export function useAutoencoderPredict({
   enabled = true,
 }: UseAutoencoderPredictParams) {
   return useQuery<AutoencoderPredictResponse>({
-    queryKey: [
-      "autoencoder-predict",
-      milk,
-      parity,
-      herdId,
-      events,
-      herdStats,
-      imputationMethod,
-    ],
+    queryKey: ["autoencoder-predict", milk, parity, herdId, events, herdStats, imputationMethod],
     queryFn: () => {
       const request = buildAutoencoderPredictRequest({
         milk,

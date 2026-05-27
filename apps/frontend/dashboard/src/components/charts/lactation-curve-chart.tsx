@@ -86,8 +86,14 @@ export function LactationCurveChart({
     () => curves.map((c) => ({ ...c, data: convertPoints(c.data, weightUnit) })),
     [curves, weightUnit]
   );
-  const convertedObs = useMemo(() => convertPoints(observations, weightUnit), [observations, weightUnit]);
-  const convertedAnnotations = useMemo(() => convertPoints(annotations, weightUnit), [annotations, weightUnit]);
+  const convertedObs = useMemo(
+    () => convertPoints(observations, weightUnit),
+    [observations, weightUnit]
+  );
+  const convertedAnnotations = useMemo(
+    () => convertPoints(annotations, weightUnit),
+    [annotations, weightUnit]
+  );
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -124,10 +130,7 @@ export function LactationCurveChart({
             color: "hsl(var(--card-foreground))",
             fontSize: 12,
           }}
-          formatter={(value: number) => [
-            formatTooltipValue(value, weightUnit),
-            yAxisLabel,
-          ]}
+          formatter={(value: number) => [formatTooltipValue(value, weightUnit), yAxisLabel]}
         />
 
         <Legend verticalAlign="top" height={36} />

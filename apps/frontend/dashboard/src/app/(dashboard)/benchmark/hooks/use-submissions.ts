@@ -20,8 +20,7 @@ export function useSubmission(id: number) {
 export function useSubmitBoviModel(challengeId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Parameters<typeof submitBoviModel>[1]) =>
-      submitBoviModel(challengeId, data),
+    mutationFn: (data: Parameters<typeof submitBoviModel>[1]) => submitBoviModel(challengeId, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }

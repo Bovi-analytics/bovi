@@ -5,12 +5,7 @@ import { uploadHerdProfileCsv } from "@/lib/api-client";
 
 export function useHerdProfileUpload() {
   return useMutation({
-    mutationFn: ({
-      file,
-      columnMapping,
-    }: {
-      file: File;
-      columnMapping?: Record<string, string>;
-    }) => uploadHerdProfileCsv(file, columnMapping),
+    mutationFn: ({ file, columnMapping }: { file: File; columnMapping?: Record<string, string> }) =>
+      uploadHerdProfileCsv(file, columnMapping),
   });
 }
