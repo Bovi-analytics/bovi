@@ -131,3 +131,19 @@ export function prepareDailyModelInput(
     missingCount,
   };
 }
+
+export function prepareObservedDailyModelInput(
+  milk: readonly (number | null)[],
+  maxDays = DAILY_MODEL_INPUT_DAYS
+): DailyModelInput {
+  const values = milk.slice(0, maxDays);
+  const observed = values
+    .map((value, index) => (isObservedMilk(value) ? { dim: index + 1, milk: value } : null))
+    .filter((value): value is { dim: number; milk: number } => value !== null);
+
+  return {
+    dim: observed.map((value) => value.dim),
+    milk: observed.map((value) => value.milk),
+    missingCount: values.length - observed.length,
+  };
+}

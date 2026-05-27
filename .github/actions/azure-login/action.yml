@@ -1,0 +1,22 @@
+name: Azure login
+description: Authenticate to Azure using OIDC.
+
+inputs:
+  client-id:
+    description: Azure client ID.
+    required: true
+  tenant-id:
+    description: Azure tenant ID.
+    required: true
+  subscription-id:
+    description: Azure subscription ID.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: azure/login@v2
+      with:
+        client-id: ${{ inputs.client-id }}
+        tenant-id: ${{ inputs.tenant-id }}
+        subscription-id: ${{ inputs.subscription-id }}

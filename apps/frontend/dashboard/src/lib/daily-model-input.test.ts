@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { EXAMPLE_AUTOENCODER_DATA } from "../data/example-autoencoder";
-import { DAILY_MODEL_INPUT_DAYS, prepareDailyModelInput } from "./daily-model-input";
+import {
+  DAILY_MODEL_INPUT_DAYS,
+  prepareDailyModelInput,
+  prepareObservedDailyModelInput,
+} from "./daily-model-input";
 
 describe("prepareDailyModelInput", () => {
   test("uses the full daily model horizon instead of sampled test-day points", () => {
@@ -71,5 +75,22 @@ describe("prepareDailyModelInput", () => {
     });
 
     expect(result.milk).toEqual([10, 10, 12, 14, 16, 16]);
+  });
+
+  test("keeps only observed values for classical daily model input", () => {
+    const result = prepareObservedDailyModelInput([12, null, 18, null, 20]);
+
+    expect(result.dim).toEqual([1, 3, 5]);
+    expect(result.milk).toEqual([12, 18, 20]);
+    expect(result.milk).not.toContain(0);
+    expect(result.missingCount).toBe(2);
+  });
+
+  test("does not fabricate zero yields when all daily values are missing", () => {
+    const result = prepareObservedDailyModelInput([null, null, null]);
+
+    expect(result.dim).toEqual([]);
+    expect(result.milk).toEqual([]);
+    expect(result.missingCount).toBe(3);
   });
 });

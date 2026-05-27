@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import {
   Alert,
-  Badge,
   Button,
   Group,
   Paper,
@@ -16,13 +15,17 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import { AlertTriangle, Database, Dice5, Info } from "lucide-react";
+import { AlertTriangle, Dice5, Info } from "lucide-react";
 import Link from "next/link";
 import { MODEL_METADATA } from "@/data/model-metadata";
 import { EXAMPLE_LACTATIONS, DEFAULT_LACTATION } from "@/data/example-lactations";
 import { EXAMPLE_AUTOENCODER_DATA, DEFAULT_AUTOENCODER_DATA } from "@/data/example-autoencoder";
 import { DEFAULT_HERD_STATS } from "@/data/herd-stats-metadata";
-import { DAILY_MODEL_INPUT_DAYS, prepareDailyModelInput } from "@/lib/daily-model-input";
+import {
+  DAILY_MODEL_INPUT_DAYS,
+  prepareDailyModelInput,
+  prepareObservedDailyModelInput,
+} from "@/lib/daily-model-input";
 import { LactationCurveChart } from "@/components/charts/lactation-curve-chart";
 import { ClassicalInputPanel } from "./components/classical-input-panel";
 import { AutoencoderInputPanel } from "./components/autoencoder-input-panel";
@@ -46,16 +49,18 @@ import type { ExampleLactation } from "@/data/example-lactations";
 import type { ExampleAutoencoderData } from "@/data/example-autoencoder";
 import { useWeightUnit } from "@/app/providers/unit-provider";
 import { useUploadedCows, type UploadedCow } from "@/app/providers/uploaded-cows-provider";
+import { ActiveDatasetPanel, useActiveDatasetLabel } from "@/components/dashboard/active-dataset-panel";
 
 const AUTOENCODER_COLOR = "#ec4899";
+const AUTOENCODER_LABEL = "AI autoencoder";
 const UPLOADED_COW_ID_PREFIX = "uploaded-";
 const DEFAULT_UPLOADED_PARITY = 3;
 const UPLOADED_COWS_VISIBLE_CAP = 20;
 const PRESET_COWS_VISIBLE_CAP = 50;
 
 const PRESET_DATASET_LABELS: Record<PresetDatasetKey, string> = {
-  aurora: "Preset cohort A",
-  sunnyside: "Preset cohort B",
+  aurora: "Demo herd A",
+  sunnyside: "Demo herd B",
 };
 const PRESET_PERIOD_LABELS = {
   recent: "Recent",
@@ -68,10 +73,10 @@ type DataMode = "testday" | "daily";
 function uploadedCowToLactation(cow: UploadedCow, datasetName: string): ExampleLactation {
   return {
     id: `${UPLOADED_COW_ID_PREFIX}${cow.cowId}`,
-    label: `${datasetName} - cow ${cow.cowId}${
+    label: `${datasetName} - lactation ${cow.cowId}${
       cow.parity != null ? ` (parity ${cow.parity})` : ""
     }`,
-    description: `Uploaded test-day records from ${datasetName}.${
+    description: `Uploaded test-day records from one lactation in ${datasetName}.${
       cow.parity == null
         ? ` Parity not available in the source file; defaulted to ${DEFAULT_UPLOADED_PARITY}.`
         : ""
@@ -87,8 +92,8 @@ function uploadedCowToLactation(cow: UploadedCow, datasetName: string): ExampleL
 function presetCowToLactation(cow: PresetCow, dataset: PresetDatasetKey): ExampleLactation {
   return {
     id: `preset:${dataset}:${cow.cow_id}`,
-    label: `Cow ${cow.cow_id}`,
-    description: `Anonymized preset test-day records from ${PRESET_DATASET_LABELS[dataset]}.`,
+    label: `Lactation ${cow.cow_id}`,
+    description: `Anonymized demo-herd test-day records from ${PRESET_DATASET_LABELS[dataset]}.`,
     parity: cow.parity ?? DEFAULT_UPLOADED_PARITY,
     breed: "H",
     dim: [...cow.dim],
@@ -163,7 +168,7 @@ function computeAutoencoderStats(
 ): StatsRow {
   if (!predictions || predictions.length === 0) {
     return {
-      name: "Autoencoder",
+      name: AUTOENCODER_LABEL,
       color: AUTOENCODER_COLOR,
       peakYield: null,
       timeToPeak: null,
@@ -180,7 +185,7 @@ function computeAutoencoderStats(
   const persistency = peakYield > 0 ? yieldAt200 / peakYield : 0;
 
   return {
-    name: "Autoencoder",
+    name: AUTOENCODER_LABEL,
     color: AUTOENCODER_COLOR,
     peakYield,
     timeToPeak,
@@ -197,6 +202,7 @@ function computeAutoencoderStats(
 export default function CurvesPage(): ReactElement {
   const { weightUnit, toggleWeightUnit } = useWeightUnit();
   const { dataset: uploadedDataset, getCow, getRandomCow, activePreset } = useUploadedCows();
+  const activeDatasetLabel = useActiveDatasetLabel();
 
   // Data mode
   const [dataMode, setDataMode] = useState<DataMode>("testday");
@@ -231,7 +237,7 @@ export default function CurvesPage(): ReactElement {
   const [manualHerdStats, setManualHerdStats] = useState<number[]>([...DEFAULT_HERD_STATS]);
   const [predictEnabled, setPredictEnabled] = useState(false);
 
-  // Fetch herd stats computed from the active preset dataset (only when needed).
+  // Fetch herd stats computed from the active demo herd (only when needed).
   const {
     statsArray: datasetHerdStats,
     isLoading: datasetHerdStatsLoading,
@@ -287,10 +293,15 @@ export default function CurvesPage(): ReactElement {
     [activeAutoData.milk, useImputation, imputationMethod]
   );
 
+  const observedDailyModelInput = useMemo(
+    () => prepareObservedDailyModelInput(activeAutoData.milk),
+    [activeAutoData.milk]
+  );
+
   // Choose dim/milkrecordings based on mode
-  const classicalDim = dataMode === "testday" ? activeLactation.dim : dailyModelInput.dim;
+  const classicalDim = dataMode === "testday" ? activeLactation.dim : observedDailyModelInput.dim;
   const classicalMilk =
-    dataMode === "testday" ? activeLactation.milkrecordings : dailyModelInput.milk;
+    dataMode === "testday" ? activeLactation.milkrecordings : observedDailyModelInput.milk;
   const classicalParity = dataMode === "testday" ? activeLactation.parity : parity;
 
   // Classical model results
@@ -327,7 +338,7 @@ export default function CurvesPage(): ReactElement {
     if (!autoencoderData || dataMode !== "daily") return [];
     return [
       {
-        name: "Autoencoder",
+        name: AUTOENCODER_LABEL,
         color: AUTOENCODER_COLOR,
         data: autoencoderData.predictions.map((val, i) => ({
           dim: i + 1,
@@ -382,12 +393,12 @@ export default function CurvesPage(): ReactElement {
     }
   }
 
-  // The currently-active uploaded cow ID, if any
+  // The currently-active uploaded lactation ID, if any
   const activeUploadedCowId = activeLactation.id.startsWith(UPLOADED_COW_ID_PREFIX)
     ? activeLactation.id.slice(UPLOADED_COW_ID_PREFIX.length)
     : null;
 
-  // The currently-active preset cow info, if any
+  // The currently-active demo herd lactation info, if any
   const activePresetInfo = useMemo((): { dataset: PresetDatasetKey; cowId: string } | null => {
     for (const ds of ["aurora", "sunnyside"] as PresetDatasetKey[]) {
       const prefix = `preset:${ds}:`;
@@ -417,15 +428,15 @@ export default function CurvesPage(): ReactElement {
       }
       const items = visible.map((c) => ({
         value: `${prefix}${c.cow_id}`,
-        label: `Cow ${c.cow_id}`,
+        label: `Lactation ${c.cow_id}`,
       }));
       const remaining = presetData.cow_count - visibleIds.size;
       if (remaining > 0)
         items.push({
           value: "__preset_overflow__",
-          label: `… and ${remaining} more - use 🎲 or type a cow ID`,
+          label: `... and ${remaining} more - use Random or type a lactation ID`,
         });
-      const groupLabel = `${PRESET_DATASET_LABELS[activePreset.dataset]} - ${PRESET_PERIOD_LABELS[activePreset.period]} (${presetData.cow_count.toLocaleString()} cows)`;
+      const groupLabel = `${PRESET_DATASET_LABELS[activePreset.dataset]} - ${PRESET_PERIOD_LABELS[activePreset.period]} (${presetData.cow_count.toLocaleString()} lactations)`;
       groups.push({ group: groupLabel, items });
     } else if (uploadedDataset && uploadedDataset.cows.length > 0) {
       const visible = [...uploadedDataset.cows.slice(0, UPLOADED_COWS_VISIBLE_CAP)];
@@ -439,13 +450,13 @@ export default function CurvesPage(): ReactElement {
       }
       const items = visible.map((c) => ({
         value: `${UPLOADED_COW_ID_PREFIX}${c.cowId}`,
-        label: `Cow ${c.cowId}${c.parity != null ? ` (parity ${c.parity})` : ""}`,
+        label: `Lactation ${c.cowId}${c.parity != null ? ` (parity ${c.parity})` : ""}`,
       }));
       const remaining = uploadedDataset.cows.length - visibleIds.size;
       if (remaining > 0)
         items.push({
           value: "__overflow__",
-          label: `… and ${remaining} more - use 🎲 or type a cow ID`,
+          label: `... and ${remaining} more - use Random or type a lactation ID`,
         });
       groups.push({ group: uploadedDataset.name, items });
     }
@@ -475,7 +486,7 @@ export default function CurvesPage(): ReactElement {
 
   function handleSelectLactation(id: string | null) {
     if (!id || id === "__overflow__" || id === "__preset_overflow__") return;
-    // Preset cow
+    // Demo herd lactation
     for (const ds of ["aurora", "sunnyside"] as PresetDatasetKey[]) {
       const prefix = `preset:${ds}:`;
       if (id.startsWith(prefix) && presetData) {
@@ -489,7 +500,7 @@ export default function CurvesPage(): ReactElement {
         return;
       }
     }
-    // Uploaded cow
+    // Uploaded lactation
     if (id.startsWith(UPLOADED_COW_ID_PREFIX) && uploadedDataset) {
       const cowId = id.slice(UPLOADED_COW_ID_PREFIX.length);
       const cow = getCow(cowId);
@@ -510,7 +521,7 @@ export default function CurvesPage(): ReactElement {
   }
 
   function handleRandomCow() {
-    // Prefer active preset dataset
+    // Prefer active demo herd
     if (presetData && activePreset && presetData.cows.length > 0) {
       const cow = presetData.cows[Math.floor(Math.random() * presetData.cows.length)];
       setActiveLactation(presetCowToLactation(cow, activePreset.dataset));
@@ -551,25 +562,12 @@ export default function CurvesPage(): ReactElement {
         return;
       }
     }
-    setCowIdError(`No cow with ID "${id}" found in loaded datasets.`);
+    setCowIdError(`No lactation with ID "${id}" found in loaded datasets.`);
   }
 
   const hasHerdData =
     (uploadedDataset && uploadedDataset.cows.length > 0) ||
     (presetData && presetData.cows.length > 0);
-
-  // Human-readable label for the active dataset
-  const activeDatasetLabel = (() => {
-    if (activePreset && presetData) {
-      const name = PRESET_DATASET_LABELS[activePreset.dataset];
-      const period = PRESET_PERIOD_LABELS[activePreset.period];
-      return `${name} · ${period} · ${presetData.cow_count.toLocaleString()} cows`;
-    }
-    if (uploadedDataset) {
-      return `${uploadedDataset.name} · ${uploadedDataset.cows.length.toLocaleString()} cows`;
-    }
-    return null;
-  })();
 
   return (
     <div className="space-y-6">
@@ -581,44 +579,13 @@ export default function CurvesPage(): ReactElement {
         </p>
       </div>
 
-      {/* Active dataset indicator */}
-      <Group gap="sm" align="center">
-        <Database size={14} className="text-muted-foreground" />
-        {activeDatasetLabel ? (
-          <>
-            <Text size="xs" c="dimmed">
-              Dataset:
-            </Text>
-            <Badge variant="light" color="violet" size="sm">
-              {activeDatasetLabel}
-            </Badge>
-            <Link href="/data-upload">
-              <Text
-                size="xs"
-                c="dimmed"
-                style={{ textDecoration: "underline", textUnderlineOffset: 2 }}
-              >
-                Change
-              </Text>
-            </Link>
-          </>
-        ) : (
-          <>
-            <Text size="xs" c="dimmed">
-              No dataset loaded -
-            </Text>
-            <Link href="/data-upload">
-              <Text
-                size="xs"
-                c="violet"
-                style={{ textDecoration: "underline", textUnderlineOffset: 2 }}
-              >
-                load one in Data Upload
-              </Text>
-            </Link>
-          </>
-        )}
-      </Group>
+      <ActiveDatasetPanel
+        emptyText="No dataset loaded."
+        actionHref="/data-upload"
+        actionLabel={activeDatasetLabel ? "Change" : "Data Upload"}
+        showActionWithoutDataset
+        compact
+      />
 
       {/* Data mode toggle + dataset selector on one row */}
       <div className="flex flex-wrap items-center gap-4">
@@ -647,7 +614,7 @@ export default function CurvesPage(): ReactElement {
               value: "daily",
               label: (
                 <Tooltip
-                  label="Dense daily measurements, e.g. from a milking robot. The same prepared daily sequence is used for the autoencoder and classical models."
+                  label="Dense daily measurements, e.g. from a milking robot. The same prepared daily sequence is used for the AI autoencoder and classical models."
                   multiline
                   w={280}
                   withArrow
@@ -671,16 +638,17 @@ export default function CurvesPage(): ReactElement {
         </button>
       </div>
 
-      {/* Cow selection (testday mode only) */}
+      {/* Lactation selection (testday mode only) */}
       {dataMode === "testday" && (
         <div className="rounded-lg border border-border bg-card p-4">
           <Stack gap="sm">
             <div>
               <Text size="md" fw={700}>
-                Select a cow
+                Select a lactation
               </Text>
               <Text size="sm" c="dimmed" mt={4}>
-                Classical models are fit to the test-day records of one individual cow at a time.
+                Classical lactation curve models are fit to the test-day records of one individual
+                lactation at the time.
               </Text>
             </div>
 
@@ -727,10 +695,10 @@ export default function CurvesPage(): ReactElement {
                     data={herdSelectData}
                     allowDeselect={false}
                     searchable
-                    placeholder="Pick a cow…"
+                    placeholder="Pick a lactation..."
                     w={300}
                   />
-                  <Tooltip label="Pick a random cow from your dataset" withArrow>
+                  <Tooltip label="Pick a random lactation from your dataset" withArrow>
                     <Button
                       size="xs"
                       variant="light"
@@ -742,7 +710,7 @@ export default function CurvesPage(): ReactElement {
                   </Tooltip>
                   <TextInput
                     size="xs"
-                    placeholder="Cow ID…"
+                    placeholder="Lactation ID..."
                     value={cowIdInput}
                     onChange={(e) => {
                       setCowIdInput(e.target.value);
@@ -764,7 +732,7 @@ export default function CurvesPage(): ReactElement {
                   <Link href="/data-upload" className="underline underline-offset-2">
                     go to Data Upload
                   </Link>{" "}
-                  to pick an anonymized preset cohort or upload your own CSV.
+                  to pick an anonymized demo herd or upload your own CSV.
                 </Text>
               ))}
 
@@ -784,18 +752,18 @@ export default function CurvesPage(): ReactElement {
         </div>
       )}
 
-      {/* Cow selection (daily mode) */}
+      {/* Lactation selection (daily mode) */}
       {dataMode === "daily" && (
         <div className="rounded-lg border border-border bg-card p-4">
           <Stack gap="sm">
             <div>
               <Text size="md" fw={700}>
-                Select a cow
+                Select a lactation
               </Text>
               <Text size="sm" c="dimmed" mt={4}>
-                Daily recordings enable both classical models and the autoencoder. Preset herd
-                datasets only contain periodic records - use the built-in examples for the
-                autoencoder.
+                Daily recordings enable both classical lactation curve models and the AI
+                autoencoder. As the demo herds only contain periodic records, different examples are
+                used for this feature.
               </Text>
             </div>
 
@@ -831,7 +799,7 @@ export default function CurvesPage(): ReactElement {
               ))}
             </Group>
 
-            {/* Your data panel - preset/uploaded cows have periodic data only */}
+            {/* Your data panel - demo herd/uploaded lactations have periodic data only */}
             {cowSourceDaily === "data" &&
               (activePreset || uploadedDataset ? (
                 <Alert
@@ -858,7 +826,7 @@ export default function CurvesPage(): ReactElement {
                         Periodic Records
                       </Text>
                     </UnstyledButton>{" "}
-                    to analyze individual cows from your dataset.
+                    to analyze individual lactations from your dataset.
                   </Text>
                 </Alert>
               ) : (
@@ -867,7 +835,7 @@ export default function CurvesPage(): ReactElement {
                   <Link href="/data-upload" className="underline underline-offset-2">
                     go to Data Upload
                   </Link>{" "}
-                  to pick an anonymized preset cohort or upload your own CSV.
+                  to pick an anonymized demo herd or upload your own CSV.
                 </Text>
               ))}
 

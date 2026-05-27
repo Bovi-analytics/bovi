@@ -10,8 +10,10 @@ import type { HerdProfile, HerdProfileCreate } from "@/types/api";
 
 interface HerdProfileFormProps {
   readonly initial?: HerdProfile;
+  readonly initialStats?: number[];
   readonly defaultName?: string;
   readonly defaultDescription?: string;
+  readonly sourceSummary?: string;
   readonly onSubmit: (data: HerdProfileCreate) => void;
   readonly onCancel: () => void;
   readonly isLoading: boolean;
@@ -19,8 +21,10 @@ interface HerdProfileFormProps {
 
 export function HerdProfileForm({
   initial,
+  initialStats,
   defaultName,
   defaultDescription,
+  sourceSummary,
   onSubmit,
   onCancel,
   isLoading,
@@ -28,7 +32,11 @@ export function HerdProfileForm({
   const [name, setName] = useState(initial?.name ?? defaultName ?? "");
   const [description, setDescription] = useState(initial?.description ?? defaultDescription ?? "");
   const [stats, setStats] = useState<number[]>(
-    initial ? herdProfileToStats(initial) : [...DEFAULT_HERD_STATS]
+    initial
+      ? herdProfileToStats(initial)
+      : initialStats
+        ? [...initialStats]
+        : [...DEFAULT_HERD_STATS]
   );
 
   function handleSubmit() {
@@ -60,6 +68,7 @@ export function HerdProfileForm({
       />
       <div>
         <p className="mb-3 text-xs text-foreground">
+          {sourceSummary ? `${sourceSummary} ` : ""}
           Left values use original units; right values are normalized 0-1.
         </p>
         <HerdStatsForm values={stats} onChange={setStats} showBoth />

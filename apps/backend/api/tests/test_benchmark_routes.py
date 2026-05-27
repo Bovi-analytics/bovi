@@ -32,6 +32,27 @@ def test_list_submissions_empty(client):
     assert resp.json() == []
 
 
+def test_create_challenge_from_saved_dataset(client):
+    """POST /benchmark/challenges/saved-dataset creates an upload-backed challenge."""
+    resp = client.post(
+        "/benchmark/challenges/saved-dataset",
+        json={
+            "name": "Saved upload",
+            "cow_metadata": {
+                "cow1": {"parity": 2, "herd_id": 123, "dim": [10, 40], "milk_kg": [25.0, 31.0]},
+                "cow2": {"parity": 3, "herd_id": 123, "dim": [12, 42], "milk_kg": [28.0, 34.0]},
+            },
+            "actual_yields": {"cow1": 8500.0, "cow2": 9100.0},
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["dataset"] == "saved_upload"
+    assert data["source"] == "upload"
+    assert data["name"] == "Saved upload"
+
+
 def test_pad_b_upload_rejects_high_failure_rate(client):
     """POST upload with >20% bad rows → 422.
 
@@ -66,7 +87,7 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
     asyncio.run(_seed())
 
     csv_content = (
-        b"cow_id,yield_305day\n"
+        b"TestId,LactationYield\n"
         + b"".join(f"cow{i},bad_value\n".encode() for i in range(9))
         + b"cow9,8000.0\n"
     )
@@ -75,6 +96,68 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
         files={"file": ("results.csv", csv_content, "text/csv")},
     )
     assert resp.status_code == 422
+
+
+def test_export_challenge_uses_test_id_and_omits_empty_herd_id(client):
+    """Downloaded test data omits herd_id when all herd IDs are empty."""
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed() -> None:
+        async for session in override():
+            session.add(
+                Challenge(
+                    dataset="icar",
+                    size="full",
+                    period="all",
+                    source="preset",
+                    name="Reference dataset",
+                    cow_metadata={
+                        "lact-1": {"parity": 1, "herd_id": None, "dim": [10], "milk_kg": [25.0]}
+                    },
+                    reference_yields=None,
+                    actual_yields={"lact-1": 8000.0},
+                )
+            )
+            await session.commit()
+            break
+
+    asyncio.run(_seed())
+
+    resp = client.get("/benchmark/challenges/1/export")
+
+    assert resp.status_code == 200
+    assert resp.text.splitlines() == ["TestId,parity,dim,milk_kg", "lact-1,1,10,25.0"]
+
+
+def test_export_challenge_keeps_herd_id_when_available(client):
+    """Downloaded test data keeps herd_id for cohorts where it is populated."""
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed() -> None:
+        async for session in override():
+            session.add(
+                Challenge(
+                    dataset="upload",
+                    size="custom",
+                    period="custom",
+                    source="upload",
+                    name="Uploaded",
+                    cow_metadata={
+                        "lact-1": {"parity": 1, "herd_id": 123, "dim": [10], "milk_kg": [25.0]}
+                    },
+                    reference_yields=None,
+                    actual_yields={"lact-1": 8000.0},
+                )
+            )
+            await session.commit()
+            break
+
+    asyncio.run(_seed())
+
+    resp = client.get("/benchmark/challenges/1/export")
+
+    assert resp.status_code == 200
+    assert resp.text.splitlines() == ["TestId,herd_id,parity,dim,milk_kg", "lact-1,123,1,10,25.0"]
 
 
 class _FakeResponse:
@@ -92,12 +175,13 @@ class _FakeClient:
     def __init__(self):
         self.calls = []
 
-    async def post(self, url, content, headers):
+    async def post(self, url, content, headers, **kwargs):
         self.calls.append(
             {
                 "url": url,
                 "payload": json.loads(content),
                 "headers": headers,
+                **kwargs,
             }
         )
         return _FakeResponse(
@@ -114,12 +198,13 @@ class _AutoencoderFakeClient:
     def __init__(self):
         self.calls = []
 
-    async def post(self, url, content, headers):
+    async def post(self, url, content, headers, **kwargs):
         self.calls.append(
             {
                 "url": url,
                 "payload": json.loads(content),
                 "headers": headers,
+                **kwargs,
             }
         )
         return _FakeResponse(
@@ -136,15 +221,23 @@ class _CharacteristicFakeClient:
     def __init__(self):
         self.calls = []
 
-    async def post(self, url, content, headers):
+    async def post(self, url, content, headers, **kwargs):
         self.calls.append(
             {
                 "url": url,
                 "payload": json.loads(content),
                 "headers": headers,
+                **kwargs,
             }
         )
-        return _FakeResponse({"value": 9000.0 + len(self.calls)})
+        return _FakeResponse(
+            {
+                "results": [
+                    {"id": item["id"], "value": 9001.0 + index}
+                    for index, item in enumerate(json.loads(content)["items"])
+                ]
+            }
+        )
 
 
 @pytest.mark.parametrize(
@@ -234,7 +327,7 @@ def test_dispatch_autoencoder_sends_parity_and_herd_id(monkeypatch):
 
 
 def test_dispatch_milkbot_sends_bayesian_options_per_cow(monkeypatch):
-    """MilkBot benchmark dispatch forwards Bayesian fitting options to /characteristic."""
+    """MilkBot benchmark dispatch forwards Bayesian fitting options to /characteristic/batch."""
     fake_client = _CharacteristicFakeClient()
     monkeypatch.setattr(benchmark_routes, "_get_client", lambda: fake_client)
 
@@ -255,34 +348,37 @@ def test_dispatch_milkbot_sends_bayesian_options_per_cow(monkeypatch):
     assert result == {"cow-1": 9001.0, "cow-2": 9002.0}
     assert fake_client.calls == [
         {
-            "url": "https://curves.example/characteristic",
+            "url": "https://curves.example/characteristic/batch",
             "payload": {
-                "dim": [10, 40],
-                "milkrecordings": [22.0, 31.0],
-                "model": "milkbot",
-                "characteristic": "cumulative_milk_yield",
-                "parity": 2,
-                "lactation_length": 305,
-                "fitting": "bayesian",
-                "breed": "J",
-                "continent": "CHEN",
+                "items": [
+                    {
+                        "id": "cow-1",
+                        "dim": [10, 40],
+                        "milkrecordings": [22.0, 31.0],
+                        "model": "milkbot",
+                        "characteristic": "cumulative_milk_yield",
+                        "parity": 2,
+                        "lactation_length": 305,
+                        "fitting": "bayesian",
+                        "breed": "J",
+                        "continent": "CHEN",
+                    },
+                    {
+                        "id": "cow-2",
+                        "dim": [12, 45],
+                        "milkrecordings": [24.0, 33.0],
+                        "model": "milkbot",
+                        "characteristic": "cumulative_milk_yield",
+                        "parity": 4,
+                        "lactation_length": 305,
+                        "fitting": "bayesian",
+                        "breed": "J",
+                        "continent": "CHEN",
+                    },
+                ]
             },
             "headers": {"Content-Type": "application/json"},
-        },
-        {
-            "url": "https://curves.example/characteristic",
-            "payload": {
-                "dim": [12, 45],
-                "milkrecordings": [24.0, 33.0],
-                "model": "milkbot",
-                "characteristic": "cumulative_milk_yield",
-                "parity": 4,
-                "lactation_length": 305,
-                "fitting": "bayesian",
-                "breed": "J",
-                "continent": "CHEN",
-            },
-            "headers": {"Content-Type": "application/json"},
+            "timeout": 300.0,
         },
     ]
 

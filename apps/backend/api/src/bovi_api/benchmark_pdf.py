@@ -212,7 +212,7 @@ def _draw_cover(
     n_evaluated: int,
     n_excluded: int,
 ) -> None:
-    """Cover page: logo + title, cohort metadata, intro, glossary."""
+    """Cover page: logo + title, reference dataset metadata, intro, glossary."""
     if LOGO_PATH.exists():
         try:
             pdf.image(str(LOGO_PATH), x=15, y=14, h=12)
@@ -226,7 +226,7 @@ def _draw_cover(
     pdf.set_xy(0, 22)
     pdf.set_text_color(*GREY_TEXT)
     pdf.set_font("Helvetica", "", 9)
-    pdf.cell(0, 5, "Lactation calculation evaluation", align="R")
+    pdf.cell(0, 5, "Lactation yield calculation evaluation", align="R")
     pdf.set_x(-15)
 
     # Cyan accent line under header
@@ -251,7 +251,7 @@ def _draw_cover(
     _meta("Source", challenge_source)
     _meta("Challenger", challenger_label)
     _meta("Benchmark", benchmark_label)
-    _meta("Cows evaluated", str(n_evaluated))
+    _meta("Lactations evaluated", str(n_evaluated))
     if n_excluded:
         _meta("Excluded", str(n_excluded))
     pdf.ln(4)
@@ -263,10 +263,11 @@ def _draw_cover(
     pdf.set_text_color(40, 50, 60)
     pdf.set_font("Helvetica", "", 9.5)
     intro = (
-        "Each scatter plot below shows one point per cow in the cohort. The horizontal "
+        "Each scatter plot below shows one point per lactation in the reference dataset. "
+        "The horizontal "
         "axis is the ground-truth Actual Lactation Yield (ALY) - the cumulative 305-day "
-        "milk production from daily-meter recordings. The vertical axis is the model's "
-        "calculated 305-day yield for the same cow, derived from the sparse test-day "
+        "milk production from daily milk meter recordings. The vertical axis is the model's "
+        "calculated 305-day yield for the same lactation, derived from the sparse test-day "
         "records. A perfect model places every point on the dashed diagonal (y = x). "
         "Points above the line indicate over-estimation, points below indicate "
         "under-estimation. Overlapping points appear darker so denser regions of the "
@@ -284,7 +285,7 @@ def _draw_cover(
     pdf.multi_cell(
         0,
         5,
-        "ALY    Actual Lactation Yield - daily-meter ground truth (kg).\n"
+        "ALY    Actual Lactation Yield - daily milk meter ground truth (kg).\n"
         "SCALY  Submitted Calculated ALY - challenger's 305-day output.\n"
         "BCALY  Benchmark Calculated ALY - benchmark model's 305-day output.",
     )

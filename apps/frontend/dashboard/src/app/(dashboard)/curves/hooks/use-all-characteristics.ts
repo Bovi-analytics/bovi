@@ -1,5 +1,5 @@
-import { useQueries } from "@tanstack/react-query";
-import { getCharacteristic } from "@/lib/api-client";
+import { useQuery } from "@tanstack/react-query";
+import { getCharacteristicsBatch } from "@/lib/api-client";
 import type { Model, Characteristic, MilkBotRunOptions } from "@/types/api";
 
 const ALL_CHARACTERISTICS: Characteristic[] = [
@@ -37,41 +37,42 @@ export function useAllCharacteristics({
   parity,
   milkbotOptions,
 }: UseAllCharacteristicsParams): ModelCharacteristics[] {
-  // Create one query per (model, characteristic) pair
-  const queries = models.flatMap((model) =>
-    ALL_CHARACTERISTICS.map((characteristic) => ({
-      queryKey: [
-        "characteristic",
-        model,
-        characteristic,
-        dim,
-        milkrecordings,
-        model === "milkbot" ? milkbotOptions : null,
-      ] as const,
-      queryFn: () =>
-        getCharacteristic({
-          model,
-          characteristic,
-          dim: [...dim],
-          milkrecordings: [...milkrecordings],
-          parity,
-          ...(model === "milkbot" ? milkbotOptions : {}),
-        }),
-    }))
+  const batchResult = useQuery({
+    queryKey: ["characteristics", models, dim, milkrecordings, parity, milkbotOptions] as const,
+    enabled: models.length > 0,
+    queryFn: () =>
+      getCharacteristicsBatch({
+        items: models.flatMap((model) =>
+          ALL_CHARACTERISTICS.map((characteristic) => ({
+            id: `${model}:${characteristic}`,
+            model,
+            characteristic,
+            dim: [...dim],
+            milkrecordings: [...milkrecordings],
+            parity,
+            ...(model === "milkbot" ? milkbotOptions : {}),
+          }))
+        ),
+      }),
+  });
+
+  const valuesById = new Map(
+    batchResult.data?.results.map((item) => [item.id, item.value] as const) ?? []
   );
-
-  const results = useQueries({ queries });
-
-  // Group results back by model (4 characteristics per model)
   return models.map((model, modelIndex) => {
     const base = modelIndex * ALL_CHARACTERISTICS.length;
+    const valueFor = (characteristic: Characteristic, offset: number) =>
+      valuesById.get(`${model}:${characteristic}`) ??
+      batchResult.data?.results[base + offset]?.value ??
+      null;
+
     return {
       model,
-      peakYield: results[base]?.data?.value ?? null,
-      timeToPeak: results[base + 1]?.data?.value ?? null,
-      cumulativeYield: results[base + 2]?.data?.value ?? null,
-      persistency: results[base + 3]?.data?.value ?? null,
-      isLoading: ALL_CHARACTERISTICS.some((_, i) => results[base + i]?.isLoading),
+      peakYield: valueFor("peak_yield", 0),
+      timeToPeak: valueFor("time_to_peak", 1),
+      cumulativeYield: valueFor("cumulative_milk_yield", 2),
+      persistency: valueFor("persistency", 3),
+      isLoading: batchResult.isLoading,
     };
   });
 }

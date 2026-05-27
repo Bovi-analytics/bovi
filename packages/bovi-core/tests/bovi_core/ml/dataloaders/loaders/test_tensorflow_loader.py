@@ -22,6 +22,8 @@ tf = pytest.importorskip(
     "tensorflow", reason="TensorFlow is required for TensorFlowDataLoader tests"
 )
 
+pytestmark = [pytest.mark.core, pytest.mark.tensorflow]
+
 
 class TestTensorFlowDataLoader:
     """Test TensorFlowDataLoader with NumPy-First architecture."""

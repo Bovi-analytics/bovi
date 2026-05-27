@@ -42,7 +42,7 @@ const MODEL_GROUPS: Record<
   deep: {
     label: "Deep learning",
     description: "Full-curve neural prediction scored by cumulative yield.",
-    models: [{ value: "autoencoder", label: "Autoencoder" }],
+    models: [{ value: "autoencoder", label: "AI autoencoder" }],
   },
 };
 
@@ -151,7 +151,7 @@ export function BenchmarkModelPicker({
             />
           </Group>
           <Text size="xs" c="dimmed">
-            Parity is read per cow from the benchmark cohort.
+            Parity is read per lactation from the benchmark dataset.
           </Text>
         </Stack>
       )}

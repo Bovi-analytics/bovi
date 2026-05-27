@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
-import { Badge, Button, Group, Stack, Text } from "@mantine/core";
+import { Anchor, Badge, Button, Group, Stack, Text } from "@mantine/core";
 import { ChevronRight, ClipboardList } from "lucide-react";
 import { HerdProfileList } from "../herd-stats/components/herd-profile-list";
 
@@ -11,8 +11,9 @@ export default function HerdProfilesPage(): ReactElement {
         <div>
           <h1 className="text-2xl font-semibold">Herd Profiles</h1>
           <p className="mt-1 text-sm text-foreground">
-            Save and manage the herd-level statistics used by the autoencoder. Profiles can be
-            created manually or from data loaded in Data Upload.
+            Save and manage the herd-level statistics used by the AI autoencoder. Profiles can be
+            created manually, determined from active preset data, or saved from files loaded in
+            Data Upload.
           </p>
         </div>
         <Button
@@ -37,6 +38,13 @@ export default function HerdProfilesPage(): ReactElement {
         </Group>
         <HerdProfileList />
       </Stack>
+
+      <Text size="xs" c="dimmed">
+        Interested in how the herd profile is used? Take a look at the following paper:{" "}
+        <Anchor href="https://doi.org/10.1016/j.compag.2020.105600" target="_blank" size="xs">
+          10.1016/j.compag.2020.105600
+        </Anchor>
+      </Text>
     </div>
   );
 }

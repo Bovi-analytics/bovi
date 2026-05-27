@@ -11,7 +11,7 @@ using the **ICAR guideline**.
 
 > **Initial authored:** 2025‑08‑12
 
-> **Updated:** 2026‑05‑25
+> **Updated:** 2026-05-26
 
 ---
 
@@ -241,10 +241,9 @@ and will create a `TestId` column with all values set to 0.
 If you use the `lactationcurve` package in your research, please consider citing it as follows:
 
 *van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., &
-Hostens, M. (2026).  
-Bovi-analytics/bovi lactationcurve: v.1.1.2 (Version 1.1.2) [Computer software].
-https://doi.org/10.5281/zenodo.18715144
-*
+Hostens, M. (2026). Bovi-analytics/bovi:
+v.1.1.3. (v.1.1.3). Zenodo.
+https://doi.org/10.5281/zenodo.18715145*
 
 
 If you also use the Bayesian fitting functionality that relies
@@ -281,9 +280,7 @@ Journal of dairy science, 51-170.*
 
 ---
 
-## Current version of the package
-
-  V 1.1.2
+## Version v.1.1.3
 
 """
 

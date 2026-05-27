@@ -66,6 +66,14 @@ export const CharacteristicRequestSchema = z.object({
   lactation_length: z.number().int().min(1).optional(),
 });
 
+export const CharacteristicBatchItemSchema = CharacteristicRequestSchema.extend({
+  id: z.union([z.number(), z.string()]).optional(),
+});
+
+export const CharacteristicBatchRequestSchema = z.object({
+  items: z.array(CharacteristicBatchItemSchema).min(1),
+});
+
 export const PredictRequestSchema = z.object({
   t: z.array(z.number().int()),
   a: z.number(),
@@ -102,6 +110,15 @@ export const CharacteristicResponseSchema = z.object({
   value: z.number().nullable(),
 });
 
+export const CharacteristicBatchResultSchema = z.object({
+  id: z.union([z.number(), z.string()]).nullable().optional(),
+  value: z.number().nullable(),
+});
+
+export const CharacteristicBatchResponseSchema = z.object({
+  results: z.array(CharacteristicBatchResultSchema),
+});
+
 export const PredictResponseSchema = z.object({
   predictions: z.array(z.number()),
 });
@@ -130,6 +147,9 @@ export type FitRequest = z.infer<typeof FitRequestSchema>;
 export type FitResponse = z.infer<typeof FitResponseSchema>;
 export type CharacteristicRequest = z.infer<typeof CharacteristicRequestSchema>;
 export type CharacteristicResponse = z.infer<typeof CharacteristicResponseSchema>;
+export type CharacteristicBatchItem = z.infer<typeof CharacteristicBatchItemSchema>;
+export type CharacteristicBatchRequest = z.infer<typeof CharacteristicBatchRequestSchema>;
+export type CharacteristicBatchResponse = z.infer<typeof CharacteristicBatchResponseSchema>;
 export type PredictRequest = z.infer<typeof PredictRequestSchema>;
 export type PredictResponse = z.infer<typeof PredictResponseSchema>;
 export type AutoencoderPredictRequest = z.infer<typeof AutoencoderPredictRequestSchema>;
@@ -184,11 +204,14 @@ export type CowRecord = z.infer<typeof CowRecordSchema>;
 export const HerdProfileUploadResponseSchema = z.object({
   stats: z.record(z.string(), z.number()),
   raw_stats: z.record(z.string(), z.number()),
-  format_detected: z.enum(["aggregated", "icar_test_day", "dairycom_test_day"]),
+  format_detected: z.enum(["aggregated", "icar_test_day"]),
   row_count: z.number(),
   warnings: z.array(z.string()),
   cow_count: z.number().nullable().optional(),
   detected_parity: z.number().nullable().optional(),
+  columns: z.array(z.string()).default([]),
+  column_mapping: z.record(z.string(), z.string()).default({}),
+  mapping_required: z.boolean().default(false),
   cows: z.array(CowRecordSchema).default([]),
 });
 
@@ -258,6 +281,19 @@ export const ChallengeReadSchema = z.object({
   created_at: z.string().nullable(),
 });
 export type ChallengeRead = z.infer<typeof ChallengeReadSchema>;
+
+const BenchmarkCowMetadataSchema = z.object({
+  parity: z.number().nullable().optional(),
+  herd_id: z.number().nullable().optional(),
+  dim: z.array(z.number()),
+  milk_kg: z.array(z.number()),
+});
+
+export const ChallengeDetailSchema = ChallengeReadSchema.extend({
+  cow_metadata: z.record(z.string(), BenchmarkCowMetadataSchema),
+  actual_yields: z.record(z.string(), z.number()).nullable().optional(),
+});
+export type ChallengeDetail = z.infer<typeof ChallengeDetailSchema>;
 
 export const ChallengeListSchema = z.array(ChallengeReadSchema);
 

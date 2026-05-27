@@ -11,8 +11,9 @@ import { useChallenge } from "../hooks/use-challenges";
 import { useSubmissions } from "../hooks/use-submissions";
 
 const DATASET_LABEL: Record<string, string> = {
-  icar: "Reference cohort",
+  icar: "Demo dataset",
   upload: "Custom upload",
+  saved_upload: "Saved dataset",
 };
 
 export default function ChallengeDetailPage(): ReactElement {
@@ -50,8 +51,8 @@ export default function ChallengeDetailPage(): ReactElement {
           )}
         </Group>
         <Text size="sm" c="var(--benchmark-muted-text)">
-          Submit a challenger - a Bovi model or your own CSV - to compare against the fixed TIM
-          benchmark for this cohort.
+          Submit a challenger - a Bovi model or your own CSV - and select a benchmark for this
+          benchmark dataset.
         </Text>
       </Stack>
 
@@ -60,7 +61,7 @@ export default function ChallengeDetailPage(): ReactElement {
           <Text fw={600}>Submit a challenger</Text>
           <Text size="xs" c="var(--benchmark-muted-text)">
             Pick a Bovi model to run, or upload the results of your own calculation. Bovi compares
-            it against the TIM benchmark for this challenge.
+            it against the selected benchmark for this challenge.
           </Text>
         </Stack>
         <SubmissionForm

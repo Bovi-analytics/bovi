@@ -49,8 +49,10 @@ from bovi_infra.resources.observability import (
     create_log_analytics,
 )
 from bovi_infra.resources.storage import (
+    BlobContainerArgs,
     FilesShareArgs,
     StorageAccountArgs,
+    create_blob_container,
     create_files_share,
     create_storage_account,
 )
@@ -67,6 +69,10 @@ resource_group_name = config.require("resourceGroup")
 dashboard_origin = config.get("dashboardOrigin") or "http://localhost:3000"
 api_cors_origins = json.dumps([dashboard_origin])
 milkbot_key = config.get_secret("milkbotKey") or ""
+autoencoder_model_version = (
+    os.getenv("AUTOENCODER_MODEL_VERSION") or config.get("autoencoderModelVersion") or "v15"
+)
+autoencoder_model_prefix = f"data/models/lactation_autoencoder/versions/{autoencoder_model_version}"
 api_image = (
     os.getenv("API_IMAGE")
     or config.get("apiImage")
@@ -128,6 +134,16 @@ files_share_result = create_files_share(
         account_name=storage_result.account.name,
         share_name="bovidata",
         quota_gb=1,
+    ),
+)
+
+autoencoder_model_assets_container_name = "model-assets"
+autoencoder_model_assets_container_result = create_blob_container(
+    "autoencoder-model-assets-container",
+    BlobContainerArgs(
+        resource_group_name=resource_group.name,
+        account_name=storage_result.account.name,
+        container_name=autoencoder_model_assets_container_name,
     ),
 )
 
@@ -213,6 +229,20 @@ autoencoder_result = create_function_app(
         storage_connection_string=storage_result.connection_string,
         app_insights_connection_string=autoencoder_insights_result.connection_string,
         cors_origins=[dashboard_origin],
+        extra_app_settings=[
+            web.NameValuePairArgs(
+                name="AUTOENCODER_MODEL_CONTAINER",
+                value=autoencoder_model_assets_container_result.container.name,
+            ),
+            web.NameValuePairArgs(
+                name="AUTOENCODER_MODEL_PREFIX",
+                value=autoencoder_model_prefix,
+            ),
+            web.NameValuePairArgs(
+                name="AUTOENCODER_MODEL_CACHE_DIR",
+                value="/tmp/bovi-autoencoder-assets",
+            ),
+        ],
         tags=tags,
     ),
 )
@@ -330,6 +360,10 @@ dashboard_result = create_stateless_container_app(
 # ---------------------------------------------------------------------------
 pulumi.export("resource_group_name", resource_group.name)
 pulumi.export("storage_account_name", storage_result.account.name)
+pulumi.export(
+    "autoencoder_model_assets_container",
+    autoencoder_model_assets_container_result.container.name,
+)
 pulumi.export("curves_app_name", curves_result.app.name)
 pulumi.export("curves_app_url", curves_result.url)
 pulumi.export("autoencoder_app_name", autoencoder_result.app.name)

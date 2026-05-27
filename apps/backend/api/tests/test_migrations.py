@@ -55,11 +55,13 @@ def test_run_migrations_retries_sqlite_lock(monkeypatch, tmp_path):
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_path}")
     get_settings.cache_clear()
     calls = 0
+    lock_path = db_path.with_name("locked.db.migration.lock")
     sleeps: list[float] = []
 
     def upgrade(_cfg: Config, _revision: str) -> None:
         nonlocal calls
         calls += 1
+        assert lock_path.exists()
         if calls < 3:
             raise OperationalError(
                 "CREATE TABLE alembic_version",
@@ -74,6 +76,7 @@ def test_run_migrations_retries_sqlite_lock(monkeypatch, tmp_path):
         migrations.run_migrations()
 
         assert calls == 3
+        assert not lock_path.exists()
         assert sleeps == [migrations._MIGRATION_LOCK_RETRY_SECONDS] * 2
     finally:
         get_settings.cache_clear()

@@ -10,8 +10,9 @@ interface Props {
 }
 
 const DATASET_LABEL: Record<string, string> = {
-  icar: "Reference cohort",
+  icar: "Demo dataset",
   upload: "Custom upload",
+  saved_upload: "Saved dataset",
 };
 
 export function ChallengeCard({ challenge }: Props): ReactElement {

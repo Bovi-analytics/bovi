@@ -46,7 +46,7 @@ export function DailyImputationPanel({
       <Stack gap="sm">
         <Switch
           label="Use imputation"
-          description="Applies to both classical models and the autoencoder."
+          description="Applies to both classical models and the AI autoencoder."
           checked={useImputation}
           onChange={(event) => onUseImputationChange(event.currentTarget.checked)}
           size="sm"

@@ -1,15 +1,36 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { Alert, Button, Grid, Group, Loader, Stack, Text } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Button,
+  Grid,
+  Group,
+  Loader,
+  SegmentedControl,
+  Stack,
+  Table,
+  Text,
+} from "@mantine/core";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { ChallengeCard } from "./components/challenge-card";
 import { useChallenges } from "./hooks/use-challenges";
+
+type ChallengeView = "cards" | "table";
+
+const DATASET_LABEL: Record<string, string> = {
+  icar: "Demo dataset",
+  upload: "Custom upload",
+  saved_upload: "Saved dataset",
+};
 
 export default function BenchmarkPage(): ReactElement {
   const router = useRouter();
   const { data: challenges, isLoading, error } = useChallenges();
+  const [view, setView] = useState<ChallengeView>("cards");
 
   if (isLoading) return <Loader />;
   if (error) return <Text c="red">Failed to load challenges.</Text>;
@@ -21,7 +42,7 @@ export default function BenchmarkPage(): ReactElement {
           <h1 className="text-2xl font-semibold">Benchmark</h1>
           <Text size="sm" c="var(--benchmark-muted-text)">
             Compare a 305-day milk yield calculation against ground-truth Actual Lactation Yield
-            (ALY) on a cohort of cows with daily-meter data.
+            (ALY) on a reference dataset of lactations with daily milk meter data.
           </Text>
         </Stack>
         <Button leftSection={<Plus size={14} />} onClick={() => router.push("/benchmark/new")}>
@@ -32,16 +53,25 @@ export default function BenchmarkPage(): ReactElement {
       <Alert color="blue" variant="light" title="How the benchmark works">
         <Stack gap={4}>
           <Text size="sm">
-            A challenge is a cohort of cows for which the <strong>ground-truth ALY</strong> (Actual
-            Lactation Yield from daily-meter recordings) is known. Use the built-in reference
-            cohort, or upload your own test-day records together with daily-meter ground truth.
+            A challenge consists of a group of lactations for which the ground-truth ALY (Actual
+            Lactation Yield based on daily milk meter recordings) is known, while only sampled
+            test-day milk recordings are provided as input. You can use the built-in reference
+            dataset or upload your own test-day records together with corresponding daily milk meter
+            data as ground truth. The goal is to estimate the 305-day cumulative milk yield for each
+            lactation.
           </Text>
           <Text size="sm">
-            On a challenge you pick a <em>challenger</em> and a <em>benchmark</em> - any combination
-            of TIM, Wood, Wilmink, Ali-Schaeffer, Fischer, MilkBot, or the autoencoder. The
-            challenger can also be your own calculation uploaded as a CSV. Bovi runs both on the
-            same sparse test-day input and compares each against the ground-truth ALY (Pearson,
-            RMSE, MAE, MAPE), overall and per parity.
+            For each challenge, you select both a challenger and a benchmark. Benchmarks include
+            ICAR-approved cumulative yield calculation methods such as the Test Interval Method,
+            Best Prediction, and interpolation using standard lactation curves. You can also use
+            lactation curve models such as Wood, Wilmink, Ali-Schaeffer, Fischer, MilkBot, or the AI
+            autoencoder, or upload your own calculations as a CSV file and compare them against the
+            built-in methods.
+          </Text>
+          <Text size="sm">
+            Bovi applies both methods to the same sparse test-day input data and evaluates their
+            performance against the ground-truth ALY using Pearson correlation, RMSE, MAE, and MAPE,
+            both overall and stratified by parity.
           </Text>
         </Stack>
       </Alert>
@@ -52,13 +82,78 @@ export default function BenchmarkPage(): ReactElement {
         </Text>
       )}
 
-      <Grid>
-        {challenges?.map((c) => (
-          <Grid.Col key={c.id} span={{ base: 12, sm: 6, md: 4 }}>
-            <ChallengeCard challenge={c} />
-          </Grid.Col>
-        ))}
-      </Grid>
+      {challenges && challenges.length > 0 && (
+        <Group justify="space-between" align="center">
+          <Text fw={600} size="sm">
+            Challenges
+          </Text>
+          <SegmentedControl
+            size="xs"
+            value={view}
+            onChange={(value) => setView(value as ChallengeView)}
+            data={[
+              { value: "cards", label: "Cards" },
+              { value: "table", label: "Table" },
+            ]}
+          />
+        </Group>
+      )}
+
+      {view === "cards" ? (
+        <Grid>
+          {challenges?.map((c) => (
+            <Grid.Col key={c.id} span={{ base: 12, sm: 6, md: 4 }}>
+              <ChallengeCard challenge={c} />
+            </Grid.Col>
+          ))}
+        </Grid>
+      ) : (
+        <Table striped highlightOnHover withColumnBorders fz="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Name</Table.Th>
+              <Table.Th>Dataset</Table.Th>
+              <Table.Th>Source</Table.Th>
+              <Table.Th>Created</Table.Th>
+              <Table.Th>Action</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {challenges?.map((challenge) => (
+              <Table.Tr key={challenge.id}>
+                <Table.Td>
+                  <Text size="sm" fw={600} maw={260} lineClamp={1}>
+                    {challenge.name ?? `Challenge #${challenge.id}`}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    #{challenge.id}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Badge size="xs" variant="light">
+                    {DATASET_LABEL[challenge.dataset] ?? challenge.dataset}
+                  </Badge>
+                </Table.Td>
+                <Table.Td>{challenge.source ?? "-"}</Table.Td>
+                <Table.Td>
+                  {challenge.created_at
+                    ? new Date(challenge.created_at).toLocaleDateString()
+                    : "-"}
+                </Table.Td>
+                <Table.Td>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    onClick={() => router.push(`/benchmark/${challenge.id}`)}
+                  >
+                    View &amp; Submit
+                  </Button>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      )}
     </div>
   );
 }

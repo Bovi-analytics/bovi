@@ -1,0 +1,54 @@
+name: Build and push Docker image
+description: Build and push a GHCR image tagged with latest and the current commit SHA.
+
+inputs:
+  image-name:
+    description: Image repository name without registry or owner.
+    required: true
+  context:
+    description: Docker build context.
+    required: true
+  github-token:
+    description: Token used to push to GHCR.
+    required: true
+
+outputs:
+  image:
+    description: Commit SHA tagged image reference.
+    value: ${{ steps.image.outputs.sha }}
+  image-base:
+    description: Base image reference without tag.
+    value: ${{ steps.image.outputs.name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github-token }}
+
+    - name: Set image name
+      id: image
+      shell: bash
+      run: |
+        set -euo pipefail
+        name="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ inputs.image-name }}"
+        echo "name=${name}" >> "$GITHUB_OUTPUT"
+        echo "sha=${name}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+    - name: Build and push image
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context }}
+        push: true
+        tags: |
+          ${{ steps.image.outputs.name }}:latest
+          ${{ steps.image.outputs.name }}:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
