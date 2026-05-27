@@ -146,7 +146,12 @@ def test_fetch_preset_cows_falls_back_to_local_preset(tmp_path, monkeypatch):
         "aurora",
         "small",
         "mixed",
-        Settings(connection_string=""),
+        Settings(
+            connection_string="",
+            storage_account_name_icar="",
+            storage_account_key_icar="",
+            storage_account_container_icar="",
+        ),
     )
 
     assert preset.dataset == "aurora"
@@ -188,7 +193,12 @@ def test_fetch_preset_cows_returns_503_when_blob_and_local_preset_are_unavailabl
             "aurora",
             "small",
             "mixed",
-            Settings(connection_string=""),
+            Settings(
+                connection_string="",
+                storage_account_name_icar="",
+                storage_account_key_icar="",
+                storage_account_container_icar="",
+            ),
         )
 
     assert exc_info.value.status_code == 503

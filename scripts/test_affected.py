@@ -22,7 +22,7 @@ FAST_TARGETS = [
 ]
 
 HEALTH_TARGETS = [
-    "apps/backend/models/lactation-curves/tests/test_health.py",
+    "apps/backend/models/lactation-curves/tests/test_lactation_curves_health.py",
     "apps/backend/models/lactation-autoencoder/tests/test_startup.py",
 ]
 

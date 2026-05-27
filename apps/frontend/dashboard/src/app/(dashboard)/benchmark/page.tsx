@@ -17,15 +17,11 @@ import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ChallengeCard } from "./components/challenge-card";
+import { DatasetSummary } from "./components/dataset-summary";
 import { useChallenges } from "./hooks/use-challenges";
+import { getBenchmarkDatasetLabel } from "@/lib/benchmark-dataset";
 
 type ChallengeView = "cards" | "table";
-
-const DATASET_LABEL: Record<string, string> = {
-  icar: "Demo dataset",
-  upload: "Custom upload",
-  saved_upload: "Saved dataset",
-};
 
 export default function BenchmarkPage(): ReactElement {
   const router = useRouter();
@@ -131,14 +127,17 @@ export default function BenchmarkPage(): ReactElement {
                 </Table.Td>
                 <Table.Td>
                   <Badge size="xs" variant="light">
-                    {DATASET_LABEL[challenge.dataset] ?? challenge.dataset}
+                    {getBenchmarkDatasetLabel(challenge)}
                   </Badge>
+                  <DatasetSummary
+                    sources={challenge.dataset_sources}
+                    stats={challenge.dataset_stats}
+                    compact
+                  />
                 </Table.Td>
                 <Table.Td>{challenge.source ?? "-"}</Table.Td>
                 <Table.Td>
-                  {challenge.created_at
-                    ? new Date(challenge.created_at).toLocaleDateString()
-                    : "-"}
+                  {challenge.created_at ? new Date(challenge.created_at).toLocaleDateString() : "-"}
                 </Table.Td>
                 <Table.Td>
                   <Button

@@ -45,6 +45,9 @@ def test_alembic_upgrade_head_creates_all_runtime_tables(tmp_path, monkeypatch):
             "created_at",
         }
         assert "run_options" in {column["name"] for column in inspector.get_columns("submissions")}
+        challenge_columns = {column["name"] for column in inspector.get_columns("challenges")}
+        assert "dataset_sources" in challenge_columns
+        assert "dataset_stats" in challenge_columns
     finally:
         engine.dispose()
         get_settings.cache_clear()

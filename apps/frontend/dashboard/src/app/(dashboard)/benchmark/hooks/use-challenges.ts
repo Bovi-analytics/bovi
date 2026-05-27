@@ -9,6 +9,7 @@ import {
   listChallenges,
 } from "@/lib/api-client";
 import type { ChallengeCreatePreset, ChallengeDetail } from "@/types/api";
+import type { ChallengeDatasetSource } from "@/types/api";
 
 const KEY = ["benchmark-challenges"] as const;
 
@@ -55,11 +56,13 @@ export function useCreateChallengeFromSavedDataset() {
       name,
       cowMetadata,
       actualYields,
+      datasetSources,
     }: {
       name: string;
       cowMetadata: ChallengeDetail["cow_metadata"];
       actualYields: NonNullable<ChallengeDetail["actual_yields"]>;
-    }) => createChallengeFromSavedDataset(name, cowMetadata, actualYields),
+      datasetSources?: ChallengeDatasetSource[];
+    }) => createChallengeFromSavedDataset(name, cowMetadata, actualYields, datasetSources),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }
