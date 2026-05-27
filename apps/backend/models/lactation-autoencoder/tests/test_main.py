@@ -46,6 +46,18 @@ class TestPredictEndpoint:
         assert response.status_code == 200
         assert len(response.json()["predictions"]) == 304
 
+    def test_predict_with_periodic_records(self):
+        response = client.post(
+            "/predict",
+            json={
+                "dim": [10, 40, 70, 100],
+                "milkrecordings": [30.0, 38.0, 35.0, 32.0],
+                "parity": 2,
+            },
+        )
+        assert response.status_code == 200
+        assert len(response.json()["predictions"]) == 304
+
     def test_predict_custom_herd_stats(self):
         response = client.post(
             "/predict",

@@ -12,6 +12,8 @@ interface UseAutoencoderPredictParams extends AutoencoderPredictRequestInput {
 
 export function useAutoencoderPredict({
   milk,
+  dim,
+  milkrecordings,
   parity,
   herdId,
   events,
@@ -23,6 +25,8 @@ export function useAutoencoderPredict({
     queryKey: [
       "autoencoder-predict",
       milk,
+      dim,
+      milkrecordings,
       parity,
       herdId,
       events,
@@ -32,6 +36,8 @@ export function useAutoencoderPredict({
     queryFn: () => {
       const request = buildAutoencoderPredictRequest({
         milk,
+        dim,
+        milkrecordings,
         parity,
         herdId,
         events,
