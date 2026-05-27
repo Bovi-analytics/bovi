@@ -33,6 +33,7 @@ export function ChallengeCard({ challenge }: Props): ReactElement {
         <Text size="xs" c="var(--benchmark-muted-text)">
           #{challenge.id}
           {challenge.created_at ? ` · ${new Date(challenge.created_at).toLocaleDateString()}` : ""}
+          {challenge.cow_count ? ` · ${challenge.cow_count.toLocaleString()} lactations` : ""}
         </Text>
         <Button size="xs" variant="light" onClick={() => router.push(`/benchmark/${challenge.id}`)}>
           View &amp; Submit

@@ -99,6 +99,87 @@ class HerdProfileRead(HerdProfileBase):
     updated_at: datetime | None
 
 
+class StorageArtifactBase(SQLModel):
+    """Metadata for a blob-backed artifact owned by the API."""
+
+    artifact_kind: str = Field(index=True)
+    entity_type: str = Field(index=True)
+    entity_uuid: str | None = Field(default=None, index=True)
+    storage_account_name: str
+    container_name: str
+    blob_path: str = Field(index=True)
+    original_filename: str | None = None
+    content_type: str
+    content_encoding: str | None = None
+    size_bytes: int
+    sha256: str
+    etag: str | None = None
+    row_count: int | None = None
+    record_count: int | None = None
+    schema_version: int = 1
+    metadata_extra: dict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class StorageArtifact(StorageArtifactBase, table=True):
+    """Blob artifact table used as the DB index for large upload payloads."""
+
+    __tablename__: ClassVar[str] = "storage_artifacts"
+    __table_args__ = (UniqueConstraint("blob_path", name="uq_storage_artifact_blob_path"),)
+
+    id: str = Field(primary_key=True)
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
+
+
+class StorageArtifactRead(StorageArtifactBase):
+    """API/debug response for a storage artifact."""
+
+    id: str
+    created_at: datetime | None
+
+
+class UploadedDatasetBase(SQLModel):
+    """Metadata for a persisted user-uploaded dataset."""
+
+    name: str
+    dataset_type: str = Field(index=True)
+    format_detected: str
+    user_id: str | None = Field(default=None, index=True)
+    raw_file_artifact_id: str | None = Field(default=None, foreign_key="storage_artifacts.id")
+    cows_artifact_id: str | None = Field(default=None, foreign_key="storage_artifacts.id")
+    stats_artifact_id: str | None = Field(default=None, foreign_key="storage_artifacts.id")
+    original_filename: str
+    row_count: int
+    cow_count: int | None = None
+    detected_parity: int | None = None
+    columns: list = Field(default_factory=list, sa_column=Column(JSON))
+    column_mapping: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    warnings: list = Field(default_factory=list, sa_column=Column(JSON))
+    stats_summary: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    raw_stats_summary: dict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class UploadedDataset(UploadedDatasetBase, table=True):
+    """A user-uploaded CSV dataset stored in blob artifacts."""
+
+    __tablename__: ClassVar[str] = "uploaded_datasets"
+
+    id: str = Field(primary_key=True)
+    uploaded_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
+
+
+class UploadedDatasetRead(UploadedDatasetBase):
+    """Response body for uploaded dataset metadata."""
+
+    id: str
+    uploaded_at: datetime | None
+
+
 # --- Benchmark models ---
 
 
@@ -119,8 +200,10 @@ class Challenge(ChallengeBase, table=True):
     __tablename__: ClassVar[str] = "challenges"
 
     id: int | None = Field(default=None, primary_key=True)
-    cow_metadata: dict = Field(
-        sa_column=Column(JSON),
+    uuid: str | None = Field(default=None, index=True, unique=True)
+    cow_metadata: dict | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
         description="{cow_id: {parity, herd_id, dim[], milk_kg[]}} - test-day records per cow",
     )
     reference_yields: dict | None = Field(
@@ -133,6 +216,22 @@ class Challenge(ChallengeBase, table=True):
         sa_column=Column(JSON, nullable=True),
         description="{cow_id: float} - actual cumulative yield (ground truth).",
     )
+    test_day_file_artifact_id: str | None = Field(default=None, foreign_key="storage_artifacts.id")
+    actual_yields_file_artifact_id: str | None = Field(
+        default=None, foreign_key="storage_artifacts.id"
+    )
+    cow_metadata_artifact_id: str | None = Field(default=None, foreign_key="storage_artifacts.id")
+    actual_yields_artifact_id: str | None = Field(default=None, foreign_key="storage_artifacts.id")
+    test_day_filename: str | None = None
+    actual_yields_filename: str | None = None
+    row_count: int | None = None
+    cow_count: int | None = None
+    actual_yield_count: int | None = None
+    herd_count: int | None = None
+    parity_counts: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    column_mapping: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    ingest_warnings: list = Field(default_factory=list, sa_column=Column(JSON))
+    ingest_status: str = Field(default="ready", index=True)
     name: str | None = Field(
         default=None,
         description="Optional cohort name (used for upload-mode challenges).",
@@ -154,6 +253,10 @@ class ChallengeRead(ChallengeBase):
     created_at: datetime | None
     name: str | None = None
     source: str | None = None
+    row_count: int | None = None
+    cow_count: int | None = None
+    actual_yield_count: int | None = None
+    ingest_status: str = "ready"
 
 
 class ChallengeDetail(ChallengeRead):
@@ -190,13 +293,16 @@ class Submission(SubmissionBase, table=True):
     __tablename__: ClassVar[str] = "submissions"
 
     id: int | None = Field(default=None, primary_key=True)
+    uuid: str | None = Field(default=None, index=True, unique=True)
     challenge_id: int = Field(foreign_key="challenges.id")
-    submitted_yields: dict = Field(
-        sa_column=Column(JSON),
+    submitted_yields: dict | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
         description="{cow_id: float} - user-submitted or bovi-calculated yields",
     )
-    bovi_yields: dict = Field(
-        sa_column=Column(JSON),
+    bovi_yields: dict | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
         description="{cow_id: float} - server-run benchmark-model yields.",
     )
     stats: dict = Field(
@@ -208,6 +314,17 @@ class Submission(SubmissionBase, table=True):
         default_factory=list,
         description="Cow IDs excluded from stats due to parse/compute failure",
     )
+    input_file_artifact_id: str | None = Field(default=None, foreign_key="storage_artifacts.id")
+    submitted_yields_artifact_id: str | None = Field(
+        default=None, foreign_key="storage_artifacts.id"
+    )
+    bovi_yields_artifact_id: str | None = Field(default=None, foreign_key="storage_artifacts.id")
+    input_filename: str | None = None
+    row_count: int | None = None
+    submitted_yield_count: int | None = None
+    benchmark_yield_count: int | None = None
+    failed_count: int = Field(default=0)
+    ingest_status: str = Field(default="ready", index=True)
     created_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
@@ -222,3 +339,8 @@ class SubmissionRead(SubmissionBase):
     stats: dict
     failed_cow_ids: list
     created_at: datetime | None
+    row_count: int | None = None
+    submitted_yield_count: int | None = None
+    benchmark_yield_count: int | None = None
+    failed_count: int = 0
+    ingest_status: str = "ready"

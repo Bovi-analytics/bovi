@@ -202,6 +202,7 @@ export const CowRecordSchema = z.object({
 export type CowRecord = z.infer<typeof CowRecordSchema>;
 
 export const HerdProfileUploadResponseSchema = z.object({
+  upload_id: z.string().nullable().optional(),
   stats: z.record(z.string(), z.number()),
   raw_stats: z.record(z.string(), z.number()),
   format_detected: z.enum(["aggregated", "icar_test_day"]),
@@ -279,6 +280,10 @@ export const ChallengeReadSchema = z.object({
   source: z.string().nullable().optional(),
   user_id: z.string().nullable(),
   created_at: z.string().nullable(),
+  row_count: z.number().nullable().optional(),
+  cow_count: z.number().nullable().optional(),
+  actual_yield_count: z.number().nullable().optional(),
+  ingest_status: z.string().optional(),
 });
 export type ChallengeRead = z.infer<typeof ChallengeReadSchema>;
 
@@ -355,6 +360,11 @@ export const SubmissionReadSchema = z.object({
   stats: ComparisonStatsSchema,
   failed_cow_ids: z.array(z.string()),
   created_at: z.string().nullable(),
+  row_count: z.number().nullable().optional(),
+  submitted_yield_count: z.number().nullable().optional(),
+  benchmark_yield_count: z.number().nullable().optional(),
+  failed_count: z.number().optional(),
+  ingest_status: z.string().optional(),
 });
 export type SubmissionRead = z.infer<typeof SubmissionReadSchema>;
 

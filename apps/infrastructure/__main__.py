@@ -303,6 +303,8 @@ api_result = create_container_app(
             "CORS_ORIGINS": api_cors_origins,
             "STORAGE_ACCOUNT_NAME_ICAR": icar_storage_account_name,
             "STORAGE_ACCOUNT_CONTAINER_ICAR": icar_storage_container,
+            "BOVI_ENV": stack,
+            "UPLOAD_BLOB_PREFIX": "bovi/uploads",
         },
         secret_env={"STORAGE_ACCOUNT_KEY_ICAR": icar_storage_account_key},
         tags=tags,

@@ -113,6 +113,7 @@ export default function BenchmarkPage(): ReactElement {
             <Table.Tr>
               <Table.Th>Name</Table.Th>
               <Table.Th>Dataset</Table.Th>
+              <Table.Th>Lactations</Table.Th>
               <Table.Th>Source</Table.Th>
               <Table.Th>Created</Table.Th>
               <Table.Th>Action</Table.Th>
@@ -134,11 +135,10 @@ export default function BenchmarkPage(): ReactElement {
                     {DATASET_LABEL[challenge.dataset] ?? challenge.dataset}
                   </Badge>
                 </Table.Td>
+                <Table.Td>{challenge.cow_count?.toLocaleString() ?? "-"}</Table.Td>
                 <Table.Td>{challenge.source ?? "-"}</Table.Td>
                 <Table.Td>
-                  {challenge.created_at
-                    ? new Date(challenge.created_at).toLocaleDateString()
-                    : "-"}
+                  {challenge.created_at ? new Date(challenge.created_at).toLocaleDateString() : "-"}
                 </Table.Td>
                 <Table.Td>
                   <Button

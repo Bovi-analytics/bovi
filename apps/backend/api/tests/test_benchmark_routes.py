@@ -1,15 +1,17 @@
 """Integration tests for benchmark routes."""
 
 import asyncio
+import gzip
 import json
 
 import bovi_api.routes.benchmark as benchmark_routes
 import pytest
 from bovi_api.database import get_session
-from bovi_api.models import Challenge, Submission
+from bovi_api.models import Challenge, StorageArtifact, Submission
 from bovi_api.routes.benchmark import MilkBotRunOptions, _dispatch_model
 from bovi_api.routes.datasets import PresetCow, PresetDatasetResponse
 from bovi_api.settings import Settings
+from sqlmodel import select
 
 
 def test_list_challenges_empty(client):
@@ -51,6 +53,53 @@ def test_create_challenge_from_saved_dataset(client):
     assert data["dataset"] == "saved_upload"
     assert data["source"] == "upload"
     assert data["name"] == "Saved upload"
+    assert data["cow_count"] == 2
+
+    detail = client.get(f"/benchmark/challenges/{data['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["cow_metadata"]["cow1"]["milk_kg"] == [25.0, 31.0]
+
+
+def test_create_upload_challenge_stores_raw_and_parsed_artifacts(client):
+    """POST /benchmark/challenges/upload stores raw CSV and parsed JSON blobs."""
+    test_day = b"TestId,parity,dim,milk_kg\ncow1,2,10,25\ncow1,2,40,31\ncow2,3,12,28\n"
+    actual = b"TestId,LactationYield\ncow1,8500\ncow2,9100\n"
+
+    resp = client.post(
+        "/benchmark/challenges/upload",
+        data={"name": "Blob challenge"},
+        files={
+            "test_day_csv": ("test_day.csv", test_day, "text/csv"),
+            "actual_yields_csv": ("actual.csv", actual, "text/csv"),
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["row_count"] == 3
+    assert data["cow_count"] == 2
+    assert data["actual_yield_count"] == 2
+
+    blob_paths = set(client.app.state.blob_container_client.store)
+    assert any(path.endswith("/raw/test_day.csv") for path in blob_paths)
+    assert any(path.endswith("/raw/actual_yields.csv") for path in blob_paths)
+    cow_blob_path = next(
+        path for path in blob_paths if path.endswith("/parsed/cow_metadata.json.gz")
+    )
+    stored = client.app.state.blob_container_client.store[cow_blob_path]
+    assert stored.content_type == "application/json"
+    assert stored.content_encoding == "gzip"
+    assert json.loads(gzip.decompress(stored.data))["cow1"]["dim"] == [10, 40]
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _artifact_count() -> int:
+        async for session in override():
+            result = await session.execute(select(StorageArtifact))
+            return len(result.scalars().all())
+        raise AssertionError("session override did not yield")
+
+    assert asyncio.run(_artifact_count()) == 4
 
 
 def test_pad_b_upload_rejects_high_failure_rate(client):
@@ -96,6 +145,60 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
         files={"file": ("results.csv", csv_content, "text/csv")},
     )
     assert resp.status_code == 422
+
+
+def test_submission_upload_stores_raw_and_generated_artifacts(client, monkeypatch):
+    """Own-method submissions store raw CSV, parsed yields, and benchmark yields in blobs."""
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed() -> None:
+        async for session in override():
+            session.add(
+                Challenge(
+                    dataset="upload",
+                    size="custom",
+                    period="custom",
+                    source="upload",
+                    name="seed",
+                    cow_metadata={
+                        "cow1": {"parity": 1, "dim": [50], "milk_kg": [25.0]},
+                        "cow2": {"parity": 2, "dim": [60], "milk_kg": [30.0]},
+                    },
+                    reference_yields=None,
+                    actual_yields={"cow1": 8000.0, "cow2": 9000.0},
+                )
+            )
+            await session.commit()
+            break
+
+    async def _fake_dispatch(*_args, **_kwargs):
+        return {"cow1": 7900.0, "cow2": 9100.0}
+
+    asyncio.run(_seed())
+    monkeypatch.setattr(benchmark_routes, "_dispatch_model", _fake_dispatch)
+
+    resp = client.post(
+        "/benchmark/challenges/1/submissions/upload",
+        data={"benchmark": "tim", "calculation_method": "own method"},
+        files={
+            "file": (
+                "results.csv",
+                b"TestId,LactationYield\ncow1,8100\ncow2,9200\n",
+                "text/csv",
+            )
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["row_count"] == 2
+    assert data["submitted_yield_count"] == 2
+    assert data["benchmark_yield_count"] == 2
+
+    blob_paths = set(client.app.state.blob_container_client.store)
+    assert any(path.endswith("/raw/results.csv") for path in blob_paths)
+    assert any(path.endswith("/parsed/submitted_yields.json.gz") for path in blob_paths)
+    assert any(path.endswith("/generated/bovi_yields.json.gz") for path in blob_paths)
 
 
 def test_export_challenge_uses_test_id_and_omits_empty_herd_id(client):

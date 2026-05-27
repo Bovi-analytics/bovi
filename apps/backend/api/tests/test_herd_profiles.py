@@ -1,5 +1,11 @@
 """Tests for the herd profiles CRUD API."""
 
+import asyncio
+
+from bovi_api.database import get_session
+from bovi_api.models import UploadedDataset
+from sqlmodel import select
+
 VALID_PROFILE = {
     "name": "Test Herd",
     "description": "A test herd profile",
@@ -98,9 +104,27 @@ def test_csv_preview_returns_normalized_stats(client):
     data = response.json()
     assert "stats" in data
     assert data["format_detected"] == "aggregated"
+    assert data["upload_id"]
     assert data["row_count"] == 1
     for value in data["stats"].values():
         assert 0.0 <= value <= 1.0
+
+    blob_paths = set(client.app.state.blob_container_client.store)
+    assert any(path.endswith("/raw/upload.csv") for path in blob_paths)
+    assert any(path.endswith("/parsed/stats.json.gz") for path in blob_paths)
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _uploaded_dataset() -> UploadedDataset:
+        async for session in override():
+            result = await session.execute(select(UploadedDataset))
+            return result.scalars().one()
+        raise AssertionError("session override did not yield")
+
+    dataset = asyncio.run(_uploaded_dataset())
+    assert dataset.id == data["upload_id"]
+    assert dataset.row_count == 1
+    assert dataset.original_filename == "herd.csv"
 
 
 def test_csv_preview_rejects_non_csv_extension(client):
