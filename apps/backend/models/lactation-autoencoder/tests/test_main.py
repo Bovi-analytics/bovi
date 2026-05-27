@@ -1,5 +1,6 @@
 """API endpoint tests - HTTP contract only."""
 
+import pytest
 from fastapi.testclient import TestClient
 from main import app
 
@@ -18,6 +19,7 @@ class TestHealthEndpoint:
         assert response.json() == {"status": "ok"}
 
 
+@pytest.mark.model_weights
 class TestPredictEndpoint:
     def test_predict_minimal(self):
         milk: list[float | None] = [None] * 304
@@ -73,6 +75,7 @@ class TestPredictEndpoint:
         assert response.status_code == 422
 
 
+@pytest.mark.model_weights
 class TestBatchEndpoint:
     def test_batch_predict(self):
         response = client.post(
