@@ -14,7 +14,7 @@ inputs:
   pulumi-config-passphrase:
     description: Pulumi config passphrase.
     required: true
-  azure-storage-account:
+  azure-storage-account-state:
     description: Pulumi backend Azure storage account.
     required: true
   azure-storage-key:
@@ -57,7 +57,7 @@ runs:
         cloud-url: ${{ inputs.cloud-url }}
       env:
         PULUMI_CONFIG_PASSPHRASE: ${{ inputs.pulumi-config-passphrase }}
-        AZURE_STORAGE_ACCOUNT: ${{ inputs.azure-storage-account }}
+        AZURE_STORAGE_ACCOUNT: ${{ inputs.azure-storage-account-state }}
         AZURE_STORAGE_KEY: ${{ inputs.azure-storage-key }}
         STORAGE_ACCOUNT_NAME_ICAR: ${{ inputs.storage-account-name-icar }}
         STORAGE_ACCOUNT_KEY_ICAR: ${{ inputs.storage-account-key-icar }}
