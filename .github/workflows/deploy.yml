@@ -3,6 +3,7 @@ name: Deploy
 on:
   push:
     branches:
+      - dev
       - main
     paths:
       - "apps/backend/**"
@@ -33,6 +34,14 @@ on:
           - dashboard
           - infra
           - all
+      environment:
+        description: Deployment environment
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
 
 permissions:
   id-token: write
@@ -41,12 +50,39 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.12"
-  PULUMI_STACK: dev
   INFRA_DIR: apps/infrastructure
   AZURE_RESOURCE_GROUP: Bovi-Analytics-Tools
   AUTOENCODER_MODEL_VERSION: v15
 
 jobs:
+  resolve-deployment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.resolve.outputs.environment }}
+      pulumi-stack: ${{ steps.resolve.outputs.pulumi-stack }}
+      image-tag: ${{ steps.resolve.outputs.image-tag }}
+    steps:
+      - id: resolve
+        shell: bash
+        env:
+          DISPATCH_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || '' }}
+        run: |
+          set -euo pipefail
+          environment="${DISPATCH_ENVIRONMENT}"
+          if [[ -z "$environment" ]]; then
+            case "$GITHUB_REF_NAME" in
+              main) environment="prod" ;;
+              dev) environment="dev" ;;
+              *) environment="dev" ;;
+            esac
+          fi
+
+          {
+            echo "environment=${environment}"
+            echo "pulumi-stack=${environment}"
+            echo "image-tag=${environment}-latest"
+          } >> "$GITHUB_OUTPUT"
+
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
@@ -127,7 +163,7 @@ jobs:
               - ".github/actions/smoke-function-health/**"
 
   build-api-image:
-    needs: detect-changes
+    needs: [resolve-deployment, detect-changes]
     if: |
       needs.detect-changes.outputs.api == 'true' ||
       (github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all'))
@@ -143,9 +179,11 @@ jobs:
           image-name: bovi-api
           context: apps/backend/api
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          extra-tags: |
+            ${{ needs.resolve-deployment.outputs.image-tag }}
 
   build-dashboard-image:
-    needs: detect-changes
+    needs: [resolve-deployment, detect-changes]
     if: |
       needs.detect-changes.outputs.dashboard == 'true' ||
       (github.event_name == 'workflow_dispatch' && (inputs.target == 'dashboard' || inputs.target == 'all'))
@@ -161,9 +199,11 @@ jobs:
           image-name: bovi-dashboard
           context: apps/frontend/dashboard
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          extra-tags: |
+            ${{ needs.resolve-deployment.outputs.image-tag }}
 
   infra:
-    needs: [detect-changes, build-api-image, build-dashboard-image]
+    needs: [resolve-deployment, detect-changes, build-api-image, build-dashboard-image]
     if: |
       always() &&
       (
@@ -177,6 +217,9 @@ jobs:
       (!(github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all')) || needs.build-api-image.result == 'success') &&
       (!(github.event_name == 'workflow_dispatch' && (inputs.target == 'dashboard' || inputs.target == 'all')) || needs.build-dashboard-image.result == 'success')
     runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-deployment.outputs.environment }}
+    env:
+      PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
     steps:
       - uses: actions/checkout@v4
 
@@ -198,8 +241,8 @@ jobs:
         id: defaults
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
-          echo "api=ghcr.io/${owner}/bovi-api:latest" >> "$GITHUB_OUTPUT"
-          echo "dashboard=ghcr.io/${owner}/bovi-dashboard:latest" >> "$GITHUB_OUTPUT"
+          echo "api=ghcr.io/${owner}/bovi-api:${{ needs.resolve-deployment.outputs.image-tag }}" >> "$GITHUB_OUTPUT"
+          echo "dashboard=ghcr.io/${owner}/bovi-dashboard:${{ needs.resolve-deployment.outputs.image-tag }}" >> "$GITHUB_OUTPUT"
 
       - id: current-api-image
         uses: ./.github/actions/resolve-current-image
@@ -233,7 +276,7 @@ jobs:
           dashboard-image: ${{ needs.build-dashboard-image.result == 'success' && needs.build-dashboard-image.outputs.image || steps.current-dashboard-image.outputs.image }}
 
   migrate-api:
-    needs: [detect-changes, build-api-image, infra]
+    needs: [resolve-deployment, detect-changes, build-api-image, infra]
     if: |
       always() &&
       (
@@ -243,6 +286,9 @@ jobs:
       needs.build-api-image.result == 'success' &&
       needs.infra.result == 'success'
     runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-deployment.outputs.environment }}
+    env:
+      PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
     steps:
       - uses: actions/checkout@v4
 
@@ -259,7 +305,7 @@ jobs:
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
 
   rollout-api:
-    needs: [detect-changes, build-api-image, migrate-api]
+    needs: [resolve-deployment, detect-changes, build-api-image, migrate-api]
     if: |
       always() &&
       (
@@ -269,6 +315,9 @@ jobs:
       needs.build-api-image.result == 'success' &&
       needs.migrate-api.result == 'success'
     runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-deployment.outputs.environment }}
+    env:
+      PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
     steps:
       - uses: actions/checkout@v4
 
@@ -290,7 +339,7 @@ jobs:
         id: defaults
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
-          echo "dashboard=ghcr.io/${owner}/bovi-dashboard:latest" >> "$GITHUB_OUTPUT"
+          echo "dashboard=ghcr.io/${owner}/bovi-dashboard:${{ needs.resolve-deployment.outputs.image-tag }}" >> "$GITHUB_OUTPUT"
 
       - id: current-dashboard-image
         uses: ./.github/actions/resolve-current-image
@@ -323,7 +372,7 @@ jobs:
           path: /health
 
   rollout-dashboard:
-    needs: [detect-changes, build-dashboard-image, infra, rollout-api]
+    needs: [resolve-deployment, detect-changes, build-dashboard-image, infra, rollout-api]
     if: |
       always() &&
       (
@@ -340,6 +389,9 @@ jobs:
         needs.rollout-api.result == 'success'
       )
     runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-deployment.outputs.environment }}
+    env:
+      PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
     steps:
       - uses: actions/checkout@v4
 
@@ -361,7 +413,7 @@ jobs:
         id: defaults
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
-          echo "api=ghcr.io/${owner}/bovi-api:latest" >> "$GITHUB_OUTPUT"
+          echo "api=ghcr.io/${owner}/bovi-api:${{ needs.resolve-deployment.outputs.image-tag }}" >> "$GITHUB_OUTPUT"
 
       - id: current-api-image
         uses: ./.github/actions/resolve-current-image
@@ -395,7 +447,7 @@ jobs:
           discard-output: "true"
 
   deploy-lactation-curves:
-    needs: [detect-changes, infra, rollout-api]
+    needs: [resolve-deployment, detect-changes, infra, rollout-api]
     if: |
       always() &&
       (
@@ -411,6 +463,9 @@ jobs:
         needs.rollout-api.result == 'success'
       )
     runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-deployment.outputs.environment }}
+    env:
+      PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
     steps:
       - uses: actions/checkout@v4
 
@@ -449,7 +504,7 @@ jobs:
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
 
   deploy-lactation-autoencoder:
-    needs: [detect-changes, infra, rollout-api]
+    needs: [resolve-deployment, detect-changes, infra, rollout-api]
     if: |
       always() &&
       (
@@ -465,6 +520,9 @@ jobs:
         needs.rollout-api.result == 'success'
       )
     runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-deployment.outputs.environment }}
+    env:
+      PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
     steps:
       - uses: actions/checkout@v4
 

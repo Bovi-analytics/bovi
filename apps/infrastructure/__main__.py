@@ -66,8 +66,6 @@ stack = pulumi.get_stack()
 location = config.require("location")
 subscription_id = config.require("subscriptionId")
 resource_group_name = config.require("resourceGroup")
-dashboard_origin = config.get("dashboardOrigin") or "http://localhost:3000"
-api_cors_origins = json.dumps([dashboard_origin])
 milkbot_key = config.get_secret("milkbotKey") or ""
 autoencoder_model_version = (
     os.getenv("AUTOENCODER_MODEL_VERSION") or config.get("autoencoderModelVersion") or "v15"
@@ -162,6 +160,27 @@ log_analytics_result = create_log_analytics(
 )
 
 # ---------------------------------------------------------------------------
+# Container App Environment + dashboard origin
+# ---------------------------------------------------------------------------
+cae_result = create_container_app_environment(
+    "container-app-env",
+    ContainerAppEnvironmentArgs(
+        resource_group_name=resource_group.name,
+        location=location,
+        env_name=f"bovi-env-{stack}",
+        log_analytics_customer_id=log_analytics_result.customer_id,
+        log_analytics_shared_key=log_analytics_result.shared_key,
+        tags=tags,
+    ),
+)
+
+configured_dashboard_origin = config.get("dashboardOrigin")
+dashboard_origin = configured_dashboard_origin or cae_result.default_domain.apply(
+    lambda domain: f"https://bovi-dashboard-{stack}.{domain}"
+)
+api_cors_origins = pulumi.Output.all(dashboard_origin).apply(lambda origins: json.dumps(origins))
+
+# ---------------------------------------------------------------------------
 # App Service Plan (shared by all Function Apps)
 # ---------------------------------------------------------------------------
 plan_result = create_app_service_plan(
@@ -248,7 +267,7 @@ autoencoder_result = create_function_app(
 )
 
 # ---------------------------------------------------------------------------
-# Container App Environment + central FastAPI
+# Central FastAPI
 # ---------------------------------------------------------------------------
 api_insights_result = create_app_insights(
     "api-insights",
@@ -257,18 +276,6 @@ api_insights_result = create_app_insights(
         location=location,
         resource_name=f"api-insights-{stack}",
         workspace_resource_id=log_analytics_result.workspace.id,
-        tags=tags,
-    ),
-)
-
-cae_result = create_container_app_environment(
-    "container-app-env",
-    ContainerAppEnvironmentArgs(
-        resource_group_name=resource_group.name,
-        location=location,
-        env_name=f"bovi-env-{stack}",
-        log_analytics_customer_id=log_analytics_result.customer_id,
-        log_analytics_shared_key=log_analytics_result.shared_key,
         tags=tags,
     ),
 )

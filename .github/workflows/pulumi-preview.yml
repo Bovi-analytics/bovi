@@ -9,7 +9,17 @@ name: Pulumi Preview
 #     paths:
 #       - "apps/infrastructure/**"
 #       - "packages/infrastructure/**"
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
 
 permissions:
   id-token: write
@@ -18,12 +28,41 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.12"
-  PULUMI_STACK: dev
   INFRA_DIR: apps/infrastructure
 
 jobs:
-  preview:
+  resolve-deployment:
     runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.resolve.outputs.environment }}
+      pulumi-stack: ${{ steps.resolve.outputs.pulumi-stack }}
+    steps:
+      - id: resolve
+        shell: bash
+        env:
+          DISPATCH_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || '' }}
+        run: |
+          set -euo pipefail
+          environment="${DISPATCH_ENVIRONMENT}"
+          if [[ -z "$environment" ]]; then
+            case "$GITHUB_BASE_REF" in
+              main) environment="prod" ;;
+              dev) environment="dev" ;;
+              *) environment="dev" ;;
+            esac
+          fi
+
+          {
+            echo "environment=${environment}"
+            echo "pulumi-stack=${environment}"
+          } >> "$GITHUB_OUTPUT"
+
+  preview:
+    needs: resolve-deployment
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-deployment.outputs.environment }}
+    env:
+      PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3

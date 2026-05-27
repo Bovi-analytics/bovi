@@ -1,5 +1,5 @@
 name: Build and push Docker image
-description: Build and push a GHCR image tagged with latest and the current commit SHA.
+description: Build and push a GHCR image tagged with latest, the current commit SHA, and optional extra tags.
 
 inputs:
   image-name:
@@ -11,6 +11,10 @@ inputs:
   github-token:
     description: Token used to push to GHCR.
     required: true
+  extra-tags:
+    description: Additional tag names to push for this image, one per line.
+    required: false
+    default: ""
 
 outputs:
   image:
@@ -42,13 +46,31 @@ runs:
         echo "name=${name}" >> "$GITHUB_OUTPUT"
         echo "sha=${name}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
+    - name: Set image tags
+      id: tags
+      shell: bash
+      env:
+        IMAGE_NAME: ${{ steps.image.outputs.name }}
+        EXTRA_TAGS: ${{ inputs.extra-tags }}
+      run: |
+        set -euo pipefail
+        {
+          echo "tags<<EOF"
+          echo "${IMAGE_NAME}:latest"
+          echo "${IMAGE_NAME}:${GITHUB_SHA}"
+          while IFS= read -r tag; do
+            [[ -z "$tag" ]] && continue
+            echo "${IMAGE_NAME}:${tag}"
+          done <<< "$EXTRA_TAGS"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
     - name: Build and push image
+      id: build-push
       uses: docker/build-push-action@v6
       with:
         context: ${{ inputs.context }}
         push: true
-        tags: |
-          ${{ steps.image.outputs.name }}:latest
-          ${{ steps.image.outputs.name }}:${{ github.sha }}
+        tags: ${{ steps.tags.outputs.tags }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
