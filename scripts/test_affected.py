@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -81,6 +82,11 @@ def select_tests(paths: set[str]) -> tuple[set[str], bool, bool, list[str]]:
             continue
 
         if path == "justfile" or path.startswith(".github/workflows/"):
+            targets.update(HEALTH_TARGETS)
+            continue
+
+        if path == "scripts/test_affected.py" or path.startswith("scripts/tests/"):
+            add_target(targets, "scripts/tests/test_test_affected.py")
             targets.update(HEALTH_TARGETS)
             continue
 
@@ -228,11 +234,15 @@ def collapse_redundant_targets(targets: set[str]) -> set[str]:
 
 
 def build_pytest_commands(targets: set[str], args: argparse.Namespace) -> list[list[str]]:
-    commands: list[list[str]] = []
+    groups: dict[str, list[str]] = defaultdict(list)
     for target in sorted(collapse_redundant_targets(targets)):
         allowed_markers = dependency_markers_for_target(target)
-        cmd = ["uv", "run", "pytest", "-c", "pyproject.toml", "-v", target]
         marker_expr = marker_expression(args, allowed_markers)
+        groups[marker_expr].append(target)
+
+    commands: list[list[str]] = []
+    for marker_expr, group_targets in groups.items():
+        cmd = ["uv", "run", "pytest", "-c", "pyproject.toml", "-v", *group_targets]
         if marker_expr:
             cmd.extend(["-m", marker_expr])
         commands.append(cmd)
