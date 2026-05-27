@@ -24,6 +24,15 @@ typecheck_affected = importlib.util.module_from_spec(_TYPECHECK_SPEC)
 assert _TYPECHECK_SPEC.loader is not None
 _TYPECHECK_SPEC.loader.exec_module(typecheck_affected)
 
+_FRONTEND_SCRIPT_PATH = Path(__file__).resolve().parents[1] / "check_frontend_affected.py"
+_FRONTEND_SPEC = importlib.util.spec_from_file_location(
+    "check_frontend_affected", _FRONTEND_SCRIPT_PATH
+)
+assert _FRONTEND_SPEC is not None
+check_frontend_affected = importlib.util.module_from_spec(_FRONTEND_SPEC)
+assert _FRONTEND_SPEC.loader is not None
+_FRONTEND_SPEC.loader.exec_module(check_frontend_affected)
+
 
 def _args(**overrides: bool) -> argparse.Namespace:
     defaults = {
@@ -123,6 +132,18 @@ def test_select_tests_includes_script_tests_for_typecheck_runner_changes() -> No
     assert notes == []
 
 
+def test_select_tests_includes_script_tests_for_frontend_runner_changes() -> None:
+    targets, allow_torch, allow_tensorflow, notes = test_affected.select_tests(
+        {"scripts/check_frontend_affected.py"}
+    )
+
+    assert "scripts/tests/test_test_affected.py" in targets
+    assert set(test_affected.HEALTH_TARGETS).issubset(targets)
+    assert allow_torch is False
+    assert allow_tensorflow is False
+    assert notes == []
+
+
 def test_select_typecheck_files_returns_changed_python_files() -> None:
     files, full_check = typecheck_affected.select_typecheck_files(
         {
@@ -186,3 +207,28 @@ def test_local_changed_paths_includes_cached_unstaged_and_untracked(monkeypatch)
         ["diff", "--name-only"],
         ["ls-files", "--others", "--exclude-standard"],
     ]
+
+
+def test_select_dashboard_paths_returns_only_dashboard_changes() -> None:
+    assert check_frontend_affected.select_dashboard_paths(
+        {
+            "apps/frontend/dashboard/src/app/page.tsx",
+            "apps/frontend/dashboard/package.json",
+            "apps/backend/api/src/bovi_api/app.py",
+        }
+    ) == [
+        "apps/frontend/dashboard/package.json",
+        "apps/frontend/dashboard/src/app/page.tsx",
+    ]
+
+
+def test_select_dashboard_paths_ignores_non_dashboard_changes() -> None:
+    assert (
+        check_frontend_affected.select_dashboard_paths(
+            {
+                "apps/frontend/other/file.ts",
+                "apps/backend/api/src/bovi_api/app.py",
+            }
+        )
+        == []
+    )

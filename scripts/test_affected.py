@@ -85,9 +85,11 @@ def select_tests(paths: set[str]) -> tuple[set[str], bool, bool, list[str]]:
             targets.update(HEALTH_TARGETS)
             continue
 
-        if path in {"scripts/test_affected.py", "scripts/typecheck_affected.py"} or path.startswith(
-            "scripts/tests/"
-        ):
+        if path in {
+            "scripts/check_frontend_affected.py",
+            "scripts/test_affected.py",
+            "scripts/typecheck_affected.py",
+        } or path.startswith("scripts/tests/"):
             add_target(targets, "scripts/tests/test_test_affected.py")
             targets.update(HEALTH_TARGETS)
             continue
