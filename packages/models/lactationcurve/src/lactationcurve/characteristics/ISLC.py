@@ -31,9 +31,24 @@ Key Entry Points
 - ``linear_interpd_all_to_grid`` and ``linear_interpd_closest_to_grid``:
   Linear interpolation alternatives.
 
+Column Flexibility
+------------------
+The functions accept several case-insensitive column name aliases and can
+create a default ``TestId`` if one is missing. Recognized aliases:
+
+- Days in Milk: `["daysinmilk", "dim", "testday"]`
+- Milk Yield: `["milkingyield", "testdaymilkyield", "milkyield", "yield"]`
+- Test Id: `["animalid", "testid", "id"]`
+
+It is also possible to provide your own column names so the function 
+can be applied to dataframes with different column naming conventions.
+
+Returns a DataFrame with columns: ``["TestId", "LactationMilkYield"]``.
+
 Defaults
 --------
-- ``STANDARD_CURVE``: Baseline expected lactation curve for days 1..305 (Wilmink).
+- ``STANDARD_CURVE``: Baseline expected lactation curve for days 1..305 
+    (Wilmink lactation curve model).
 - ``CORR_MATRIX``: Default day-to-day correlation structure used for projection.
 - ``STDs``: Standard deviations for each grid day, empirically estimated.
 
@@ -45,16 +60,61 @@ Notes
     ``interpolation_standard_lc`` is recommended because it is the most
     consistent with the original method.
 - ``interpolation_standard_lc`` requires a standard lactation curve.
-    You can fit one with the ``lactationcurve`` package.
+    You can fit one with the ``lactationcurve`` package 
+    or use the default lactation curve.
 - The methods can be applied to lactations without any measurements,
     in which case the result will be the population mean from the standard curve.
+- The main ISLC method in this package is not the same as the original method 
+    described in the paper by Wilmink.
+    The original method is implemented in ``ISLC_original_method`` and ``ISLC_original``.
+    The difference in the new method is that the grid is extended to include day 1 and day 305. 
+    ALso the measured test days are taken into account in the final summation to lactation yield, 
+    while in the original method only the interpolated values on the grid are used.
+    The new method can also be applied to lactation extending beyond 305 days, 
+    while the original method is strictly for 305-day yield estimation.
+- The method currently assumes that the standard curves are the same 
+    for all lactations,
+    but future updates may allow using different standard curves and covariance structures for 
+    different subgroups of lactations (e.g., by breed or parity).
+- ISLC's strenght is that its caclulation is broken up in multiple steps, 
+    which makes it more computer memory friendly than the best predict method, 
+    which requires the inversion of a large covariance matrix. 
+    Because of the integration of standard lactation curves 
+    it takes into account the shape of the lactation curve, 
+    which can lead to more accurate estimates of total yield, 
+    especially for lactations with few test days or irregular patterns.
+- ISLC's main disadvantage is that because of the many in between steps, 
+    it is relatively complex to implement and understand, making it less transparant. 
+    The best results are obtained when the standard curve and covariance matrix 
+    are from the same population as the data, 
+    which can be a barrier for users without access to a large reference dataset.
+    This also causes inconsistencies in cumulative milk yield results 
+    depending on which standard curves are used. 
+    A cow with the exact same test-day records 
+    can have a different cumulative milk yield estimates depending 
+    on the standard curve used, which can be considered unfair.
+
+References
+---------
+Wilmink, J. B. M. (1987). 
+Comparison of different methods of predicting 305-day milk yield using means 
+calculated from within-herd lactation curves. Livestock Production Science, 
+17, 1-17.
+
+Wilmink, J. B. M. (1987). 
+Adjustment of test-day milk, fat and protein yield for age, 
+season and stage of lactation. Livestock Production Science, 16(4), 335-348.
+
+Handbook NRS © CR Delta chapter E1 and E2 02-98
 
 
-Author: Meike
+Author: Meike van Leerdam
 Date: 20 October 2025
+Last update: 21 May 2026
 """
 
 # Import packages
+import inspect
 from pathlib import Path
 from typing import Any, Protocol, cast
 
@@ -76,6 +136,21 @@ STANDARD_CURVE = np.load(DATA_DIR / "standard_lc_grid.npy")
 
 # add a day zero (that equals day 1) to the standard curve to prevent an index shift
 STANDARD_CURVE = np.insert(STANDARD_CURVE, 0, STANDARD_CURVE[0])
+
+
+class _DocDefault:
+    """Lightweight repr-only wrapper for cleaner generated signatures."""
+
+    def __init__(self, label: str) -> None:
+        self.label = label
+
+    def __repr__(self) -> str:
+        return self.label
+
+
+_DOC_STANDARD_CURVE = _DocDefault("STANDARD_CURVE")
+_DOC_CORR_MATRIX = _DocDefault("CORR_MATRIX")
+_DOC_STDS = _DocDefault("STDs")
 
 
 def _curve_to_series(curve: pd.Series | npt.NDArray[np.float64]) -> pd.Series:
@@ -141,9 +216,12 @@ def ISLC(
     """Estimate cumulative lactation yield per TestId using ISLC.
 
     This variant applies :func:`ISLC_method` to standardized lactation records.
-    By default it uses package-provided standard curve, correlation matrix,
-    and per-grid standard deviations. Optionally, these assets can be refit
-    from a reference dataset.
+    By default it uses the package-provided standard curve, correlation matrix,
+    and per-grid day standard deviations. Optionally, these assets can be refit
+    from a reference dataset by providing a pandas dataframe at 'reference_df =' 
+    when ``fit_standard_lc_from_data`` is True.
+    Alternative for customization is to set standard_lc_305,
+    correlation_matrix, and std_per_grid_day directly.
 
     Args:
         df: Input test-day records.
@@ -154,7 +232,8 @@ def ISLC(
         standard_lc_305: Standard lactation curve values used by ISLC.
         correlation_matrix: Correlation matrix aligned with ISLC grid.
         std_per_grid_day: Standard deviations aligned with ISLC grid.
-        max_dim: Maximum DIM to include (or ``"max"`` for no filtering).
+        max_dim: Maximum DIM to include 
+            (or ``"max"`` so highest test day DIM is considered the final lactation day).
         fit_standard_lc_from_data: If True, fit representation from ``reference_df``.
         reference_df: Reference records used when fitting curve and covariance.
 
@@ -370,7 +449,8 @@ def ISLC_original_method(
     correlation_matrix: pd.DataFrame,
     std_per_grid_day: npt.NDArray[np.float64],
 ) -> float:
-    """Estimate 305-day milk yield for a single interpolated lactation.
+    """Estimate 305-day milk yield for a single interpolated lactation
+    from the original paper by Dr. Wilmink in 1987.
 
     This function computes an estimated 305-day yield by combining three
     components: known production from interpolated measurements, the
@@ -488,7 +568,8 @@ def ISLC_original(
     fit_standard_lc_from_data: bool = False,
     reference_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    """Compute estimated 305-day yields using the original grid-based ISLC variant.
+    """Compute estimated 305-day yields using the original grid-based ISLC variant
+    from the original paper by Dr. Wilmink in 1987.
 
     The function groups standardized input by ``TestId``, interpolates to the
     fixed GRID_DAYS grid, and applies :func:`ISLC_original_method` per lactation.
@@ -841,13 +922,16 @@ def create_standard_lc_representation(
     days_in_milk_col: str,
     milking_yield_col: str,
     interpolation_method: InterpolationMethod = interpolation_standard_lc,
+    lc_model: str = "Wilmink",
     small_grid: bool = False,
 ) -> tuple[pd.DataFrame, npt.NDArray[np.float64], pd.Series]:
     """Create a standard lactation curve with correlation matrix from data.
 
     This function estimates the correlation structure and standard deviations
-    of milk yields across grid days, and refits a Wilmink lactation curve to
-    the interpolated data. The outputs can be used as inputs to the
+    of milk yields across grid days, and refits a Wilmink lactation curve model to
+    the interpolated data. The Wilmink model is hereby the default, 
+    but any model from the LC package can be used.
+    The outputs can be used as inputs to the
     ``ISLC_method`` or ``ISLC_original`` functions for predicting 305-d yields.
 
     The process standardizes yields per animal and computes row-wise
@@ -867,6 +951,7 @@ def create_standard_lc_representation(
             ``InterpolationMethod`` protocol (default: ``interpolation_standard_lc``).
             Must be callable with signature
             (group, days_in_milk_col, milking_yield_col, standard_lc).
+        lc_model: The lactation curve model to fit to the interpolated data. Default is "Wilmink".
         small_grid: If True, build representation on GRID_DAYS only.
 
     Returns:
@@ -883,8 +968,10 @@ def create_standard_lc_representation(
           correlations and standard deviations reflect between-day variation
           within standardized animal profiles.
         - Uses ``fit_lactation_curve`` from the ``lactationcurve`` package
-          with model='Wilmink' and fitting='frequentist'.
+          with model='Wilmink' and fitting='frequentist'. 
+          However other models can be used by specifying the ``lc_model`` argument.
     """
+
     if "TestId" not in df.columns:
         raise ValueError("DataFrame must contain a 'TestId' column.")
     if days_in_milk_col not in df.columns or milking_yield_col not in df.columns:
@@ -943,9 +1030,31 @@ def create_standard_lc_representation(
         fit_lactation_curve(
             df_grid["GridDay"].values,
             df_grid["MilkYieldInterp"].values,
-            model="Wilmink",
+            model=lc_model,
             fitting="frequentist",
         ),
         index=range(1, 306),
     )
     return corr, std_per_grid_day, standard_lactation_curve_grid
+
+
+def _set_doc_signatures() -> None:
+    """Override displayed defaults in docs without changing runtime behavior."""
+    doc_defaults = {
+        "standard_lc_305": _DOC_STANDARD_CURVE,
+        "correlation_matrix": _DOC_CORR_MATRIX,
+        "std_per_grid_day": _DOC_STDS,
+    }
+
+    for func in (ISLC, ISLC_original):
+        signature = inspect.signature(func)
+        params = [
+            param.replace(default=doc_defaults[param.name])
+            if param.name in doc_defaults
+            else param
+            for param in signature.parameters.values()
+        ]
+        func.__signature__ = signature.replace(parameters=params)
+
+
+_set_doc_signatures()
