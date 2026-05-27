@@ -62,6 +62,19 @@ YIELD_ESTIMATORS = {
 }
 ALL_MODELS = CURVE_MODELS | set(YIELD_ESTIMATORS) | {"autoencoder"}
 
+_ICAR_DATASET_SOURCES = [
+    {
+        "role": "test_day_records",
+        "label": "Test-day records",
+        "filename": "TestDataSet.csv",
+    },
+    {
+        "role": "actual_yields",
+        "label": "Ground-truth ALY",
+        "filename": "ActualMilkYields.csv",
+    },
+]
+
 ChallengerOrBenchmark = Literal[
     "wood",
     "wilmink",
@@ -256,6 +269,65 @@ def _recalculate_submission_stats(
     )
 
 
+def _dataset_stats(cow_metadata: dict | None, actual_yields: dict | None) -> dict[str, int | None]:
+    """Build the compact dataset summary used by benchmark list/detail views."""
+    cow_metadata = cow_metadata or {}
+    actual_yields = actual_yields or {}
+    herd_ids = {
+        meta.get("herd_id")
+        for meta in cow_metadata.values()
+        if isinstance(meta, dict) and meta.get("herd_id") not in (None, "")
+    }
+    return {
+        "lactation_count": len(cow_metadata),
+        "test_day_row_count": sum(
+            len(meta.get("dim", [])) for meta in cow_metadata.values() if isinstance(meta, dict)
+        ),
+        "actual_yield_count": len(actual_yields),
+        "herd_count": len(herd_ids) if herd_ids else None,
+    }
+
+
+def _upload_dataset_sources(
+    test_day_filename: str | None = None,
+    actual_yields_filename: str | None = None,
+) -> list[dict[str, str]]:
+    return [
+        {
+            "role": "test_day_records",
+            "label": "Test-day records",
+            "filename": test_day_filename or "Uploaded test-day CSV",
+        },
+        {
+            "role": "actual_yields",
+            "label": "Ground-truth ALY",
+            "filename": actual_yields_filename or "Uploaded actual-yields CSV",
+        },
+    ]
+
+
+def _fallback_dataset_sources(challenge: Challenge) -> list[dict[str, str]]:
+    if challenge.dataset == "icar" and challenge.source == "preset":
+        return _ICAR_DATASET_SOURCES
+    if challenge.dataset in {"upload", "saved_upload"}:
+        return _upload_dataset_sources()
+    return [
+        {
+            "role": "dataset",
+            "label": "Dataset",
+            "filename": challenge.name or challenge.dataset,
+        }
+    ]
+
+
+def _with_dataset_metadata(challenge: Challenge) -> Challenge:
+    if not challenge.dataset_sources:
+        challenge.dataset_sources = _fallback_dataset_sources(challenge)
+    if not challenge.dataset_stats:
+        challenge.dataset_stats = _dataset_stats(challenge.cow_metadata, challenge.actual_yields)
+    return challenge
+
+
 # ---------------------------------------------------------------------------
 # Model dispatchers
 # ---------------------------------------------------------------------------
@@ -444,6 +516,7 @@ class ChallengeCreateSavedDatasetBody(BaseModel):
     name: str
     cow_metadata: dict[str, dict]
     actual_yields: dict[str, float]
+    dataset_sources: list[dict] | None = None
 
 
 @router.post("/challenges", response_model=ChallengeRead, status_code=201)
@@ -520,6 +593,8 @@ async def create_challenge_preset(
         actual_yield_count=summary["actual_yield_count"],
         herd_count=summary["herd_count"],
         parity_counts=summary["parity_counts"],
+        dataset_sources=_ICAR_DATASET_SOURCES,
+        dataset_stats=_dataset_stats(cow_metadata, actual_yields),
     )
     session.add(challenge)
     try:
@@ -602,6 +677,8 @@ async def create_challenge_saved_dataset(
         actual_yield_count=summary["actual_yield_count"],
         herd_count=summary["herd_count"],
         parity_counts=summary["parity_counts"],
+        dataset_sources=body.dataset_sources or _upload_dataset_sources(),
+        dataset_stats=_dataset_stats(cow_metadata, actual_yields),
     )
     session.add(challenge)
     try:
@@ -723,6 +800,8 @@ async def create_challenge_upload(
         actual_yield_count=summary["actual_yield_count"],
         herd_count=summary["herd_count"],
         parity_counts=summary["parity_counts"],
+        dataset_sources=_upload_dataset_sources(test_day_csv.filename, actual_yields_csv.filename),
+        dataset_stats=_dataset_stats(cow_metadata, actual_yields),
     )
     session.add(challenge)
     try:
@@ -743,7 +822,7 @@ async def list_challenges(
     result = await session.execute(
         select(Challenge).order_by(col(Challenge.created_at).desc()).limit(100)
     )
-    return list(result.scalars().all())
+    return [_with_dataset_metadata(challenge) for challenge in result.scalars().all()]
 
 
 @router.get("/challenges/{challenge_id}", response_model=ChallengeDetail)
@@ -758,6 +837,8 @@ async def get_challenge(
         raise HTTPException(status_code=404, detail="Challenge not found")
     cow_metadata = await _load_challenge_cow_metadata(challenge, session, storage)
     actual_yields = await _load_challenge_actual_yields(challenge, session, storage)
+    challenge = _with_dataset_metadata(challenge)
+    dataset_stats = challenge.dataset_stats or _dataset_stats(cow_metadata, actual_yields)
     return ChallengeDetail(
         id=challenge.id or 0,
         dataset=challenge.dataset,
@@ -771,6 +852,8 @@ async def get_challenge(
         cow_count=challenge.cow_count,
         actual_yield_count=challenge.actual_yield_count,
         ingest_status=challenge.ingest_status,
+        dataset_sources=challenge.dataset_sources or _fallback_dataset_sources(challenge),
+        dataset_stats=dataset_stats,
         cow_metadata=cow_metadata,
         reference_yields=challenge.reference_yields,
         actual_yields=actual_yields,

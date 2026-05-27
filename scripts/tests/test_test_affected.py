@@ -49,7 +49,7 @@ def _args(**overrides: bool) -> argparse.Namespace:
 def test_build_pytest_commands_groups_targets_with_same_marker_expression() -> None:
     commands = test_affected.build_pytest_commands(
         {
-            "apps/backend/models/lactation-curves/tests/test_health.py",
+            "apps/backend/models/lactation-curves/tests/test_lactation_curves_health.py",
             "apps/backend/models/lactation-autoencoder/tests/test_startup.py",
         },
         _args(),
@@ -65,7 +65,7 @@ def test_build_pytest_commands_groups_targets_with_same_marker_expression() -> N
             "--import-mode=importlib",
             "-v",
             "apps/backend/models/lactation-autoencoder/tests/test_startup.py",
-            "apps/backend/models/lactation-curves/tests/test_health.py",
+            "apps/backend/models/lactation-curves/tests/test_lactation_curves_health.py",
             "-m",
             "not azure and not model_weights and not multiprocessing and not slow "
             "and not tensorflow and not torch",
@@ -76,7 +76,7 @@ def test_build_pytest_commands_groups_targets_with_same_marker_expression() -> N
 def test_build_pytest_commands_keeps_different_marker_expressions_separate() -> None:
     commands = test_affected.build_pytest_commands(
         {
-            "apps/backend/models/lactation-curves/tests/test_health.py",
+            "apps/backend/models/lactation-curves/tests/test_lactation_curves_health.py",
             "apps/backend/models/lactation-autoencoder/tests",
         },
         _args(),
@@ -103,7 +103,7 @@ def test_build_pytest_commands_keeps_different_marker_expressions_separate() -> 
             "pyproject.toml",
             "--import-mode=importlib",
             "-v",
-            "apps/backend/models/lactation-curves/tests/test_health.py",
+            "apps/backend/models/lactation-curves/tests/test_lactation_curves_health.py",
             "-m",
             "not azure and not model_weights and not multiprocessing and not slow "
             "and not tensorflow and not torch",

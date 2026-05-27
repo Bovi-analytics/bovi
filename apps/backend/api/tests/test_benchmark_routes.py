@@ -40,6 +40,18 @@ def test_create_challenge_from_saved_dataset(client):
         "/benchmark/challenges/saved-dataset",
         json={
             "name": "Saved upload",
+            "dataset_sources": [
+                {
+                    "role": "test_day_records",
+                    "label": "Test-day records",
+                    "filename": "test_day.csv",
+                },
+                {
+                    "role": "actual_yields",
+                    "label": "Ground-truth ALY",
+                    "filename": "actual_yields.csv",
+                },
+            ],
             "cow_metadata": {
                 "cow1": {"parity": 2, "herd_id": 123, "dim": [10, 40], "milk_kg": [25.0, 31.0]},
                 "cow2": {"parity": 3, "herd_id": 123, "dim": [12, 42], "milk_kg": [28.0, 34.0]},
@@ -54,6 +66,13 @@ def test_create_challenge_from_saved_dataset(client):
     assert data["source"] == "upload"
     assert data["name"] == "Saved upload"
     assert data["cow_count"] == 2
+    assert data["dataset_sources"][0]["filename"] == "test_day.csv"
+    assert data["dataset_stats"] == {
+        "lactation_count": 2,
+        "test_day_row_count": 4,
+        "actual_yield_count": 2,
+        "herd_count": 1,
+    }
 
     detail = client.get(f"/benchmark/challenges/{data['id']}")
     assert detail.status_code == 200
@@ -62,23 +81,44 @@ def test_create_challenge_from_saved_dataset(client):
 
 def test_create_upload_challenge_stores_raw_and_parsed_artifacts(client):
     """POST /benchmark/challenges/upload stores raw CSV and parsed JSON blobs."""
-    test_day = b"TestId,parity,dim,milk_kg\ncow1,2,10,25\ncow1,2,40,31\ncow2,3,12,28\n"
-    actual = b"TestId,LactationYield\ncow1,8500\ncow2,9100\n"
+    test_day_csv = (
+        b"TestId,parity,dim,milk_kg\n"
+        b"cow1,2,10,25.0\n"
+        b"cow1,2,40,31.0\n"
+        b"cow2,3,12,28.0\n"
+        b"cow2,3,42,34.0\n"
+    )
+    actual_yields_csv = b"TestId,LactationYield\ncow1,8500.0\ncow2,9100.0\n"
 
     resp = client.post(
         "/benchmark/challenges/upload",
-        data={"name": "Blob challenge"},
+        data={"name": "Uploaded"},
         files={
-            "test_day_csv": ("test_day.csv", test_day, "text/csv"),
-            "actual_yields_csv": ("actual.csv", actual, "text/csv"),
+            "test_day_csv": ("farm_test_day.csv", test_day_csv, "text/csv"),
+            "actual_yields_csv": ("farm_actual_yields.csv", actual_yields_csv, "text/csv"),
         },
     )
 
     assert resp.status_code == 201
     data = resp.json()
-    assert data["row_count"] == 3
+    assert data["row_count"] == 4
     assert data["cow_count"] == 2
     assert data["actual_yield_count"] == 2
+    assert data["dataset_sources"] == [
+        {
+            "role": "test_day_records",
+            "label": "Test-day records",
+            "filename": "farm_test_day.csv",
+        },
+        {
+            "role": "actual_yields",
+            "label": "Ground-truth ALY",
+            "filename": "farm_actual_yields.csv",
+        },
+    ]
+    assert data["dataset_stats"]["lactation_count"] == 2
+    assert data["dataset_stats"]["test_day_row_count"] == 4
+    assert data["dataset_stats"]["actual_yield_count"] == 2
 
     blob_paths = set(client.app.state.blob_container_client.store)
     assert any(path.endswith("/raw/test_day.csv") for path in blob_paths)
@@ -100,6 +140,79 @@ def test_create_upload_challenge_stores_raw_and_parsed_artifacts(client):
         raise AssertionError("session override did not yield")
 
     assert asyncio.run(_artifact_count()) == 4
+
+
+def test_create_preset_challenge_includes_icar_sources(client, monkeypatch):
+    """Preset challenges expose the two ICAR source files in list responses."""
+    monkeypatch.setattr(
+        benchmark_routes,
+        "fetch_preset_cows",
+        lambda dataset, size, period, settings: PresetDatasetResponse(
+            dataset=dataset,
+            size=size,
+            period=period,
+            cow_count=1,
+            cows=[
+                PresetCow(
+                    cow_id="cow1",
+                    display_name="Cow 1",
+                    parity=1,
+                    dim=[10, 40],
+                    milk_kg=[25.0, 31.0],
+                )
+            ],
+            actual_yields={"cow1": 8500.0},
+        ),
+    )
+
+    resp = client.post("/benchmark/challenges", json={"source": "preset", "preset": "icar"})
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert [source["filename"] for source in data["dataset_sources"]] == [
+        "TestDataSet.csv",
+        "ActualMilkYields.csv",
+    ]
+    assert data["dataset_stats"]["lactation_count"] == 1
+    assert data["dataset_stats"]["test_day_row_count"] == 2
+
+
+def test_list_challenges_falls_back_dataset_metadata_for_legacy_rows(client):
+    """Old rows without stored metadata still return usable list-view metadata."""
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed() -> None:
+        async for session in override():
+            session.add(
+                Challenge(
+                    dataset="icar",
+                    size="full",
+                    period="all",
+                    source="preset",
+                    name="Legacy",
+                    cow_metadata={
+                        "cow1": {
+                            "parity": 1,
+                            "herd_id": None,
+                            "dim": [10, 40],
+                            "milk_kg": [25.0, 31.0],
+                        }
+                    },
+                    reference_yields=None,
+                    actual_yields={"cow1": 8500.0},
+                )
+            )
+            await session.commit()
+            break
+
+    asyncio.run(_seed())
+
+    resp = client.get("/benchmark/challenges")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["dataset_sources"][0]["filename"] == "TestDataSet.csv"
+    assert data[0]["dataset_stats"]["test_day_row_count"] == 2
 
 
 def test_pad_b_upload_rejects_high_failure_rate(client):

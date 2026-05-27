@@ -89,14 +89,49 @@ export const YieldEstimateRequestSchema = z.object({
 });
 export const TestIntervalRequestSchema = YieldEstimateRequestSchema;
 
-export const AutoencoderPredictRequestSchema = z.object({
-  milk: z.array(z.number().nullable()),
-  events: z.array(z.string()).optional(),
-  parity: z.number().int().min(1).max(12),
-  herd_id: z.number().int().optional(),
-  herd_stats: z.array(z.number()).length(10).optional(),
-  imputation_method: ImputationMethodSchema.optional(),
-});
+export const AutoencoderPredictRequestSchema = z
+  .object({
+    milk: z.array(z.number().nullable()).min(1).optional(),
+    dim: z.array(z.number().int().min(1).max(304)).min(1).optional(),
+    milkrecordings: z.array(z.number()).min(1).optional(),
+    events: z.array(z.string()).optional(),
+    parity: z.number().int().min(1).max(12),
+    herd_id: z.number().int().optional(),
+    herd_stats: z.array(z.number()).length(10).optional(),
+    imputation_method: ImputationMethodSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    const hasDaily = value.milk !== undefined;
+    const hasPeriodic = value.dim !== undefined || value.milkrecordings !== undefined;
+    if (hasDaily && hasPeriodic) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide either milk or dim + milkrecordings, not both.",
+      });
+    }
+    if (!hasDaily && !hasPeriodic) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide either milk or dim + milkrecordings.",
+      });
+    }
+    if (hasPeriodic && (value.dim === undefined || value.milkrecordings === undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Periodic input requires both dim and milkrecordings.",
+      });
+    }
+    if (
+      value.dim !== undefined &&
+      value.milkrecordings !== undefined &&
+      value.dim.length !== value.milkrecordings.length
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "dim and milkrecordings must have the same length.",
+      });
+    }
+  });
 
 /* ------------------------------------------------------------------ */
 /*  Response schemas                                                   */
@@ -271,6 +306,21 @@ export type PresetHerdStatsResponse = z.infer<typeof PresetHerdStatsResponseSche
 /*  Benchmark - Challenges                                             */
 /* ------------------------------------------------------------------ */
 
+export const ChallengeDatasetSourceSchema = z.object({
+  role: z.string(),
+  label: z.string(),
+  filename: z.string().nullable().optional(),
+});
+export type ChallengeDatasetSource = z.infer<typeof ChallengeDatasetSourceSchema>;
+
+export const ChallengeDatasetStatsSchema = z.object({
+  lactation_count: z.number().nullable().optional(),
+  test_day_row_count: z.number().nullable().optional(),
+  actual_yield_count: z.number().nullable().optional(),
+  herd_count: z.number().nullable().optional(),
+});
+export type ChallengeDatasetStats = z.infer<typeof ChallengeDatasetStatsSchema>;
+
 export const ChallengeReadSchema = z.object({
   id: z.number(),
   dataset: z.string(),
@@ -284,6 +334,8 @@ export const ChallengeReadSchema = z.object({
   cow_count: z.number().nullable().optional(),
   actual_yield_count: z.number().nullable().optional(),
   ingest_status: z.string().optional(),
+  dataset_sources: z.preprocess((value) => value ?? [], z.array(ChallengeDatasetSourceSchema)),
+  dataset_stats: z.preprocess((value) => value ?? {}, ChallengeDatasetStatsSchema),
 });
 export type ChallengeRead = z.infer<typeof ChallengeReadSchema>;
 

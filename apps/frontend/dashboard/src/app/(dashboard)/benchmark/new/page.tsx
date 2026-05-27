@@ -24,7 +24,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getChallenge } from "@/lib/api-client";
-import type { ChallengeDetail } from "@/types/api";
+import {
+  datasetStatsFromChallengeDetail,
+  formatDatasetSources,
+  formatDatasetStats,
+} from "@/lib/benchmark-dataset";
+import type { ChallengeDatasetSource, ChallengeDatasetStats, ChallengeDetail } from "@/types/api";
 import {
   useCreateChallengeFromSavedDataset,
   useCreateChallengePreset,
@@ -38,6 +43,8 @@ interface SavedBenchmarkDataset {
   readonly rowCount: number;
   readonly cowCount: number;
   readonly actualYieldCount: number;
+  readonly datasetSources: ChallengeDatasetSource[];
+  readonly datasetStats: ChallengeDatasetStats;
   readonly cowMetadata: ChallengeDetail["cow_metadata"];
   readonly actualYields: NonNullable<ChallengeDetail["actual_yields"]>;
 }
@@ -76,7 +83,14 @@ function loadSavedBenchmarkDatasets(): SavedBenchmarkDataset[] {
     if (!stored) return [];
     const parsed = JSON.parse(stored) as SavedBenchmarkDataset[];
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item) => item?.cowMetadata && item?.actualYields);
+    return parsed
+      .filter((item) => item?.cowMetadata && item?.actualYields)
+      .map((item) => ({
+        ...item,
+        datasetSources: item.datasetSources ?? [],
+        datasetStats:
+          item.datasetStats ?? datasetStatsFromChallengeDetail(item.cowMetadata, item.actualYields),
+      }));
   } catch {
     localStorage.removeItem(SAVED_BENCHMARK_DATASETS_KEY);
     return [];
@@ -84,10 +98,10 @@ function loadSavedBenchmarkDatasets(): SavedBenchmarkDataset[] {
 }
 
 function saveBenchmarkDataset(item: SavedBenchmarkDataset): SavedBenchmarkDataset[] {
-  const next = [item, ...loadSavedBenchmarkDatasets().filter((saved) => saved.id !== item.id)].slice(
-    0,
-    10
-  );
+  const next = [
+    item,
+    ...loadSavedBenchmarkDatasets().filter((saved) => saved.id !== item.id),
+  ].slice(0, 10);
   localStorage.setItem(SAVED_BENCHMARK_DATASETS_KEY, JSON.stringify(next));
   return next;
 }
@@ -105,6 +119,9 @@ function PresetTab({ onCreated }: { onCreated: (id: number) => void }): ReactEle
             407 lactations with sparse test-day records and ground-truth Actual Lactation Yield
             (ALY) from daily milk meter recordings. This benchmark demo dataset is separate from
             Demo herd A and Demo herd B in Data Upload.
+          </Text>
+          <Text size="xs" c="dimmed">
+            Test-day records: TestDataSet.csv · Ground-truth ALY: ActualMilkYields.csv
           </Text>
           <TextInput
             label="Challenge name (optional)"
@@ -282,6 +299,8 @@ function UploadTab({
                       ),
                       cowCount: Object.keys(detail.cow_metadata).length,
                       actualYieldCount: Object.keys(detail.actual_yields).length,
+                      datasetSources: detail.dataset_sources,
+                      datasetStats: detail.dataset_stats,
                       cowMetadata: detail.cow_metadata,
                       actualYields: detail.actual_yields,
                     })
@@ -340,6 +359,7 @@ function SavedDatasetTab({
             <Table.Th>Rows</Table.Th>
             <Table.Th>Lactations</Table.Th>
             <Table.Th>ALY rows</Table.Th>
+            <Table.Th>Sources</Table.Th>
             <Table.Th />
           </Table.Tr>
         </Table.Thead>
@@ -354,6 +374,14 @@ function SavedDatasetTab({
                 <Table.Td>{dataset.rowCount.toLocaleString()}</Table.Td>
                 <Table.Td>{dataset.cowCount.toLocaleString()}</Table.Td>
                 <Table.Td>{dataset.actualYieldCount.toLocaleString()}</Table.Td>
+                <Table.Td>
+                  <Text size="xs" c="var(--benchmark-muted-text)">
+                    {formatDatasetStats(dataset.datasetStats)}
+                  </Text>
+                  <Text size="xs" c="dimmed" lineClamp={1}>
+                    {formatDatasetSources(dataset.datasetSources)}
+                  </Text>
+                </Table.Td>
                 <Table.Td>
                   <Button
                     size="xs"
@@ -388,6 +416,7 @@ function SavedDatasetTab({
               name: name.trim() || selected.name,
               cowMetadata: selected.cowMetadata,
               actualYields: selected.actualYields,
+              datasetSources: selected.datasetSources,
             },
             { onSuccess: (c) => onCreated(c.id) }
           );

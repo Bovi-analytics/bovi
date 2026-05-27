@@ -4,11 +4,14 @@ import {
   DAILY_MODEL_INPUT_DAYS,
   prepareDailyModelInput,
   prepareObservedDailyModelInput,
+  preparePeriodicModelInput,
 } from "./daily-model-input";
 
 describe("prepareDailyModelInput", () => {
   test("uses the full daily model horizon instead of sampled test-day points", () => {
-    const partialWithGaps = EXAMPLE_AUTOENCODER_DATA.find((data) => data.id === "partial-with-gaps");
+    const partialWithGaps = EXAMPLE_AUTOENCODER_DATA.find(
+      (data) => data.id === "partial-with-gaps"
+    );
 
     expect(partialWithGaps).toBeDefined();
 
@@ -18,13 +21,17 @@ describe("prepareDailyModelInput", () => {
     });
 
     expect(result.dim).toHaveLength(DAILY_MODEL_INPUT_DAYS);
-    expect(result.dim).toEqual(Array.from({ length: DAILY_MODEL_INPUT_DAYS }, (_, index) => index + 1));
+    expect(result.dim).toEqual(
+      Array.from({ length: DAILY_MODEL_INPUT_DAYS }, (_, index) => index + 1)
+    );
     expect(result.milk).toHaveLength(DAILY_MODEL_INPUT_DAYS);
     expect(result.milk).not.toHaveLength(7);
   });
 
   test("can include all source days when a longer horizon is requested", () => {
-    const partialWithGaps = EXAMPLE_AUTOENCODER_DATA.find((data) => data.id === "partial-with-gaps");
+    const partialWithGaps = EXAMPLE_AUTOENCODER_DATA.find(
+      (data) => data.id === "partial-with-gaps"
+    );
 
     expect(partialWithGaps).toBeDefined();
 
@@ -92,5 +99,17 @@ describe("prepareDailyModelInput", () => {
     expect(result.dim).toEqual([]);
     expect(result.milk).toEqual([]);
     expect(result.missingCount).toBe(3);
+  });
+
+  test("projects periodic records onto the full autoencoder horizon with zero gaps", () => {
+    const result = preparePeriodicModelInput([1, 3, 304], [20, 25, 18]);
+
+    expect(result.dim).toHaveLength(DAILY_MODEL_INPUT_DAYS);
+    expect(result.milk).toHaveLength(DAILY_MODEL_INPUT_DAYS);
+    expect(result.milk[0]).toBe(20);
+    expect(result.milk[1]).toBe(0);
+    expect(result.milk[2]).toBe(25);
+    expect(result.milk[303]).toBe(18);
+    expect(result.missingCount).toBe(301);
   });
 });
