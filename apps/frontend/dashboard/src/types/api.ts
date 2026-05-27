@@ -89,14 +89,49 @@ export const YieldEstimateRequestSchema = z.object({
 });
 export const TestIntervalRequestSchema = YieldEstimateRequestSchema;
 
-export const AutoencoderPredictRequestSchema = z.object({
-  milk: z.array(z.number().nullable()),
-  events: z.array(z.string()).optional(),
-  parity: z.number().int().min(1).max(12),
-  herd_id: z.number().int().optional(),
-  herd_stats: z.array(z.number()).length(10).optional(),
-  imputation_method: ImputationMethodSchema.optional(),
-});
+export const AutoencoderPredictRequestSchema = z
+  .object({
+    milk: z.array(z.number().nullable()).min(1).optional(),
+    dim: z.array(z.number().int().min(1).max(304)).min(1).optional(),
+    milkrecordings: z.array(z.number()).min(1).optional(),
+    events: z.array(z.string()).optional(),
+    parity: z.number().int().min(1).max(12),
+    herd_id: z.number().int().optional(),
+    herd_stats: z.array(z.number()).length(10).optional(),
+    imputation_method: ImputationMethodSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    const hasDaily = value.milk !== undefined;
+    const hasPeriodic = value.dim !== undefined || value.milkrecordings !== undefined;
+    if (hasDaily && hasPeriodic) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide either milk or dim + milkrecordings, not both.",
+      });
+    }
+    if (!hasDaily && !hasPeriodic) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide either milk or dim + milkrecordings.",
+      });
+    }
+    if (hasPeriodic && (value.dim === undefined || value.milkrecordings === undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Periodic input requires both dim and milkrecordings.",
+      });
+    }
+    if (
+      value.dim !== undefined &&
+      value.milkrecordings !== undefined &&
+      value.dim.length !== value.milkrecordings.length
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "dim and milkrecordings must have the same length.",
+      });
+    }
+  });
 
 /* ------------------------------------------------------------------ */
 /*  Response schemas                                                   */

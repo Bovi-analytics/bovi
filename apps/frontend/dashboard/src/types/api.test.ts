@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  AutoencoderPredictRequestSchema,
   CharacteristicBatchRequestSchema,
   CharacteristicBatchResponseSchema,
   FittingSchema,
@@ -77,5 +78,30 @@ describe("api schemas", () => {
     ).toEqual({
       results: [{ id: "wood:peak_yield", value: 30.5 }],
     });
+  });
+
+  test("accepts autoencoder periodic records", () => {
+    expect(
+      AutoencoderPredictRequestSchema.parse({
+        dim: [10, 40, 70],
+        milkrecordings: [30, 38, 35],
+        parity: 2,
+      })
+    ).toEqual({
+      dim: [10, 40, 70],
+      milkrecordings: [30, 38, 35],
+      parity: 2,
+    });
+  });
+
+  test("rejects invalid autoencoder mixed input shapes", () => {
+    expect(() =>
+      AutoencoderPredictRequestSchema.parse({
+        milk: [25, null, 27],
+        dim: [1, 3],
+        milkrecordings: [25, 27],
+        parity: 2,
+      })
+    ).toThrow();
   });
 });

@@ -108,11 +108,7 @@ function linearInterpolate(values: readonly (number | null | undefined)[]): numb
 
 export function prepareDailyModelInput(
   milk: readonly (number | null)[],
-  {
-    useImputation,
-    imputationMethod,
-    maxDays = DAILY_MODEL_INPUT_DAYS,
-  }: DailyModelInputOptions
+  { useImputation, imputationMethod, maxDays = DAILY_MODEL_INPUT_DAYS }: DailyModelInputOptions
 ): DailyModelInput {
   const values = milk.slice(0, maxDays);
   const missingCount = values.filter((value) => !isObservedMilk(value)).length;
@@ -145,5 +141,24 @@ export function prepareObservedDailyModelInput(
     dim: observed.map((value) => value.dim),
     milk: observed.map((value) => value.milk),
     missingCount: values.length - observed.length,
+  };
+}
+
+export function preparePeriodicModelInput(
+  dim: readonly number[],
+  milkrecordings: readonly number[],
+  maxDays = DAILY_MODEL_INPUT_DAYS
+): DailyModelInput {
+  const projected = Array.from({ length: maxDays }, () => 0);
+  dim.forEach((day, index) => {
+    if (day >= 1 && day <= maxDays) {
+      projected[day - 1] = milkrecordings[index] ?? 0;
+    }
+  });
+
+  return {
+    dim: Array.from({ length: maxDays }, (_, index) => index + 1),
+    milk: projected,
+    missingCount: maxDays - new Set(dim.filter((day) => day >= 1 && day <= maxDays)).size,
   };
 }

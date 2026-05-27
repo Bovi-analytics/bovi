@@ -202,7 +202,8 @@ def _predict_single(
         Prediction response with 304-day milk yields.
 
     """
-    data: dict[str, object] = request.model_dump()
+    data: dict[str, object] = request.model_dump(exclude={"dim", "milkrecordings"})
+    data["milk"] = request.model_milk_input()
 
     # Default events if not provided
     if data.get("events") is None:
