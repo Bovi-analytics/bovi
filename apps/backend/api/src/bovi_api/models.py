@@ -141,6 +141,16 @@ class Challenge(ChallengeBase, table=True):
         default=None,
         description="'preset' or 'upload' - where the cohort came from.",
     )
+    dataset_sources: list[dict] | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+        description="Source files or source labels used to construct the challenge dataset.",
+    )
+    dataset_stats: dict | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+        description="Small dataset summary for challenge list/detail views.",
+    )
     created_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
@@ -154,6 +164,8 @@ class ChallengeRead(ChallengeBase):
     created_at: datetime | None
     name: str | None = None
     source: str | None = None
+    dataset_sources: list[dict] = Field(default_factory=list)
+    dataset_stats: dict = Field(default_factory=dict)
 
 
 class ChallengeDetail(ChallengeRead):

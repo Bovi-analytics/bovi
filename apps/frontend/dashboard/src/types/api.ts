@@ -270,6 +270,21 @@ export type PresetHerdStatsResponse = z.infer<typeof PresetHerdStatsResponseSche
 /*  Benchmark - Challenges                                             */
 /* ------------------------------------------------------------------ */
 
+export const ChallengeDatasetSourceSchema = z.object({
+  role: z.string(),
+  label: z.string(),
+  filename: z.string().nullable().optional(),
+});
+export type ChallengeDatasetSource = z.infer<typeof ChallengeDatasetSourceSchema>;
+
+export const ChallengeDatasetStatsSchema = z.object({
+  lactation_count: z.number().nullable().optional(),
+  test_day_row_count: z.number().nullable().optional(),
+  actual_yield_count: z.number().nullable().optional(),
+  herd_count: z.number().nullable().optional(),
+});
+export type ChallengeDatasetStats = z.infer<typeof ChallengeDatasetStatsSchema>;
+
 export const ChallengeReadSchema = z.object({
   id: z.number(),
   dataset: z.string(),
@@ -279,6 +294,8 @@ export const ChallengeReadSchema = z.object({
   source: z.string().nullable().optional(),
   user_id: z.string().nullable(),
   created_at: z.string().nullable(),
+  dataset_sources: z.preprocess((value) => value ?? [], z.array(ChallengeDatasetSourceSchema)),
+  dataset_stats: z.preprocess((value) => value ?? {}, ChallengeDatasetStatsSchema),
 });
 export type ChallengeRead = z.infer<typeof ChallengeReadSchema>;
 

@@ -47,6 +47,7 @@ import type {
   YieldEstimateRequest,
   YieldEstimateResponse,
   ChallengeCreatePreset,
+  ChallengeDatasetSource,
   ChallengeDetail,
   ChallengeRead,
   SubmissionRead,
@@ -266,12 +267,14 @@ export async function createChallengeUpload(
 export async function createChallengeFromSavedDataset(
   name: string,
   cowMetadata: ChallengeDetail["cow_metadata"],
-  actualYields: NonNullable<ChallengeDetail["actual_yields"]>
+  actualYields: NonNullable<ChallengeDetail["actual_yields"]>,
+  datasetSources?: ChallengeDatasetSource[]
 ): Promise<ChallengeRead> {
   return apiFetch("/benchmark/challenges/saved-dataset", ChallengeReadSchema, {
     name,
     cow_metadata: cowMetadata,
     actual_yields: actualYields,
+    dataset_sources: datasetSources,
   });
 }
 

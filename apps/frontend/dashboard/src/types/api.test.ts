@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   CharacteristicBatchRequestSchema,
   CharacteristicBatchResponseSchema,
+  ChallengeReadSchema,
   FittingSchema,
   MilkBotRunOptionsSchema,
   SubmissionReadSchema,
@@ -43,6 +44,51 @@ describe("api schemas", () => {
     });
 
     expect(parsed.run_options).toEqual({});
+  });
+
+  test("defaults missing challenge dataset metadata for legacy responses", () => {
+    const parsed = ChallengeReadSchema.parse({
+      id: 1,
+      dataset: "icar",
+      size: "full",
+      period: "all",
+      name: "Demo dataset",
+      source: "preset",
+      user_id: null,
+      created_at: null,
+    });
+
+    expect(parsed.dataset_sources).toEqual([]);
+    expect(parsed.dataset_stats).toEqual({});
+  });
+
+  test("accepts challenge dataset sources and stats", () => {
+    const parsed = ChallengeReadSchema.parse({
+      id: 1,
+      dataset: "upload",
+      size: "custom",
+      period: "custom",
+      name: "Uploaded",
+      source: "upload",
+      user_id: null,
+      created_at: null,
+      dataset_sources: [
+        {
+          role: "test_day_records",
+          label: "Test-day records",
+          filename: "test_day.csv",
+        },
+      ],
+      dataset_stats: {
+        lactation_count: 2,
+        test_day_row_count: 8,
+        actual_yield_count: 2,
+        herd_count: null,
+      },
+    });
+
+    expect(parsed.dataset_sources[0]?.filename).toBe("test_day.csv");
+    expect(parsed.dataset_stats.test_day_row_count).toBe(8);
   });
 
   test("accepts batch characteristic requests and responses", () => {

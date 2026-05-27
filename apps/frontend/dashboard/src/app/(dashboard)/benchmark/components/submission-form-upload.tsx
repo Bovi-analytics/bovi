@@ -19,6 +19,7 @@ import {
 import { Info } from "lucide-react";
 import { useState } from "react";
 import { exportChallengeUrl } from "@/lib/api-client";
+import { MODEL_LABELS } from "@/lib/benchmark-dataset";
 import { useSubmitOwnMethod } from "../hooks/use-submissions";
 import type { BenchmarkModel, MilkBotRunOptions } from "@/types/api";
 import { BenchmarkModelPicker } from "./benchmark-model-picker";
@@ -35,18 +36,15 @@ const RESULTS_EXAMPLE_CSV = `TestId,LactationYield
 
 const OTHER_METHOD_VALUE = "other";
 const CALCULATION_METHOD_OPTIONS = [
-  { value: "Test Interval Method", label: "Test Interval Method" },
-  { value: "Best Prediction", label: "Best Prediction" },
-  {
-    value: "Standard lactation curve interpolation",
-    label: "Standard lactation curve interpolation",
-  },
-  { value: "Wood", label: "Wood" },
-  { value: "Wilmink", label: "Wilmink" },
-  { value: "Ali-Schaeffer", label: "Ali-Schaeffer" },
-  { value: "Fischer", label: "Fischer" },
-  { value: "MilkBot", label: "MilkBot" },
-  { value: "Autoencoder", label: "Autoencoder" },
+  { value: "Test Interval Method", label: MODEL_LABELS.tim },
+  { value: "ISLC", label: MODEL_LABELS.islc },
+  { value: "Best Prediction", label: MODEL_LABELS.best_predict },
+  { value: "Wood", label: MODEL_LABELS.wood },
+  { value: "Wilmink", label: MODEL_LABELS.wilmink },
+  { value: "Ali-Schaeffer", label: MODEL_LABELS.ali_schaeffer },
+  { value: "Fischer", label: MODEL_LABELS.fischer },
+  { value: "MilkBot", label: MODEL_LABELS.milkbot },
+  { value: "Autoencoder", label: MODEL_LABELS.autoencoder },
   { value: OTHER_METHOD_VALUE, label: "Other" },
 ];
 

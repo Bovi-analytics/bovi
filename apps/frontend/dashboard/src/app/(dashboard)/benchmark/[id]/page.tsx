@@ -6,15 +6,11 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ComparisonResults } from "../components/comparison-results";
+import { DatasetSummary } from "../components/dataset-summary";
 import { SubmissionForm } from "../components/submission-form";
 import { useChallenge } from "../hooks/use-challenges";
 import { useSubmissions } from "../hooks/use-submissions";
-
-const DATASET_LABEL: Record<string, string> = {
-  icar: "Demo dataset",
-  upload: "Custom upload",
-  saved_upload: "Saved dataset",
-};
+import { getBenchmarkDatasetLabel } from "@/lib/benchmark-dataset";
 
 export default function ChallengeDetailPage(): ReactElement {
   const { id } = useParams<{ id: string }>();
@@ -42,10 +38,10 @@ export default function ChallengeDetailPage(): ReactElement {
           {challenge && (
             <>
               <Badge color="gray" variant="light">
-                {challenge.name ?? DATASET_LABEL[challenge.dataset] ?? challenge.dataset}
+                {challenge.name ?? getBenchmarkDatasetLabel(challenge)}
               </Badge>
               <Badge color="gray" variant="light">
-                {DATASET_LABEL[challenge.dataset] ?? challenge.dataset}
+                {getBenchmarkDatasetLabel(challenge)}
               </Badge>
             </>
           )}
@@ -55,6 +51,15 @@ export default function ChallengeDetailPage(): ReactElement {
           benchmark dataset.
         </Text>
       </Stack>
+
+      {challenge && (
+        <Card withBorder padding="md">
+          <Stack gap={4}>
+            <Text fw={600}>Challenge dataset</Text>
+            <DatasetSummary sources={challenge.dataset_sources} stats={challenge.dataset_stats} />
+          </Stack>
+        </Card>
+      )}
 
       <Card withBorder padding="md">
         <Stack gap={4} mb="sm">
