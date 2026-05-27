@@ -19,6 +19,15 @@ sync:
 lint:
     uv run ruff check --fix && uv run ruff format
 
+typecheck:
+    uv run python scripts/typecheck_affected.py
+
+typecheck-affected base="origin/main":
+    uv run python scripts/typecheck_affected.py --base "{{base}}"
+
+typecheck-affected-dry-run base="origin/main":
+    uv run python scripts/typecheck_affected.py --base "{{base}}" --dry-run
+
 test:
     uv run python scripts/test_affected.py
 
