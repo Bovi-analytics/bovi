@@ -10,6 +10,7 @@ on:
       - "apps/frontend/dashboard/**"
       - "apps/infrastructure/**"
       - ".github/actions/**"
+      - ".github/workflows/deploy.yml"
       - "docker-compose.yml"
       - "pyproject.toml"
       - "uv.lock"
