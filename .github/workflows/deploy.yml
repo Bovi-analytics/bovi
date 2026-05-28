@@ -95,11 +95,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: ${{ github.event_name == 'push' && github.event.before || 'HEAD~1' }}
           filters: |
             infra:
               - "apps/infrastructure/**"
