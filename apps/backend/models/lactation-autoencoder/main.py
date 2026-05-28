@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 import threading
 import time
@@ -29,7 +30,7 @@ def _showwarning(message, category, filename, lineno, file=None, line=None):
 warnings.showwarning = _showwarning
 
 from bovi_core.config import Config  # noqa: E402
-from bovi_core.ml import create_model  # noqa: E402
+from bovi_core.ml import ModelRegistry, PredictorRegistry, create_model  # noqa: E402
 from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.timeseries import ImputationTransform  # noqa: E402
@@ -127,6 +128,19 @@ _model_runtime: ModelRuntime | None = None
 _model_runtime_lock = threading.Lock()
 
 
+def _ensure_autoencoder_registered() -> None:
+    """Ensure autoencoder model and predictor decorators have populated registries."""
+    model_module = importlib.import_module("lactation_autoencoder.models.lactation_model")
+    predictor_module = importlib.import_module(
+        "lactation_autoencoder.predictors.lactation_predictor"
+    )
+
+    if not ModelRegistry.is_registered("autoencoder"):
+        importlib.reload(model_module)
+    if not PredictorRegistry.is_registered("autoencoder"):
+        importlib.reload(predictor_module)
+
+
 @app.exception_handler(ModelAssetError)
 async def model_asset_error_handler(request: Request, exc: ModelAssetError) -> JSONResponse:
     """Return a clear service-unavailable error when model assets are missing."""
@@ -150,6 +164,7 @@ def _get_model_runtime() -> ModelRuntime:
                     config_file_path=str(asset_paths.config_path),
                     project_file_path=str(asset_paths.project_root / "pyproject.toml"),
                 )
+                _ensure_autoencoder_registered()
                 model = create_model(config, "autoencoder")
                 transforms = TransformRegistry.from_config(
                     config.experiment.dataloaders.inference.transforms
