@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { getApiBaseUrl } from "@/lib/env";
+import { assertUploadSize } from "@/lib/upload-limits";
 import {
   AutoencoderPredictResponseSchema,
   CharacteristicBatchResponseSchema,
@@ -116,6 +117,16 @@ async function apiDelete(path: string): Promise<void> {
   }
 }
 
+async function uploadErrorMessage(response: Response): Promise<string> {
+  const error: unknown = await response.json().catch(() => null);
+  if (error && typeof error === "object" && "detail" in error) {
+    const detail = (error as { detail?: unknown }).detail;
+    if (typeof detail === "string") return detail;
+    if (detail !== undefined) return JSON.stringify(detail);
+  }
+  return `Upload failed with status ${response.status}`;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Endpoint functions                                                 */
 /* ------------------------------------------------------------------ */
@@ -218,6 +229,7 @@ export async function uploadHerdProfileCsv(
   file: File,
   columnMapping?: Record<string, string>
 ): Promise<HerdProfileUploadResponse> {
+  assertUploadSize(file);
   const formData = new FormData();
   formData.append("file", file);
   if (columnMapping) {
@@ -229,8 +241,7 @@ export async function uploadHerdProfileCsv(
     // No Content-Type header - browser sets multipart boundary automatically
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`Upload error ${response.status}: ${JSON.stringify(error)}`);
+    throw new Error(await uploadErrorMessage(response));
   }
   const data: unknown = await response.json();
   return HerdProfileUploadResponseSchema.parse(data);
@@ -249,6 +260,8 @@ export async function createChallengeUpload(
   testDayCsv: File,
   actualYieldsCsv: File
 ): Promise<ChallengeRead> {
+  assertUploadSize(testDayCsv);
+  assertUploadSize(actualYieldsCsv);
   const formData = new FormData();
   formData.append("name", name);
   formData.append("test_day_csv", testDayCsv);
@@ -258,8 +271,7 @@ export async function createChallengeUpload(
     body: formData,
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`Upload error ${response.status}: ${JSON.stringify(error)}`);
+    throw new Error(await uploadErrorMessage(response));
   }
   return ChallengeReadSchema.parse(await response.json());
 }
@@ -324,6 +336,7 @@ export async function submitOwnMethod(
     notes?: string;
   }
 ): Promise<SubmissionRead> {
+  assertUploadSize(file);
   const formData = new FormData();
   formData.append("file", file);
   if (meta.benchmark_options) {
@@ -342,8 +355,7 @@ export async function submitOwnMethod(
     }
   );
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`Upload error ${response.status}: ${JSON.stringify(error)}`);
+    throw new Error(await uploadErrorMessage(response));
   }
   return SubmissionReadSchema.parse(await response.json());
 }

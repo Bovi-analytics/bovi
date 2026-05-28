@@ -29,6 +29,7 @@ import { useUploadedCows, type UploadedDataset } from "@/app/providers/uploaded-
 import { ActiveDatasetPanel } from "@/components/dashboard/active-dataset-panel";
 import { usePresetCounts } from "@/app/(dashboard)/curves/hooks/use-preset-counts";
 import { usePresetDataset } from "@/app/(dashboard)/curves/hooks/use-preset-dataset";
+import { UPLOAD_LIMIT_DESCRIPTION } from "@/lib/upload-limits";
 import type {
   HerdProfileUploadResponse,
   PresetDatasetKey,
@@ -516,6 +517,9 @@ function UploadPanel(): ReactElement {
       >
         Choose CSV file…
       </Button>
+      <Text size="xs" c="dimmed">
+        {UPLOAD_LIMIT_DESCRIPTION}
+      </Text>
 
       {uploadMutation.isError && (
         <Alert icon={<AlertCircle size={16} />} color="red" title="Upload failed">

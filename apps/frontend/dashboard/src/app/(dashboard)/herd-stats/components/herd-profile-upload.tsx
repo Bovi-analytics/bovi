@@ -19,6 +19,7 @@ import { AlertCircle, CheckCircle2, Download } from "lucide-react";
 import Link from "next/link";
 import { HERD_STATS_METADATA, VISIBLE_HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
 import { statsToHerdProfileFields } from "@/lib/herd-profile-utils";
+import { UPLOAD_LIMIT_DESCRIPTION } from "@/lib/upload-limits";
 import { useUploadedCows } from "@/app/providers/uploaded-cows-provider";
 import type { HerdProfileUploadResponse } from "@/types/api";
 import { HerdProfileForm } from "./herd-profile-form";
@@ -257,6 +258,9 @@ export function HerdProfileUpload(): ReactElement {
         >
           Choose CSV file…
         </Button>
+        <Text size="xs" c="dimmed">
+          {UPLOAD_LIMIT_DESCRIPTION}
+        </Text>
 
         {uploadMutation.isError && (
           <Alert icon={<AlertCircle size={16} />} color="red" title="Upload failed">

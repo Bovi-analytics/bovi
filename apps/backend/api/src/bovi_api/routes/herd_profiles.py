@@ -20,10 +20,9 @@ from bovi_api.storage import (
     delete_artifacts_best_effort,
     get_optional_artifact_storage,
 )
+from bovi_api.upload_limits import ensure_upload_bytes_size, ensure_upload_file_size
 
 router = APIRouter(tags=["herd-profiles"])
-
-_MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 class CowRecordPayload(BaseModel):
@@ -95,9 +94,9 @@ async def csv_preview(
     if not filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files are accepted.")
 
+    ensure_upload_file_size(file, max_size=settings.upload_max_bytes)
     content = await file.read()
-    if len(content) > _MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
+    ensure_upload_bytes_size(content, filename=filename, max_size=settings.upload_max_bytes)
 
     parsed_mapping: dict[str, str] | None = None
     if column_mapping:

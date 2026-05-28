@@ -20,6 +20,7 @@ import { Info } from "lucide-react";
 import { useState } from "react";
 import { exportChallengeUrl } from "@/lib/api-client";
 import { MODEL_LABELS } from "@/lib/benchmark-dataset";
+import { UPLOAD_LIMIT_DESCRIPTION } from "@/lib/upload-limits";
 import { useSubmitOwnMethod } from "../hooks/use-submissions";
 import type { BenchmarkModel, MilkBotRunOptions } from "@/types/api";
 import { BenchmarkModelPicker } from "./benchmark-model-picker";
@@ -135,6 +136,7 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
             </Group>
             <FileInput
               label="Upload results CSV"
+              description={UPLOAD_LIMIT_DESCRIPTION}
               accept=".csv"
               value={file}
               onChange={setFile}

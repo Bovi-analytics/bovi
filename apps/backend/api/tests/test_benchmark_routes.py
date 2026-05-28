@@ -10,7 +10,7 @@ from bovi_api.database import get_session
 from bovi_api.models import Challenge, StorageArtifact, Submission
 from bovi_api.routes.benchmark import MilkBotRunOptions, _dispatch_model
 from bovi_api.routes.datasets import PresetCow, PresetDatasetResponse
-from bovi_api.settings import Settings
+from bovi_api.settings import Settings, get_settings
 from sqlmodel import select
 
 
@@ -140,6 +140,29 @@ def test_create_upload_challenge_stores_raw_and_parsed_artifacts(client):
         raise AssertionError("session override did not yield")
 
     assert asyncio.run(_artifact_count()) == 4
+
+
+def test_create_upload_challenge_rejects_large_file_with_clear_message(client):
+    client.app.dependency_overrides[get_settings] = lambda: Settings(upload_max_bytes=16)
+
+    resp = client.post(
+        "/benchmark/challenges/upload",
+        data={"name": "Uploaded"},
+        files={
+            "test_day_csv": (
+                "farm_test_day.csv",
+                b"TestId,parity,dim,milk_kg\ncow1,2,10,25.0\n",
+                "text/csv",
+            ),
+            "actual_yields_csv": ("farm_actual_yields.csv", b"TestId,LactationYield\n", "text/csv"),
+        },
+    )
+
+    assert resp.status_code == 413
+    detail = resp.json()["detail"]
+    assert "farm_test_day.csv" in detail
+    assert "16 bytes upload limit" in detail
+    assert "Split the file into smaller CSV files" in detail
 
 
 def test_create_preset_challenge_includes_icar_sources(client, monkeypatch):
@@ -312,6 +335,48 @@ def test_submission_upload_stores_raw_and_generated_artifacts(client, monkeypatc
     assert any(path.endswith("/raw/results.csv") for path in blob_paths)
     assert any(path.endswith("/parsed/submitted_yields.json.gz") for path in blob_paths)
     assert any(path.endswith("/generated/bovi_yields.json.gz") for path in blob_paths)
+
+
+def test_submission_upload_rejects_large_file_with_clear_message(client):
+    client.app.dependency_overrides[get_settings] = lambda: Settings(upload_max_bytes=16)
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed() -> None:
+        async for session in override():
+            session.add(
+                Challenge(
+                    dataset="upload",
+                    size="custom",
+                    period="custom",
+                    source="upload",
+                    name="seed",
+                    cow_metadata={"cow1": {"parity": 1, "dim": [50], "milk_kg": [25.0]}},
+                    reference_yields=None,
+                    actual_yields={"cow1": 8000.0},
+                )
+            )
+            await session.commit()
+            break
+
+    asyncio.run(_seed())
+
+    resp = client.post(
+        "/benchmark/challenges/1/submissions/upload",
+        data={"benchmark": "tim"},
+        files={
+            "file": (
+                "results.csv",
+                b"TestId,LactationYield\ncow1,8100\n",
+                "text/csv",
+            )
+        },
+    )
+
+    assert resp.status_code == 413
+    detail = resp.json()["detail"]
+    assert "results.csv" in detail
+    assert "16 bytes upload limit" in detail
+    assert "Split the file into smaller CSV files" in detail
 
 
 def test_export_challenge_uses_test_id_and_omits_empty_herd_id(client):

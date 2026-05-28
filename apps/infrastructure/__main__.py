@@ -305,6 +305,7 @@ api_result = create_container_app(
             "STORAGE_ACCOUNT_CONTAINER_ICAR": icar_storage_container,
             "BOVI_ENV": stack,
             "UPLOAD_BLOB_PREFIX": "bovi/uploads",
+            "UPLOAD_MAX_BYTES": str(500 * 1024 * 1024),
         },
         secret_env={"STORAGE_ACCOUNT_KEY_ICAR": icar_storage_account_key},
         tags=tags,
