@@ -135,14 +135,12 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
         name: "TestId",
         description: "Unique lactation identifier",
         required: true,
-        help:
-          "The TestId is an unique identifier for a lactation, which can be used to group records belonging to the same lactation together. It is not the same as a cow ID, as a cow can have multiple lactations (e.g., across different calvings).",
+        help: "The TestId is an unique identifier for a lactation, which can be used to group records belonging to the same lactation together. It is not the same as a cow ID, as a cow can have multiple lactations (e.g., across different calvings).",
       },
       { name: "DaysInMilk", description: "Days since calving", required: true },
       {
         name: "DailyMilkingYield",
-        description:
-          "Summed cumulative milk yield of all milkings of one day (24h milk yield).",
+        description: "Summed cumulative milk yield of all milkings of one day (24h milk yield).",
         required: true,
       },
       { name: "Parity", description: "Lactation number", required: false },
@@ -221,7 +219,12 @@ function mappingSummary(mapping: Readonly<Record<string, string>> | undefined): 
 }
 
 function cleanDatasetName(filename: string): string {
-  return filename.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || filename;
+  return (
+    filename
+      .replace(/\.[^.]+$/, "")
+      .replace(/[_-]+/g, " ")
+      .trim() || filename
+  );
 }
 
 function formatUploadDate(value: string): string {
@@ -374,25 +377,28 @@ function UploadPanel(): ReactElement {
     const filename = file.name;
     setPendingFile(file);
     setDatasetName(cleanDatasetName(filename));
-    uploadMutation.mutate({ file }, {
-      onSuccess: (response) => {
-        setUploadedFilename(filename);
-        setPreview(response);
-        if (response.mapping_required) {
-          setMappingDraft({
-            cow_id: response.column_mapping.cow_id ?? "",
-            dim: response.column_mapping.dim ?? "",
-            milk_kg: response.column_mapping.milk_kg ?? "",
-            parity: response.column_mapping.parity ?? "",
-            herd_id: response.column_mapping.herd_id ?? "",
-            event_type: response.column_mapping.event_type ?? "",
-          });
-          setMappingOpen(true);
-          return;
-        }
-        activateResponse(response, filename);
-      },
-    });
+    uploadMutation.mutate(
+      { file },
+      {
+        onSuccess: (response) => {
+          setUploadedFilename(filename);
+          setPreview(response);
+          if (response.mapping_required) {
+            setMappingDraft({
+              cow_id: response.column_mapping.cow_id ?? "",
+              dim: response.column_mapping.dim ?? "",
+              milk_kg: response.column_mapping.milk_kg ?? "",
+              parity: response.column_mapping.parity ?? "",
+              herd_id: response.column_mapping.herd_id ?? "",
+              event_type: response.column_mapping.event_type ?? "",
+            });
+            setMappingOpen(true);
+            return;
+          }
+          activateResponse(response, filename);
+        },
+      }
+    );
     e.target.value = "";
   }
 
@@ -546,7 +552,9 @@ function UploadPanel(): ReactElement {
           {preview.cows.length > 0 && uploadedFilename && (
             <Alert icon={<CheckCircle2 size={14} />} color="green">
               {preview.cows.length} lactation records from <Code>{uploadedFilename}</Code>{" "}
-              {uploadedDataset?.name === uploadedFilename ? "selected as the active dataset." : "ready."}
+              {uploadedDataset?.name === uploadedFilename
+                ? "selected as the active dataset."
+                : "ready."}
             </Alert>
           )}
           <Table striped withColumnBorders fz="xs">
@@ -634,7 +642,9 @@ function UploadPanel(): ReactElement {
               clearable={!REQUIRED_MAPPING_KEYS.includes(key)}
               value={mappingDraft[key] || null}
               data={(preview?.columns ?? []).map((column) => ({ value: column, label: column }))}
-              onChange={(value) => setMappingDraft((current) => ({ ...current, [key]: value ?? "" }))}
+              onChange={(value) =>
+                setMappingDraft((current) => ({ ...current, [key]: value ?? "" }))
+              }
             />
           ))}
           <Group justify="flex-end">
@@ -657,8 +667,12 @@ function UploadPanel(): ReactElement {
 }
 
 function SavedDatasetsPanel(): ReactElement {
-  const { dataset: uploadedDataset, savedDatasets, selectSavedDataset, deleteSavedDataset } =
-    useUploadedCows();
+  const {
+    dataset: uploadedDataset,
+    savedDatasets,
+    selectSavedDataset,
+    deleteSavedDataset,
+  } = useUploadedCows();
   const [expandedMappingId, setExpandedMappingId] = useState<string | null>(null);
 
   if (savedDatasets.length === 0) {
@@ -817,8 +831,7 @@ export function DataSourcePicker(): ReactElement {
           Data source
         </Text>
         <Text size="sm" mt={4}>
-          Pick a built-in demo herd or upload your own file to start analyzing milk production
-          data.
+          Pick a built-in demo herd or upload your own file to start analyzing milk production data.
         </Text>
       </div>
 

@@ -7,7 +7,9 @@ import csv
 import io
 import json
 import logging
-from typing import Literal
+from collections import Counter
+from typing import Literal, TypedDict
+from uuid import uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -16,11 +18,7 @@ from pydantic import BaseModel, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
-from bovi_api.auth import (
-    CurrentUser,
-    ensure_organization_access,
-    require_auth,
-)
+from bovi_api.auth import CurrentUser, ensure_organization_access, require_auth
 from bovi_api.benchmark_ingestion import (
     parse_actual_yields_csv,
     parse_submission_csv,
@@ -39,11 +37,15 @@ from bovi_api.models import (
 from bovi_api.routes.datasets import fetch_preset_cows
 from bovi_api.routes.proxy import _get_client
 from bovi_api.settings import Settings, get_settings
-from bovi_api.upload_storage import (
-    UploadStorageError,
-    make_upload_audit,
-    organization_name_for_user,
-    upload_csv_to_blob,
+from bovi_api.storage import (
+    ArtifactStorage,
+    create_bytes_artifact,
+    create_json_artifact,
+    delete_artifacts_best_effort,
+    get_artifact_storage,
+    get_optional_artifact_storage,
+    load_bytes_artifact,
+    load_json_artifact,
 )
 
 logger = logging.getLogger("bovi_api.benchmark")
@@ -51,9 +53,6 @@ router = APIRouter(prefix="/benchmark", tags=["benchmark"])
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 _FAILURE_THRESHOLD = 0.20
-ACTION_BENCHMARK_CHALLENGE_TEST_DAY = "benchmark_challenge_test_day"
-ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS = "benchmark_challenge_actual_yields"
-ACTION_BENCHMARK_SUBMISSION_RESULTS = "benchmark_submission_results"
 _MAX_PLAUSIBLE_LACTATION_YIELD_KG = 100_000.0
 
 CURVE_MODELS = {"wood", "wilmink", "ali_schaeffer", "fischer", "milkbot"}
@@ -90,6 +89,116 @@ ChallengerOrBenchmark = Literal[
 ]
 
 
+class _ChallengeSummary(TypedDict):
+    row_count: int
+    cow_count: int
+    actual_yield_count: int
+    herd_count: int | None
+    parity_counts: dict[str, int]
+
+
+def _csv_data_row_count(content: bytes) -> int:
+    text = content.decode("utf-8-sig", errors="ignore")
+    return max(0, sum(1 for line in text.splitlines() if line.strip()) - 1)
+
+
+def _challenge_summary(
+    cow_metadata: dict[str, dict],
+    actual_yields: dict[str, float] | None,
+) -> _ChallengeSummary:
+    herd_ids = {
+        meta.get("herd_id")
+        for meta in cow_metadata.values()
+        if meta.get("herd_id") not in (None, "")
+    }
+    parity_counts = Counter(
+        str(meta.get("parity") if meta.get("parity") is not None else "unknown")
+        for meta in cow_metadata.values()
+    )
+    return {
+        "row_count": sum(len(meta.get("dim", [])) for meta in cow_metadata.values()),
+        "cow_count": len(cow_metadata),
+        "actual_yield_count": len(actual_yields or {}),
+        "herd_count": len(herd_ids) if herd_ids else None,
+        "parity_counts": dict(parity_counts),
+    }
+
+
+async def _load_required_json(
+    session: AsyncSession,
+    storage: ArtifactStorage | None,
+    artifact_id: str | None,
+    legacy_value: dict | None,
+    label: str,
+) -> dict:
+    if legacy_value is not None:
+        return legacy_value
+    if artifact_id is None:
+        raise HTTPException(status_code=500, detail=f"{label} is missing.")
+    if storage is None:
+        raise HTTPException(status_code=503, detail="Blob storage is not configured.")
+    payload = await load_json_artifact(session=session, storage=storage, artifact_id=artifact_id)
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=500, detail=f"{label} artifact is invalid.")
+    return payload
+
+
+def _require_storage(storage: ArtifactStorage | None) -> ArtifactStorage:
+    if storage is None:
+        raise HTTPException(status_code=503, detail="Blob storage is not configured.")
+    return storage
+
+
+async def _load_challenge_cow_metadata(
+    challenge: Challenge,
+    session: AsyncSession,
+    storage: ArtifactStorage | None,
+) -> dict[str, dict]:
+    return await _load_required_json(
+        session,
+        storage,
+        challenge.cow_metadata_artifact_id,
+        challenge.cow_metadata,
+        "Challenge cow metadata",
+    )
+
+
+async def _load_challenge_actual_yields(
+    challenge: Challenge,
+    session: AsyncSession,
+    storage: ArtifactStorage | None,
+) -> dict[str, float]:
+    return await _load_required_json(
+        session,
+        storage,
+        challenge.actual_yields_artifact_id,
+        challenge.actual_yields,
+        "Challenge actual yields",
+    )
+
+
+async def _load_submission_yields(
+    submission: Submission,
+    session: AsyncSession,
+    storage: ArtifactStorage | None,
+) -> tuple[dict[str, float], dict[str, float]]:
+    submitted = await _load_required_json(
+        session,
+        storage,
+        submission.submitted_yields_artifact_id,
+        submission.submitted_yields,
+        "Submission yields",
+    )
+    benchmark = await _load_required_json(
+        session,
+        storage,
+        submission.bovi_yields_artifact_id,
+        submission.bovi_yields,
+        "Benchmark yields",
+    )
+    return submitted, benchmark
+
+
 class MilkBotRunOptions(BaseModel):
     """Optional MilkBot fitting options for benchmark model runs."""
 
@@ -112,6 +221,8 @@ async def _repair_preset_challenge_if_needed(
     settings: Settings,
 ) -> bool:
     """Refresh legacy reference-dataset challenges that stored bad concatenated ALY values."""
+    if challenge.actual_yields_artifact_id is not None:
+        return False
     if challenge.dataset != "icar" or challenge.source != "preset":
         return False
     if _actual_yields_are_plausible(challenge.actual_yields):
@@ -142,12 +253,19 @@ async def _repair_preset_challenge_if_needed(
     return True
 
 
-def _recalculate_submission_stats(submission: Submission, challenge: Challenge) -> dict:
-    parities = {cid: meta.get("parity", 1) or 1 for cid, meta in challenge.cow_metadata.items()}
+def _recalculate_submission_stats(
+    *,
+    submission: Submission,
+    cow_metadata: dict[str, dict],
+    actual_yields: dict[str, float],
+    submitted_yields: dict[str, float],
+    benchmark_yields: dict[str, float],
+) -> dict:
+    parities = {cid: meta.get("parity", 1) or 1 for cid, meta in cow_metadata.items()}
     return calculate_comparison_stats_v2(
-        challenger_yields=submission.submitted_yields,
-        benchmark_yields=submission.bovi_yields,
-        actual_yields=challenge.actual_yields or {},
+        challenger_yields=submitted_yields,
+        benchmark_yields=benchmark_yields,
+        actual_yields=actual_yields,
         parities=parities,
     )
 
@@ -410,8 +528,10 @@ async def create_challenge_preset(
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
+    storage: ArtifactStorage = Depends(get_artifact_storage),
 ) -> Challenge:
     """Create a preset-backed challenge with ground-truth ALY."""
+    ensure_organization_access(current_user, body.organization_id)
     loop = asyncio.get_running_loop()
     preset = await loop.run_in_executor(
         None, fetch_preset_cows, body.preset, "full", "all", settings
@@ -433,26 +553,69 @@ async def create_challenge_preset(
     }
     # Keep only cows that have ALY (defensive - already filtered by generator)
     cow_metadata = {cid: m for cid, m in cow_metadata.items() if cid in preset.actual_yields}
-
-    organization_id = body.organization_id
-    ensure_organization_access(current_user, organization_id)
+    actual_yields = {cid: preset.actual_yields[cid] for cid in cow_metadata}
+    challenge_uuid = str(uuid4())
+    summary = _challenge_summary(cow_metadata, actual_yields)
+    prefix = storage.path("challenges", challenge_uuid)
+    uploaded = [
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="challenge_cow_metadata_json",
+            entity_type="challenge",
+            entity_uuid=challenge_uuid,
+            blob_path=f"{prefix}/parsed/cow_metadata.json.gz",
+            payload=cow_metadata,
+            row_count=summary["row_count"],
+            record_count=summary["cow_count"],
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="challenge_actual_yields_json",
+            entity_type="challenge",
+            entity_uuid=challenge_uuid,
+            blob_path=f"{prefix}/parsed/actual_yields.json.gz",
+            payload=actual_yields,
+            record_count=summary["actual_yield_count"],
+        ),
+    ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     challenge = Challenge(
+        uuid=challenge_uuid,
         dataset=body.preset,
         size="full",
         period="all",
         source="preset",
         name=body.name or "Demo dataset",
-        cow_metadata=cow_metadata,
+        cow_metadata=None,
         reference_yields=None,
-        actual_yields=preset.actual_yields,
+        actual_yields=None,
+        cow_metadata_artifact_id=uploaded[0].id,
+        actual_yields_artifact_id=uploaded[1].id,
         user_id=current_user.id,
-        organization_id=organization_id,
+        organization_id=body.organization_id,
+        row_count=summary["row_count"],
+        cow_count=summary["cow_count"],
+        actual_yield_count=summary["actual_yield_count"],
+        herd_count=summary["herd_count"],
+        parity_counts=summary["parity_counts"],
         dataset_sources=_ICAR_DATASET_SOURCES,
-        dataset_stats=_dataset_stats(cow_metadata, preset.actual_yields),
+        dataset_stats=_dataset_stats(cow_metadata, actual_yields),
     )
     session.add(challenge)
-    await session.commit()
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
     await session.refresh(challenge)
     return challenge
 
@@ -462,8 +625,10 @@ async def create_challenge_saved_dataset(
     body: ChallengeCreateSavedDatasetBody,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
+    storage: ArtifactStorage = Depends(get_artifact_storage),
 ) -> Challenge:
     """Create a challenge from a previously parsed upload-backed benchmark dataset."""
+    ensure_organization_access(current_user, body.organization_id)
     if not body.cow_metadata:
         raise HTTPException(status_code=422, detail="Saved dataset has no test-day records.")
     if not body.actual_yields:
@@ -479,24 +644,72 @@ async def create_challenge_saved_dataset(
             ),
         )
     cow_metadata = {cid: m for cid, m in body.cow_metadata.items() if cid in body.actual_yields}
-    ensure_organization_access(current_user, body.organization_id)
+
+    actual_yields = {cid: float(body.actual_yields[cid]) for cid in cow_metadata}
+    challenge_uuid = str(uuid4())
+    summary = _challenge_summary(cow_metadata, actual_yields)
+    prefix = storage.path("challenges", challenge_uuid)
+    uploaded = [
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="challenge_cow_metadata_json",
+            entity_type="challenge",
+            entity_uuid=challenge_uuid,
+            blob_path=f"{prefix}/parsed/cow_metadata.json.gz",
+            payload=cow_metadata,
+            row_count=summary["row_count"],
+            record_count=summary["cow_count"],
+            metadata_extra={"source": "saved_dataset_payload"},
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="challenge_actual_yields_json",
+            entity_type="challenge",
+            entity_uuid=challenge_uuid,
+            blob_path=f"{prefix}/parsed/actual_yields.json.gz",
+            payload=actual_yields,
+            record_count=summary["actual_yield_count"],
+            metadata_extra={"source": "saved_dataset_payload"},
+        ),
+    ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     challenge = Challenge(
+        uuid=challenge_uuid,
         dataset="saved_upload",
         size="custom",
         period="custom",
         source="upload",
         name=body.name,
-        cow_metadata=cow_metadata,
+        cow_metadata=None,
         reference_yields=None,
-        actual_yields={cid: float(body.actual_yields[cid]) for cid in cow_metadata},
+        actual_yields=None,
+        cow_metadata_artifact_id=uploaded[0].id,
+        actual_yields_artifact_id=uploaded[1].id,
         user_id=current_user.id,
         organization_id=body.organization_id,
+        row_count=summary["row_count"],
+        cow_count=summary["cow_count"],
+        actual_yield_count=summary["actual_yield_count"],
+        herd_count=summary["herd_count"],
+        parity_counts=summary["parity_counts"],
         dataset_sources=body.dataset_sources or _upload_dataset_sources(),
-        dataset_stats=_dataset_stats(cow_metadata, body.actual_yields),
+        dataset_stats=_dataset_stats(cow_metadata, actual_yields),
     )
     session.add(challenge)
-    await session.commit()
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
     await session.refresh(challenge)
     return challenge
 
@@ -509,141 +722,128 @@ async def create_challenge_upload(
     organization_id: int = Form(...),
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
-    settings: Settings = Depends(get_settings),
+    storage: ArtifactStorage = Depends(get_artifact_storage),
 ) -> Challenge:
     """Create an upload-backed challenge: user-supplied test-day records + ground-truth yields."""
+    ensure_organization_access(current_user, organization_id)
     test_bytes = await test_day_csv.read()
     aly_bytes = await actual_yields_csv.read()
     if len(test_bytes) > _MAX_UPLOAD_BYTES or len(aly_bytes) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="One of the uploads exceeds the 10 MB limit.")
 
-    resolved_organization_id = organization_id
-    ensure_organization_access(current_user, resolved_organization_id)
-    organization_name = organization_name_for_user(current_user, resolved_organization_id)
-
-    try:
-        test_upload = upload_csv_to_blob(
-            test_bytes,
-            filename=test_day_csv.filename or "test_day.csv",
-            content_type=test_day_csv.content_type,
-            action_type=ACTION_BENCHMARK_CHALLENGE_TEST_DAY,
-            settings=settings,
-        )
-        aly_upload = upload_csv_to_blob(
-            aly_bytes,
-            filename=actual_yields_csv.filename or "actual_yields.csv",
-            content_type=actual_yields_csv.content_type,
-            action_type=ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS,
-            settings=settings,
-        )
-    except UploadStorageError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-
     try:
         cow_metadata = parse_test_day_csv(test_bytes)
     except ValueError as exc:
-        detail = f"test-day CSV: {exc}"
-        for stored, action in (
-            (test_upload, ACTION_BENCHMARK_CHALLENGE_TEST_DAY),
-            (aly_upload, ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS),
-        ):
-            session.add(
-                make_upload_audit(
-                    stored,
-                    action_type=action,
-                    status="rejected",
-                    current_user=current_user,
-                    organization_id=resolved_organization_id,
-                    organization_name=organization_name,
-                    error_detail=detail,
-                )
-            )
-        await session.commit()
         raise HTTPException(status_code=400, detail=f"test-day CSV: {exc}") from exc
     try:
         actual_yields = parse_actual_yields_csv(aly_bytes)
     except ValueError as exc:
-        detail = f"actual-yields CSV: {exc}"
-        for stored, action in (
-            (test_upload, ACTION_BENCHMARK_CHALLENGE_TEST_DAY),
-            (aly_upload, ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS),
-        ):
-            session.add(
-                make_upload_audit(
-                    stored,
-                    action_type=action,
-                    status="rejected",
-                    current_user=current_user,
-                    organization_id=resolved_organization_id,
-                    organization_name=organization_name,
-                    error_detail=detail,
-                )
-            )
-        await session.commit()
         raise HTTPException(status_code=400, detail=f"actual-yields CSV: {exc}") from exc
 
     # Coverage check: ALY must cover at least 80% of lactations in the test-day file
     overlap = sum(1 for cid in cow_metadata if cid in actual_yields)
     if not cow_metadata or overlap / len(cow_metadata) < 0.80:
-        detail = (
-            f"Actual-yields CSV must cover at least 80% of cows from the test-day CSV "
-            f"(got {overlap}/{len(cow_metadata)})."
-        )
-        for stored, action in (
-            (test_upload, ACTION_BENCHMARK_CHALLENGE_TEST_DAY),
-            (aly_upload, ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS),
-        ):
-            session.add(
-                make_upload_audit(
-                    stored,
-                    action_type=action,
-                    status="rejected",
-                    current_user=current_user,
-                    organization_id=resolved_organization_id,
-                    organization_name=organization_name,
-                    error_detail=detail,
-                )
-            )
-        await session.commit()
         raise HTTPException(
             status_code=422,
-            detail=detail,
+            detail=(
+                f"Actual-yields CSV must cover at least 80% of lactations from the test-day CSV "
+                f"(got {overlap}/{len(cow_metadata)})."
+            ),
         )
     # Drop cows without ALY
     cow_metadata = {cid: m for cid, m in cow_metadata.items() if cid in actual_yields}
+    actual_yields = {cid: actual_yields[cid] for cid in cow_metadata}
+
+    challenge_uuid = str(uuid4())
+    summary = _challenge_summary(cow_metadata, actual_yields)
+    prefix = storage.path("challenges", challenge_uuid)
+    uploaded = [
+        await create_bytes_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="challenge_test_day_csv",
+            entity_type="challenge",
+            entity_uuid=challenge_uuid,
+            blob_path=f"{prefix}/raw/test_day.csv",
+            data=test_bytes,
+            content_type="text/csv",
+            original_filename=test_day_csv.filename,
+            row_count=_csv_data_row_count(test_bytes),
+        ),
+        await create_bytes_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="challenge_actual_yields_csv",
+            entity_type="challenge",
+            entity_uuid=challenge_uuid,
+            blob_path=f"{prefix}/raw/actual_yields.csv",
+            data=aly_bytes,
+            content_type="text/csv",
+            original_filename=actual_yields_csv.filename,
+            row_count=_csv_data_row_count(aly_bytes),
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="challenge_cow_metadata_json",
+            entity_type="challenge",
+            entity_uuid=challenge_uuid,
+            blob_path=f"{prefix}/parsed/cow_metadata.json.gz",
+            payload=cow_metadata,
+            row_count=summary["row_count"],
+            record_count=summary["cow_count"],
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="challenge_actual_yields_json",
+            entity_type="challenge",
+            entity_uuid=challenge_uuid,
+            blob_path=f"{prefix}/parsed/actual_yields.json.gz",
+            payload=actual_yields,
+            record_count=summary["actual_yield_count"],
+        ),
+    ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     challenge = Challenge(
+        uuid=challenge_uuid,
         dataset="upload",
         size="custom",
         period="custom",
         source="upload",
         name=name,
-        cow_metadata=cow_metadata,
+        cow_metadata=None,
         reference_yields=None,
-        actual_yields={cid: actual_yields[cid] for cid in cow_metadata},
+        actual_yields=None,
+        test_day_file_artifact_id=uploaded[0].id,
+        actual_yields_file_artifact_id=uploaded[1].id,
+        cow_metadata_artifact_id=uploaded[2].id,
+        actual_yields_artifact_id=uploaded[3].id,
         user_id=current_user.id,
-        organization_id=resolved_organization_id,
+        organization_id=organization_id,
+        test_day_filename=test_day_csv.filename,
+        actual_yields_filename=actual_yields_csv.filename,
+        row_count=summary["row_count"],
+        cow_count=summary["cow_count"],
+        actual_yield_count=summary["actual_yield_count"],
+        herd_count=summary["herd_count"],
+        parity_counts=summary["parity_counts"],
         dataset_sources=_upload_dataset_sources(test_day_csv.filename, actual_yields_csv.filename),
         dataset_stats=_dataset_stats(cow_metadata, actual_yields),
     )
     session.add(challenge)
-    await session.flush()
-    for stored, action in (
-        (test_upload, ACTION_BENCHMARK_CHALLENGE_TEST_DAY),
-        (aly_upload, ACTION_BENCHMARK_CHALLENGE_ACTUAL_YIELDS),
-    ):
-        session.add(
-            make_upload_audit(
-                stored,
-                action_type=action,
-                status="accepted",
-                current_user=current_user,
-                organization_id=resolved_organization_id,
-                organization_name=organization_name,
-                challenge_id=challenge.id,
-            )
-        )
-    await session.commit()
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
     await session.refresh(challenge)
     return challenge
 
@@ -681,7 +881,6 @@ async def list_challenges(
         statement = statement.where(Challenge.user_id == current_user.id)
     if q:
         statement = statement.where(col(Challenge.name).contains(q))
-
     sort_column = {
         "created_at": col(Challenge.created_at),
         "name": col(Challenge.name),
@@ -698,13 +897,37 @@ async def get_challenge(
     challenge_id: int,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
-) -> Challenge:
+    storage: ArtifactStorage | None = Depends(get_optional_artifact_storage),
+) -> ChallengeDetail:
     """Get a single challenge with full cow metadata."""
     challenge = await session.get(Challenge, challenge_id)
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
     ensure_organization_access(current_user, challenge.organization_id)
-    return _with_dataset_metadata(challenge)
+    cow_metadata = await _load_challenge_cow_metadata(challenge, session, storage)
+    actual_yields = await _load_challenge_actual_yields(challenge, session, storage)
+    challenge = _with_dataset_metadata(challenge)
+    dataset_stats = challenge.dataset_stats or _dataset_stats(cow_metadata, actual_yields)
+    return ChallengeDetail(
+        id=challenge.id or 0,
+        dataset=challenge.dataset,
+        size=challenge.size,
+        period=challenge.period,
+        user_id=challenge.user_id,
+        organization_id=challenge.organization_id,
+        created_at=challenge.created_at,
+        name=challenge.name,
+        source=challenge.source,
+        row_count=challenge.row_count,
+        cow_count=challenge.cow_count,
+        actual_yield_count=challenge.actual_yield_count,
+        ingest_status=challenge.ingest_status,
+        dataset_sources=challenge.dataset_sources or _fallback_dataset_sources(challenge),
+        dataset_stats=dataset_stats,
+        cow_metadata=cow_metadata,
+        reference_yields=challenge.reference_yields,
+        actual_yields=actual_yields,
+    )
 
 
 @router.get("/challenges/{challenge_id}/export")
@@ -712,6 +935,7 @@ async def export_challenge(
     challenge_id: int,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
+    storage: ArtifactStorage | None = Depends(get_optional_artifact_storage),
 ) -> Response:
     """Download a CSV of the challenge's test-day data."""
     challenge = await session.get(Challenge, challenge_id)
@@ -719,16 +943,27 @@ async def export_challenge(
         raise HTTPException(status_code=404, detail="Challenge not found")
     ensure_organization_access(current_user, challenge.organization_id)
 
+    if challenge.test_day_file_artifact_id is not None:
+        content = await load_bytes_artifact(
+            session=session,
+            storage=_require_storage(storage),
+            artifact_id=challenge.test_day_file_artifact_id,
+        )
+        return Response(
+            content=content or b"",
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=challenge_{challenge_id}.csv"},
+        )
+
+    cow_metadata = await _load_challenge_cow_metadata(challenge, session, storage)
     output = io.StringIO()
     writer = csv.writer(output)
-    include_herd_id = any(
-        meta.get("herd_id") not in (None, "") for meta in challenge.cow_metadata.values()
-    )
+    include_herd_id = any(meta.get("herd_id") not in (None, "") for meta in cow_metadata.values())
     headers = ["TestId", "parity", "dim", "milk_kg"]
     if include_herd_id:
         headers.insert(1, "herd_id")
     writer.writerow(headers)
-    for cow_id, meta in challenge.cow_metadata.items():
+    for cow_id, meta in cow_metadata.items():
         herd_id = meta.get("herd_id", "")
         parity = meta.get("parity", "")
         for d, m in zip(meta["dim"], meta["milk_kg"]):
@@ -780,33 +1015,67 @@ async def create_submission_bovi(
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
+    storage: ArtifactStorage = Depends(get_artifact_storage),
 ) -> Submission:
     """Run challenger + benchmark models on the cohort and compare both vs ALY."""
     challenge = await session.get(Challenge, challenge_id)
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
     ensure_organization_access(current_user, challenge.organization_id)
-    if not challenge.actual_yields:
+    cow_metadata = await _load_challenge_cow_metadata(challenge, session, storage)
+    actual_yields = await _load_challenge_actual_yields(challenge, session, storage)
+    if not actual_yields:
         raise HTTPException(
             status_code=422,
             detail="Challenge has no ground-truth ALY - cannot benchmark.",
         )
 
     challenger_yields, benchmark_yields = await asyncio.gather(
-        _dispatch_model(body.challenger, challenge.cow_metadata, settings, body.challenger_options),
-        _dispatch_model(body.benchmark, challenge.cow_metadata, settings, body.benchmark_options),
+        _dispatch_model(body.challenger, cow_metadata, settings, body.challenger_options),
+        _dispatch_model(body.benchmark, cow_metadata, settings, body.benchmark_options),
     )
 
-    parities = {cid: meta.get("parity", 1) or 1 for cid, meta in challenge.cow_metadata.items()}
-    failed_cow_ids = [cid for cid in challenge.cow_metadata if cid not in challenger_yields]
+    parities = {cid: meta.get("parity", 1) or 1 for cid, meta in cow_metadata.items()}
+    failed_cow_ids = [cid for cid in cow_metadata if cid not in challenger_yields]
     stats = calculate_comparison_stats_v2(
         challenger_yields=challenger_yields,
         benchmark_yields=benchmark_yields,
-        actual_yields=challenge.actual_yields,
+        actual_yields=actual_yields,
         parities=parities,
     )
+    submission_uuid = str(uuid4())
+    prefix = storage.path("submissions", submission_uuid)
+    uploaded = [
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="submission_submitted_yields_json",
+            entity_type="submission",
+            entity_uuid=submission_uuid,
+            blob_path=f"{prefix}/parsed/submitted_yields.json.gz",
+            payload=challenger_yields,
+            record_count=len(challenger_yields),
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="submission_bovi_yields_json",
+            entity_type="submission",
+            entity_uuid=submission_uuid,
+            blob_path=f"{prefix}/generated/bovi_yields.json.gz",
+            payload=benchmark_yields,
+            record_count=len(benchmark_yields),
+        ),
+    ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     submission = Submission(
+        uuid=submission_uuid,
         challenge_id=challenge_id,
         submission_type="bovi_model",
         model_type=body.challenger,
@@ -822,15 +1091,25 @@ async def create_submission_bovi(
             if body.benchmark_options is not None
             else None,
         },
-        submitted_yields=challenger_yields,
-        bovi_yields=benchmark_yields,
+        submitted_yields=None,
+        bovi_yields=None,
+        submitted_yields_artifact_id=uploaded[0].id,
+        bovi_yields_artifact_id=uploaded[1].id,
+        submitted_yield_count=len(challenger_yields),
+        benchmark_yield_count=len(benchmark_yields),
         stats=stats,
         failed_cow_ids=failed_cow_ids,
+        failed_count=len(failed_cow_ids),
         user_id=current_user.id,
         organization_id=challenge.organization_id,
     )
     session.add(submission)
-    await session.commit()
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
     await session.refresh(submission)
     return submission
 
@@ -854,13 +1133,16 @@ async def create_submission_upload(
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
+    storage: ArtifactStorage = Depends(get_artifact_storage),
 ) -> Submission:
     """Upload a CSV of own-method 305-day yields; benchmark model runs server-side."""
     challenge = await session.get(Challenge, challenge_id)
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
     ensure_organization_access(current_user, challenge.organization_id)
-    if not challenge.actual_yields:
+    cow_metadata = await _load_challenge_cow_metadata(challenge, session, storage)
+    actual_yields = await _load_challenge_actual_yields(challenge, session, storage)
+    if not actual_yields:
         raise HTTPException(
             status_code=422,
             detail="Challenge has no ground-truth ALY - cannot benchmark.",
@@ -896,73 +1178,75 @@ async def create_submission_upload(
     if len(content) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
 
-    organization_name = organization_name_for_user(current_user, challenge.organization_id)
-    try:
-        stored_upload = upload_csv_to_blob(
-            content,
-            filename=filename,
-            content_type=file.content_type,
-            action_type=ACTION_BENCHMARK_SUBMISSION_RESULTS,
-            settings=settings,
-        )
-    except UploadStorageError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-
     try:
         challenger_yields, failed_ids = parse_submission_csv(content, return_failed=True)
     except ValueError as exc:
-        session.add(
-            make_upload_audit(
-                stored_upload,
-                action_type=ACTION_BENCHMARK_SUBMISSION_RESULTS,
-                status="rejected",
-                current_user=current_user,
-                organization_id=challenge.organization_id,
-                organization_name=organization_name,
-                challenge_id=challenge_id,
-                error_detail=str(exc),
-            )
-        )
-        await session.commit()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     total = len(challenger_yields) + len(failed_ids)
     if total > 0 and len(failed_ids) / total > _FAILURE_THRESHOLD:
-        detail = (
-            f"Too many invalid rows: {len(failed_ids)}/{total} failed "
-            f"(>{int(_FAILURE_THRESHOLD * 100)}% threshold)."
-        )
-        session.add(
-            make_upload_audit(
-                stored_upload,
-                action_type=ACTION_BENCHMARK_SUBMISSION_RESULTS,
-                status="rejected",
-                current_user=current_user,
-                organization_id=challenge.organization_id,
-                organization_name=organization_name,
-                challenge_id=challenge_id,
-                error_detail=detail,
-            )
-        )
-        await session.commit()
         raise HTTPException(
             status_code=422,
-            detail=detail,
+            detail=(
+                f"Too many invalid rows: {len(failed_ids)}/{total} failed "
+                f"(>{int(_FAILURE_THRESHOLD * 100)}% threshold)."
+            ),
         )
 
-    benchmark_yields = await _dispatch_model(
-        benchmark, challenge.cow_metadata, settings, benchmark_options
-    )
+    benchmark_yields = await _dispatch_model(benchmark, cow_metadata, settings, benchmark_options)
 
-    parities = {cid: meta.get("parity", 1) or 1 for cid, meta in challenge.cow_metadata.items()}
+    parities = {cid: meta.get("parity", 1) or 1 for cid, meta in cow_metadata.items()}
     stats = calculate_comparison_stats_v2(
         challenger_yields=challenger_yields,
         benchmark_yields=benchmark_yields,
-        actual_yields=challenge.actual_yields,
+        actual_yields=actual_yields,
         parities=parities,
     )
+    submission_uuid = str(uuid4())
+    prefix = storage.path("submissions", submission_uuid)
+    uploaded = [
+        await create_bytes_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="submission_results_csv",
+            entity_type="submission",
+            entity_uuid=submission_uuid,
+            blob_path=f"{prefix}/raw/results.csv",
+            data=content,
+            content_type="text/csv",
+            original_filename=file.filename,
+            row_count=_csv_data_row_count(content),
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="submission_submitted_yields_json",
+            entity_type="submission",
+            entity_uuid=submission_uuid,
+            blob_path=f"{prefix}/parsed/submitted_yields.json.gz",
+            payload=challenger_yields,
+            record_count=len(challenger_yields),
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="submission_bovi_yields_json",
+            entity_type="submission",
+            entity_uuid=submission_uuid,
+            blob_path=f"{prefix}/generated/bovi_yields.json.gz",
+            payload=benchmark_yields,
+            record_count=len(benchmark_yields),
+        ),
+    ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     submission = Submission(
+        uuid=submission_uuid,
         challenge_id=challenge_id,
         submission_type="own_method",
         model_type=None,
@@ -974,28 +1258,28 @@ async def create_submission_upload(
         run_options={
             "benchmark": benchmark_options.model_dump() if benchmark_options is not None else None
         },
-        submitted_yields=challenger_yields,
-        bovi_yields=benchmark_yields,
+        submitted_yields=None,
+        bovi_yields=None,
+        input_file_artifact_id=uploaded[0].id,
+        submitted_yields_artifact_id=uploaded[1].id,
+        bovi_yields_artifact_id=uploaded[2].id,
+        input_filename=file.filename,
+        row_count=_csv_data_row_count(content),
+        submitted_yield_count=len(challenger_yields),
+        benchmark_yield_count=len(benchmark_yields),
         stats=stats,
         failed_cow_ids=failed_ids,
+        failed_count=len(failed_ids),
         user_id=current_user.id,
         organization_id=challenge.organization_id,
     )
     session.add(submission)
-    await session.flush()
-    session.add(
-        make_upload_audit(
-            stored_upload,
-            action_type=ACTION_BENCHMARK_SUBMISSION_RESULTS,
-            status="accepted",
-            current_user=current_user,
-            organization_id=challenge.organization_id,
-            organization_name=organization_name,
-            challenge_id=challenge_id,
-            submission_id=submission.id,
-        )
-    )
-    await session.commit()
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
     await session.refresh(submission)
     return submission
 
@@ -1050,6 +1334,7 @@ async def get_submission(
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
+    storage: ArtifactStorage | None = Depends(get_optional_artifact_storage),
 ) -> Submission:
     """Get a single submission with stats."""
     sub = await session.get(Submission, submission_id)
@@ -1060,7 +1345,16 @@ async def get_submission(
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
     if await _repair_preset_challenge_if_needed(challenge, session, settings):
-        sub.stats = _recalculate_submission_stats(sub, challenge)
+        cow_metadata = await _load_challenge_cow_metadata(challenge, session, storage)
+        actual_yields = await _load_challenge_actual_yields(challenge, session, storage)
+        submitted_yields, benchmark_yields = await _load_submission_yields(sub, session, storage)
+        sub.stats = _recalculate_submission_stats(
+            submission=sub,
+            cow_metadata=cow_metadata,
+            actual_yields=actual_yields,
+            submitted_yields=submitted_yields,
+            benchmark_yields=benchmark_yields,
+        )
         session.add(sub)
         await session.commit()
         await session.refresh(sub)
@@ -1073,6 +1367,7 @@ async def download_report(
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
+    storage: ArtifactStorage | None = Depends(get_optional_artifact_storage),
 ) -> Response:
     """Download a PDF report for a submission."""
     sub = await session.get(Submission, submission_id)
@@ -1084,17 +1379,30 @@ async def download_report(
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
     if await _repair_preset_challenge_if_needed(challenge, session, settings):
-        sub.stats = _recalculate_submission_stats(sub, challenge)
+        cow_metadata = await _load_challenge_cow_metadata(challenge, session, storage)
+        actual_yields = await _load_challenge_actual_yields(challenge, session, storage)
+        submitted_yields, benchmark_yields = await _load_submission_yields(sub, session, storage)
+        sub.stats = _recalculate_submission_stats(
+            submission=sub,
+            cow_metadata=cow_metadata,
+            actual_yields=actual_yields,
+            submitted_yields=submitted_yields,
+            benchmark_yields=benchmark_yields,
+        )
         session.add(sub)
         await session.commit()
         await session.refresh(sub)
+    else:
+        cow_metadata = await _load_challenge_cow_metadata(challenge, session, storage)
+        actual_yields = await _load_challenge_actual_yields(challenge, session, storage)
+        submitted_yields, benchmark_yields = await _load_submission_yields(sub, session, storage)
 
-    parities = {cid: meta.get("parity", 1) or 1 for cid, meta in challenge.cow_metadata.items()}
+    parities = {cid: meta.get("parity", 1) or 1 for cid, meta in cow_metadata.items()}
     pdf_bytes = generate_report_pdf(
         stats=sub.stats,
-        challenger_yields=sub.submitted_yields,
-        benchmark_yields=sub.bovi_yields,
-        actual_yields=challenge.actual_yields or {},
+        challenger_yields=submitted_yields,
+        benchmark_yields=benchmark_yields,
+        actual_yields=actual_yields,
         parities=parities,
         challenge_name=challenge.name or challenge.dataset,
         challenge_source="reference dataset"

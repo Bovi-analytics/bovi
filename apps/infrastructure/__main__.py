@@ -71,7 +71,7 @@ azure_ad_client_id = config.get("azureAdClientId") or os.getenv("AZURE_AD_CLIENT
 azure_ad_api_scope = (
     config.get("azureAdApiScope")
     or os.getenv("NEXT_PUBLIC_AZURE_AD_API_SCOPE")
-    or (f"api://{azure_ad_client_id}/access_as_user" if azure_ad_client_id else "")
+    or f"api://{azure_ad_client_id}/access_as_user"
 )
 autoencoder_model_version = (
     os.getenv("AUTOENCODER_MODEL_VERSION") or config.get("autoencoderModelVersion") or "v15"
@@ -138,15 +138,6 @@ files_share_result = create_files_share(
         account_name=storage_result.account.name,
         share_name="bovidata",
         quota_gb=1,
-    ),
-)
-
-uploads_container_result = create_blob_container(
-    "uploads-container",
-    BlobContainerArgs(
-        resource_group_name=resource_group.name,
-        account_name=storage_result.account.name,
-        container_name="bovi-uploads",
     ),
 )
 
@@ -318,11 +309,10 @@ api_result = create_container_app(
             "CORS_ORIGINS": api_cors_origins,
             "STORAGE_ACCOUNT_NAME_ICAR": icar_storage_account_name,
             "STORAGE_ACCOUNT_CONTAINER_ICAR": icar_storage_container,
-            "CONNECTION_STRING": storage_result.connection_string,
-            "UPLOAD_CONTAINER": "bovi-uploads",
+            "BOVI_ENV": stack,
+            "UPLOAD_BLOB_PREFIX": "bovi/uploads",
             "AZURE_AD_CLIENT_ID": azure_ad_client_id,
             "AUTH_DISABLED": "false",
-            "DEV_MODE": "false",
         },
         secret_env={"STORAGE_ACCOUNT_KEY_ICAR": icar_storage_account_key},
         tags=tags,
@@ -380,7 +370,6 @@ dashboard_result = create_stateless_container_app(
             "NEXT_PUBLIC_AZURE_AD_CLIENT_ID": azure_ad_client_id,
             "NEXT_PUBLIC_AZURE_AD_API_SCOPE": azure_ad_api_scope,
             "NEXT_PUBLIC_AUTH_DISABLED": "false",
-            "NEXT_PUBLIC_DEV_MODE": "false",
         },
         tags=tags,
     ),
@@ -391,7 +380,6 @@ dashboard_result = create_stateless_container_app(
 # ---------------------------------------------------------------------------
 pulumi.export("resource_group_name", resource_group.name)
 pulumi.export("storage_account_name", storage_result.account.name)
-pulumi.export("uploads_container_name", uploads_container_result.container.name)
 pulumi.export(
     "autoencoder_model_assets_container",
     autoencoder_model_assets_container_result.container.name,

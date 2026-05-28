@@ -65,8 +65,7 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
       { name: "DaysInMilk", description: "Days since calving for this record", required: true },
       {
         name: "DailyMilkingYield",
-        description:
-          "Summed cumulative milk yield of all milkings of one day (24h milk yield).",
+        description: "Summed cumulative milk yield of all milkings of one day (24h milk yield).",
         required: true,
       },
       {
@@ -126,36 +125,36 @@ export function HerdProfileUpload(): ReactElement {
     const file = e.target.files?.[0];
     if (!file) return;
     const filename = file.name;
-    uploadMutation.mutate({ file }, {
-      onSuccess: (response) => {
-        setPreview(response);
-        setUploadedFilename(filename);
-        if (
-          response.cows.length > 0 &&
-          response.format_detected === "icar_test_day"
-        ) {
-          setDataset({
-            id: `${Date.now()}-${filename}`,
-            name: filename,
-            format: response.format_detected,
-            uploadedAt: new Date().toISOString(),
-            rowCount: response.row_count,
-            cowCount: response.cow_count ?? response.cows.length,
-            detectedParity: response.detected_parity ?? null,
-            columns: response.columns,
-            columnMapping: response.column_mapping,
-            stats: response.stats,
-            rawStats: response.raw_stats,
-            cows: response.cows.map((c) => ({
-              cowId: c.cow_id,
-              parity: c.parity,
-              dim: c.dim,
-              milkrecordings: c.milk_kg,
-            })),
-          });
-        }
-      },
-    });
+    uploadMutation.mutate(
+      { file },
+      {
+        onSuccess: (response) => {
+          setPreview(response);
+          setUploadedFilename(filename);
+          if (response.cows.length > 0 && response.format_detected === "icar_test_day") {
+            setDataset({
+              id: `${Date.now()}-${filename}`,
+              name: filename,
+              format: response.format_detected,
+              uploadedAt: new Date().toISOString(),
+              rowCount: response.row_count,
+              cowCount: response.cow_count ?? response.cows.length,
+              detectedParity: response.detected_parity ?? null,
+              columns: response.columns,
+              columnMapping: response.column_mapping,
+              stats: response.stats,
+              rawStats: response.raw_stats,
+              cows: response.cows.map((c) => ({
+                cowId: c.cow_id,
+                parity: c.parity,
+                dim: c.dim,
+                milkrecordings: c.milk_kg,
+              })),
+            });
+          }
+        },
+      }
+    );
     e.target.value = "";
   }
 

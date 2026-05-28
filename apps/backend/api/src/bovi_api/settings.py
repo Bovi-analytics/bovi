@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     storage_account_name_icar: str | None = None
     storage_account_key_icar: str | None = None
     storage_account_container_icar: str | None = None
-    upload_container: str = "bovi-uploads"
+    bovi_env: str = "local"
+    upload_blob_prefix: str = "bovi/uploads"
     allow_dairy_comp_uploads: bool = False
 
     model_config = {"env_file": find_dotenv(), "env_file_encoding": "utf-8", "extra": "ignore"}

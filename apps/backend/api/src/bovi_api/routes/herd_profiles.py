@@ -1,6 +1,7 @@
 """CRUD endpoints for user-managed herd stat profiles."""
 
 import json
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -11,19 +12,19 @@ from sqlmodel import col, select
 from bovi_api.auth import CurrentUser, ensure_organization_access, require_auth
 from bovi_api.database import get_session
 from bovi_api.herd_stats_ingestion import DEFAULT_STAT_RANGES, normalize_herd_stats, parse_csv
-from bovi_api.models import HerdProfile, HerdProfileCreate, HerdProfileRead
+from bovi_api.models import HerdProfile, HerdProfileCreate, HerdProfileRead, UploadedDataset
 from bovi_api.settings import Settings, get_settings
-from bovi_api.upload_storage import (
-    UploadStorageError,
-    make_upload_audit,
-    organization_name_for_user,
-    upload_csv_to_blob,
+from bovi_api.storage import (
+    ArtifactStorage,
+    create_bytes_artifact,
+    create_json_artifact,
+    delete_artifacts_best_effort,
+    get_artifact_storage,
 )
 
 router = APIRouter(tags=["herd-profiles"], dependencies=[Depends(require_auth)])
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
-ACTION_HERD_PROFILE_CSV_PREVIEW = "herd_profile_csv_preview"
 
 
 class CowRecordPayload(BaseModel):
@@ -36,8 +37,9 @@ class CowRecordPayload(BaseModel):
 
 
 class HerdProfileUploadResponse(BaseModel):
-    """Preview of normalized herd stats parsed from a CSV upload. Not saved to DB."""
+    """Preview of normalized herd stats parsed from a CSV upload."""
 
+    upload_id: str | None = None
     stats: dict[str, float]
     raw_stats: dict[str, float]
     format_detected: str
@@ -122,10 +124,11 @@ async def csv_preview(
     organization_id: int = Form(...),
     column_mapping: str | None = Form(default=None),
     current_user: CurrentUser = Depends(require_auth),
-    session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+    storage: ArtifactStorage = Depends(get_artifact_storage),
 ) -> HerdProfileUploadResponse:
-    """Parse and normalize an uploaded CSV. Returns a preview; does NOT save to DB."""
+    """Parse, normalize, and optionally persist an uploaded CSV preview."""
     filename = file.filename or ""
     if not filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files are accepted.")
@@ -133,19 +136,7 @@ async def csv_preview(
     content = await file.read()
     if len(content) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
-
     ensure_organization_access(current_user, organization_id)
-    organization_name = organization_name_for_user(current_user, organization_id)
-    try:
-        stored_upload = upload_csv_to_blob(
-            content,
-            filename=filename,
-            content_type=file.content_type,
-            action_type=ACTION_HERD_PROFILE_CSV_PREVIEW,
-            settings=settings,
-        )
-    except UploadStorageError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     parsed_mapping: dict[str, str] | None = None
     if column_mapping:
@@ -166,34 +157,94 @@ async def csv_preview(
             column_mapping=parsed_mapping,
         )
     except ValueError as exc:
-        session.add(
-            make_upload_audit(
-                stored_upload,
-                action_type=ACTION_HERD_PROFILE_CSV_PREVIEW,
-                status="rejected",
-                current_user=current_user,
-                organization_id=organization_id,
-                organization_name=organization_name,
-                error_detail=str(exc),
-            )
-        )
-        await session.commit()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     normalized = normalize_herd_stats(result.raw_stats, DEFAULT_STAT_RANGES)
-    session.add(
-        make_upload_audit(
-            stored_upload,
-            action_type=ACTION_HERD_PROFILE_CSV_PREVIEW,
-            status="accepted",
-            current_user=current_user,
-            organization_id=organization_id,
-            organization_name=organization_name,
-        )
+    upload_id = str(uuid4())
+    prefix = storage.path("herd-datasets", upload_id)
+    cows_payload = [
+        {
+            "cow_id": c.cow_id,
+            "parity": c.parity,
+            "dim": c.dim,
+            "milk_kg": c.milk_kg,
+        }
+        for c in (result.cows or [])
+    ]
+    uploaded = [
+        await create_bytes_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="herd_dataset_csv",
+            entity_type="uploaded_dataset",
+            entity_uuid=upload_id,
+            blob_path=f"{prefix}/raw/upload.csv",
+            data=content,
+            content_type="text/csv",
+            original_filename=filename,
+            row_count=result.row_count,
+            record_count=result.cow_count,
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="herd_dataset_cows_json",
+            entity_type="uploaded_dataset",
+            entity_uuid=upload_id,
+            blob_path=f"{prefix}/parsed/cows.json.gz",
+            payload=cows_payload,
+            row_count=result.row_count,
+            record_count=result.cow_count,
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="herd_dataset_stats_json",
+            entity_type="uploaded_dataset",
+            entity_uuid=upload_id,
+            blob_path=f"{prefix}/parsed/stats.json.gz",
+            payload={"stats": normalized, "raw_stats": result.raw_stats},
+            row_count=result.row_count,
+            record_count=result.cow_count,
+        ),
+    ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
+
+    dataset = UploadedDataset(
+        id=upload_id,
+        name=filename,
+        dataset_type="herd_profile",
+        format_detected=result.format_detected,
+        user_id=current_user.id,
+        organization_id=organization_id,
+        raw_file_artifact_id=uploaded[0].id,
+        cows_artifact_id=uploaded[1].id,
+        stats_artifact_id=uploaded[2].id,
+        original_filename=filename,
+        row_count=result.row_count,
+        cow_count=result.cow_count,
+        detected_parity=result.detected_parity,
+        columns=result.columns or [],
+        column_mapping=result.column_mapping or {},
+        warnings=result.warnings,
+        stats_summary=normalized,
+        raw_stats_summary=result.raw_stats,
     )
-    await session.commit()
+    session.add(dataset)
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     return HerdProfileUploadResponse(
+        upload_id=upload_id,
         stats=normalized,
         raw_stats=result.raw_stats,
         format_detected=result.format_detected,

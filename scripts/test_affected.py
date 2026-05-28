@@ -246,7 +246,16 @@ def build_pytest_commands(targets: set[str], args: argparse.Namespace) -> list[l
 
     commands: list[list[str]] = []
     for marker_expr, group_targets in groups.items():
-        cmd = ["uv", "run", "pytest", "-c", "pyproject.toml", "-v", *group_targets]
+        cmd = [
+            "uv",
+            "run",
+            "pytest",
+            "-c",
+            "pyproject.toml",
+            "--import-mode=importlib",
+            "-v",
+            *group_targets,
+        ]
         if marker_expr:
             cmd.extend(["-m", marker_expr])
         commands.append(cmd)

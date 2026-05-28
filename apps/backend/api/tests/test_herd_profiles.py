@@ -3,9 +3,7 @@
 import asyncio
 
 from bovi_api.database import get_session
-from bovi_api.models import UploadAudit
-from bovi_api.routes import herd_profiles as herd_profile_routes
-from bovi_api.upload_storage import UploadStorageError
+from bovi_api.models import UploadedDataset
 from sqlmodel import select
 
 VALID_PROFILE = {
@@ -108,24 +106,29 @@ def test_csv_preview_returns_normalized_stats(client):
     data = response.json()
     assert "stats" in data
     assert data["format_detected"] == "aggregated"
+    assert data["upload_id"]
     assert data["row_count"] == 1
     for value in data["stats"].values():
         assert 0.0 <= value <= 1.0
 
+    blob_paths = set(client.app.state.blob_container_client.store)
+    assert any(path.endswith("/raw/upload.csv") for path in blob_paths)
+    assert any(path.endswith("/parsed/stats.json.gz") for path in blob_paths)
+
     override = client.app.dependency_overrides[get_session]
 
-    async def _audit() -> UploadAudit:
+    async def _uploaded_dataset() -> UploadedDataset:
         async for session in override():
-            result = await session.execute(select(UploadAudit))
+            result = await session.execute(select(UploadedDataset))
             return result.scalars().one()
         raise AssertionError("session override did not yield")
 
-    audit = asyncio.run(_audit())
-    assert audit.action_type == "herd_profile_csv_preview"
-    assert audit.status == "accepted"
-    assert audit.original_filename == "herd.csv"
-    assert audit.user_email == "user@example.test"
-    assert audit.organization_name == "Test Organization"
+    dataset = asyncio.run(_uploaded_dataset())
+    assert dataset.id == data["upload_id"]
+    assert dataset.user_id == 1
+    assert dataset.organization_id == 1
+    assert dataset.row_count == 1
+    assert dataset.original_filename == "herd.csv"
 
 
 def test_csv_preview_rejects_non_csv_extension(client):
@@ -144,31 +147,3 @@ def test_csv_preview_rejects_unrecognised_columns(client):
         files={"file": ("bad.csv", b"breed,farm\nHolstein,Farm1\n", "text/csv")},
     )
     assert response.status_code == 400
-
-    override = client.app.dependency_overrides[get_session]
-
-    async def _audit() -> UploadAudit:
-        async for session in override():
-            result = await session.execute(select(UploadAudit))
-            return result.scalars().one()
-        raise AssertionError("session override did not yield")
-
-    audit = asyncio.run(_audit())
-    assert audit.status == "rejected"
-    assert audit.error_detail is not None
-    assert "Could not detect CSV format" in audit.error_detail
-
-
-def test_csv_preview_blocks_when_blob_storage_fails(client, monkeypatch):
-    def _raise_storage_error(*args, **kwargs):
-        raise UploadStorageError("storage unavailable")
-
-    monkeypatch.setattr(herd_profile_routes, "upload_csv_to_blob", _raise_storage_error)
-
-    response = client.post(
-        "/herd-profiles/csv-preview",
-        data={"organization_id": "1"},
-        files={"file": ("herd.csv", SAMPLE_CSV, "text/csv")},
-    )
-
-    assert response.status_code == 503
