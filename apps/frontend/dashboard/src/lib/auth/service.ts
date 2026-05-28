@@ -1,6 +1,6 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { InteractionRequiredAuthError } from "@azure/msal-browser";
-import { backendApiRequest } from "./config";
+import { createBackendApiRequest } from "./config";
 
 const AUTH_MARKER_COOKIE = "auth_marker";
 
@@ -36,11 +36,14 @@ export async function getBackendAccessToken(): Promise<string> {
   }
 
   try {
-    const response = await msalInstance.acquireTokenSilent({ ...backendApiRequest, account });
+    const response = await msalInstance.acquireTokenSilent({
+      ...createBackendApiRequest(),
+      account,
+    });
     return response.accessToken;
   } catch (error) {
     if (error instanceof InteractionRequiredAuthError) {
-      await msalInstance.acquireTokenRedirect(backendApiRequest);
+      await msalInstance.acquireTokenRedirect(createBackendApiRequest());
       throw new Error("Token acquisition requires redirect.");
     }
     throw error;

@@ -9,10 +9,12 @@ import { getApiBaseUrl } from "@/lib/env";
 import {
   getAuthRedirectUri,
   getPostLogoutRedirectUri,
+  type AuthRuntimeConfig,
+  createLoginRequest,
+  createMsalConfig,
   isAuthDisabled,
   isAzureAdConfigured,
-  loginRequest,
-  msalConfig,
+  setAuthRuntimeConfig,
 } from "./config";
 import {
   getBackendAccessToken,
@@ -177,17 +179,27 @@ function DevAuthProvider({ children }: { readonly children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function AuthProviderWrapper({ children }: { readonly children: ReactNode }) {
+export function AuthProviderWrapper({
+  authConfig,
+  children,
+}: {
+  readonly authConfig: AuthRuntimeConfig;
+  readonly children: ReactNode;
+}) {
   const [instance, setInstance] = useState<PublicClientApplication | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAuthDisabled()) {
+    setInstance(null);
+    setInitError(null);
+    setIsInitialized(false);
+    setAuthRuntimeConfig(authConfig);
+    if (isAuthDisabled(authConfig)) {
       setIsInitialized(true);
       return;
     }
-    if (!isAzureAdConfigured()) {
+    if (!isAzureAdConfigured(authConfig)) {
       setInitError("Microsoft Entra ID is not configured.");
       setIsInitialized(true);
       return;
@@ -195,12 +207,13 @@ export function AuthProviderWrapper({ children }: { readonly children: ReactNode
 
     const init = async () => {
       try {
+        const msalConfig = createMsalConfig(authConfig);
         const runtimeConfig = {
           ...msalConfig,
           auth: {
             ...msalConfig.auth,
-            redirectUri: getAuthRedirectUri(),
-            postLogoutRedirectUri: getPostLogoutRedirectUri(),
+            redirectUri: getAuthRedirectUri(undefined, authConfig),
+            postLogoutRedirectUri: getPostLogoutRedirectUri(undefined, authConfig),
           },
         };
         const msal = new PublicClientApplication(runtimeConfig);
@@ -226,10 +239,10 @@ export function AuthProviderWrapper({ children }: { readonly children: ReactNode
       }
     };
     void init();
-  }, []);
+  }, [authConfig]);
 
   if (!isInitialized) return null;
-  if (isAuthDisabled()) return <DevAuthProvider>{children}</DevAuthProvider>;
+  if (isAuthDisabled(authConfig)) return <DevAuthProvider>{children}</DevAuthProvider>;
   if (initError || !instance) {
     return <div className="p-6 text-sm text-red-400">Authentication error: {initError}</div>;
   }
@@ -247,12 +260,13 @@ export function useAuth(): AuthContextValue {
 }
 
 export async function startLogin(nextPath?: string | null): Promise<void> {
-  if (!msalConfig.auth.clientId) throw new Error("Microsoft Entra ID is not configured.");
+  const runtimeMsalConfig = createMsalConfig();
+  if (!runtimeMsalConfig.auth.clientId) throw new Error("Microsoft Entra ID is not configured.");
   const redirectPath = getSafePostLoginRedirect(nextPath ?? null);
   if (redirectPath && typeof window !== "undefined") {
     window.sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, redirectPath);
   }
-  const instance = new PublicClientApplication(msalConfig);
+  const instance = new PublicClientApplication(runtimeMsalConfig);
   await instance.initialize();
-  await instance.loginRedirect(loginRequest);
+  await instance.loginRedirect(createLoginRequest());
 }
