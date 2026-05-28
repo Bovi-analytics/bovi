@@ -18,6 +18,24 @@ Key areas:
 
 Use the user-level `$worktree-first` skill for new implementation work. Create worktrees under `.worktrees/` so parallel work does not interfere with the main checkout.
 
+Before inspecting or editing for implementation work, use the user-level
+`$tmux-shell` skill. Choose a concise task name, rename the tmux session and
+window with that name, enable terminal-title propagation, and rename the Codex
+thread with the same task name using the skill's SQLite command. Do not rely on
+`/rename`; Codex cannot execute TUI slash commands itself. Verify the tmux
+display message and the Codex thread title query before continuing.
+
+After entering the Bovi worktree, update the tmux `@codex_context` header with
+the branch, worktree name, and base commit. Verify the value before running repo
+commands so the header reflects Codex's actual worktree, not just the shell's
+original directory.
+
+Run `just sync` from the worktree immediately after entering it and before any
+tests, linting, typechecking, commit hooks, or import-dependent debugging. This
+is mandatory for every new or reused worktree. If a command fails because the
+worktree was not synced, treat that as setup error: run `just sync`, then rerun
+the failed command.
+
 Use the user-level `$write-tests` skill whenever adding functionality, fixing bugs, refactoring behavior, or touching code with existing tests.
 
 Commit cadence:
@@ -35,6 +53,11 @@ just test
 ```
 
 Run targeted tests while developing when useful, but run `just test` before committing unless the environment prevents it. If it cannot be run, report the exact reason and the closest test command that was run.
+
+`just test` is the required final regression command and currently delegates to
+the affected-test runner. Use `just test-all` only when an explicit full pytest
+run is needed. Do not replace the required `just test` with package-local tests
+unless the environment prevents the repo command from running.
 
 When adding functionality:
 
