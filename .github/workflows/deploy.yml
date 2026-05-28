@@ -266,7 +266,7 @@ jobs:
           stack-name: ${{ env.PULUMI_STACK }}
           work-dir: ${{ env.INFRA_DIR }}
           cloud-url: azblob://pulumi-state
-          pulumi-config-passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          pulumi-config-passphrase: ${{ secrets.PULUMI_PASSPHRASE }}
           azure-storage-account-state: ${{ secrets.AZURE_STORAGE_ACCOUNT_STATE }}
           azure-storage-key: ${{ secrets.AZURE_STORAGE_KEY }}
           storage-account-name-icar: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
@@ -358,7 +358,7 @@ jobs:
           stack-name: ${{ env.PULUMI_STACK }}
           work-dir: ${{ env.INFRA_DIR }}
           cloud-url: azblob://pulumi-state
-          pulumi-config-passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          pulumi-config-passphrase: ${{ secrets.PULUMI_PASSPHRASE }}
           azure-storage-account-state: ${{ secrets.AZURE_STORAGE_ACCOUNT_STATE }}
           azure-storage-key: ${{ secrets.AZURE_STORAGE_KEY }}
           storage-account-name-icar: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
@@ -434,7 +434,7 @@ jobs:
           stack-name: ${{ env.PULUMI_STACK }}
           work-dir: ${{ env.INFRA_DIR }}
           cloud-url: azblob://pulumi-state
-          pulumi-config-passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          pulumi-config-passphrase: ${{ secrets.PULUMI_PASSPHRASE }}
           azure-storage-account-state: ${{ secrets.AZURE_STORAGE_ACCOUNT_STATE }}
           azure-storage-key: ${{ secrets.AZURE_STORAGE_KEY }}
           storage-account-name-icar: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
