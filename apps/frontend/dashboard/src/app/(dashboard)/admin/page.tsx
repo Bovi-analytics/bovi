@@ -1,11 +1,13 @@
 "use client";
 
-import type { ReactElement } from "react";
+import { Fragment, type ReactElement } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  ActionIcon,
   Alert,
   Badge,
+  Box,
   Button,
   Group,
   Loader,
@@ -21,7 +23,16 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Download, ExternalLink, Layers3, Search, ShieldCheck } from "lucide-react";
+import {
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  Layers3,
+  Search,
+  ShieldCheck,
+} from "lucide-react";
 import {
   adminOverviewOptionsKey,
   downloadSubmissionReport,
@@ -52,6 +63,18 @@ function formatDate(value: string | null | undefined): string {
 
 function formatNumber(value: number | null | undefined): string {
   return value === null || value === undefined ? "-" : value.toLocaleString();
+}
+
+function formatMetric(item: AdminOverviewItem): string {
+  return item.primary_metric_label &&
+    item.primary_metric_value !== null &&
+    item.primary_metric_value !== undefined
+    ? `${item.primary_metric_label} ${item.primary_metric_value.toFixed(2)}`
+    : "-";
+}
+
+function displayUser(item: AdminOverviewItem): string {
+  return item.user_name?.trim() || (item.user_id ? `User #${item.user_id}` : "-");
 }
 
 function statusColor(status: string, failedCount: number): string {
@@ -86,7 +109,7 @@ function itemAction(item: AdminOverviewItem, onDetails: (item: AdminOverviewItem
   }
   if (item.item_type === "benchmark_submission" && item.numeric_id) {
     return (
-      <Group gap="xs" wrap="nowrap">
+      <Stack gap={4} align="stretch">
         {item.challenge_id && (
           <Button
             component={Link}
@@ -94,6 +117,7 @@ function itemAction(item: AdminOverviewItem, onDetails: (item: AdminOverviewItem
             size="xs"
             variant="light"
             rightSection={<ExternalLink size={12} />}
+            fullWidth
           >
             Context
           </Button>
@@ -103,10 +127,11 @@ function itemAction(item: AdminOverviewItem, onDetails: (item: AdminOverviewItem
           variant="subtle"
           leftSection={<Download size={12} />}
           onClick={() => void downloadSubmissionReport(item.numeric_id ?? 0)}
+          fullWidth
         >
           Report
         </Button>
-      </Group>
+      </Stack>
     );
   }
   return (
@@ -499,66 +524,178 @@ function ActivityTable({
   readonly items: AdminOverviewItem[];
   readonly onDetails: (item: AdminOverviewItem) => void;
 }): ReactElement {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
   return (
-    <Table striped highlightOnHover withColumnBorders fz="sm">
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>Time</Table.Th>
-          <Table.Th>Company</Table.Th>
-          <Table.Th>User</Table.Th>
-          <Table.Th>Resource</Table.Th>
-          <Table.Th>Name / type</Table.Th>
-          <Table.Th>Source</Table.Th>
-          <Table.Th>Counts</Table.Th>
-          <Table.Th>Status</Table.Th>
-          <Table.Th>Metric</Table.Th>
-          <Table.Th>Action</Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {items.map((item) => (
-          <Table.Tr key={`${item.item_type}-${item.id}`}>
-            <Table.Td>{formatDate(item.created_at)}</Table.Td>
-            <Table.Td>{item.organization_name ?? "-"}</Table.Td>
-            <Table.Td>
-              <Text size="sm" lineClamp={1}>
-                {item.user_email ?? item.user_name ?? "-"}
-              </Text>
-            </Table.Td>
-            <Table.Td>
-              <Badge size="xs" color={categoryColor(item.item_type)} variant="light">
-                {item.item_type_label}
-              </Badge>
-            </Table.Td>
-            <Table.Td>
-              <Text size="sm" fw={600} maw={220} lineClamp={1}>
-                {item.title}
-              </Text>
-              <Text size="xs" c="dimmed">
-                #{item.id}
-              </Text>
-            </Table.Td>
-            <Table.Td>{item.source ?? "-"}</Table.Td>
-            <Table.Td>
-              <Text size="xs">Rows {formatNumber(item.row_count)}</Text>
-              <Text size="xs">Cows {formatNumber(item.cow_count)}</Text>
-            </Table.Td>
-            <Table.Td>
-              <Badge color={statusColor(item.status, item.failed_count)} variant="light">
-                {item.failed_count > 0 ? `${item.status} (${item.failed_count})` : item.status}
-              </Badge>
-            </Table.Td>
-            <Table.Td>
-              {item.primary_metric_label &&
-              item.primary_metric_value !== null &&
-              item.primary_metric_value !== undefined
-                ? `${item.primary_metric_label} ${item.primary_metric_value.toFixed(2)}`
-                : "-"}
-            </Table.Td>
-            <Table.Td>{itemAction(item, onDetails)}</Table.Td>
+    <Table.ScrollContainer minWidth={1180}>
+      <Table striped highlightOnHover withColumnBorders fz="sm" style={{ tableLayout: "fixed" }}>
+        <colgroup>
+          <col style={{ width: 36 }} />
+          <col style={{ width: 145 }} />
+          <col style={{ width: 165 }} />
+          <col style={{ width: 120 }} />
+          <col style={{ width: 175 }} />
+          <col style={{ width: 255 }} />
+          <col style={{ width: 140 }} />
+          <col style={{ width: 92 }} />
+          <col style={{ width: 155 }} />
+          <col style={{ width: 110 }} />
+          <col style={{ width: 86 }} />
+        </colgroup>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th aria-label="Expand row" />
+            <Table.Th>Time</Table.Th>
+            <Table.Th>Company</Table.Th>
+            <Table.Th>User</Table.Th>
+            <Table.Th>Resource</Table.Th>
+            <Table.Th>Name / type</Table.Th>
+            <Table.Th>Source</Table.Th>
+            <Table.Th>Counts</Table.Th>
+            <Table.Th>Status</Table.Th>
+            <Table.Th>Metric</Table.Th>
+            <Table.Th>Action</Table.Th>
           </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
+        </Table.Thead>
+        <Table.Tbody>
+          {items.map((item) => {
+            const key = `${item.item_type}-${item.id}`;
+            const isExpanded = expanded === key;
+            return (
+              <Fragment key={key}>
+                <Table.Tr>
+                  <Table.Td>
+                    <ActionIcon
+                      aria-label={isExpanded ? "Collapse row" : "Expand row"}
+                      size="sm"
+                      variant="subtle"
+                      onClick={() => setExpanded(isExpanded ? null : key)}
+                    >
+                      {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </ActionIcon>
+                  </Table.Td>
+                  <Table.Td>{formatDate(item.created_at)}</Table.Td>
+                  <Table.Td>
+                    <Text size="sm" lineClamp={1}>
+                      {item.organization_name ?? "-"}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm" lineClamp={1}>
+                      {displayUser(item)}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge size="xs" color={categoryColor(item.item_type)} variant="light">
+                      {item.item_type_label}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm" fw={600} lineClamp={1}>
+                      {item.title}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      #{item.id}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm" lineClamp={1}>
+                      {item.source ?? "-"}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs">Rows {formatNumber(item.row_count)}</Text>
+                    <Text size="xs">Cows {formatNumber(item.cow_count)}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge color={statusColor(item.status, item.failed_count)} variant="light">
+                      {item.failed_count > 0
+                        ? `${item.status} (${item.failed_count})`
+                        : item.status}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>{formatMetric(item)}</Table.Td>
+                  <Table.Td>{itemAction(item, onDetails)}</Table.Td>
+                </Table.Tr>
+                {isExpanded && (
+                  <Table.Tr>
+                    <Table.Td colSpan={11} p={0}>
+                      <Box
+                        px="md"
+                        py="xs"
+                        style={{
+                          background: "hsl(var(--muted))",
+                          borderTop: "1px solid hsl(var(--border))",
+                          borderBottom: "1px solid hsl(var(--border))",
+                        }}
+                      >
+                        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="xs">
+                          <Stack gap={1}>
+                            <Text size="xs" c="dimmed" fw={700}>
+                              User
+                            </Text>
+                            <Text size="xs" fw={600}>
+                              {displayUser(item)}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {item.user_email ?? "No email"}
+                            </Text>
+                          </Stack>
+                          <Stack gap={1}>
+                            <Text size="xs" c="dimmed" fw={700}>
+                              Resource
+                            </Text>
+                            <Group gap={6}>
+                              <Badge
+                                size="xs"
+                                color={categoryColor(item.item_type)}
+                                variant="light"
+                              >
+                                {item.item_type_label}
+                              </Badge>
+                              <Text size="xs" c="dimmed">
+                                #{item.id}
+                              </Text>
+                            </Group>
+                            <Text size="xs" c="dimmed">
+                              {item.challenge_id
+                                ? `Challenge #${item.challenge_id}`
+                                : "No challenge"}
+                            </Text>
+                          </Stack>
+                          <Stack gap={1}>
+                            <Text size="xs" c="dimmed" fw={700}>
+                              Source
+                            </Text>
+                            <Text size="xs" fw={600}>
+                              {item.source ?? "-"}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {item.submission_type ?? "No submission type"}
+                              {item.benchmark_model ? ` | Benchmark ${item.benchmark_model}` : ""}
+                            </Text>
+                          </Stack>
+                          <Stack gap={1}>
+                            <Text size="xs" c="dimmed" fw={700}>
+                              Quality
+                            </Text>
+                            <Text size="xs" fw={600}>
+                              {formatMetric(item)}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              Failed {item.failed_count} | Status {item.status}
+                            </Text>
+                          </Stack>
+                        </SimpleGrid>
+                      </Box>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </Table.Tbody>
+      </Table>
+    </Table.ScrollContainer>
   );
 }
