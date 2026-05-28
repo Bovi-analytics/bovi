@@ -16,16 +16,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY pyproject.toml ./
+COPY packages/bovi-core/pyproject.toml ./packages/bovi-core/
+COPY packages/bovi-core/src ./packages/bovi-core/src
+COPY apps/backend/api/pyproject.toml ./apps/backend/api/
+COPY apps/backend/api/src ./apps/backend/api/src
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip compile pyproject.toml --no-header --no-annotate -o /tmp/requirements.txt \
-    && uv pip install --system -r /tmp/requirements.txt
-
-COPY src ./src
-
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-deps .
+    uv pip install --system ./packages/bovi-core ./apps/backend/api
 
 # SQLite file lives on a mounted volume.
 ENV DATABASE_URL=sqlite+aiosqlite:////data/bovi.db

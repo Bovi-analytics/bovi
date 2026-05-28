@@ -177,7 +177,8 @@ jobs:
         uses: ./.github/actions/docker-build-push
         with:
           image-name: bovi-api
-          context: apps/backend/api
+          context: .
+          file: apps/backend/api/Dockerfile
           github-token: ${{ secrets.GITHUB_TOKEN }}
           extra-tags: |
             ${{ needs.resolve-deployment.outputs.image-tag }}

@@ -8,6 +8,10 @@ inputs:
   context:
     description: Docker build context.
     required: true
+  file:
+    description: Dockerfile path. Defaults to Dockerfile inside the build context.
+    required: false
+    default: ""
   github-token:
     description: Token used to push to GHCR.
     required: true
@@ -70,6 +74,7 @@ runs:
       uses: docker/build-push-action@v6
       with:
         context: ${{ inputs.context }}
+        file: ${{ inputs.file != '' && inputs.file || format('{0}/Dockerfile', inputs.context) }}
         push: true
         tags: ${{ steps.tags.outputs.tags }}
         cache-from: type=gha
