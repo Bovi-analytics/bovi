@@ -33,7 +33,6 @@ import { usePresetDataset } from "./hooks/use-preset-dataset";
 import { usePresetHerdStats } from "./hooks/use-preset-herd-stats";
 import type { Model, MilkBotRunOptions, PresetCow, PresetDatasetKey } from "@/types/api";
 import type { ExampleLactation } from "@/data/example-lactations";
-import { useWeightUnit } from "@/app/providers/unit-provider";
 import { useUploadedCows, type UploadedCow } from "@/app/providers/uploaded-cows-provider";
 import {
   ActiveDatasetPanel,
@@ -206,7 +205,6 @@ function computeAutoencoderStats(
 /* ------------------------------------------------------------------ */
 
 export default function CurvesPage(): ReactElement {
-  const { weightUnit, toggleWeightUnit } = useWeightUnit();
   const { dataset: uploadedDataset, getCow, getRandomCow, activePreset } = useUploadedCows();
   const activeDatasetLabel = useActiveDatasetLabel();
 
@@ -573,15 +571,6 @@ export default function CurvesPage(): ReactElement {
         showActionWithoutDataset
         compact
       />
-
-      <div className="flex flex-wrap items-center gap-4">
-        <button
-          onClick={toggleWeightUnit}
-          className="rounded-md border border-primary/40 bg-primary/15 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/25"
-        >
-          {weightUnit === "kg" ? "kg → lbs" : "lbs → kg"}
-        </button>
-      </div>
 
       <div className="rounded-lg border border-border bg-card p-4">
         <Stack gap="sm">

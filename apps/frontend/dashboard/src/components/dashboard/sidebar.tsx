@@ -4,18 +4,31 @@ import type { ReactElement } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Select } from "@mantine/core";
+import { Avatar, Badge, Button, Group, Select, Stack, Text } from "@mantine/core";
+import { LogIn, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_NAVIGATION } from "./navigation";
+import {
+  getSelectedOrganizationLabel,
+  getUserDisplayName,
+  getUserInitials,
+} from "./sidebar-identity";
 
 export function Sidebar(): ReactElement {
   const pathname = usePathname();
-  const { user, selectedOrganizationId, setSelectedOrganizationId } = useAuth();
+  const { logout, user, selectedOrganizationId, setSelectedOrganizationId } = useAuth();
   const organizationOptions = [
     ...(user?.is_admin ? [{ value: "all", label: "All organizations" }] : []),
     ...(user?.organizations.map((org) => ({ value: String(org.id), label: org.name })) ?? []),
   ];
+  const selectedOrganization =
+    typeof selectedOrganizationId === "number"
+      ? user?.organizations.find((org) => org.id === selectedOrganizationId)
+      : null;
+  const selectedOrganizationLabel = user
+    ? getSelectedOrganizationLabel(selectedOrganizationId, user.organizations)
+    : "No organization selected";
 
   return (
     <aside className="sticky top-0 hidden h-screen w-52 shrink-0 border-r border-border/40 bg-card/80 p-3 text-sm text-muted-foreground md:flex md:flex-col">
@@ -30,6 +43,40 @@ export function Sidebar(): ReactElement {
           className="h-auto w-full max-w-[160px]"
         />
         <h2 className="text-base font-semibold text-foreground">Lactation Curves</h2>
+        {user && (
+          <Stack gap={8} className="rounded-md border border-border/50 bg-background/50 p-2">
+            <Group gap="xs" align="center" wrap="nowrap">
+              <Avatar size={34} radius="xl" color="blue">
+                {getUserInitials(user)}
+              </Avatar>
+              <div className="min-w-0">
+                <Text size="xs" fw={700} className="truncate text-foreground">
+                  {getUserDisplayName(user)}
+                </Text>
+                {user.email && (
+                  <Text size="xs" c="dimmed" className="truncate">
+                    {user.email}
+                  </Text>
+                )}
+              </div>
+            </Group>
+            <Group gap={6}>
+              {user.is_admin && (
+                <Badge size="xs" variant="light" color="green">
+                  Admin
+                </Badge>
+              )}
+              {selectedOrganization?.role && (
+                <Badge size="xs" variant="light" color="blue">
+                  {selectedOrganization.role}
+                </Badge>
+              )}
+            </Group>
+            <Text size="xs" c="dimmed" className="line-clamp-2">
+              {selectedOrganizationLabel}
+            </Text>
+          </Stack>
+        )}
         {organizationOptions.length > 0 && (
           <Select
             aria-label="Organization"
@@ -45,6 +92,28 @@ export function Sidebar(): ReactElement {
             }}
             comboboxProps={{ withinPortal: false }}
           />
+        )}
+        {user && (
+          <Button
+            size="xs"
+            variant="subtle"
+            color="gray"
+            leftSection={<LogOut size={13} />}
+            onClick={() => void logout()}
+          >
+            Sign out
+          </Button>
+        )}
+        {!user && (
+          <Button
+            component={Link}
+            href="/auth/login"
+            size="xs"
+            variant="light"
+            leftSection={<LogIn size={13} />}
+          >
+            Sign in
+          </Button>
         )}
       </div>
 

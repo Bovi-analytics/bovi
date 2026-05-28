@@ -20,7 +20,12 @@ export function AuthGuard({ children }: { readonly children: ReactNode }): React
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
+      const nextPath =
+        typeof window === "undefined" ? "" : `${window.location.pathname}${window.location.search}`;
+      const loginUrl = nextPath
+        ? `/auth/login?next=${encodeURIComponent(nextPath)}`
+        : "/auth/login";
+      router.push(loginUrl);
     }
   }, [isAuthenticated, isLoading, router]);
 
