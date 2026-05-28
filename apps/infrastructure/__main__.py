@@ -371,6 +371,9 @@ dashboard_result = create_stateless_container_app(
         env={
             "NODE_ENV": "production",
             "NEXT_PUBLIC_API_URL": api_result.url,
+            "AZURE_AD_CLIENT_ID": azure_ad_client_id,
+            "AUTH_DISABLED": auth_disabled_value,
+            "DEV_MODE": auth_disabled_value,
             "NEXT_PUBLIC_AZURE_AD_CLIENT_ID": azure_ad_client_id,
             "NEXT_PUBLIC_AZURE_AD_API_SCOPE": azure_ad_api_scope,
             "NEXT_PUBLIC_AUTH_DISABLED": auth_disabled_value,
