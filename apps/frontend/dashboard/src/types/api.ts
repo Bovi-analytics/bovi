@@ -198,29 +198,40 @@ export type TestIntervalResponse = z.infer<typeof TestIntervalResponseSchema>;
 /*  Herd profile schemas                                               */
 /* ------------------------------------------------------------------ */
 
-export const HerdProfileSchema = z.object({
-  id: z.number(),
-  user_id: z.number().nullable().optional(),
-  organization_id: z.number().nullable().optional(),
-  name: z.string().max(100),
-  description: z.string().max(500),
-  achieved_21_milk: z.number().min(0).max(1),
-  achieved_305_milk: z.number().min(0).max(1),
-  achieved_75_milk: z.number().min(0).max(1),
-  achieved_milk: z.number().min(0).max(1),
-  days_dry: z.number().min(0).max(1),
-  days_in_milk: z.number().min(0).max(1),
-  days_open: z.number().min(0).max(1),
-  days_pregnant: z.number().min(0).max(1),
-  historic_calving_interval: z.number().min(0).max(1),
-  quality_sequence: z.number().min(0).max(1),
-  created_at: z.string().nullable(),
-  updated_at: z.string().nullable(),
+const OwnershipFieldsSchema = z.object({
+  user_name: z.string().nullable().optional(),
+  user_email: z.string().nullable().optional(),
+  organization_name: z.string().nullable().optional(),
 });
+
+export const HerdProfileSchema = z
+  .object({
+    id: z.number(),
+    user_id: z.number().nullable().optional(),
+    organization_id: z.number().nullable().optional(),
+    name: z.string().max(100),
+    description: z.string().max(500),
+    achieved_21_milk: z.number().min(0).max(1),
+    achieved_305_milk: z.number().min(0).max(1),
+    achieved_75_milk: z.number().min(0).max(1),
+    achieved_milk: z.number().min(0).max(1),
+    days_dry: z.number().min(0).max(1),
+    days_in_milk: z.number().min(0).max(1),
+    days_open: z.number().min(0).max(1),
+    days_pregnant: z.number().min(0).max(1),
+    historic_calving_interval: z.number().min(0).max(1),
+    quality_sequence: z.number().min(0).max(1),
+    created_at: z.string().nullable(),
+    updated_at: z.string().nullable(),
+  })
+  .merge(OwnershipFieldsSchema);
 
 export const HerdProfileCreateSchema = HerdProfileSchema.omit({
   id: true,
   user_id: true,
+  user_name: true,
+  user_email: true,
+  organization_name: true,
   created_at: true,
   updated_at: true,
 }).extend({ organization_id: z.number() });
@@ -255,6 +266,40 @@ export const HerdProfileUploadResponseSchema = z.object({
 });
 
 export type HerdProfileUploadResponse = z.infer<typeof HerdProfileUploadResponseSchema>;
+
+export const UploadedDatasetReadSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    dataset_type: z.string(),
+    format_detected: z.string(),
+    user_id: z.number().nullable().optional(),
+    organization_id: z.number().nullable().optional(),
+    raw_file_artifact_id: z.string().nullable().optional(),
+    cows_artifact_id: z.string().nullable().optional(),
+    stats_artifact_id: z.string().nullable().optional(),
+    original_filename: z.string(),
+    row_count: z.number(),
+    cow_count: z.number().nullable().optional(),
+    detected_parity: z.number().nullable().optional(),
+    columns: z.array(z.string()).default([]),
+    column_mapping: z.record(z.string(), z.string()).default({}),
+    warnings: z.array(z.string()).default([]),
+    stats_summary: z.record(z.string(), z.number()).default({}),
+    raw_stats_summary: z.record(z.string(), z.number()).default({}),
+    uploaded_at: z.string().nullable(),
+  })
+  .merge(OwnershipFieldsSchema);
+
+export const UploadedDatasetDetailSchema = UploadedDatasetReadSchema.extend({
+  cows: z.array(CowRecordSchema).default([]),
+  stats: z.record(z.string(), z.number()).default({}),
+  raw_stats: z.record(z.string(), z.number()).default({}),
+});
+
+export const UploadedDatasetListSchema = z.array(UploadedDatasetReadSchema);
+export type UploadedDatasetRead = z.infer<typeof UploadedDatasetReadSchema>;
+export type UploadedDatasetDetail = z.infer<typeof UploadedDatasetDetailSchema>;
 
 /* ------------------------------------------------------------------ */
 /*  Preset cow-dataset schemas                                         */
@@ -324,23 +369,25 @@ export const ChallengeDatasetStatsSchema = z.object({
 });
 export type ChallengeDatasetStats = z.infer<typeof ChallengeDatasetStatsSchema>;
 
-export const ChallengeReadSchema = z.object({
-  id: z.number(),
-  dataset: z.string(),
-  size: z.string(),
-  period: z.string(),
-  name: z.string().nullable().optional(),
-  source: z.string().nullable().optional(),
-  user_id: z.number().nullable(),
-  organization_id: z.number().nullable().optional(),
-  created_at: z.string().nullable(),
-  row_count: z.number().nullable().optional(),
-  cow_count: z.number().nullable().optional(),
-  actual_yield_count: z.number().nullable().optional(),
-  ingest_status: z.string().optional(),
-  dataset_sources: z.preprocess((value) => value ?? [], z.array(ChallengeDatasetSourceSchema)),
-  dataset_stats: z.preprocess((value) => value ?? {}, ChallengeDatasetStatsSchema),
-});
+export const ChallengeReadSchema = z
+  .object({
+    id: z.number(),
+    dataset: z.string(),
+    size: z.string(),
+    period: z.string(),
+    name: z.string().nullable().optional(),
+    source: z.string().nullable().optional(),
+    user_id: z.number().nullable(),
+    organization_id: z.number().nullable().optional(),
+    created_at: z.string().nullable(),
+    row_count: z.number().nullable().optional(),
+    cow_count: z.number().nullable().optional(),
+    actual_yield_count: z.number().nullable().optional(),
+    ingest_status: z.string().optional(),
+    dataset_sources: z.preprocess((value) => value ?? [], z.array(ChallengeDatasetSourceSchema)),
+    dataset_stats: z.preprocess((value) => value ?? {}, ChallengeDatasetStatsSchema),
+  })
+  .merge(OwnershipFieldsSchema);
 export type ChallengeRead = z.infer<typeof ChallengeReadSchema>;
 
 const BenchmarkCowMetadataSchema = z.object({
@@ -402,28 +449,30 @@ const RunOptionsSchema = z
   .union([z.record(z.string(), z.unknown()), z.null(), z.undefined()])
   .transform((value): Record<string, unknown> => value ?? {});
 
-export const SubmissionReadSchema = z.object({
-  id: z.number(),
-  challenge_id: z.number(),
-  submission_type: z.string(),
-  model_type: z.string().nullable(),
-  benchmark_model: z.string().nullable().optional(),
-  run_options: RunOptionsSchema,
-  organization: z.string().nullable(),
-  country: z.string().nullable(),
-  calculation_method: z.string().nullable(),
-  notes: z.string().nullable(),
-  user_id: z.number().nullable(),
-  organization_id: z.number().nullable().optional(),
-  stats: ComparisonStatsSchema,
-  failed_cow_ids: z.array(z.string()),
-  created_at: z.string().nullable(),
-  row_count: z.number().nullable().optional(),
-  submitted_yield_count: z.number().nullable().optional(),
-  benchmark_yield_count: z.number().nullable().optional(),
-  failed_count: z.number().optional(),
-  ingest_status: z.string().optional(),
-});
+export const SubmissionReadSchema = z
+  .object({
+    id: z.number(),
+    challenge_id: z.number(),
+    submission_type: z.string(),
+    model_type: z.string().nullable(),
+    benchmark_model: z.string().nullable().optional(),
+    run_options: RunOptionsSchema,
+    organization: z.string().nullable(),
+    country: z.string().nullable(),
+    calculation_method: z.string().nullable(),
+    notes: z.string().nullable(),
+    user_id: z.number().nullable(),
+    organization_id: z.number().nullable().optional(),
+    stats: ComparisonStatsSchema,
+    failed_cow_ids: z.array(z.string()),
+    created_at: z.string().nullable(),
+    row_count: z.number().nullable().optional(),
+    submitted_yield_count: z.number().nullable().optional(),
+    benchmark_yield_count: z.number().nullable().optional(),
+    failed_count: z.number().optional(),
+    ingest_status: z.string().optional(),
+  })
+  .merge(OwnershipFieldsSchema);
 export type SubmissionRead = z.infer<typeof SubmissionReadSchema>;
 
 export const BenchmarkModelSchema = z.enum([

@@ -16,6 +16,11 @@ export interface UploadedDataset {
   readonly name: string;
   readonly format: "icar_test_day";
   readonly uploadedAt: string;
+  readonly userId?: number | null;
+  readonly userName?: string | null;
+  readonly userEmail?: string | null;
+  readonly organizationId?: number | null;
+  readonly organizationName?: string | null;
   readonly rowCount?: number;
   readonly cowCount?: number;
   readonly detectedParity?: number | null;

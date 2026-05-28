@@ -15,6 +15,7 @@ from bovi_api.routes import (
     organizations,
     proxy,
     results,
+    uploaded_datasets,
 )
 from bovi_api.settings import get_settings
 
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(results.router)
     app.include_router(herd_profiles.router, prefix="/herd-profiles")
     app.include_router(datasets.router)
+    app.include_router(uploaded_datasets.router)
     app.include_router(benchmark.router)
 
     return app

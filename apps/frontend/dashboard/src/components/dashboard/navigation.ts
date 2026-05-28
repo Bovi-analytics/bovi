@@ -1,13 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  ClipboardList,
-  Database,
-  FlaskConical,
-  Home,
-  Mail,
-  Settings,
-  Trophy,
-} from "lucide-react";
+import { ClipboardList, Database, FlaskConical, Home, Mail, Settings, Trophy } from "lucide-react";
 
 export interface NavigationItem {
   readonly label: string;

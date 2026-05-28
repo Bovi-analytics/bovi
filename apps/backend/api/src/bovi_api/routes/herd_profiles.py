@@ -12,7 +12,15 @@ from sqlmodel import col, select
 from bovi_api.auth import CurrentUser, ensure_organization_access, require_auth
 from bovi_api.database import get_session
 from bovi_api.herd_stats_ingestion import DEFAULT_STAT_RANGES, normalize_herd_stats, parse_csv
-from bovi_api.models import HerdProfile, HerdProfileCreate, HerdProfileRead, UploadedDataset
+from bovi_api.models import (
+    HerdProfile,
+    HerdProfileCreate,
+    HerdProfileRead,
+    Organization,
+    UploadedDataset,
+    User,
+)
+from bovi_api.ownership import read_model
 from bovi_api.settings import Settings, get_settings
 from bovi_api.storage import (
     ArtifactStorage,
@@ -53,19 +61,38 @@ class HerdProfileUploadResponse(BaseModel):
     mapping_required: bool = False
 
 
+async def _herd_profile_read(
+    session: AsyncSession,
+    profile_id: int,
+) -> HerdProfileRead:
+    result = await session.execute(
+        select(HerdProfile, User, Organization)
+        .outerjoin(User, col(HerdProfile.user_id) == col(User.id))
+        .outerjoin(Organization, col(HerdProfile.organization_id) == col(Organization.id))
+        .where(HerdProfile.id == profile_id)
+    )
+    row = result.one()
+    return read_model(row[0], HerdProfileRead, row[1], row[2])
+
+
 @router.get("", response_model=list[HerdProfileRead], include_in_schema=False)
 @router.get("/", response_model=list[HerdProfileRead])
 async def list_herd_profiles(
     organization_id: str | None = None,
     scope: str = "organization",
+    user_id: int | None = None,
     sort: str = "created_at",
     direction: str = "desc",
     q: str | None = None,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
-) -> list[HerdProfile]:
+) -> list[HerdProfileRead]:
     """List all herd profiles, newest first."""
-    statement = select(HerdProfile)
+    statement = (
+        select(HerdProfile, User, Organization)
+        .outerjoin(User, col(HerdProfile.user_id) == col(User.id))
+        .outerjoin(Organization, col(HerdProfile.organization_id) == col(Organization.id))
+    )
     if organization_id == "all":
         if not current_user.is_admin:
             raise HTTPException(status_code=403, detail="Admin access required.")
@@ -82,18 +109,23 @@ async def list_herd_profiles(
         pass
     else:
         raise HTTPException(status_code=422, detail="organization_id is required.")
-    if scope == "mine":
+    if user_id is not None:
+        statement = statement.where(HerdProfile.user_id == user_id)
+    elif scope == "mine":
         statement = statement.where(HerdProfile.user_id == current_user.id)
     if q:
         statement = statement.where(col(HerdProfile.name).contains(q))
     sort_column = {
         "created_at": col(HerdProfile.created_at),
         "name": col(HerdProfile.name),
-        "user": col(HerdProfile.user_id),
+        "user": col(User.name),
     }.get(sort, col(HerdProfile.created_at))
     statement = statement.order_by(sort_column.asc() if direction == "asc" else sort_column.desc())
     result = await session.execute(statement)
-    return list(result.scalars().all())
+    return [
+        read_model(profile, HerdProfileRead, user, organization)
+        for profile, user, organization in result.all()
+    ]
 
 
 @router.post("", response_model=HerdProfileRead, status_code=201, include_in_schema=False)
@@ -102,7 +134,7 @@ async def create_herd_profile(
     profile: HerdProfileCreate,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
-) -> HerdProfile:
+) -> HerdProfileRead:
     """Create a new herd profile."""
     ensure_organization_access(current_user, profile.organization_id)
     db_profile = HerdProfile(**profile.model_dump(), user_id=current_user.id)
@@ -115,7 +147,7 @@ async def create_herd_profile(
             status_code=409, detail=f"A profile named '{profile.name}' already exists."
         )
     await session.refresh(db_profile)
-    return db_profile
+    return await _herd_profile_read(session, db_profile.id or 0)
 
 
 @router.post("/csv-preview", response_model=HerdProfileUploadResponse)
@@ -272,13 +304,13 @@ async def get_herd_profile(
     profile_id: int,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
-) -> HerdProfile:
+) -> HerdProfileRead:
     """Retrieve a single herd profile by ID."""
     profile = await session.get(HerdProfile, profile_id)
     if profile is None:
         raise HTTPException(status_code=404, detail="Herd profile not found")
     ensure_organization_access(current_user, profile.organization_id)
-    return profile
+    return await _herd_profile_read(session, profile.id or 0)
 
 
 @router.put("/{profile_id}", response_model=HerdProfileRead)
@@ -287,7 +319,7 @@ async def update_herd_profile(
     update: HerdProfileCreate,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
-) -> HerdProfile:
+) -> HerdProfileRead:
     """Update an existing herd profile."""
     profile = await session.get(HerdProfile, profile_id)
     if profile is None:
@@ -305,7 +337,7 @@ async def update_herd_profile(
             status_code=409, detail=f"A profile named '{update.name}' already exists."
         )
     await session.refresh(profile)
-    return profile
+    return await _herd_profile_read(session, profile.id or 0)
 
 
 @router.delete("/{profile_id}", status_code=204)

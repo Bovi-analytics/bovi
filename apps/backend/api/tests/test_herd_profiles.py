@@ -130,6 +130,17 @@ def test_csv_preview_returns_normalized_stats(client):
     assert dataset.row_count == 1
     assert dataset.original_filename == "herd.csv"
 
+    uploads = client.get("/uploaded-datasets?organization_id=1")
+    assert uploads.status_code == 200
+    upload = uploads.json()[0]
+    assert upload["id"] == data["upload_id"]
+    assert upload["user_name"] == "Test User"
+    assert upload["organization_name"] == "Test Organization"
+
+    detail = client.get(f"/uploaded-datasets/{data['upload_id']}")
+    assert detail.status_code == 200
+    assert detail.json()["stats"] == data["stats"]
+
 
 def test_csv_preview_rejects_non_csv_extension(client):
     response = client.post(

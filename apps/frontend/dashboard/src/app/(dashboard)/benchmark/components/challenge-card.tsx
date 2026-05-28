@@ -15,6 +15,7 @@ export function ChallengeCard({ challenge }: Props): ReactElement {
   const router = useRouter();
   const title = challenge.name ?? `Challenge #${challenge.id}`;
   const datasetLabel = getBenchmarkDatasetLabel(challenge);
+  const owner = challenge.user_name || challenge.user_email || `User #${challenge.user_id}`;
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Stack gap="xs">
@@ -30,6 +31,9 @@ export function ChallengeCard({ challenge }: Props): ReactElement {
           #{challenge.id}
           {challenge.created_at ? ` · ${new Date(challenge.created_at).toLocaleDateString()}` : ""}
           {challenge.cow_count ? ` · ${challenge.cow_count.toLocaleString()} lactations` : ""}
+        </Text>
+        <Text size="xs" c="var(--benchmark-muted-text)">
+          Uploaded by {owner}
         </Text>
         <DatasetSummary
           sources={challenge.dataset_sources}

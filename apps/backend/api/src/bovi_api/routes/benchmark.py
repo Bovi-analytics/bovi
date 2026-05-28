@@ -31,9 +31,12 @@ from bovi_api.models import (
     Challenge,
     ChallengeDetail,
     ChallengeRead,
+    Organization,
     Submission,
     SubmissionRead,
+    User,
 )
+from bovi_api.ownership import owner_fields, read_model
 from bovi_api.routes.datasets import fetch_preset_cows
 from bovi_api.routes.proxy import _get_client
 from bovi_api.settings import Settings, get_settings
@@ -329,6 +332,28 @@ def _with_dataset_metadata(challenge: Challenge) -> Challenge:
     return challenge
 
 
+async def _challenge_read(session: AsyncSession, challenge_id: int) -> ChallengeRead:
+    result = await session.execute(
+        select(Challenge, User, Organization)
+        .outerjoin(User, col(Challenge.user_id) == col(User.id))
+        .outerjoin(Organization, col(Challenge.organization_id) == col(Organization.id))
+        .where(Challenge.id == challenge_id)
+    )
+    challenge, user, organization = result.one()
+    return read_model(_with_dataset_metadata(challenge), ChallengeRead, user, organization)
+
+
+async def _submission_read(session: AsyncSession, submission_id: int) -> SubmissionRead:
+    result = await session.execute(
+        select(Submission, User, Organization)
+        .outerjoin(User, col(Submission.user_id) == col(User.id))
+        .outerjoin(Organization, col(Submission.organization_id) == col(Organization.id))
+        .where(Submission.id == submission_id)
+    )
+    submission, user, organization = result.one()
+    return read_model(submission, SubmissionRead, user, organization)
+
+
 # ---------------------------------------------------------------------------
 # Model dispatchers
 # ---------------------------------------------------------------------------
@@ -529,7 +554,7 @@ async def create_challenge_preset(
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
     storage: ArtifactStorage = Depends(get_artifact_storage),
-) -> Challenge:
+) -> ChallengeRead:
     """Create a preset-backed challenge with ground-truth ALY."""
     ensure_organization_access(current_user, body.organization_id)
     loop = asyncio.get_running_loop()
@@ -617,7 +642,7 @@ async def create_challenge_preset(
         await delete_artifacts_best_effort(storage, uploaded)
         raise
     await session.refresh(challenge)
-    return challenge
+    return await _challenge_read(session, challenge.id or 0)
 
 
 @router.post("/challenges/saved-dataset", response_model=ChallengeRead, status_code=201)
@@ -626,7 +651,7 @@ async def create_challenge_saved_dataset(
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
     storage: ArtifactStorage = Depends(get_artifact_storage),
-) -> Challenge:
+) -> ChallengeRead:
     """Create a challenge from a previously parsed upload-backed benchmark dataset."""
     ensure_organization_access(current_user, body.organization_id)
     if not body.cow_metadata:
@@ -711,7 +736,7 @@ async def create_challenge_saved_dataset(
         await delete_artifacts_best_effort(storage, uploaded)
         raise
     await session.refresh(challenge)
-    return challenge
+    return await _challenge_read(session, challenge.id or 0)
 
 
 @router.post("/challenges/upload", response_model=ChallengeRead, status_code=201)
@@ -723,7 +748,7 @@ async def create_challenge_upload(
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
     storage: ArtifactStorage = Depends(get_artifact_storage),
-) -> Challenge:
+) -> ChallengeRead:
     """Create an upload-backed challenge: user-supplied test-day records + ground-truth yields."""
     ensure_organization_access(current_user, organization_id)
     test_bytes = await test_day_csv.read()
@@ -845,21 +870,26 @@ async def create_challenge_upload(
         await delete_artifacts_best_effort(storage, uploaded)
         raise
     await session.refresh(challenge)
-    return challenge
+    return await _challenge_read(session, challenge.id or 0)
 
 
 @router.get("/challenges", response_model=list[ChallengeRead])
 async def list_challenges(
     organization_id: str | None = None,
     scope: Literal["organization", "mine"] = "organization",
+    user_id: int | None = None,
     sort: Literal["created_at", "name", "user"] = "created_at",
     direction: Literal["asc", "desc"] = "desc",
     q: str | None = None,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
-) -> list[Challenge]:
+) -> list[ChallengeRead]:
     """List all challenges, newest first."""
-    statement = select(Challenge)
+    statement = (
+        select(Challenge, User, Organization)
+        .outerjoin(User, col(Challenge.user_id) == col(User.id))
+        .outerjoin(Organization, col(Challenge.organization_id) == col(Organization.id))
+    )
     if organization_id == "all":
         if not current_user.is_admin:
             raise HTTPException(status_code=403, detail="Admin access required.")
@@ -877,19 +907,24 @@ async def list_challenges(
     else:
         raise HTTPException(status_code=422, detail="organization_id is required.")
 
-    if scope == "mine":
+    if user_id is not None:
+        statement = statement.where(Challenge.user_id == user_id)
+    elif scope == "mine":
         statement = statement.where(Challenge.user_id == current_user.id)
     if q:
         statement = statement.where(col(Challenge.name).contains(q))
     sort_column = {
         "created_at": col(Challenge.created_at),
         "name": col(Challenge.name),
-        "user": col(Challenge.user_id),
+        "user": col(User.name),
     }[sort]
     statement = statement.order_by(sort_column.asc() if direction == "asc" else sort_column.desc())
     statement = statement.limit(100)
     result = await session.execute(statement)
-    return [_with_dataset_metadata(challenge) for challenge in result.scalars().all()]
+    return [
+        read_model(_with_dataset_metadata(challenge), ChallengeRead, user, organization)
+        for challenge, user, organization in result.all()
+    ]
 
 
 @router.get("/challenges/{challenge_id}", response_model=ChallengeDetail)
@@ -900,9 +935,16 @@ async def get_challenge(
     storage: ArtifactStorage | None = Depends(get_optional_artifact_storage),
 ) -> ChallengeDetail:
     """Get a single challenge with full cow metadata."""
-    challenge = await session.get(Challenge, challenge_id)
-    if challenge is None:
+    result = await session.execute(
+        select(Challenge, User, Organization)
+        .outerjoin(User, col(Challenge.user_id) == col(User.id))
+        .outerjoin(Organization, col(Challenge.organization_id) == col(Organization.id))
+        .where(Challenge.id == challenge_id)
+    )
+    row = result.one_or_none()
+    if row is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
+    challenge, user, organization = row
     ensure_organization_access(current_user, challenge.organization_id)
     cow_metadata = await _load_challenge_cow_metadata(challenge, session, storage)
     actual_yields = await _load_challenge_actual_yields(challenge, session, storage)
@@ -915,6 +957,7 @@ async def get_challenge(
         period=challenge.period,
         user_id=challenge.user_id,
         organization_id=challenge.organization_id,
+        **owner_fields(user, organization),
         created_at=challenge.created_at,
         name=challenge.name,
         source=challenge.source,
@@ -1016,7 +1059,7 @@ async def create_submission_bovi(
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
     storage: ArtifactStorage = Depends(get_artifact_storage),
-) -> Submission:
+) -> SubmissionRead:
     """Run challenger + benchmark models on the cohort and compare both vs ALY."""
     challenge = await session.get(Challenge, challenge_id)
     if challenge is None:
@@ -1111,7 +1154,7 @@ async def create_submission_bovi(
         await delete_artifacts_best_effort(storage, uploaded)
         raise
     await session.refresh(submission)
-    return submission
+    return await _submission_read(session, submission.id or 0)
 
 
 @router.post(
@@ -1134,7 +1177,7 @@ async def create_submission_upload(
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
     storage: ArtifactStorage = Depends(get_artifact_storage),
-) -> Submission:
+) -> SubmissionRead:
     """Upload a CSV of own-method 305-day yields; benchmark model runs server-side."""
     challenge = await session.get(Challenge, challenge_id)
     if challenge is None:
@@ -1281,21 +1324,26 @@ async def create_submission_upload(
         await delete_artifacts_best_effort(storage, uploaded)
         raise
     await session.refresh(submission)
-    return submission
+    return await _submission_read(session, submission.id or 0)
 
 
 @router.get("/submissions", response_model=list[SubmissionRead])
 async def list_submissions(
     organization_id: str | None = None,
     scope: Literal["organization", "mine"] = "organization",
+    user_id: int | None = None,
     sort: Literal["created_at", "name", "user"] = "created_at",
     direction: Literal["asc", "desc"] = "desc",
     q: str | None = None,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
-) -> list[Submission]:
+) -> list[SubmissionRead]:
     """List all submissions, newest first."""
-    statement = select(Submission)
+    statement = (
+        select(Submission, User, Organization)
+        .outerjoin(User, col(Submission.user_id) == col(User.id))
+        .outerjoin(Organization, col(Submission.organization_id) == col(Organization.id))
+    )
     if organization_id == "all":
         if not current_user.is_admin:
             raise HTTPException(status_code=403, detail="Admin access required.")
@@ -1313,19 +1361,24 @@ async def list_submissions(
     else:
         raise HTTPException(status_code=422, detail="organization_id is required.")
 
-    if scope == "mine":
+    if user_id is not None:
+        statement = statement.where(Submission.user_id == user_id)
+    elif scope == "mine":
         statement = statement.where(Submission.user_id == current_user.id)
     if q:
         statement = statement.where(col(Submission.organization).contains(q))
     sort_column = {
         "created_at": col(Submission.created_at),
         "name": col(Submission.organization),
-        "user": col(Submission.user_id),
+        "user": col(User.name),
     }[sort]
     statement = statement.order_by(sort_column.asc() if direction == "asc" else sort_column.desc())
     statement = statement.limit(100)
     result = await session.execute(statement)
-    return list(result.scalars().all())
+    return [
+        read_model(submission, SubmissionRead, user, organization)
+        for submission, user, organization in result.all()
+    ]
 
 
 @router.get("/submissions/{submission_id}", response_model=SubmissionRead)
@@ -1335,7 +1388,7 @@ async def get_submission(
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
     storage: ArtifactStorage | None = Depends(get_optional_artifact_storage),
-) -> Submission:
+) -> SubmissionRead:
     """Get a single submission with stats."""
     sub = await session.get(Submission, submission_id)
     if sub is None:
@@ -1358,7 +1411,7 @@ async def get_submission(
         session.add(sub)
         await session.commit()
         await session.refresh(sub)
-    return sub
+    return await _submission_read(session, sub.id or 0)
 
 
 @router.get("/submissions/{submission_id}/report")

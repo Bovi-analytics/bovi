@@ -79,7 +79,7 @@ function AuthProvider({ children }: { readonly children: ReactNode }) {
           (typeof savedSelection === "number" &&
             currentUser.organizations.some((org) => org.id === savedSelection));
         setSelectedOrganizationIdState(
-          isValidSavedSelection ? savedSelection : currentUser.organizations[0]?.id ?? null
+          isValidSavedSelection ? savedSelection : (currentUser.organizations[0]?.id ?? null)
         );
         setAuthMarker(true);
       } catch (error) {
@@ -121,7 +121,14 @@ function AuthProvider({ children }: { readonly children: ReactNode }) {
       getAccessToken: getBackendAccessToken,
       logout,
     }),
-    [isLoading, isMsalAuthenticated, logout, selectedOrganizationId, setSelectedOrganizationId, user]
+    [
+      isLoading,
+      isMsalAuthenticated,
+      logout,
+      selectedOrganizationId,
+      setSelectedOrganizationId,
+      user,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

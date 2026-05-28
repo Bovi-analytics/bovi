@@ -2,6 +2,7 @@
 
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
   Badge,
@@ -18,7 +19,7 @@ import {
 } from "@mantine/core";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import type { OrganizationListOptions } from "@/lib/api-client";
+import { listOrganizationMembers, type OrganizationListOptions } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 import { ChallengeCard } from "./components/challenge-card";
 import { DatasetSummary } from "./components/dataset-summary";
@@ -30,11 +31,23 @@ type ChallengeView = "cards" | "table";
 export default function BenchmarkPage(): ReactElement {
   const router = useRouter();
   const { selectedOrganizationId } = useAuth();
-  const [scope, setScope] = useState<"organization" | "mine">("organization");
+  const [scope, setScope] = useState<"organization" | "mine" | "colleague">("organization");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [sort, setSort] = useState<"created_at" | "name" | "user">("created_at");
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [q, setQ] = useState("");
-  const options: OrganizationListOptions = { scope, sort, direction, q: q.trim() || undefined };
+  const options: OrganizationListOptions = {
+    scope: scope === "mine" ? "mine" : "organization",
+    user_id: scope === "colleague" && selectedUserId ? Number(selectedUserId) : undefined,
+    sort,
+    direction,
+    q: q.trim() || undefined,
+  };
+  const membersQuery = useQuery({
+    queryKey: ["organization-members", selectedOrganizationId],
+    queryFn: () => listOrganizationMembers(selectedOrganizationId as number),
+    enabled: typeof selectedOrganizationId === "number",
+  });
   const { data: challenges, isLoading, error } = useChallenges(options);
   const createDisabled = selectedOrganizationId === "all";
   const [view, setView] = useState<ChallengeView>("cards");
@@ -71,12 +84,26 @@ export default function BenchmarkPage(): ReactElement {
         <SegmentedControl
           size="xs"
           value={scope}
-          onChange={(value) => setScope(value as "organization" | "mine")}
+          onChange={(value) => setScope(value as "organization" | "mine" | "colleague")}
           data={[
             { label: "Organization", value: "organization" },
             { label: "My items", value: "mine" },
+            { label: "Colleague", value: "colleague" },
           ]}
         />
+        {scope === "colleague" && (
+          <Select
+            aria-label="Filter by colleague"
+            size="xs"
+            value={selectedUserId}
+            onChange={setSelectedUserId}
+            placeholder="Select colleague"
+            data={(membersQuery.data ?? []).map((member) => ({
+              value: String(member.user_id),
+              label: member.name || member.email || `User #${member.user_id}`,
+            }))}
+          />
+        )}
         <TextInput
           aria-label="Search challenges"
           placeholder="Search by name"
@@ -172,6 +199,7 @@ export default function BenchmarkPage(): ReactElement {
               <Table.Th>Dataset</Table.Th>
               <Table.Th>Lactations</Table.Th>
               <Table.Th>Source</Table.Th>
+              <Table.Th>Uploaded by</Table.Th>
               <Table.Th>Created</Table.Th>
               <Table.Th>Action</Table.Th>
             </Table.Tr>
@@ -199,6 +227,9 @@ export default function BenchmarkPage(): ReactElement {
                 </Table.Td>
                 <Table.Td>{challenge.cow_count?.toLocaleString() ?? "-"}</Table.Td>
                 <Table.Td>{challenge.source ?? "-"}</Table.Td>
+                <Table.Td>
+                  {challenge.user_name || challenge.user_email || `User #${challenge.user_id}`}
+                </Table.Td>
                 <Table.Td>
                   {challenge.created_at ? new Date(challenge.created_at).toLocaleDateString() : "-"}
                 </Table.Td>

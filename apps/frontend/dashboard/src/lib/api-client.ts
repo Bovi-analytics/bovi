@@ -20,6 +20,8 @@ import {
   ChallengeReadSchema,
   SubmissionListSchema,
   SubmissionReadSchema,
+  UploadedDatasetDetailSchema,
+  UploadedDatasetListSchema,
 } from "@/types/api";
 import type {
   AutoencoderPredictRequest,
@@ -52,6 +54,8 @@ import type {
   ChallengeDetail,
   ChallengeRead,
   SubmissionRead,
+  UploadedDatasetDetail,
+  UploadedDatasetRead,
 } from "@/types/api";
 
 /* ------------------------------------------------------------------ */
@@ -76,10 +80,7 @@ async function apiFetch<T>(
   return schema.parse(data);
 }
 
-async function apiGet<T>(
-  path: string,
-  schema: z.ZodType<T, z.ZodTypeDef, unknown>
-): Promise<T> {
+async function apiGet<T>(path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>): Promise<T> {
   const headers = await jsonHeaders();
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "GET",
@@ -201,9 +202,10 @@ export interface OrganizationInviteCreateResponse extends OrganizationInviteRead
 
 export interface OrganizationListOptions {
   scope?: "organization" | "mine";
-  sort?: "created_at" | "name" | "user";
+  sort?: "created_at" | "uploaded_at" | "name" | "user";
   direction?: "asc" | "desc";
   q?: string;
+  user_id?: number;
 }
 
 export async function listOrganizations(): Promise<OrganizationRead[]> {
@@ -326,8 +328,8 @@ function organizationQuery(
 ): string {
   const params = new URLSearchParams({ organization_id: String(organizationId) });
   Object.entries(options).forEach(([key, value]) => {
-    if (value) {
-      params.set(key, value);
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, String(value));
     }
   });
   return `?${params.toString()}`;
@@ -336,8 +338,8 @@ function organizationQuery(
 function listQueryKey(options: OrganizationListOptions): string {
   const params = new URLSearchParams();
   Object.entries(options).forEach(([key, value]) => {
-    if (value) {
-      params.set(key, value);
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, String(value));
     }
   });
   return params.toString();
@@ -423,6 +425,24 @@ export async function uploadHerdProfileCsv(
   await ensureOk(response, "/herd-profiles/csv-preview");
   const data: unknown = await response.json();
   return HerdProfileUploadResponseSchema.parse(data);
+}
+
+export async function listUploadedDatasets(
+  organizationId: number | "all",
+  options: OrganizationListOptions = {}
+): Promise<UploadedDatasetRead[]> {
+  return apiGet(
+    `/uploaded-datasets/${organizationQuery(organizationId, options)}`,
+    UploadedDatasetListSchema
+  );
+}
+
+export async function getUploadedDataset(id: string): Promise<UploadedDatasetDetail> {
+  return apiGet(`/uploaded-datasets/${id}`, UploadedDatasetDetailSchema);
+}
+
+export async function deleteUploadedDataset(id: string): Promise<void> {
+  return apiDelete(`/uploaded-datasets/${id}`);
 }
 
 /* ------------------------------------------------------------------ */

@@ -32,6 +32,8 @@ class FittingResult(FittingResultBase, table=True):
     __tablename__: ClassVar[str] = "fitting_results"
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="users.id", index=True)
+    organization_id: int | None = Field(default=None, foreign_key="organizations.id", index=True)
     created_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
@@ -46,6 +48,11 @@ class FittingResultRead(FittingResultBase):
     """Response body for a fitting result (includes id and created_at)."""
 
     id: int
+    user_id: int | None = None
+    user_name: str | None = None
+    user_email: str | None = None
+    organization_id: int | None = None
+    organization_name: str | None = None
     created_at: datetime
 
 
@@ -100,7 +107,10 @@ class HerdProfileRead(HerdProfileBase):
 
     id: int
     user_id: int | None = None
+    user_name: str | None = None
+    user_email: str | None = None
     organization_id: int | None = None
+    organization_name: str | None = None
     created_at: datetime | None  # None only when DB does not fill server default (e.g. SQLite)
     updated_at: datetime | None
 
@@ -297,6 +307,17 @@ class UploadedDatasetRead(UploadedDatasetBase):
 
     id: str
     uploaded_at: datetime | None
+    user_name: str | None = None
+    user_email: str | None = None
+    organization_name: str | None = None
+
+
+class UploadedDatasetDetail(UploadedDatasetRead):
+    """Uploaded dataset metadata plus parsed payloads needed for reuse."""
+
+    cows: list = Field(default_factory=list)
+    stats: dict = Field(default_factory=dict)
+    raw_stats: dict = Field(default_factory=dict)
 
 
 # --- Benchmark models ---
@@ -380,6 +401,9 @@ class ChallengeRead(ChallengeBase):
     """API response for a challenge (excludes large internal blobs for list views)."""
 
     id: int
+    user_name: str | None = None
+    user_email: str | None = None
+    organization_name: str | None = None
     created_at: datetime | None
     name: str | None = None
     source: str | None = None
@@ -468,6 +492,9 @@ class SubmissionRead(SubmissionBase):
     """API response for a submission."""
 
     id: int
+    user_name: str | None = None
+    user_email: str | None = None
+    organization_name: str | None = None
     challenge_id: int
     stats: dict
     failed_cow_ids: list

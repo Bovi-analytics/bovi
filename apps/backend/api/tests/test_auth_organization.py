@@ -11,8 +11,10 @@ from bovi_api.models import (
     OrganizationInvite,
     OrganizationMembership,
     Submission,
+    UploadedDataset,
     User,
 )
+from bovi_api.settings import get_settings
 from sqlmodel import select
 
 
@@ -29,12 +31,15 @@ def test_auth_me_returns_current_user(client):
     assert body["organizations"] == [{"id": 1, "name": "Test Organization", "role": "Owner"}]
 
 
-def test_protected_route_rejects_missing_token_without_override(client):
+def test_protected_route_rejects_missing_token_without_override(client, monkeypatch):
+    monkeypatch.setenv("AUTH_DISABLED", "false")
+    get_settings.cache_clear()
     client.app.dependency_overrides.pop(require_auth)
 
     response = client.get("/benchmark/challenges")
 
     assert response.status_code == 401
+    get_settings.cache_clear()
 
 
 def test_user_only_sees_challenges_for_their_organization(client):
@@ -447,6 +452,166 @@ def test_multi_org_fixture_enforces_record_isolation(client, multi_org_auth):
         ).status_code
         == 200
     )
+
+
+def test_org_members_can_filter_colleague_owned_records(client, multi_org_auth):
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed() -> None:
+        async for session in override():
+            session.add(
+                User(
+                    id=4,
+                    entra_tenant_id="test-tenant",
+                    entra_oid="colleague-oid",
+                    account_type="entra",
+                    email="colleague@example.test",
+                    name="Colleague User",
+                )
+            )
+            await session.commit()
+            session.add(OrganizationMembership(user_id=4, organization_id=1, role="Member"))
+            session.add(
+                Challenge(
+                    id=101,
+                    dataset="icar",
+                    size="full",
+                    period="all",
+                    source="preset",
+                    name="mine",
+                    cow_metadata={"cow1": {"parity": 1, "dim": [50], "milk_kg": [25.0]}},
+                    reference_yields=None,
+                    actual_yields={"cow1": 8000.0},
+                    user_id=1,
+                    organization_id=1,
+                )
+            )
+            session.add(
+                Challenge(
+                    id=102,
+                    dataset="icar",
+                    size="full",
+                    period="all",
+                    source="preset",
+                    name="colleague",
+                    cow_metadata={"cow2": {"parity": 1, "dim": [60], "milk_kg": [26.0]}},
+                    reference_yields=None,
+                    actual_yields={"cow2": 8100.0},
+                    user_id=4,
+                    organization_id=1,
+                )
+            )
+            session.add(
+                HerdProfile(
+                    id=101,
+                    name="My profile",
+                    description="",
+                    achieved_21_milk=0.5,
+                    achieved_305_milk=0.5,
+                    achieved_75_milk=0.5,
+                    achieved_milk=0.5,
+                    days_dry=0.5,
+                    days_in_milk=0.5,
+                    days_open=0.5,
+                    days_pregnant=0.5,
+                    historic_calving_interval=0.5,
+                    quality_sequence=0.5,
+                    user_id=1,
+                    organization_id=1,
+                )
+            )
+            session.add(
+                HerdProfile(
+                    id=102,
+                    name="Colleague profile",
+                    description="",
+                    achieved_21_milk=0.5,
+                    achieved_305_milk=0.5,
+                    achieved_75_milk=0.5,
+                    achieved_milk=0.5,
+                    days_dry=0.5,
+                    days_in_milk=0.5,
+                    days_open=0.5,
+                    days_pregnant=0.5,
+                    historic_calving_interval=0.5,
+                    quality_sequence=0.5,
+                    user_id=4,
+                    organization_id=1,
+                )
+            )
+            session.add(
+                UploadedDataset(
+                    id="dataset-mine",
+                    name="Mine upload",
+                    dataset_type="herd_profile",
+                    format_detected="icar_test_day",
+                    user_id=1,
+                    organization_id=1,
+                    original_filename="mine.csv",
+                    row_count=1,
+                    cow_count=1,
+                )
+            )
+            session.add(
+                UploadedDataset(
+                    id="dataset-colleague",
+                    name="Colleague upload",
+                    dataset_type="herd_profile",
+                    format_detected="icar_test_day",
+                    user_id=4,
+                    organization_id=1,
+                    original_filename="colleague.csv",
+                    row_count=1,
+                    cow_count=1,
+                )
+            )
+            await session.commit()
+            break
+
+    asyncio.run(_seed())
+    multi_org_auth.as_user("org1_owner")
+    challenges = client.get("/benchmark/challenges?organization_id=1").json()
+    assert {challenge["name"] for challenge in challenges} == {"mine", "colleague"}
+    assert {challenge["user_name"] for challenge in challenges} == {"Test User", "Colleague User"}
+    assert [
+        challenge["name"]
+        for challenge in client.get("/benchmark/challenges?organization_id=1&scope=mine").json()
+    ] == ["mine"]
+    assert [
+        challenge["name"]
+        for challenge in client.get("/benchmark/challenges?organization_id=1&user_id=4").json()
+    ] == ["colleague"]
+    assert [
+        profile["name"]
+        for profile in client.get("/herd-profiles/?organization_id=1&user_id=4").json()
+    ] == ["Colleague profile"]
+    assert [
+        dataset["name"]
+        for dataset in client.get("/uploaded-datasets?organization_id=1&user_id=4").json()
+    ] == ["Colleague upload"]
+
+    async def override_colleague():
+        return CurrentUser(
+            id=4,
+            entra_tenant_id="test-tenant",
+            entra_oid="colleague-oid",
+            account_type="entra",
+            email="colleague@example.test",
+            name="Colleague User",
+            roles=["User"],
+            organizations=[
+                multi_org_auth.users["org1_owner"].organizations[0],
+            ],
+        )
+
+    client.app.dependency_overrides[require_auth] = override_colleague
+    members = client.get("/organizations/1/members")
+    assert members.status_code == 200
+    assert {member["user_id"] for member in members.json()} == {1, 4}
+    assert [
+        challenge["name"]
+        for challenge in client.get("/benchmark/challenges?organization_id=1&scope=mine").json()
+    ] == ["colleague"]
 
 
 def test_create_organization_makes_current_user_owner(client):
