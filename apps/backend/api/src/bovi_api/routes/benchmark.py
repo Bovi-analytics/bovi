@@ -575,6 +575,12 @@ async def create_challenge_preset(
             record_count=summary["actual_yield_count"],
         ),
     ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     challenge = Challenge(
         uuid=challenge_uuid,
@@ -659,6 +665,12 @@ async def create_challenge_saved_dataset(
             metadata_extra={"source": "saved_dataset_payload"},
         ),
     ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     challenge = Challenge(
         uuid=challenge_uuid,
@@ -778,6 +790,12 @@ async def create_challenge_upload(
             record_count=summary["actual_yield_count"],
         ),
     ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     challenge = Challenge(
         uuid=challenge_uuid,
@@ -993,6 +1011,12 @@ async def create_submission_bovi(
             record_count=len(benchmark_yields),
         ),
     ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     submission = Submission(
         uuid=submission_uuid,
@@ -1154,6 +1178,12 @@ async def create_submission_upload(
             record_count=len(benchmark_yields),
         ),
     ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     submission = Submission(
         uuid=submission_uuid,

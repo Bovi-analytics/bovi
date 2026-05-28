@@ -8,6 +8,7 @@ import httpx
 import pytest
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from bovi_core.storage import BlobStore
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 os.environ["DATABASE_URL"] = ""
@@ -124,6 +125,15 @@ class ASGITestClient:
 def client(monkeypatch):
     """TestClient backed by an in-memory SQLite database."""
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _set_sqlite_pragmas(dbapi_connection, _connection_record) -> None:
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA foreign_keys=ON")
+        finally:
+            cursor.close()
+
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     container_client = _ContainerClient()
     artifact_storage = ArtifactStorage(

@@ -128,6 +128,21 @@ def test_upload_json_gzip_round_trips(blob_store: BlobStore, container: _Contain
     assert blob_store.download_json_gzip(result.blob_path) == payload
 
 
+def test_download_json_gzip_accepts_transparently_decoded_payload(
+    blob_store: BlobStore, container: _ContainerClient
+) -> None:
+    payload = {"cow": {"dim": [1, 2], "milk_kg": [30.5, 31.0]}}
+    container.store["payload.json.gz"] = _StoredBlob(
+        data=json.dumps(payload).encode("utf-8"),
+        metadata={},
+        content_type="application/json",
+        content_encoding="gzip",
+        etag="etag-1",
+    )
+
+    assert blob_store.download_json_gzip("payload.json.gz") == payload
+
+
 def test_delete_if_exists(blob_store: BlobStore) -> None:
     blob_store.upload_bytes("delete-me", b"x", content_type="text/plain")
 

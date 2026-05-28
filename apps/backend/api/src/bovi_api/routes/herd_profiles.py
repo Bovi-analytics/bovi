@@ -171,6 +171,13 @@ async def csv_preview(
                 record_count=result.cow_count,
             ),
         ]
+        try:
+            await session.flush()
+        except Exception:
+            await session.rollback()
+            await delete_artifacts_best_effort(storage, uploaded)
+            raise
+
         dataset = UploadedDataset(
             id=upload_id,
             name=filename,

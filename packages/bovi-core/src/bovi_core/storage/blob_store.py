@@ -154,7 +154,13 @@ class BlobStore:
 
     def download_json_gzip(self, blob_path: str) -> Any:
         """Download a gzip-compressed JSON blob."""
-        return json.loads(gzip.decompress(self.download_bytes(blob_path)))
+        data = self.download_bytes(blob_path)
+        try:
+            data = gzip.decompress(data)
+        except gzip.BadGzipFile:
+            # Azure may transparently decode blobs with Content-Encoding: gzip.
+            pass
+        return json.loads(data)
 
     def exists(self, blob_path: str) -> bool:
         """Return whether a blob exists."""
