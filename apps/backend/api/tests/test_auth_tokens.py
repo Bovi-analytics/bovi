@@ -5,10 +5,11 @@ from typing import cast
 
 import bovi_api.auth as auth
 import pytest
-from bovi_api.auth import PERSONAL_MICROSOFT_TENANT_ID, validate_entra_token
+from bovi_api.auth import PERSONAL_MICROSOFT_TENANT_ID, TokenIdentity, validate_entra_token
 from bovi_api.models import Organization, OrganizationMembership, User
 from bovi_api.settings import Settings
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import select
 from starlette.requests import Request
@@ -143,3 +144,82 @@ def test_validate_entra_token_rejects_missing_required_claims(monkeypatch, claim
         validate_entra_token("token", Settings(azure_ad_client_id="client-id"))
 
     assert exc.value.status_code == 401
+
+
+class _ScalarResult:
+    def __init__(self, value=None, rows=None) -> None:
+        self.value = value
+        self.rows = rows or []
+
+    def scalar_one_or_none(self):
+        return self.value
+
+    def all(self):
+        return self.rows
+
+    def scalars(self):
+        return self
+
+
+class _FakeSession:
+    def __init__(self, user: User) -> None:
+        self.user = user
+        self.execute_count = 0
+        self.flush_count = 0
+        self.rollback_count = 0
+        self.commit_count = 0
+
+    async def execute(self, _statement):
+        self.execute_count += 1
+        if self.execute_count == 1:
+            return _ScalarResult()
+        if self.execute_count == 2:
+            return _ScalarResult(self.user)
+        return _ScalarResult(rows=[])
+
+    def add(self, _model) -> None:
+        return None
+
+    async def flush(self) -> None:
+        self.flush_count += 1
+        if self.flush_count == 1:
+            raise IntegrityError("insert user", {}, Exception("duplicate identity"))
+
+    async def rollback(self) -> None:
+        self.rollback_count += 1
+
+    async def commit(self) -> None:
+        self.commit_count += 1
+
+
+def test_ensure_local_user_recovers_from_concurrent_insert_race():
+    existing_user = User(
+        id=42,
+        entra_tenant_id="dev-tenant",
+        entra_oid="dev-auth-disabled",
+        account_type="entra",
+        email="old@example.test",
+        name="Old Name",
+        role="User",
+    )
+    session = _FakeSession(existing_user)
+
+    current_user = asyncio.run(
+        auth._ensure_local_user(
+            TokenIdentity(
+                entra_tenant_id="dev-tenant",
+                entra_oid="dev-auth-disabled",
+                account_type="entra",
+                email="dev@local.test",
+                name="Development User",
+                roles=["Admin"],
+            ),
+            session,  # type: ignore[arg-type]
+        )
+    )
+
+    assert session.rollback_count == 1
+    assert session.commit_count == 1
+    assert current_user.id == 42
+    assert current_user.email == "dev@local.test"
+    assert current_user.is_admin is True

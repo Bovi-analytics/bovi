@@ -21,10 +21,13 @@ import {
   ChallengeReadSchema,
   SubmissionListSchema,
   SubmissionReadSchema,
+  AdminOverviewResponseSchema,
   UploadedDatasetDetailSchema,
   UploadedDatasetListSchema,
 } from "@/types/api";
 import type {
+  AdminDataCategory,
+  AdminOverviewResponse,
   AutoencoderPredictRequest,
   AutoencoderPredictResponse,
   BenchmarkModel,
@@ -219,6 +222,18 @@ export interface OrganizationListOptions {
   user_id?: number;
 }
 
+export interface AdminOverviewOptions {
+  organizationId?: number | "all";
+  category?: AdminDataCategory | "all";
+  userId?: number;
+  q?: string;
+  from?: string;
+  to?: string;
+  sort?: "created_at" | "organization" | "user" | "category" | "status";
+  direction?: "asc" | "desc";
+  limit?: number;
+}
+
 export async function listOrganizations(): Promise<OrganizationRead[]> {
   const response = await fetch(`${getApiBaseUrl()}/organizations`, {
     method: "GET",
@@ -358,6 +373,56 @@ function listQueryKey(options: OrganizationListOptions): string {
 
 export function listOptionsKey(options: OrganizationListOptions = {}): string {
   return listQueryKey(options);
+}
+
+function adminOverviewQuery(options: AdminOverviewOptions = {}): string {
+  const params = new URLSearchParams();
+  if (options.organizationId !== undefined) {
+    params.set("organization_id", String(options.organizationId));
+  }
+  if (options.category && options.category !== "all") {
+    params.set("category", options.category);
+  }
+  if (options.userId !== undefined) {
+    params.set("user_id", String(options.userId));
+  }
+  if (options.q) {
+    params.set("q", options.q);
+  }
+  if (options.from) {
+    params.set("from", options.from);
+  }
+  if (options.to) {
+    params.set("to", options.to);
+  }
+  if (options.sort) {
+    params.set("sort", options.sort);
+  }
+  if (options.direction) {
+    params.set("direction", options.direction);
+  }
+  if (options.limit !== undefined) {
+    params.set("limit", String(options.limit));
+  }
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+export function adminOverviewOptionsKey(options: AdminOverviewOptions = {}): string {
+  return adminOverviewQuery(options);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Admin                                                             */
+/* ------------------------------------------------------------------ */
+
+export async function listAdminSubmissionsOverview(
+  options: AdminOverviewOptions = {}
+): Promise<AdminOverviewResponse> {
+  return apiGet(
+    `/admin/submissions-overview${adminOverviewQuery(options)}`,
+    AdminOverviewResponseSchema
+  );
 }
 
 /* ------------------------------------------------------------------ */

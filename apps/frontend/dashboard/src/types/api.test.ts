@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   AutoencoderPredictRequestSchema,
+  AdminOverviewResponseSchema,
   CharacteristicBatchRequestSchema,
   CharacteristicBatchResponseSchema,
   ChallengeReadSchema,
@@ -90,6 +91,94 @@ describe("api schemas", () => {
 
     expect(parsed.dataset_sources[0]?.filename).toBe("test_day.csv");
     expect(parsed.dataset_stats.test_day_row_count).toBe(8);
+  });
+
+  test("accepts admin overview records for all submission categories", () => {
+    const parsed = AdminOverviewResponseSchema.parse({
+      kpis: {
+        total_items: 4,
+        organizations: 2,
+        users: 2,
+        benchmark_submissions: 1,
+        benchmark_challenges: 1,
+        herd_dataset_uploads: 1,
+        herd_profiles: 1,
+        failed_items: 1,
+        latest_activity_at: "2026-05-28T10:00:00Z",
+      },
+      by_organization: [
+        {
+          organization_id: 1,
+          organization_name: "Dairy One",
+          user_count: 1,
+          total_items: 2,
+          benchmark_submissions: 1,
+          benchmark_challenges: 1,
+          herd_dataset_uploads: 0,
+          herd_profiles: 0,
+          failed_items: 1,
+          latest_activity_at: "2026-05-28T10:00:00Z",
+        },
+      ],
+      by_category: [
+        {
+          item_type: "benchmark_submission",
+          label: "Benchmark submissions",
+          count: 1,
+          failed_count: 1,
+          latest_activity_at: "2026-05-28T10:00:00Z",
+        },
+        {
+          item_type: "benchmark_challenge",
+          label: "Benchmark challenges",
+          count: 1,
+          failed_count: 0,
+          latest_activity_at: null,
+        },
+        {
+          item_type: "herd_dataset_upload",
+          label: "Herd dataset uploads",
+          count: 1,
+          failed_count: 0,
+          latest_activity_at: null,
+        },
+        {
+          item_type: "herd_profile",
+          label: "Herd profiles",
+          count: 1,
+          failed_count: 0,
+          latest_activity_at: null,
+        },
+      ],
+      items: [
+        {
+          item_type: "benchmark_submission",
+          item_type_label: "Benchmark submissions",
+          id: "7",
+          numeric_id: 7,
+          challenge_id: 3,
+          organization_id: 1,
+          organization_name: "Dairy One",
+          user_id: 1,
+          user_email: "admin@example.test",
+          user_name: "Admin",
+          title: "Uploaded method",
+          created_at: "2026-05-28T10:00:00Z",
+          status: "ready",
+          source: "benchmark",
+          submission_type: "own_method",
+          benchmark_model: "tim",
+          row_count: 100,
+          cow_count: 25,
+          failed_count: 1,
+          primary_metric_label: "RMSE",
+          primary_metric_value: 12.3,
+        },
+      ],
+    });
+
+    expect(parsed.items[0]?.item_type).toBe("benchmark_submission");
+    expect(parsed.kpis.failed_items).toBe(1);
   });
 
   test("accepts batch characteristic requests and responses", () => {

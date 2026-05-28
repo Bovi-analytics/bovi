@@ -9,8 +9,13 @@ describe("DASHBOARD_NAVIGATION", () => {
       ["Herd Profiles", "/herd-profiles"],
       ["Curves", "/curves"],
       ["Benchmark", "/benchmark"],
+      ["Admin", "/admin"],
       ["Organization", "/organization"],
       ["Contact", "/contact"],
     ]);
+  });
+
+  test("marks admin navigation as admin-only", () => {
+    expect(DASHBOARD_NAVIGATION.find((item) => item.href === "/admin")?.adminOnly).toBe(true);
   });
 });

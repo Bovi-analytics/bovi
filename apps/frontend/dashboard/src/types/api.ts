@@ -489,3 +489,84 @@ export const BenchmarkModelSchema = z.enum([
 export type BenchmarkModel = z.infer<typeof BenchmarkModelSchema>;
 
 export const SubmissionListSchema = z.array(SubmissionReadSchema);
+
+/* ------------------------------------------------------------------ */
+/*  Admin overview                                                     */
+/* ------------------------------------------------------------------ */
+
+export const AdminDataCategorySchema = z.enum([
+  "benchmark_submission",
+  "benchmark_challenge",
+  "herd_dataset_upload",
+  "herd_profile",
+]);
+export type AdminDataCategory = z.infer<typeof AdminDataCategorySchema>;
+
+export const AdminOverviewItemSchema = z.object({
+  item_type: AdminDataCategorySchema,
+  item_type_label: z.string(),
+  id: z.string(),
+  numeric_id: z.number().nullable().optional(),
+  challenge_id: z.number().nullable().optional(),
+  organization_id: z.number().nullable().optional(),
+  organization_name: z.string().nullable().optional(),
+  user_id: z.number().nullable().optional(),
+  user_email: z.string().nullable().optional(),
+  user_name: z.string().nullable().optional(),
+  title: z.string(),
+  created_at: z.string().nullable(),
+  status: z.string(),
+  source: z.string().nullable().optional(),
+  submission_type: z.string().nullable().optional(),
+  benchmark_model: z.string().nullable().optional(),
+  row_count: z.number().nullable().optional(),
+  cow_count: z.number().nullable().optional(),
+  failed_count: z.number(),
+  primary_metric_label: z.string().nullable().optional(),
+  primary_metric_value: z.number().nullable().optional(),
+});
+export type AdminOverviewItem = z.infer<typeof AdminOverviewItemSchema>;
+
+export const AdminOrganizationBreakdownSchema = z.object({
+  organization_id: z.number().nullable().optional(),
+  organization_name: z.string(),
+  user_count: z.number(),
+  total_items: z.number(),
+  benchmark_submissions: z.number(),
+  benchmark_challenges: z.number(),
+  herd_dataset_uploads: z.number(),
+  herd_profiles: z.number(),
+  failed_items: z.number(),
+  latest_activity_at: z.string().nullable(),
+});
+export type AdminOrganizationBreakdown = z.infer<typeof AdminOrganizationBreakdownSchema>;
+
+export const AdminCategoryBreakdownSchema = z.object({
+  item_type: AdminDataCategorySchema,
+  label: z.string(),
+  count: z.number(),
+  failed_count: z.number(),
+  latest_activity_at: z.string().nullable(),
+});
+export type AdminCategoryBreakdown = z.infer<typeof AdminCategoryBreakdownSchema>;
+
+export const AdminOverviewKpisSchema = z.object({
+  total_items: z.number(),
+  organizations: z.number(),
+  users: z.number(),
+  benchmark_submissions: z.number(),
+  benchmark_challenges: z.number(),
+  herd_dataset_uploads: z.number(),
+  herd_profiles: z.number(),
+  failed_items: z.number(),
+  latest_activity_at: z.string().nullable(),
+});
+export type AdminOverviewKpis = z.infer<typeof AdminOverviewKpisSchema>;
+
+export const AdminOverviewResponseSchema = z.object({
+  kpis: AdminOverviewKpisSchema,
+  by_organization: z.array(AdminOrganizationBreakdownSchema),
+  by_category: z.array(AdminCategoryBreakdownSchema),
+  items: z.array(AdminOverviewItemSchema),
+});
+export type AdminOverviewResponse = z.infer<typeof AdminOverviewResponseSchema>;

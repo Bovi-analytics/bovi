@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from bovi_api.database import dispose_engine
 from bovi_api.routes import (
+    admin,
     auth,
     benchmark,
     datasets,
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(admin.router)
     app.include_router(organizations.router)
     app.include_router(proxy.router)
     app.include_router(results.router)
