@@ -40,9 +40,6 @@ jobs:
         working-directory: packages/models/lactationcurve
         run: |
           uv run pdoc lactationcurve \
-            lactationcurve.characteristics.best_predict \
-            lactationcurve.characteristics.lactation_curve_characteristics \
-            lactationcurve.characteristics.method_test_interval \
             --output-dir site \
             --docformat google \
             --logo https://raw.githubusercontent.com/Bovi-analytics/bovi/main/packages/models/lactationcurve/site/logo.png \

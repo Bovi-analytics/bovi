@@ -1,3 +1,4 @@
+from . import best_predict, lactation_curve_characteristics, method_test_interval
 from .best_predict import (
     best_predict_method,
     best_predict_method_single_lac,
@@ -35,6 +36,7 @@ __all__ = [
     "ISLC_method",
     "ISLC_original",
     "ISLC_original_method",
+    "best_predict",
     "best_predict_method",
     "best_predict_method_single_lac",
     "build_covariance_matrix",
@@ -44,9 +46,11 @@ __all__ = [
     "fit_autocorrelation_matrix",
     "fit_standard_lc",
     "interpolation_standard_lc",
+    "lactation_curve_characteristics",
     "lactation_curve_characteristic_function",
     "linear_interpd_all_to_grid",
     "linear_interpd_closest_to_grid",
+    "method_test_interval",
     "numeric_cumulative_yield",
     "numeric_peak_yield",
     "numeric_time_to_peak",
