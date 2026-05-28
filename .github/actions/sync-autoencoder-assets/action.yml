@@ -127,7 +127,7 @@ runs:
           --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
           --container-name "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
           --prefix "${prefix}/" \
-          --query "[].name" -o tsv)
+          --query "[?metadata.hdi_isfolder!='true'].name" -o tsv)
         if [ "${#source_blobs[@]}" -eq 0 ]; then
           echo "No autoencoder source assets found in ICAR Storage for prefix: ${prefix}/"
           exit 1
