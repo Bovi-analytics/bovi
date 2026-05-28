@@ -4,6 +4,7 @@ import asyncio
 
 from bovi_api.database import get_session
 from bovi_api.models import UploadedDataset
+from bovi_api.settings import Settings, get_settings
 from sqlmodel import select
 
 VALID_PROFILE = {
@@ -149,6 +150,21 @@ def test_csv_preview_rejects_non_csv_extension(client):
         files={"file": ("data.xlsx", b"PK\x03\x04", "application/octet-stream")},
     )
     assert response.status_code == 400
+
+
+def test_csv_preview_rejects_large_file_with_clear_message(client):
+    client.app.dependency_overrides[get_settings] = lambda: Settings(upload_max_bytes=16)
+
+    response = client.post(
+        "/herd-profiles/csv-preview",
+        files={"file": ("oversized.csv", SAMPLE_CSV, "text/csv")},
+    )
+
+    assert response.status_code == 413
+    detail = response.json()["detail"]
+    assert "oversized.csv" in detail
+    assert "16 bytes upload limit" in detail
+    assert "Split the file into smaller CSV files" in detail
 
 
 def test_csv_preview_rejects_unrecognised_columns(client):

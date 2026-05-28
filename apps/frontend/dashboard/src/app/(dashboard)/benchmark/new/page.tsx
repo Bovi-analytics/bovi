@@ -29,6 +29,7 @@ import {
   formatDatasetSources,
   formatDatasetStats,
 } from "@/lib/benchmark-dataset";
+import { UPLOAD_LIMIT_DESCRIPTION } from "@/lib/upload-limits";
 import type { ChallengeDatasetSource, ChallengeDatasetStats, ChallengeDetail } from "@/types/api";
 import {
   useCreateChallengeFromSavedDataset,
@@ -194,6 +195,7 @@ function UploadTab({
             </Tooltip>
           </Group>
           <FileInput
+            description={UPLOAD_LIMIT_DESCRIPTION}
             accept=".csv"
             value={testDayCsv}
             onChange={setTestDayCsv}
@@ -238,6 +240,7 @@ function UploadTab({
             </Tooltip>
           </Group>
           <FileInput
+            description={UPLOAD_LIMIT_DESCRIPTION}
             accept=".csv"
             value={actualYieldsCsv}
             onChange={setActualYieldsCsv}

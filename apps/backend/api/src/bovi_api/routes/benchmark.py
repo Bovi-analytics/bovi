@@ -50,11 +50,11 @@ from bovi_api.storage import (
     load_bytes_artifact,
     load_json_artifact,
 )
+from bovi_api.upload_limits import ensure_upload_bytes_size, ensure_upload_file_size
 
 logger = logging.getLogger("bovi_api.benchmark")
 router = APIRouter(prefix="/benchmark", tags=["benchmark"])
 
-_MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 _FAILURE_THRESHOLD = 0.20
 _MAX_PLAUSIBLE_LACTATION_YIELD_KG = 100_000.0
 
@@ -746,15 +746,26 @@ async def create_challenge_upload(
     actual_yields_csv: UploadFile = File(...),
     organization_id: int = Form(...),
     current_user: CurrentUser = Depends(require_auth),
+    settings: Settings = Depends(get_settings),
     session: AsyncSession = Depends(get_session),
     storage: ArtifactStorage = Depends(get_artifact_storage),
 ) -> ChallengeRead:
     """Create an upload-backed challenge: user-supplied test-day records + ground-truth yields."""
     ensure_organization_access(current_user, organization_id)
+    ensure_upload_file_size(test_day_csv, max_size=settings.upload_max_bytes)
+    ensure_upload_file_size(actual_yields_csv, max_size=settings.upload_max_bytes)
     test_bytes = await test_day_csv.read()
     aly_bytes = await actual_yields_csv.read()
-    if len(test_bytes) > _MAX_UPLOAD_BYTES or len(aly_bytes) > _MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="One of the uploads exceeds the 10 MB limit.")
+    ensure_upload_bytes_size(
+        test_bytes,
+        filename=test_day_csv.filename,
+        max_size=settings.upload_max_bytes,
+    )
+    ensure_upload_bytes_size(
+        aly_bytes,
+        filename=actual_yields_csv.filename,
+        max_size=settings.upload_max_bytes,
+    )
 
     try:
         cow_metadata = parse_test_day_csv(test_bytes)
@@ -1217,9 +1228,9 @@ async def create_submission_upload(
     if not filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files are accepted.")
 
+    ensure_upload_file_size(file, max_size=settings.upload_max_bytes)
     content = await file.read()
-    if len(content) > _MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
+    ensure_upload_bytes_size(content, filename=filename, max_size=settings.upload_max_bytes)
 
     try:
         challenger_yields, failed_ids = parse_submission_csv(content, return_failed=True)

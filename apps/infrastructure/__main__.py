@@ -313,6 +313,7 @@ api_result = create_container_app(
             "UPLOAD_BLOB_PREFIX": "bovi/uploads",
             "AZURE_AD_CLIENT_ID": azure_ad_client_id,
             "AUTH_DISABLED": "false",
+            "UPLOAD_MAX_BYTES": str(500 * 1024 * 1024),
         },
         secret_env={"STORAGE_ACCOUNT_KEY_ICAR": icar_storage_account_key},
         tags=tags,

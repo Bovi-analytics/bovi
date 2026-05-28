@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import { getBackendAccessToken, handleUnauthorizedResponse } from "@/lib/auth/service";
 import { getApiBaseUrl } from "@/lib/env";
+import { assertUploadSize } from "@/lib/upload-limits";
 import {
   AutoencoderPredictResponseSchema,
   CharacteristicBatchResponseSchema,
@@ -162,6 +163,16 @@ async function downloadBlob(path: string, fallbackFilename: string): Promise<voi
   );
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+async function uploadErrorMessage(response: Response): Promise<string> {
+  const error: unknown = await response.json().catch(() => null);
+  if (error && typeof error === "object" && "detail" in error) {
+    const detail = (error as { detail?: unknown }).detail;
+    if (typeof detail === "string") return detail;
+    if (detail !== undefined) return JSON.stringify(detail);
+  }
+  return `Upload failed with status ${response.status}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -409,6 +420,7 @@ export async function uploadHerdProfileCsv(
   organizationId: number,
   columnMapping?: Record<string, string>
 ): Promise<HerdProfileUploadResponse> {
+  assertUploadSize(file);
   const formData = new FormData();
   formData.append("file", file);
   formData.append("organization_id", String(organizationId));
@@ -422,7 +434,9 @@ export async function uploadHerdProfileCsv(
     body: formData,
     // No Content-Type header - browser sets multipart boundary automatically
   });
-  await ensureOk(response, "/herd-profiles/csv-preview");
+  if (!response.ok) {
+    throw new Error(await uploadErrorMessage(response));
+  }
   const data: unknown = await response.json();
   return HerdProfileUploadResponseSchema.parse(data);
 }
@@ -459,6 +473,8 @@ export async function createChallengeUpload(
   actualYieldsCsv: File,
   organizationId: number
 ): Promise<ChallengeRead> {
+  assertUploadSize(testDayCsv);
+  assertUploadSize(actualYieldsCsv);
   const formData = new FormData();
   formData.append("name", name);
   formData.append("organization_id", String(organizationId));
@@ -470,7 +486,9 @@ export async function createChallengeUpload(
     headers,
     body: formData,
   });
-  await ensureOk(response, "/benchmark/challenges/upload");
+  if (!response.ok) {
+    throw new Error(await uploadErrorMessage(response));
+  }
   return ChallengeReadSchema.parse(await response.json());
 }
 
@@ -542,6 +560,7 @@ export async function submitOwnMethod(
     notes?: string;
   }
 ): Promise<SubmissionRead> {
+  assertUploadSize(file);
   const formData = new FormData();
   formData.append("file", file);
   if (meta.benchmark_options) {
@@ -561,7 +580,9 @@ export async function submitOwnMethod(
       body: formData,
     }
   );
-  await ensureOk(response, `/benchmark/challenges/${challengeId}/submissions/upload`);
+  if (!response.ok) {
+    throw new Error(await uploadErrorMessage(response));
+  }
   return SubmissionReadSchema.parse(await response.json());
 }
 
