@@ -35,16 +35,13 @@ describe("api-client authentication", () => {
 
     await listChallenges(1);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/bovi/benchmark/challenges?organization_id=1",
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer test-token",
-        },
-      }
-    );
+    expect(fetchMock).toHaveBeenCalledWith("/api/bovi/benchmark/challenges?organization_id=1", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer test-token",
+      },
+    });
   });
 
   it("redirects through auth handler on 401 responses", async () => {
@@ -79,7 +76,6 @@ describe("api-client authentication", () => {
     );
   });
 
-
   it("downloads challenge exports with bearer token and response filename", async () => {
     const click = vi.fn();
     const revokeObjectURL = vi.fn();
@@ -88,10 +84,11 @@ describe("api-client authentication", () => {
     const documentMock = { createElement: vi.fn(() => anchor) };
     globalThis.document = documentMock as unknown as Document;
     globalThis.URL = { createObjectURL, revokeObjectURL } as unknown as typeof URL;
-    const fetchMock = vi.fn(async () =>
-      new Response("cow_id\n1", {
-        headers: { "Content-Disposition": 'attachment; filename="challenge_7.csv"' },
-      })
+    const fetchMock = vi.fn(
+      async () =>
+        new Response("cow_id\n1", {
+          headers: { "Content-Disposition": 'attachment; filename="challenge_7.csv"' },
+        })
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 

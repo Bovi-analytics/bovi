@@ -108,6 +108,16 @@ async def _require_owner_or_admin(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner access required.")
 
 
+async def _require_member_or_admin(
+    session: AsyncSession, current_user: CurrentUser, organization_id: int
+) -> None:
+    if current_user.is_admin:
+        return
+    membership = await _membership(session, current_user.id, organization_id)
+    if membership is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")
+
+
 def _org_read(org: Organization, role: str | None = None) -> OrganizationRead:
     return OrganizationRead(
         id=org.id or 0,
@@ -197,7 +207,7 @@ async def list_members(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[MemberRead]:
     """List members in an organization."""
-    await _require_owner_or_admin(session, current_user, organization_id)
+    await _require_member_or_admin(session, current_user, organization_id)
     result = await session.execute(
         select(User, OrganizationMembership)
         .join(OrganizationMembership, col(OrganizationMembership.user_id) == col(User.id))

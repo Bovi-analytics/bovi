@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Accordion,
   ActionIcon,
@@ -29,11 +30,19 @@ import { useUploadedCows, type UploadedDataset } from "@/app/providers/uploaded-
 import { ActiveDatasetPanel } from "@/components/dashboard/active-dataset-panel";
 import { usePresetCounts } from "@/app/(dashboard)/curves/hooks/use-preset-counts";
 import { usePresetDataset } from "@/app/(dashboard)/curves/hooks/use-preset-dataset";
+import {
+  deleteUploadedDataset,
+  getUploadedDataset,
+  listOrganizationMembers,
+  listUploadedDatasets,
+} from "@/lib/api-client";
+import { useAuth } from "@/lib/auth";
 import type {
   HerdProfileUploadResponse,
   PresetDatasetKey,
   PresetPeriodKey,
   PresetSizeKey,
+  UploadedDatasetDetail,
 } from "@/types/api";
 import { useHerdProfileUpload } from "../hooks/use-herd-profile-upload";
 
@@ -191,7 +200,7 @@ function toUploadedDataset(
 ): UploadedDataset {
   const name = datasetName.trim() || cleanDatasetName(filename);
   return {
-    id: `${Date.now()}-${name}`,
+    id: response.upload_id ?? `${Date.now()}-${name}`,
     name,
     format: "icar_test_day",
     uploadedAt,
@@ -209,6 +218,41 @@ function toUploadedDataset(
       milkrecordings: c.milk_kg,
     })),
   };
+}
+
+function toUploadedDatasetFromDetail(detail: UploadedDatasetDetail): UploadedDataset {
+  return {
+    id: detail.id,
+    name: detail.name,
+    format: "icar_test_day",
+    uploadedAt: detail.uploaded_at ?? new Date().toISOString(),
+    userId: detail.user_id,
+    userName: detail.user_name,
+    userEmail: detail.user_email,
+    organizationId: detail.organization_id,
+    organizationName: detail.organization_name,
+    rowCount: detail.row_count,
+    cowCount: detail.cow_count ?? detail.cows.length,
+    detectedParity: detail.detected_parity ?? null,
+    columns: detail.columns,
+    columnMapping: detail.column_mapping,
+    stats: detail.stats,
+    rawStats: detail.raw_stats,
+    cows: detail.cows.map((c) => ({
+      cowId: c.cow_id,
+      parity: c.parity,
+      dim: c.dim,
+      milkrecordings: c.milk_kg,
+    })),
+  };
+}
+
+function ownerLabel(item: {
+  user_name?: string | null;
+  user_email?: string | null;
+  user_id?: number | null;
+}): string {
+  return item.user_name || item.user_email || (item.user_id ? `User #${item.user_id}` : "-");
 }
 
 function mappingSummary(mapping: Readonly<Record<string, string>> | undefined): string {
@@ -356,6 +400,7 @@ function UploadPanel(): ReactElement {
     event_type: "",
   });
   const inputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   const uploadMutation = useHerdProfileUpload();
   const { dataset: uploadedDataset, saveDataset } = useUploadedCows();
@@ -368,6 +413,7 @@ function UploadPanel(): ReactElement {
     setUploadedFilename(filename);
     if (response.cows.length > 0 && response.format_detected === "icar_test_day") {
       saveDataset(toUploadedDataset(response, filename, datasetName));
+      void queryClient.invalidateQueries({ queryKey: ["uploaded-datasets"] });
     }
   }
 
@@ -667,29 +713,97 @@ function UploadPanel(): ReactElement {
 }
 
 function SavedDatasetsPanel(): ReactElement {
-  const {
-    dataset: uploadedDataset,
-    savedDatasets,
-    selectSavedDataset,
-    deleteSavedDataset,
-  } = useUploadedCows();
+  const { selectedOrganizationId } = useAuth();
+  const { dataset: uploadedDataset, setDataset, clearDataset } = useUploadedCows();
+  const queryClient = useQueryClient();
   const [expandedMappingId, setExpandedMappingId] = useState<string | null>(null);
+  const [scope, setScope] = useState<"organization" | "mine" | "colleague">("organization");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const organizationId = selectedOrganizationId ?? 0;
+  const userId = scope === "colleague" && selectedUserId ? Number(selectedUserId) : undefined;
+  const datasetOptions = {
+    scope: scope === "mine" ? "mine" : "organization",
+    user_id: userId,
+    sort: "uploaded_at",
+    direction: "desc",
+  } as const;
+  const datasetsQuery = useQuery({
+    queryKey: ["uploaded-datasets", organizationId, datasetOptions],
+    queryFn: () => listUploadedDatasets(organizationId, datasetOptions),
+    enabled: selectedOrganizationId !== null,
+  });
+  const membersQuery = useQuery({
+    queryKey: ["organization-members", selectedOrganizationId],
+    queryFn: () => listOrganizationMembers(selectedOrganizationId as number),
+    enabled: typeof selectedOrganizationId === "number",
+  });
+  const selectMutation = useMutation({
+    mutationFn: getUploadedDataset,
+    onSuccess: (detail) => setDataset(toUploadedDatasetFromDetail(detail)),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: deleteUploadedDataset,
+    onSuccess: (_void, deletedId) => {
+      if (uploadedDataset?.id === deletedId) {
+        clearDataset();
+      }
+      void queryClient.invalidateQueries({ queryKey: ["uploaded-datasets"] });
+    },
+  });
+  const savedDatasets = datasetsQuery.data ?? [];
 
-  if (savedDatasets.length === 0) {
+  if (datasetsQuery.isLoading) {
+    return <Loader size="sm" />;
+  }
+
+  if (datasetsQuery.isError) {
     return (
-      <Alert color="gray" variant="light">
-        <Text size="sm">No saved datasets yet. Upload a milk-recording CSV first.</Text>
+      <Alert icon={<AlertCircle size={16} />} color="red">
+        Failed to load saved datasets.
       </Alert>
     );
   }
 
   return (
     <Stack gap="md">
+      <Group gap="sm" align="flex-end">
+        <SegmentedControl
+          size="xs"
+          value={scope}
+          onChange={(value) => setScope(value as "organization" | "mine" | "colleague")}
+          data={[
+            { label: "Organization", value: "organization" },
+            { label: "My items", value: "mine" },
+            { label: "Colleague", value: "colleague" },
+          ]}
+        />
+        {scope === "colleague" && (
+          <Select
+            aria-label="Filter by colleague"
+            size="xs"
+            value={selectedUserId}
+            onChange={setSelectedUserId}
+            placeholder="Select colleague"
+            data={(membersQuery.data ?? []).map((member) => ({
+              value: String(member.user_id),
+              label: member.name || member.email || `User #${member.user_id}`,
+            }))}
+          />
+        )}
+      </Group>
+
+      {savedDatasets.length === 0 && (
+        <Alert color="gray" variant="light">
+          <Text size="sm">No saved datasets match this filter.</Text>
+        </Alert>
+      )}
+
       <Table striped withColumnBorders fz="sm">
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Status</Table.Th>
             <Table.Th>Dataset</Table.Th>
+            <Table.Th>Uploaded by</Table.Th>
             <Table.Th>Uploaded</Table.Th>
             <Table.Th>Rows</Table.Th>
             <Table.Th>Lactations</Table.Th>
@@ -719,15 +833,18 @@ function SavedDatasetsPanel(): ReactElement {
                     <Text size="sm" fw={600} maw={180} lineClamp={1} title={saved.name}>
                       {saved.name}
                     </Text>
-                    {saved.detectedParity != null && (
+                    {saved.detected_parity != null && (
                       <Text size="xs" c="dimmed">
-                        Dominant parity {saved.detectedParity}
+                        Dominant parity {saved.detected_parity}
                       </Text>
                     )}
                   </Table.Td>
-                  <Table.Td>{formatUploadDate(saved.uploadedAt)}</Table.Td>
-                  <Table.Td>{saved.rowCount?.toLocaleString() ?? "-"}</Table.Td>
-                  <Table.Td>{(saved.cowCount ?? saved.cows.length).toLocaleString()}</Table.Td>
+                  <Table.Td>{ownerLabel(saved)}</Table.Td>
+                  <Table.Td>
+                    {saved.uploaded_at ? formatUploadDate(saved.uploaded_at) : "-"}
+                  </Table.Td>
+                  <Table.Td>{saved.row_count?.toLocaleString() ?? "-"}</Table.Td>
+                  <Table.Td>{saved.cow_count?.toLocaleString() ?? "-"}</Table.Td>
                   <Table.Td>
                     <ActionIcon
                       aria-label="Show column mapping"
@@ -753,7 +870,8 @@ function SavedDatasetsPanel(): ReactElement {
                         variant={active ? "light" : "filled"}
                         color="violet"
                         disabled={active}
-                        onClick={() => selectSavedDataset(saved.id)}
+                        loading={selectMutation.isPending && selectMutation.variables === saved.id}
+                        onClick={() => selectMutation.mutate(saved.id)}
                       >
                         {active ? "Selected" : "Select"}
                       </Button>
@@ -761,7 +879,8 @@ function SavedDatasetsPanel(): ReactElement {
                         aria-label="Delete saved dataset"
                         color="red"
                         variant="subtle"
-                        onClick={() => deleteSavedDataset(saved.id)}
+                        loading={deleteMutation.isPending && deleteMutation.variables === saved.id}
+                        onClick={() => deleteMutation.mutate(saved.id)}
                       >
                         <Trash2 size={14} />
                       </ActionIcon>
@@ -770,9 +889,9 @@ function SavedDatasetsPanel(): ReactElement {
                 </Table.Tr>
                 {expandedMappingId === saved.id && (
                   <Table.Tr>
-                    <Table.Td colSpan={8}>
+                    <Table.Td colSpan={9}>
                       <Text size="xs" c="dimmed">
-                        {mappingSummary(saved.columnMapping)}
+                        {mappingSummary(saved.column_mapping)}
                       </Text>
                     </Table.Td>
                   </Table.Tr>
@@ -801,7 +920,7 @@ function SavedDatasetsPanel(): ReactElement {
 /* ------------------------------------------------------------------ */
 
 export function DataSourcePicker(): ReactElement {
-  const { activePreset, dataset: uploadedDataset, savedDatasets } = useUploadedCows();
+  const { activePreset, dataset: uploadedDataset } = useUploadedCows();
   const activePresetDataset = activePreset?.dataset;
 
   // Derive initial active source from context state
@@ -821,8 +940,7 @@ export function DataSourcePicker(): ReactElement {
     }
   }, [activePresetDataset]);
 
-  const sourceOptions =
-    savedDatasets.length > 0 ? [...SOURCE_OPTIONS, SAVED_SOURCE_OPTION] : SOURCE_OPTIONS;
+  const sourceOptions = [...SOURCE_OPTIONS, SAVED_SOURCE_OPTION];
 
   return (
     <Stack gap="md">

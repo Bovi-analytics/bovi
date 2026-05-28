@@ -41,7 +41,13 @@ export function useUpdateHerdProfile() {
   const qc = useQueryClient();
   const { selectedOrganizationId } = useAuth();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Omit<HerdProfileCreate, "organization_id"> }) => {
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Omit<HerdProfileCreate, "organization_id">;
+    }) => {
       if (typeof selectedOrganizationId !== "number") {
         throw new Error("Select a specific organization before updating a herd profile.");
       }

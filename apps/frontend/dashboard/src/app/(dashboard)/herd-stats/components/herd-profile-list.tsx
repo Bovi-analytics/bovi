@@ -2,6 +2,7 @@
 
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   ActionIcon,
@@ -17,7 +18,7 @@ import {
   TextInput,
 } from "@mantine/core";
 import { CheckCircle2, ChevronRight, Pencil, Trash2 } from "lucide-react";
-import type { OrganizationListOptions } from "@/lib/api-client";
+import { listOrganizationMembers, type OrganizationListOptions } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 import { HerdProfileForm } from "./herd-profile-form";
 import {
@@ -52,12 +53,24 @@ function profileSource(profile: HerdProfile): string {
 
 export function HerdProfileList(): ReactElement {
   const { selectedOrganizationId } = useAuth();
-  const [scope, setScope] = useState<"organization" | "mine">("organization");
+  const [scope, setScope] = useState<"organization" | "mine" | "colleague">("organization");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [sort, setSort] = useState<"created_at" | "name" | "user">("created_at");
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [q, setQ] = useState("");
-  const options: OrganizationListOptions = { scope, sort, direction, q: q.trim() || undefined };
+  const options: OrganizationListOptions = {
+    scope: scope === "mine" ? "mine" : "organization",
+    user_id: scope === "colleague" && selectedUserId ? Number(selectedUserId) : undefined,
+    sort,
+    direction,
+    q: q.trim() || undefined,
+  };
   const { data: profiles = [], isLoading } = useHerdProfiles(options);
+  const membersQuery = useQuery({
+    queryKey: ["organization-members", selectedOrganizationId],
+    queryFn: () => listOrganizationMembers(selectedOrganizationId as number),
+    enabled: typeof selectedOrganizationId === "number",
+  });
   const { activePreset, dataset: uploadedDataset } = useUploadedCows();
   const activeDatasetLabel = useActiveDatasetLabel();
   const {
@@ -92,7 +105,7 @@ export function HerdProfileList(): ReactElement {
 
   const canDetermineFromDataset = Boolean(
     (activePreset && activePresetStats && !activePresetStatsError) ||
-      (!activePreset && uploadedDatasetStats)
+    (!activePreset && uploadedDatasetStats)
   );
 
   function handleCreate(data: HerdProfileCreate) {
@@ -172,12 +185,26 @@ export function HerdProfileList(): ReactElement {
           <SegmentedControl
             size="xs"
             value={scope}
-            onChange={(value) => setScope(value as "organization" | "mine")}
+            onChange={(value) => setScope(value as "organization" | "mine" | "colleague")}
             data={[
               { label: "Organization", value: "organization" },
               { label: "My items", value: "mine" },
+              { label: "Colleague", value: "colleague" },
             ]}
           />
+          {scope === "colleague" && (
+            <Select
+              aria-label="Filter by colleague"
+              size="xs"
+              value={selectedUserId}
+              onChange={setSelectedUserId}
+              placeholder="Select colleague"
+              data={(membersQuery.data ?? []).map((member) => ({
+                value: String(member.user_id),
+                label: member.name || member.email || `User #${member.user_id}`,
+              }))}
+            />
+          )}
           <TextInput
             aria-label="Search herd profiles"
             placeholder="Search by name"
@@ -189,9 +216,7 @@ export function HerdProfileList(): ReactElement {
             aria-label="Sort herd profiles"
             size="xs"
             value={sort}
-            onChange={(value) =>
-              setSort((value as "created_at" | "name" | "user") ?? "created_at")
-            }
+            onChange={(value) => setSort((value as "created_at" | "name" | "user") ?? "created_at")}
             data={[
               { label: "Created", value: "created_at" },
               { label: "Name", value: "name" },
@@ -218,6 +243,7 @@ export function HerdProfileList(): ReactElement {
               <Table.Tr>
                 <Table.Th>Name</Table.Th>
                 <Table.Th>Source</Table.Th>
+                <Table.Th>Owner</Table.Th>
                 <Table.Th>Description</Table.Th>
                 <Table.Th>Created</Table.Th>
                 <Table.Th />
@@ -228,6 +254,9 @@ export function HerdProfileList(): ReactElement {
                 <Table.Tr key={profile.id}>
                   <Table.Td>{profile.name}</Table.Td>
                   <Table.Td>{profileSource(profile)}</Table.Td>
+                  <Table.Td>
+                    {profile.user_name || profile.user_email || `User #${profile.user_id}`}
+                  </Table.Td>
                   <Table.Td>{profile.description || "-"}</Table.Td>
                   <Table.Td>
                     {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "-"}
