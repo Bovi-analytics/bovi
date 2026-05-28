@@ -4,7 +4,17 @@ import type { ReactElement } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Avatar, Badge, Button, Group, Select, Stack, Text } from "@mantine/core";
+import {
+  Avatar,
+  Badge,
+  Button,
+  Group,
+  Menu,
+  Select,
+  Stack,
+  Text,
+  UnstyledButton,
+} from "@mantine/core";
 import { LogIn, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -44,65 +54,71 @@ export function Sidebar(): ReactElement {
         />
         <h2 className="text-base font-semibold text-foreground">Lactation Curves</h2>
         {user && (
-          <Stack gap={8} className="rounded-md border border-border/50 bg-background/50 p-2">
-            <Group gap="xs" align="center" wrap="nowrap">
-              <Avatar size={34} radius="xl" color="blue">
-                {getUserInitials(user)}
-              </Avatar>
-              <div className="min-w-0">
-                <Text size="xs" fw={700} className="truncate text-foreground">
-                  {getUserDisplayName(user)}
-                </Text>
-                {user.email && (
-                  <Text size="xs" c="dimmed" className="truncate">
-                    {user.email}
+          <Menu position="bottom-start" width={240} shadow="md" closeOnItemClick={false}>
+            <Menu.Target>
+              <UnstyledButton
+                aria-label="Open user menu"
+                className="w-fit rounded-full outline-none ring-primary/40 transition hover:ring-2 focus-visible:ring-2"
+              >
+                <Avatar size={38} radius="xl" color="blue">
+                  {getUserInitials(user)}
+                </Avatar>
+              </UnstyledButton>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Stack gap={8} className="p-2">
+                <div className="min-w-0">
+                  <Text size="sm" fw={700} className="truncate text-foreground">
+                    {getUserDisplayName(user)}
                   </Text>
+                  {user.email && (
+                    <Text size="xs" c="dimmed" className="truncate">
+                      {user.email}
+                    </Text>
+                  )}
+                </div>
+                <Group gap={6}>
+                  {user.is_admin && (
+                    <Badge size="xs" variant="light" color="green">
+                      Admin
+                    </Badge>
+                  )}
+                  {selectedOrganization?.role && (
+                    <Badge size="xs" variant="light" color="blue">
+                      {selectedOrganization.role}
+                    </Badge>
+                  )}
+                </Group>
+                <Text size="xs" c="dimmed" className="line-clamp-2">
+                  {selectedOrganizationLabel}
+                </Text>
+                {organizationOptions.length > 0 && (
+                  <Select
+                    label="Organization"
+                    size="xs"
+                    data={organizationOptions}
+                    value={selectedOrganizationId === null ? null : String(selectedOrganizationId)}
+                    onChange={(value) => {
+                      if (value === "all") {
+                        setSelectedOrganizationId("all");
+                      } else if (value) {
+                        setSelectedOrganizationId(Number.parseInt(value, 10));
+                      }
+                    }}
+                    comboboxProps={{ withinPortal: false }}
+                  />
                 )}
-              </div>
-            </Group>
-            <Group gap={6}>
-              {user.is_admin && (
-                <Badge size="xs" variant="light" color="green">
-                  Admin
-                </Badge>
-              )}
-              {selectedOrganization?.role && (
-                <Badge size="xs" variant="light" color="blue">
-                  {selectedOrganization.role}
-                </Badge>
-              )}
-            </Group>
-            <Text size="xs" c="dimmed" className="line-clamp-2">
-              {selectedOrganizationLabel}
-            </Text>
-          </Stack>
-        )}
-        {organizationOptions.length > 0 && (
-          <Select
-            aria-label="Organization"
-            size="xs"
-            data={organizationOptions}
-            value={selectedOrganizationId === null ? null : String(selectedOrganizationId)}
-            onChange={(value) => {
-              if (value === "all") {
-                setSelectedOrganizationId("all");
-              } else if (value) {
-                setSelectedOrganizationId(Number.parseInt(value, 10));
-              }
-            }}
-            comboboxProps={{ withinPortal: false }}
-          />
-        )}
-        {user && (
-          <Button
-            size="xs"
-            variant="subtle"
-            color="gray"
-            leftSection={<LogOut size={13} />}
-            onClick={() => void logout()}
-          >
-            Sign out
-          </Button>
+              </Stack>
+              <Menu.Divider />
+              <Menu.Item
+                color="gray"
+                leftSection={<LogOut size={14} />}
+                onClick={() => void logout()}
+              >
+                Sign out
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
         )}
         {!user && (
           <Button
