@@ -6,7 +6,11 @@ vi.mock("@/lib/auth/service", () => ({
 }));
 
 import { handleUnauthorizedResponse } from "@/lib/auth/service";
-import { downloadChallengeExport, listChallenges } from "./api-client";
+import {
+  downloadChallengeExport,
+  listAdminSubmissionsOverview,
+  listChallenges,
+} from "./api-client";
 
 describe("api-client authentication", () => {
   beforeEach(() => {
@@ -35,16 +39,13 @@ describe("api-client authentication", () => {
 
     await listChallenges(1);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/bovi/benchmark/challenges?organization_id=1",
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer test-token",
-        },
-      }
-    );
+    expect(fetchMock).toHaveBeenCalledWith("/api/bovi/benchmark/challenges?organization_id=1", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer test-token",
+      },
+    });
   });
 
   it("redirects through auth handler on 401 responses", async () => {
@@ -79,6 +80,49 @@ describe("api-client authentication", () => {
     );
   });
 
+  it("sends admin overview filters to the admin endpoint", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        kpis: {
+          total_items: 0,
+          organizations: 0,
+          users: 0,
+          benchmark_submissions: 0,
+          benchmark_challenges: 0,
+          herd_dataset_uploads: 0,
+          herd_profiles: 0,
+          failed_items: 0,
+          latest_activity_at: null,
+        },
+        by_organization: [],
+        by_category: [],
+        items: [],
+      })
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await listAdminSubmissionsOverview({
+      organizationId: "all",
+      category: "benchmark_submission",
+      q: "farm",
+      from: "2026-05-01",
+      to: "2026-05-28",
+      sort: "organization",
+      direction: "asc",
+      limit: 50,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/bovi/admin/submissions-overview?organization_id=all&category=benchmark_submission&q=farm&from=2026-05-01&to=2026-05-28&sort=organization&direction=asc&limit=50",
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer test-token",
+        },
+      }
+    );
+  });
 
   it("downloads challenge exports with bearer token and response filename", async () => {
     const click = vi.fn();
@@ -88,10 +132,11 @@ describe("api-client authentication", () => {
     const documentMock = { createElement: vi.fn(() => anchor) };
     globalThis.document = documentMock as unknown as Document;
     globalThis.URL = { createObjectURL, revokeObjectURL } as unknown as typeof URL;
-    const fetchMock = vi.fn(async () =>
-      new Response("cow_id\n1", {
-        headers: { "Content-Disposition": 'attachment; filename="challenge_7.csv"' },
-      })
+    const fetchMock = vi.fn(
+      async () =>
+        new Response("cow_id\n1", {
+          headers: { "Content-Disposition": 'attachment; filename="challenge_7.csv"' },
+        })
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 

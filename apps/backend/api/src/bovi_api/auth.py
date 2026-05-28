@@ -11,6 +11,7 @@ from fastapi import Depends, HTTPException, Request, status
 from jwt import PyJWKClient
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
@@ -193,7 +194,24 @@ async def _ensure_local_user(
             last_login_at=now,
         )
         session.add(user)
-        await session.flush()
+        try:
+            await session.flush()
+        except IntegrityError:
+            await session.rollback()
+            result = await session.execute(
+                select(User).where(
+                    User.entra_tenant_id == identity.entra_tenant_id,
+                    User.entra_oid == identity.entra_oid,
+                )
+            )
+            user = result.scalar_one_or_none()
+            if user is None:
+                raise
+            user.email = identity.email
+            user.name = identity.name
+            user.account_type = identity.account_type
+            user.role = primary_role
+            user.last_login_at = now
     else:
         user.email = identity.email
         user.name = identity.name

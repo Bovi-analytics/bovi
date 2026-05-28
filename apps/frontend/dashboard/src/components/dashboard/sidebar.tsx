@@ -50,7 +50,7 @@ export function Sidebar(): ReactElement {
 
       {/* Navigation */}
       <nav className="mt-6 flex flex-col gap-1">
-        {DASHBOARD_NAVIGATION.map((item) => {
+        {DASHBOARD_NAVIGATION.filter((item) => !item.adminOnly || user?.is_admin).map((item) => {
           const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
 
