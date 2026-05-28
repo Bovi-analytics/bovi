@@ -2,10 +2,8 @@
 # Utility functions
 Input validation and tabular schema normalization for lactation curve workflows.
 
-This module has two small utilities that are used by
-`lactationcurve.fitting.lactation_curve_fitting` and by
-'lactationcurve.characteristics.lactation_curve_characteristics'
-to ensure consistent input handling:
+This module has two small utilities that are used in many of the fitting and
+characteristic functions, to ensure consistent input handling:
 
 1) `validate_and_prepare_inputs` consolidates routine checks for DIM and test‑day
    milk records, normalizes optional options (e.g., fitting method, breed, priors),
