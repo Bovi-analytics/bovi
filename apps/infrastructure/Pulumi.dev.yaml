@@ -7,3 +7,4 @@ config:
   bovi:resourceGroup: Bovi-Analytics-Tools
   bovi:apiImage: ghcr.io/bovi-analytics/bovi-api:dev-latest
   bovi:dashboardImage: ghcr.io/bovi-analytics/bovi-dashboard:dev-latest
+  bovi:authDisabled: true

@@ -68,10 +68,12 @@ subscription_id = config.require("subscriptionId")
 resource_group_name = config.require("resourceGroup")
 milkbot_key = config.get_secret("milkbotKey") or ""
 azure_ad_client_id = config.get("azureAdClientId") or os.getenv("AZURE_AD_CLIENT_ID") or ""
+auth_disabled = config.get_bool("authDisabled") or False
+auth_disabled_value = str(auth_disabled).lower()
 azure_ad_api_scope = (
     config.get("azureAdApiScope")
     or os.getenv("NEXT_PUBLIC_AZURE_AD_API_SCOPE")
-    or f"api://{azure_ad_client_id}/access_as_user"
+    or (f"api://{azure_ad_client_id}/access_as_user" if azure_ad_client_id else "")
 )
 autoencoder_model_version = (
     os.getenv("AUTOENCODER_MODEL_VERSION") or config.get("autoencoderModelVersion") or "v15"
@@ -312,7 +314,8 @@ api_result = create_container_app(
             "BOVI_ENV": stack,
             "UPLOAD_BLOB_PREFIX": "bovi/uploads",
             "AZURE_AD_CLIENT_ID": azure_ad_client_id,
-            "AUTH_DISABLED": "false",
+            "AUTH_DISABLED": auth_disabled_value,
+            "DEV_MODE": auth_disabled_value,
             "UPLOAD_MAX_BYTES": str(500 * 1024 * 1024),
         },
         secret_env={"STORAGE_ACCOUNT_KEY_ICAR": icar_storage_account_key},
@@ -370,7 +373,8 @@ dashboard_result = create_stateless_container_app(
             "NEXT_PUBLIC_API_URL": api_result.url,
             "NEXT_PUBLIC_AZURE_AD_CLIENT_ID": azure_ad_client_id,
             "NEXT_PUBLIC_AZURE_AD_API_SCOPE": azure_ad_api_scope,
-            "NEXT_PUBLIC_AUTH_DISABLED": "false",
+            "NEXT_PUBLIC_AUTH_DISABLED": auth_disabled_value,
+            "NEXT_PUBLIC_DEV_MODE": auth_disabled_value,
         },
         tags=tags,
     ),
