@@ -157,6 +157,7 @@ def test_csv_preview_rejects_large_file_with_clear_message(client):
 
     response = client.post(
         "/herd-profiles/csv-preview",
+        data={"organization_id": "1"},
         files={"file": ("oversized.csv", SAMPLE_CSV, "text/csv")},
     )
 
