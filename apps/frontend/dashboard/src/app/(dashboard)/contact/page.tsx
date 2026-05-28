@@ -10,51 +10,8 @@ import {
   ThemeIcon,
   Title,
 } from "@mantine/core";
-import { ExternalLink, Github, Globe, Handshake, Mail } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-
-interface ContactLink {
-  readonly label: string;
-  readonly description: string;
-  readonly value: string;
-  readonly href: string;
-  readonly icon: LucideIcon;
-  readonly external?: boolean;
-}
-
-const CONTACT_LINKS: readonly ContactLink[] = [
-  {
-    label: "GitHub issues",
-    description: "Report bugs or request improvements in the public project tracker.",
-    value: "github.com/Bovi-analytics/bovi/issues",
-    href: "https://github.com/Bovi-analytics/bovi/issues",
-    icon: Github,
-    external: true,
-  },
-  {
-    label: "Email",
-    description: "Contact the maintainers directly for questions that do not fit an issue.",
-    value: "mbv32@cornell.edu",
-    href: "mailto:mbv32@cornell.edu",
-    icon: Mail,
-  },
-  {
-    label: "Bovi Analytics",
-    description: "Visit the broader Bovi Analytics website.",
-    value: "bovi-analytics.org",
-    href: "https://bovi-analytics.org/",
-    icon: Globe,
-    external: true,
-  },
-  {
-    label: "ICAR",
-    description: "Learn more about the International Committee for Animal Recording.",
-    value: "icar.org",
-    href: "https://www.icar.org/",
-    icon: Handshake,
-    external: true,
-  },
-];
+import { ExternalLink, Handshake } from "lucide-react";
+import { CONTACT_LINKS } from "./contact-links";
 
 export default function ContactPage(): ReactElement {
   return (
