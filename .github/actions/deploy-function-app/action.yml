@@ -1,0 +1,29 @@
+name: Deploy Function App
+description: Publish an Azure Function App and tolerate transient trigger sync errors after successful upload.
+
+inputs:
+  app-dir:
+    description: Function App directory.
+    required: true
+  function-app-name:
+    description: Azure Function App name.
+    required: true
+  publish-log:
+    description: Publish log path.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      working-directory: ${{ inputs.app-dir }}
+      run: |
+        set -euo pipefail
+        if func azure functionapp publish "${{ inputs.function-app-name }}" --python 2>&1 | tee "${{ inputs.publish-log }}"; then
+          exit 0
+        fi
+        if grep -q "Deployment successful" "${{ inputs.publish-log }}" && grep -q "Error calling sync triggers" "${{ inputs.publish-log }}"; then
+          echo "Upload succeeded but trigger sync failed; continuing to explicit trigger check."
+          exit 0
+        fi
+        exit 1

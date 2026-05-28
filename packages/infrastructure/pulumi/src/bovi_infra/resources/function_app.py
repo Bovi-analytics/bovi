@@ -1,5 +1,6 @@
 """Function App resources: App Service Plan and Azure Function Apps."""
 
+import json
 from dataclasses import dataclass, field
 
 import pulumi
@@ -43,7 +44,7 @@ class FunctionAppArgs:
     server_farm_id: pulumi.Input[str]
     storage_connection_string: pulumi.Input[str]
     app_insights_connection_string: pulumi.Input[str]
-    cors_origins: list[str] = field(default_factory=list)
+    cors_origins: list[pulumi.Input[str]] = field(default_factory=list)
     extra_app_settings: list[web.NameValuePairArgs] = field(default_factory=list)
     tags: ResourceTags | None = None
 
@@ -66,6 +67,15 @@ def create_function_app(name: str, args: FunctionAppArgs) -> FunctionAppResult:
         ),
         *args.extra_app_settings,
     ]
+    if args.cors_origins:
+        app_settings.append(
+            web.NameValuePairArgs(
+                name="CORS_ORIGINS",
+                value=pulumi.Output.all(*args.cors_origins).apply(
+                    lambda origins: json.dumps(origins)
+                ),
+            )
+        )
     cors = web.CorsSettingsArgs(allowed_origins=["https://portal.azure.com", *args.cors_origins])
     func_app = web.WebApp(
         name,

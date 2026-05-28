@@ -61,6 +61,8 @@ what makes this value runtime-configurable.
 
 ## Production Build
 
+GitHub Actions builds the deployed dashboard image from this package.
+
 From this directory:
 
 ```bash

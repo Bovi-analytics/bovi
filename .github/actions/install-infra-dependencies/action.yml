@@ -1,0 +1,14 @@
+name: Install infrastructure dependencies
+description: Install Pulumi infrastructure dependencies with uv.
+
+inputs:
+  infra-dir:
+    description: Infrastructure project directory.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      working-directory: ${{ inputs.infra-dir }}
+      run: uv sync

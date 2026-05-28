@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import uuid
 import warnings
-from pathlib import Path
+from dataclasses import dataclass
+from typing import Any
 
 # MLflow emits a UserWarning about `Any` type hints from its OWN internal
 # response schemas during import. There's no way for us to make those hints
@@ -31,11 +33,11 @@ from bovi_core.ml import create_model  # noqa: E402
 from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.timeseries import ImputationTransform  # noqa: E402
-from bovi_core.utils.path_utils import get_project_root, get_run_config_path  # noqa: E402
 from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
 from lactation_autoencoder.dataloaders import LactationDataset  # noqa: E402
+from model_assets import ModelAssetError, ensure_model_assets  # noqa: E402
 from schemas import (  # noqa: E402
     AutoencoderBatchRequest,
     AutoencoderBatchResponse,
@@ -47,23 +49,6 @@ from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 
 settings: Settings = get_settings()
 logger = logging.getLogger("lactation_autoencoder")
-
-# ---------------------------------------------------------------------------
-# Model startup (loaded once at module level)
-# ---------------------------------------------------------------------------
-
-project_root = Path(get_project_root(project_name="bovi"))
-config = Config(
-    experiment_name="lactation_autoencoder",
-    config_file_path=get_run_config_path(
-        str(project_root),
-        "lactation_autoencoder",
-        root_dir_name="models",
-    ),
-    project_name="bovi",
-)
-model = create_model(config, "autoencoder")
-transforms = TransformRegistry.from_config(config.experiment.dataloaders.inference.transforms)
 
 app = FastAPI(
     title="Lactation Autoencoder",
@@ -129,8 +114,53 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class ModelRuntime:
+    """Loaded autoencoder runtime objects."""
+
+    config: Config
+    model: Any
+    transforms: dict[str, object]
+
+
+_model_runtime: ModelRuntime | None = None
+_model_runtime_lock = threading.Lock()
+
+
+@app.exception_handler(ModelAssetError)
+async def model_asset_error_handler(request: Request, exc: ModelAssetError) -> JSONResponse:
+    """Return a clear service-unavailable error when model assets are missing."""
+    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+    logger.error("Model asset error | request_id=%s | %s", request_id, exc)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": str(exc), "request_id": request_id},
+    )
+
+
+def _get_model_runtime() -> ModelRuntime:
+    """Load the model lazily so Azure Functions can index HTTP routes."""
+    global _model_runtime
+    if _model_runtime is None:
+        with _model_runtime_lock:
+            if _model_runtime is None:
+                asset_paths = ensure_model_assets(settings)
+                config = Config(
+                    experiment_name="lactation_autoencoder",
+                    config_file_path=str(asset_paths.config_path),
+                    project_file_path=str(asset_paths.project_root / "pyproject.toml"),
+                )
+                model = create_model(config, "autoencoder")
+                transforms = TransformRegistry.from_config(
+                    config.experiment.dataloaders.inference.transforms
+                )
+                _model_runtime = ModelRuntime(config=config, model=model, transforms=transforms)
+    return _model_runtime
+
+
 def _build_transforms(
     imputation_method: str,
+    transforms: dict[str, object],
 ) -> list[object]:
     """Build transform list, swapping imputation method if needed.
 
@@ -172,22 +202,24 @@ def _predict_single(
         Prediction response with 304-day milk yields.
 
     """
-    data: dict[str, object] = request.model_dump()
+    data: dict[str, object] = request.model_dump(exclude={"dim", "milkrecordings"})
+    data["milk"] = request.model_milk_input()
 
     # Default events if not provided
     if data.get("events") is None:
         data["events"] = ["calving"] + ["pad"] * 303
 
     # Build transform list (swap imputation method if needed)
-    transform_list = _build_transforms(request.imputation_method)
+    runtime = _get_model_runtime()
+    transform_list = _build_transforms(request.imputation_method, runtime.transforms)
 
     # Same pipeline as the notebook: DictSource → TransformedSource → LactationDataset
     dict_source = DictSource([data])
     transformed = TransformedSource(dict_source, transform_list)
-    dataset = LactationDataset(source=transformed, config=config)
+    dataset = LactationDataset(source=transformed, config=runtime.config)
     features = dataset[0]["features"]
 
-    result = model.predict(features, return_format="rich")
+    result = runtime.model.predict(features, return_format="rich")
 
     return AutoencoderPredictResponse(
         predictions=result.predictions.tolist(),
@@ -203,6 +235,12 @@ def _predict_single(
 @app.get("/")
 def health() -> dict[str, str]:
     """Health check endpoint."""
+    return {"status": "ok"}
+
+
+@app.get("/health")
+def health_check() -> dict[str, str]:
+    """Health check endpoint for platform probes."""
     return {"status": "ok"}
 
 

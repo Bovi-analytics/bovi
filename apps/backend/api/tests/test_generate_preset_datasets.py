@@ -54,7 +54,7 @@ def test_generator_writes_presets_to_canonical_blob_prefix(monkeypatch):
         lambda conn_str: FakeServiceClient(),
     )
     monkeypatch.setenv("CONNECTION_STRING", "UseDevelopmentStorage=true")
-    monkeypatch.setenv("STORAGE_ACCOUNT_CONTAINER_ICAR", "icar")
+    monkeypatch.setenv("STORAGE_ACCOUNT_CONTAINER_ICAR", "test-container")
 
     generator.main(dry_run=False)
 

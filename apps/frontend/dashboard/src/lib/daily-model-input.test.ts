@@ -1,10 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { EXAMPLE_AUTOENCODER_DATA } from "../data/example-autoencoder";
-import { DAILY_MODEL_INPUT_DAYS, prepareDailyModelInput } from "./daily-model-input";
+import {
+  DAILY_MODEL_INPUT_DAYS,
+  prepareDailyModelInput,
+  prepareObservedDailyModelInput,
+  preparePeriodicModelInput,
+} from "./daily-model-input";
 
 describe("prepareDailyModelInput", () => {
   test("uses the full daily model horizon instead of sampled test-day points", () => {
-    const partialWithGaps = EXAMPLE_AUTOENCODER_DATA.find((data) => data.id === "partial-with-gaps");
+    const partialWithGaps = EXAMPLE_AUTOENCODER_DATA.find(
+      (data) => data.id === "partial-with-gaps"
+    );
 
     expect(partialWithGaps).toBeDefined();
 
@@ -14,13 +21,17 @@ describe("prepareDailyModelInput", () => {
     });
 
     expect(result.dim).toHaveLength(DAILY_MODEL_INPUT_DAYS);
-    expect(result.dim).toEqual(Array.from({ length: DAILY_MODEL_INPUT_DAYS }, (_, index) => index + 1));
+    expect(result.dim).toEqual(
+      Array.from({ length: DAILY_MODEL_INPUT_DAYS }, (_, index) => index + 1)
+    );
     expect(result.milk).toHaveLength(DAILY_MODEL_INPUT_DAYS);
     expect(result.milk).not.toHaveLength(7);
   });
 
   test("can include all source days when a longer horizon is requested", () => {
-    const partialWithGaps = EXAMPLE_AUTOENCODER_DATA.find((data) => data.id === "partial-with-gaps");
+    const partialWithGaps = EXAMPLE_AUTOENCODER_DATA.find(
+      (data) => data.id === "partial-with-gaps"
+    );
 
     expect(partialWithGaps).toBeDefined();
 
@@ -71,5 +82,34 @@ describe("prepareDailyModelInput", () => {
     });
 
     expect(result.milk).toEqual([10, 10, 12, 14, 16, 16]);
+  });
+
+  test("keeps only observed values for classical daily model input", () => {
+    const result = prepareObservedDailyModelInput([12, null, 18, null, 20]);
+
+    expect(result.dim).toEqual([1, 3, 5]);
+    expect(result.milk).toEqual([12, 18, 20]);
+    expect(result.milk).not.toContain(0);
+    expect(result.missingCount).toBe(2);
+  });
+
+  test("does not fabricate zero yields when all daily values are missing", () => {
+    const result = prepareObservedDailyModelInput([null, null, null]);
+
+    expect(result.dim).toEqual([]);
+    expect(result.milk).toEqual([]);
+    expect(result.missingCount).toBe(3);
+  });
+
+  test("projects periodic records onto the full autoencoder horizon with zero gaps", () => {
+    const result = preparePeriodicModelInput([1, 3, 304], [20, 25, 18]);
+
+    expect(result.dim).toHaveLength(DAILY_MODEL_INPUT_DAYS);
+    expect(result.milk).toHaveLength(DAILY_MODEL_INPUT_DAYS);
+    expect(result.milk[0]).toBe(20);
+    expect(result.milk[1]).toBe(0);
+    expect(result.milk[2]).toBe(25);
+    expect(result.milk[303]).toBe(18);
+    expect(result.missingCount).toBe(301);
   });
 });

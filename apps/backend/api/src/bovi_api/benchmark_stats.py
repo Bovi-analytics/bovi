@@ -62,7 +62,7 @@ def calculate_comparison_stats_v2(
     Args:
         challenger_yields: 305-day yields from the challenger model.
         benchmark_yields: 305-day yields from the benchmark model (server-run).
-        actual_yields: ground-truth ALY (daily-meter cumulative).
+        actual_yields: ground-truth ALY (daily milk meter cumulative).
         parities: {cow_id: parity_int} for grouping.
 
     Returns:

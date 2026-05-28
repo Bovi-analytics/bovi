@@ -19,8 +19,32 @@ sync:
 lint:
     uv run ruff check --fix && uv run ruff format
 
+typecheck:
+    uv run python scripts/typecheck_affected.py
+    uv run python scripts/check_frontend_affected.py
+
+typecheck-affected base="origin/main":
+    uv run python scripts/typecheck_affected.py --base "{{base}}"
+    uv run python scripts/check_frontend_affected.py --base "{{base}}"
+
+typecheck-affected-dry-run base="origin/main":
+    uv run python scripts/typecheck_affected.py --base "{{base}}" --dry-run
+    uv run python scripts/check_frontend_affected.py --base "{{base}}" --dry-run
+
 test:
-    uv run pytest -v
+    uv run python scripts/test_affected.py
+
+test-affected base="origin/main":
+    uv run python scripts/test_affected.py --base {{base}}
+
+test-affected-dry-run base="origin/main":
+    uv run python scripts/test_affected.py --base {{base}} --dry-run
+
+test-fast:
+    uv run python scripts/test_affected.py --fast
+
+test-all:
+    uv run pytest -c pyproject.toml -v
 
 # ── Run services ─────────────────────────────────────────────
 check-ports:

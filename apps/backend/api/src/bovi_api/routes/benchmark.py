@@ -64,6 +64,19 @@ YIELD_ESTIMATORS = {
 }
 ALL_MODELS = CURVE_MODELS | set(YIELD_ESTIMATORS) | {"autoencoder"}
 
+_ICAR_DATASET_SOURCES = [
+    {
+        "role": "test_day_records",
+        "label": "Test-day records",
+        "filename": "TestDataSet.csv",
+    },
+    {
+        "role": "actual_yields",
+        "label": "Ground-truth ALY",
+        "filename": "ActualMilkYields.csv",
+    },
+]
+
 ChallengerOrBenchmark = Literal[
     "wood",
     "wilmink",
@@ -98,7 +111,7 @@ async def _repair_preset_challenge_if_needed(
     session: AsyncSession,
     settings: Settings,
 ) -> bool:
-    """Refresh legacy ICAR preset challenges that stored bad concatenated ALY values."""
+    """Refresh legacy reference-dataset challenges that stored bad concatenated ALY values."""
     if challenge.dataset != "icar" or challenge.source != "preset":
         return False
     if _actual_yields_are_plausible(challenge.actual_yields):
@@ -109,7 +122,7 @@ async def _repair_preset_challenge_if_needed(
     if not preset.actual_yields:
         raise HTTPException(
             status_code=500,
-            detail="ICAR preset is missing actual_yields - regenerate the preset data.",
+            detail="Reference dataset is missing actual_yields - regenerate the preset data.",
         )
 
     challenge.cow_metadata = {
@@ -137,6 +150,65 @@ def _recalculate_submission_stats(submission: Submission, challenge: Challenge) 
         actual_yields=challenge.actual_yields or {},
         parities=parities,
     )
+
+
+def _dataset_stats(cow_metadata: dict | None, actual_yields: dict | None) -> dict[str, int | None]:
+    """Build the compact dataset summary used by benchmark list/detail views."""
+    cow_metadata = cow_metadata or {}
+    actual_yields = actual_yields or {}
+    herd_ids = {
+        meta.get("herd_id")
+        for meta in cow_metadata.values()
+        if isinstance(meta, dict) and meta.get("herd_id") not in (None, "")
+    }
+    return {
+        "lactation_count": len(cow_metadata),
+        "test_day_row_count": sum(
+            len(meta.get("dim", [])) for meta in cow_metadata.values() if isinstance(meta, dict)
+        ),
+        "actual_yield_count": len(actual_yields),
+        "herd_count": len(herd_ids) if herd_ids else None,
+    }
+
+
+def _upload_dataset_sources(
+    test_day_filename: str | None = None,
+    actual_yields_filename: str | None = None,
+) -> list[dict[str, str]]:
+    return [
+        {
+            "role": "test_day_records",
+            "label": "Test-day records",
+            "filename": test_day_filename or "Uploaded test-day CSV",
+        },
+        {
+            "role": "actual_yields",
+            "label": "Ground-truth ALY",
+            "filename": actual_yields_filename or "Uploaded actual-yields CSV",
+        },
+    ]
+
+
+def _fallback_dataset_sources(challenge: Challenge) -> list[dict[str, str]]:
+    if challenge.dataset == "icar" and challenge.source == "preset":
+        return _ICAR_DATASET_SOURCES
+    if challenge.dataset in {"upload", "saved_upload"}:
+        return _upload_dataset_sources()
+    return [
+        {
+            "role": "dataset",
+            "label": "Dataset",
+            "filename": challenge.name or challenge.dataset,
+        }
+    ]
+
+
+def _with_dataset_metadata(challenge: Challenge) -> Challenge:
+    if not challenge.dataset_sources:
+        challenge.dataset_sources = _fallback_dataset_sources(challenge)
+    if not challenge.dataset_stats:
+        challenge.dataset_stats = _dataset_stats(challenge.cow_metadata, challenge.actual_yields)
+    return challenge
 
 
 # ---------------------------------------------------------------------------
@@ -198,14 +270,14 @@ async def _call_curve_characteristic(
     settings: Settings,
     options: MilkBotRunOptions | None = None,
 ) -> dict[str, float]:
-    """Per-cow POST /characteristic - failed cows are omitted."""
+    """Call batch POST /characteristic/batch - failed cows are omitted."""
     client = _get_client()
-    url = f"{settings.lactation_curves_url}/characteristic"
-
-    async def one(cow_id: str, meta: dict) -> tuple[str, float | None]:
+    items: list[dict] = []
+    for cow_id, meta in cow_metadata.items():
         if len(meta.get("dim", [])) < 2:
-            return cow_id, None
-        payload = {
+            continue
+        item = {
+            "id": cow_id,
             "dim": meta["dim"],
             "milkrecordings": meta["milk_kg"],
             "model": model,
@@ -214,36 +286,42 @@ async def _call_curve_characteristic(
             "lactation_length": 305,
         }
         if model == "milkbot" and options is not None:
-            payload.update(
+            item.update(
                 {
                     "fitting": options.fitting,
                     "breed": options.breed,
                     "continent": options.continent,
                 }
             )
-        try:
-            resp = await client.post(
-                url,
-                content=json.dumps(payload),
-                headers={"Content-Type": "application/json"},
-            )
-            resp.raise_for_status()
-        except httpx.HTTPError:
-            return cow_id, None
-        data = resp.json()
-        val = data.get("value")
-        if val is None:
-            return cow_id, None
-        return cow_id, float(val)
+        items.append(item)
 
-    sem = asyncio.Semaphore(20)
+    if not items:
+        return {}
 
-    async def guarded(cow_id: str, meta: dict):
-        async with sem:
-            return await one(cow_id, meta)
+    try:
+        resp = await client.post(
+            f"{settings.lactation_curves_url}/characteristic/batch",
+            content=json.dumps({"items": items}),
+            headers={"Content-Type": "application/json"},
+            timeout=300.0,
+        )
+        resp.raise_for_status()
+    except httpx.RequestError as exc:
+        logger.exception("Curve characteristic batch proxy error: %s", exc)
+        raise HTTPException(
+            status_code=502, detail="Upstream lactation-curves service unavailable."
+        )
+    except httpx.HTTPStatusError:
+        return {}
 
-    results = await asyncio.gather(*(guarded(cid, m) for cid, m in cow_metadata.items()))
-    return {cid: val for cid, val in results if val is not None}
+    out: dict[str, float] = {}
+    for item in resp.json().get("results", []):
+        cow_id = item.get("id")
+        val = item.get("value")
+        if cow_id is None or val is None:
+            continue
+        out[str(cow_id)] = float(val)
+    return out
 
 
 async def _call_autoencoder(
@@ -318,6 +396,14 @@ class ChallengeCreatePresetBody(BaseModel):
     organization_id: int
 
 
+class ChallengeCreateSavedDatasetBody(BaseModel):
+    name: str
+    cow_metadata: dict[str, dict]
+    actual_yields: dict[str, float]
+    dataset_sources: list[dict] | None = None
+    organization_id: int
+
+
 @router.post("/challenges", response_model=ChallengeRead, status_code=201)
 async def create_challenge_preset(
     body: ChallengeCreatePresetBody,
@@ -325,7 +411,7 @@ async def create_challenge_preset(
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> Challenge:
-    """Create a preset-backed challenge (ICAR cohort with ground-truth ALY)."""
+    """Create a preset-backed challenge with ground-truth ALY."""
     loop = asyncio.get_running_loop()
     preset = await loop.run_in_executor(
         None, fetch_preset_cows, body.preset, "full", "all", settings
@@ -333,7 +419,7 @@ async def create_challenge_preset(
     if not preset.actual_yields:
         raise HTTPException(
             status_code=500,
-            detail="ICAR preset is missing actual_yields - regenerate the preset blob.",
+            detail="Reference dataset is missing actual_yields - regenerate the preset blob.",
         )
 
     cow_metadata: dict[str, dict] = {
@@ -356,12 +442,58 @@ async def create_challenge_preset(
         size="full",
         period="all",
         source="preset",
-        name=body.name or "ICAR cohort",
+        name=body.name or "Demo dataset",
         cow_metadata=cow_metadata,
         reference_yields=None,
         actual_yields=preset.actual_yields,
         user_id=current_user.id,
         organization_id=organization_id,
+        dataset_sources=_ICAR_DATASET_SOURCES,
+        dataset_stats=_dataset_stats(cow_metadata, preset.actual_yields),
+    )
+    session.add(challenge)
+    await session.commit()
+    await session.refresh(challenge)
+    return challenge
+
+
+@router.post("/challenges/saved-dataset", response_model=ChallengeRead, status_code=201)
+async def create_challenge_saved_dataset(
+    body: ChallengeCreateSavedDatasetBody,
+    current_user: CurrentUser = Depends(require_auth),
+    session: AsyncSession = Depends(get_session),
+) -> Challenge:
+    """Create a challenge from a previously parsed upload-backed benchmark dataset."""
+    if not body.cow_metadata:
+        raise HTTPException(status_code=422, detail="Saved dataset has no test-day records.")
+    if not body.actual_yields:
+        raise HTTPException(status_code=422, detail="Saved dataset has no actual yields.")
+
+    overlap = sum(1 for cid in body.cow_metadata if cid in body.actual_yields)
+    if overlap / len(body.cow_metadata) < 0.80:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Actual yields must cover at least 80% of lactations from the test-day data "
+                f"(got {overlap}/{len(body.cow_metadata)})."
+            ),
+        )
+    cow_metadata = {cid: m for cid, m in body.cow_metadata.items() if cid in body.actual_yields}
+    ensure_organization_access(current_user, body.organization_id)
+
+    challenge = Challenge(
+        dataset="saved_upload",
+        size="custom",
+        period="custom",
+        source="upload",
+        name=body.name,
+        cow_metadata=cow_metadata,
+        reference_yields=None,
+        actual_yields={cid: float(body.actual_yields[cid]) for cid in cow_metadata},
+        user_id=current_user.id,
+        organization_id=body.organization_id,
+        dataset_sources=body.dataset_sources or _upload_dataset_sources(),
+        dataset_stats=_dataset_stats(cow_metadata, body.actual_yields),
     )
     session.add(challenge)
     await session.commit()
@@ -450,7 +582,7 @@ async def create_challenge_upload(
         await session.commit()
         raise HTTPException(status_code=400, detail=f"actual-yields CSV: {exc}") from exc
 
-    # Coverage check: ALY must cover at least 80% of cows in the test-day file
+    # Coverage check: ALY must cover at least 80% of lactations in the test-day file
     overlap = sum(1 for cid in cow_metadata if cid in actual_yields)
     if not cow_metadata or overlap / len(cow_metadata) < 0.80:
         detail = (
@@ -491,6 +623,8 @@ async def create_challenge_upload(
         actual_yields={cid: actual_yields[cid] for cid in cow_metadata},
         user_id=current_user.id,
         organization_id=resolved_organization_id,
+        dataset_sources=_upload_dataset_sources(test_day_csv.filename, actual_yields_csv.filename),
+        dataset_stats=_dataset_stats(cow_metadata, actual_yields),
     )
     session.add(challenge)
     await session.flush()
@@ -556,7 +690,7 @@ async def list_challenges(
     statement = statement.order_by(sort_column.asc() if direction == "asc" else sort_column.desc())
     statement = statement.limit(100)
     result = await session.execute(statement)
-    return list(result.scalars().all())
+    return [_with_dataset_metadata(challenge) for challenge in result.scalars().all()]
 
 
 @router.get("/challenges/{challenge_id}", response_model=ChallengeDetail)
@@ -570,7 +704,7 @@ async def get_challenge(
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
     ensure_organization_access(current_user, challenge.organization_id)
-    return challenge
+    return _with_dataset_metadata(challenge)
 
 
 @router.get("/challenges/{challenge_id}/export")
@@ -587,12 +721,21 @@ async def export_challenge(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["cow_id", "herd_id", "parity", "dim", "milk_kg"])
+    include_herd_id = any(
+        meta.get("herd_id") not in (None, "") for meta in challenge.cow_metadata.values()
+    )
+    headers = ["TestId", "parity", "dim", "milk_kg"]
+    if include_herd_id:
+        headers.insert(1, "herd_id")
+    writer.writerow(headers)
     for cow_id, meta in challenge.cow_metadata.items():
         herd_id = meta.get("herd_id", "")
         parity = meta.get("parity", "")
         for d, m in zip(meta["dim"], meta["milk_kg"]):
-            writer.writerow([cow_id, herd_id, parity, d, m])
+            row = [cow_id, parity, d, m]
+            if include_herd_id:
+                row.insert(1, herd_id)
+            writer.writerow(row)
 
     content = output.getvalue().encode("utf-8")
     return Response(
@@ -954,7 +1097,9 @@ async def download_report(
         actual_yields=challenge.actual_yields or {},
         parities=parities,
         challenge_name=challenge.name or challenge.dataset,
-        challenge_source=challenge.source or challenge.dataset,
+        challenge_source="reference dataset"
+        if challenge.dataset == "icar" and challenge.source == "preset"
+        else challenge.source or challenge.dataset,
         submission_type=sub.submission_type,
         challenger_label=sub.model_type or "own method",
         benchmark_label=sub.benchmark_model or "tim",

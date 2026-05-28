@@ -1,0 +1,69 @@
+name: Pulumi up
+description: Run Pulumi up for the Bovi infrastructure stack.
+
+inputs:
+  stack-name:
+    description: Pulumi stack name.
+    required: true
+  work-dir:
+    description: Pulumi project directory.
+    required: true
+  cloud-url:
+    description: Pulumi backend URL.
+    required: true
+  pulumi-config-passphrase:
+    description: Pulumi config passphrase.
+    required: true
+  azure-storage-account-state:
+    description: Pulumi backend Azure storage account.
+    required: true
+  azure-storage-key:
+    description: Pulumi backend Azure storage key.
+    required: true
+  storage-account-name-icar:
+    description: ICAR source storage account name.
+    required: true
+  storage-account-key-icar:
+    description: ICAR source storage account key.
+    required: true
+  storage-account-container-icar:
+    description: ICAR source storage container.
+    required: true
+  ghcr-username:
+    description: GHCR username.
+    required: true
+  ghcr-token:
+    description: GHCR token.
+    required: true
+  autoencoder-model-version:
+    description: Autoencoder model version to configure.
+    required: true
+  api-image:
+    description: API image for infrastructure config.
+    required: true
+  dashboard-image:
+    description: Dashboard image for infrastructure config.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Pulumi up
+      uses: pulumi/actions@v6
+      with:
+        command: up
+        stack-name: ${{ inputs.stack-name }}
+        work-dir: ${{ inputs.work-dir }}
+        cloud-url: ${{ inputs.cloud-url }}
+      env:
+        PULUMI_CONFIG_PASSPHRASE: ${{ inputs.pulumi-config-passphrase }}
+        AZURE_STORAGE_ACCOUNT: ${{ inputs.azure-storage-account-state }}
+        AZURE_STORAGE_KEY: ${{ inputs.azure-storage-key }}
+        STORAGE_ACCOUNT_NAME_ICAR: ${{ inputs.storage-account-name-icar }}
+        STORAGE_ACCOUNT_KEY_ICAR: ${{ inputs.storage-account-key-icar }}
+        STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ inputs.storage-account-container-icar }}
+        GHCR_USERNAME: ${{ inputs.ghcr-username }}
+        GHCR_TOKEN: ${{ inputs.ghcr-token }}
+        AUTOENCODER_MODEL_VERSION: ${{ inputs.autoencoder-model-version }}
+        API_IMAGE: ${{ inputs.api-image }}
+        DASHBOARD_IMAGE: ${{ inputs.dashboard-image }}

@@ -2,12 +2,24 @@
 
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { Checkbox, Group, Modal, SegmentedControl, Select, Stack, Text } from "@mantine/core";
+import {
+  Anchor,
+  Checkbox,
+  Group,
+  Modal,
+  SegmentedControl,
+  Select,
+  Stack,
+  Text,
+  Tooltip,
+} from "@mantine/core";
 import { Info } from "lucide-react";
 import { ALL_MODELS, MODEL_METADATA } from "@/data/model-metadata";
 import { ModelInfo } from "@/app/(dashboard)/models/components/model-info";
 import type { MilkBotRunOptions, Model } from "@/types/api";
 import type { ModelMetadata } from "@/data/model-metadata";
+
+const MILKBOT_FITTING_DOCS_URL = "https://api.milkbot.com/#section/MilkBot-Fitting";
 
 interface ClassicalInputPanelProps {
   readonly selectedModels: Model[];
@@ -58,9 +70,27 @@ export function ClassicalInputPanel({
         </div>
         {showMilkBotOptions && (
           <Stack gap="xs" mt="md">
-            <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-              MilkBot fitting
-            </Text>
+            <Group gap={4} align="center">
+              <Text size="xs" fw={700} tt="uppercase" c="dimmed">
+                MilkBot fitting
+              </Text>
+              <Tooltip
+                label="The curve is fit using the MilkBot fitting API."
+                withArrow
+                multiline
+                w={240}
+              >
+                <Anchor
+                  href={MILKBOT_FITTING_DOCS_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="MilkBot fitting API documentation"
+                  className="inline-flex text-muted-foreground hover:text-foreground"
+                >
+                  <Info size={13} />
+                </Anchor>
+              </Tooltip>
+            </Group>
             <SegmentedControl
               size="xs"
               value={milkbotOptions.fitting}
@@ -103,7 +133,9 @@ export function ClassicalInputPanel({
               />
             </Group>
             <Text size="xs" c="dimmed">
-              Parity {parity} is sent with Bayesian MilkBot requests.
+              {parity >= 3
+                ? "Bayesian MilkBot uses the Parity 3+ prior for parity 3 and higher."
+                : `Parity ${parity} is sent with Bayesian MilkBot requests.`}
             </Text>
           </Stack>
         )}

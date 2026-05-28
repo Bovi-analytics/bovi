@@ -10,6 +10,7 @@ import {
   Code,
   FileInput,
   Group,
+  Select,
   Stack,
   Text,
   TextInput,
@@ -18,6 +19,7 @@ import {
 import { Info } from "lucide-react";
 import { useState } from "react";
 import { downloadChallengeExport } from "@/lib/api-client";
+import { MODEL_LABELS } from "@/lib/benchmark-dataset";
 import { useSubmitOwnMethod } from "../hooks/use-submissions";
 import type { BenchmarkModel, MilkBotRunOptions } from "@/types/api";
 import { BenchmarkModelPicker } from "./benchmark-model-picker";
@@ -27,11 +29,24 @@ interface Props {
   onSuccess: () => void;
 }
 
-const RESULTS_EXAMPLE_CSV = `cow_id,yield_305day
+const RESULTS_EXAMPLE_CSV = `TestId,LactationYield
 1001,8520
 1002,10450
-1003,9120
 `;
+
+const OTHER_METHOD_VALUE = "other";
+const CALCULATION_METHOD_OPTIONS = [
+  { value: "Test Interval Method", label: MODEL_LABELS.tim },
+  { value: "ISLC", label: MODEL_LABELS.islc },
+  { value: "Best Prediction", label: MODEL_LABELS.best_predict },
+  { value: "Wood", label: MODEL_LABELS.wood },
+  { value: "Wilmink", label: MODEL_LABELS.wilmink },
+  { value: "Ali-Schaeffer", label: MODEL_LABELS.ali_schaeffer },
+  { value: "Fischer", label: MODEL_LABELS.fischer },
+  { value: "MilkBot", label: MODEL_LABELS.milkbot },
+  { value: "Autoencoder", label: MODEL_LABELS.autoencoder },
+  { value: OTHER_METHOD_VALUE, label: "Other" },
+];
 
 function downloadText(content: string, filename: string): void {
   const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
@@ -53,8 +68,12 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
   });
   const [organization, setOrganization] = useState("");
   const [country, setCountry] = useState("");
-  const [calcMethod, setCalcMethod] = useState("");
+  const [calcMethod, setCalcMethod] = useState<string | null>(null);
+  const [otherCalcMethod, setOtherCalcMethod] = useState("");
   const { mutate, isPending, error } = useSubmitOwnMethod(challengeId);
+  const calculationMethod =
+    calcMethod === OTHER_METHOD_VALUE ? otherCalcMethod.trim() : (calcMethod ?? "");
+  const missingOtherMethod = calcMethod === OTHER_METHOD_VALUE && !otherCalcMethod.trim();
 
   function handleSubmit() {
     if (!file) return;
@@ -66,7 +85,7 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
           ...(benchmark === "milkbot" ? { benchmark_options: benchmarkOptions } : {}),
           organization,
           country,
-          calculation_method: calcMethod,
+          ...(calculationMethod ? { calculation_method: calculationMethod } : {}),
         },
       },
       { onSuccess }
@@ -90,7 +109,7 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
               <Text size="xs" c="dimmed">
                 Calculate 305-day yields with your own method, then upload the results.
               </Text>
-              <Tooltip label="Required columns: cow_id, yield_305day. UTF-8, comma or semicolon-separated.">
+              <Tooltip label="Required columns: TestId, LactationYield. UTF-8, comma or semicolon-separated.">
                 <ActionIcon size="xs" variant="subtle" color="gray">
                   <Info size={14} />
                 </ActionIcon>
@@ -125,20 +144,32 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
                 <Accordion.Panel>
                   <Stack gap={6}>
                     <Text size="xs">
-                      Required: <Code>cow_id</Code>, <Code>yield_305day</Code> (or{" "}
-                      <Code>total_305_yield</Code>). One row per cow.
+                      Required: <Code>TestId</Code>, <Code>LactationYield</Code>. One row per
+                      lactation.
                     </Text>
                     <Code block>{RESULTS_EXAMPLE_CSV}</Code>
                   </Stack>
                 </Accordion.Panel>
               </Accordion.Item>
             </Accordion>
-            <TextInput
+            <Select
               label="Calculation method"
-              description="e.g. 'in-house Wood', 'spreadsheet TIM'..."
+              description="Select the method used for the uploaded results."
+              data={CALCULATION_METHOD_OPTIONS}
               value={calcMethod}
-              onChange={(e) => setCalcMethod(e.target.value)}
+              onChange={setCalcMethod}
+              placeholder="Select method"
+              clearable
             />
+            {calcMethod === OTHER_METHOD_VALUE && (
+              <TextInput
+                label="Other method"
+                description="Please tell us which method was used."
+                value={otherCalcMethod}
+                onChange={(e) => setOtherCalcMethod(e.target.value)}
+                required
+              />
+            )}
           </Stack>
         </Card>
 
@@ -160,8 +191,8 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
               onMilkbotOptionsChange={setBenchmarkOptions}
             />
             <Text size="xs" c="dimmed">
-              Bovi runs this model server-side on the same cohort. Both your challenger and the
-              benchmark are then compared against the ground-truth ALY.
+              Bovi runs this model server-side on the same benchmark dataset. Both your challenger
+              and the benchmark are then compared against the ground-truth ALY.
             </Text>
           </Stack>
         </Card>
@@ -186,7 +217,7 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
         </Text>
       )}
 
-      <Button onClick={handleSubmit} loading={isPending} disabled={!file}>
+      <Button onClick={handleSubmit} loading={isPending} disabled={!file || missingOtherMethod}>
         Submit &amp; Compare
       </Button>
     </Stack>

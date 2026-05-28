@@ -4,20 +4,17 @@ import type { ReactElement } from "react";
 import { Badge, Button, Card, Group, Stack, Text } from "@mantine/core";
 import { useRouter } from "next/navigation";
 import type { ChallengeRead } from "@/types/api";
+import { getBenchmarkDatasetLabel } from "@/lib/benchmark-dataset";
+import { DatasetSummary } from "./dataset-summary";
 
 interface Props {
   challenge: ChallengeRead;
 }
 
-const DATASET_LABEL: Record<string, string> = {
-  icar: "Reference cohort",
-  upload: "Custom upload",
-};
-
 export function ChallengeCard({ challenge }: Props): ReactElement {
   const router = useRouter();
   const title = challenge.name ?? `Challenge #${challenge.id}`;
-  const datasetLabel = DATASET_LABEL[challenge.dataset] ?? challenge.dataset;
+  const datasetLabel = getBenchmarkDatasetLabel(challenge);
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Stack gap="xs">
@@ -33,6 +30,11 @@ export function ChallengeCard({ challenge }: Props): ReactElement {
           #{challenge.id}
           {challenge.created_at ? ` · ${new Date(challenge.created_at).toLocaleDateString()}` : ""}
         </Text>
+        <DatasetSummary
+          sources={challenge.dataset_sources}
+          stats={challenge.dataset_stats}
+          compact
+        />
         <Button size="xs" variant="light" onClick={() => router.push(`/benchmark/${challenge.id}`)}>
           View &amp; Submit
         </Button>

@@ -3,6 +3,7 @@ import { getBackendAccessToken, handleUnauthorizedResponse } from "@/lib/auth/se
 import { getApiBaseUrl } from "@/lib/env";
 import {
   AutoencoderPredictResponseSchema,
+  CharacteristicBatchResponseSchema,
   CharacteristicResponseSchema,
   FitResponseSchema,
   HerdProfileListSchema,
@@ -15,6 +16,7 @@ import {
   TestIntervalResponseSchema,
   YieldEstimateResponseSchema,
   ChallengeListSchema,
+  ChallengeDetailSchema,
   ChallengeReadSchema,
   SubmissionListSchema,
   SubmissionReadSchema,
@@ -24,6 +26,8 @@ import type {
   AutoencoderPredictResponse,
   BenchmarkModel,
   CharacteristicRequest,
+  CharacteristicBatchRequest,
+  CharacteristicBatchResponse,
   CharacteristicResponse,
   FitRequest,
   FitResponse,
@@ -44,6 +48,8 @@ import type {
   YieldEstimateRequest,
   YieldEstimateResponse,
   ChallengeCreatePreset,
+  ChallengeDatasetSource,
+  ChallengeDetail,
   ChallengeRead,
   SubmissionRead,
 } from "@/types/api";
@@ -279,6 +285,12 @@ export async function getCharacteristic(
   return apiFetch("/curves/characteristic", CharacteristicResponseSchema, request);
 }
 
+export async function getCharacteristicsBatch(
+  request: CharacteristicBatchRequest
+): Promise<CharacteristicBatchResponse> {
+  return apiFetch("/curves/characteristic/batch", CharacteristicBatchResponseSchema, request);
+}
+
 export async function predictMilkbot(request: PredictRequest): Promise<PredictResponse> {
   return apiFetch("/curves/predict", PredictResponseSchema, request);
 }
@@ -392,11 +404,15 @@ export async function getPresetHerdStats(
 
 export async function uploadHerdProfileCsv(
   file: File,
-  organizationId: number
+  organizationId: number,
+  columnMapping?: Record<string, string>
 ): Promise<HerdProfileUploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("organization_id", String(organizationId));
+  if (columnMapping) {
+    formData.append("column_mapping", JSON.stringify(columnMapping));
+  }
   const headers = await authHeaders();
   const response = await fetch(`${getApiBaseUrl()}/herd-profiles/csv-preview`, {
     method: "POST",
@@ -448,8 +464,24 @@ export async function listChallenges(
   );
 }
 
-export async function getChallenge(id: number): Promise<ChallengeRead> {
-  return apiGet(`/benchmark/challenges/${id}`, ChallengeReadSchema);
+export async function createChallengeFromSavedDataset(
+  name: string,
+  cowMetadata: ChallengeDetail["cow_metadata"],
+  actualYields: NonNullable<ChallengeDetail["actual_yields"]>,
+  organizationId: number,
+  datasetSources?: ChallengeDatasetSource[]
+): Promise<ChallengeRead> {
+  return apiFetch("/benchmark/challenges/saved-dataset", ChallengeReadSchema, {
+    name,
+    cow_metadata: cowMetadata,
+    actual_yields: actualYields,
+    organization_id: organizationId,
+    dataset_sources: datasetSources,
+  });
+}
+
+export async function getChallenge(id: number): Promise<ChallengeDetail> {
+  return apiGet(`/benchmark/challenges/${id}`, ChallengeDetailSchema);
 }
 
 export async function downloadChallengeExport(id: number): Promise<void> {

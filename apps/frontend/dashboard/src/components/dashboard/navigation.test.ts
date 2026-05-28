@@ -10,6 +10,7 @@ describe("DASHBOARD_NAVIGATION", () => {
       ["Curves", "/curves"],
       ["Benchmark", "/benchmark"],
       ["Organization", "/organization"],
+      ["Contact", "/contact"],
     ]);
   });
 });

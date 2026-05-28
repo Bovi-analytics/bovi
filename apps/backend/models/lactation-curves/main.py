@@ -381,6 +381,32 @@ class CharacteristicRequest(BaseModel):
         return self
 
 
+class CharacteristicBatchItem(CharacteristicRequest):
+    """One item in a batch characteristic request."""
+
+    id: str | int | None = Field(
+        default=None,
+        description="Optional caller-provided identifier echoed in the batch response.",
+    )
+
+
+class CharacteristicBatchRequest(BaseModel):
+    """Request body for computing lactation characteristics in batch."""
+
+    items: list[CharacteristicBatchItem] = Field(
+        ...,
+        min_length=1,
+        description="Characteristic requests to evaluate.",
+    )
+
+
+class CharacteristicBatchResult(BaseModel):
+    """One result in a batch characteristic response."""
+
+    id: str | int | None = None
+    value: float | None = None
+
+
 class TestIntervalRequest(BaseModel):
     """Request body for the ICAR Test Interval Method."""
 
@@ -457,6 +483,29 @@ def _bayesian_milkbot_kwargs(
     }
 
 
+def _calculate_characteristic_value(request: CharacteristicRequest) -> float | None:
+    """Calculate a characteristic value for a validated request model."""
+    bayesian_kwargs = _bayesian_milkbot_kwargs(request)
+    value = calculate_characteristic(
+        dim=request.dim,
+        milkrecordings=request.milkrecordings,
+        model=request.model,
+        characteristic=request.characteristic,
+        fitting=request.fitting,
+        parity=request.parity,
+        breed=request.breed,
+        continent=bayesian_kwargs["continent"],
+        custom_priors=bayesian_kwargs["custom_priors"],
+        key=bayesian_kwargs["key"],
+        milk_unit=request.milk_unit,
+        persistency_method=request.persistency_method,
+        lactation_length=request.lactation_length,
+    )
+    if value is None:
+        return None
+    return float(value)
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -465,6 +514,12 @@ def _bayesian_milkbot_kwargs(
 @app.get("/")
 async def health() -> dict[str, str]:
     """Health check endpoint."""
+    return {"status": "ok"}
+
+
+@app.get("/health")
+async def health_check() -> dict[str, str]:
+    """Health check endpoint for platform probes."""
     return {"status": "ok"}
 
 
@@ -526,25 +581,23 @@ async def characteristic(
 
     Returns a single numeric value, or null if no sensible value exists.
     """
-    bayesian_kwargs = _bayesian_milkbot_kwargs(request)
-    value = calculate_characteristic(
-        dim=request.dim,
-        milkrecordings=request.milkrecordings,
-        model=request.model,
-        characteristic=request.characteristic,
-        fitting=request.fitting,
-        parity=request.parity,
-        breed=request.breed,
-        continent=bayesian_kwargs["continent"],
-        custom_priors=bayesian_kwargs["custom_priors"],
-        key=bayesian_kwargs["key"],
-        milk_unit=request.milk_unit,
-        persistency_method=request.persistency_method,
-        lactation_length=request.lactation_length,
-    )
-    if value is None:
-        return {"value": None}
-    return {"value": float(value)}
+    return {"value": _calculate_characteristic_value(request)}
+
+
+@app.post("/characteristic/batch")
+async def characteristic_batch(
+    request: CharacteristicBatchRequest,
+) -> dict[str, list[CharacteristicBatchResult]]:
+    """Compute multiple lactation characteristics in a single request."""
+    return {
+        "results": [
+            CharacteristicBatchResult(
+                id=item.id,
+                value=_calculate_characteristic_value(item),
+            )
+            for item in request.items
+        ]
+    }
 
 
 @app.post("/test-interval")

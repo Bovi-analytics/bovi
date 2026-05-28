@@ -109,7 +109,7 @@ export function ComparisonResults({ submission }: Props): ReactElement {
           {stats.benchmark_vs_aly && (
             <StatsTable
               title="2. Benchmark vs Actual yield"
-              caption="Baseline - how the chosen benchmark model performs against ALY on the same cohort."
+              caption="Baseline - how the chosen benchmark model performs against ALY on the same reference dataset."
               block={stats.benchmark_vs_aly}
             />
           )}
@@ -139,7 +139,7 @@ export function ComparisonResults({ submission }: Props): ReactElement {
 
       {stats.failed_count > 0 && (
         <Text size="xs" c="var(--benchmark-muted-text)">
-          {stats.failed_count} cow(s) excluded from stats.
+          {stats.failed_count} lactation(s) excluded from stats.
         </Text>
       )}
 

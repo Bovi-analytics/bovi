@@ -226,6 +226,23 @@ class TestModelFunctions:
         assert len(y) == len(t), f"Output length {len(y)} should match input length {len(t)}"
         assert len(y) == 199, "Should have 199 values for DIM 1-199"
 
+    def test_ali_schaeffer_uses_305_day_scaling(self):
+        """Ali-Schaeffer should use 305-day scaled time and log terms."""
+        t = np.array([1, 100, 305])
+        params = (25, 5, -2, 1, 0.5)
+
+        t_scaled = t / 305
+        log_term = np.log(305 / t)
+        expected = (
+            params[0]
+            + params[1] * t_scaled
+            + params[2] * (t_scaled**2)
+            + params[3] * log_term
+            + params[4] * (log_term**2)
+        )
+
+        assert np.allclose(ali_schaeffer_model(t, *params), expected)
+
     def test_fitted_parameters_have_correct_length(self, sample_dim):
         """Should return correct number of parameters for each model."""
         y = wood_model(sample_dim, 30, 0.2, 0.003)

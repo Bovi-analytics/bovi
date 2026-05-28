@@ -1,5 +1,6 @@
 """API endpoint tests - HTTP contract only."""
 
+import pytest
 from fastapi.testclient import TestClient
 from main import app
 
@@ -12,7 +13,13 @@ class TestHealthEndpoint:
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
 
+    def test_platform_health_check(self):
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
 
+
+@pytest.mark.model_weights
 class TestPredictEndpoint:
     def test_predict_minimal(self):
         milk: list[float | None] = [None] * 304
@@ -34,6 +41,18 @@ class TestPredictEndpoint:
                 "parity": 2,
                 "herd_id": 2942694,
                 "imputation_method": "linear",
+            },
+        )
+        assert response.status_code == 200
+        assert len(response.json()["predictions"]) == 304
+
+    def test_predict_with_periodic_records(self):
+        response = client.post(
+            "/predict",
+            json={
+                "dim": [10, 40, 70, 100],
+                "milkrecordings": [30.0, 38.0, 35.0, 32.0],
+                "parity": 2,
             },
         )
         assert response.status_code == 200
@@ -68,6 +87,7 @@ class TestPredictEndpoint:
         assert response.status_code == 422
 
 
+@pytest.mark.model_weights
 class TestBatchEndpoint:
     def test_batch_predict(self):
         response = client.post(

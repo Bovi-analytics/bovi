@@ -1,0 +1,30 @@
+name: Smoke Function App health endpoint
+description: Call a Function App health endpoint.
+
+inputs:
+  function-app-name:
+    description: Azure Function App name.
+    required: true
+  resource-group:
+    description: Azure resource group.
+    required: true
+  path:
+    description: Health endpoint path.
+    required: false
+    default: /health
+  output-file:
+    description: File for the response body.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        host_name="$(az functionapp show \
+          --name "${{ inputs.function-app-name }}" \
+          --resource-group "${{ inputs.resource-group }}" \
+          --query "defaultHostName" -o tsv)"
+        curl --connect-timeout 5 --max-time 30 --retry 5 --retry-all-errors -fsS \
+          "https://${host_name}${{ inputs.path }}" > "${{ inputs.output-file }}"

@@ -14,6 +14,20 @@ describe("buildAutoencoderPredictRequest", () => {
     });
   });
 
+  test("can build a periodic-record request", () => {
+    const request = buildAutoencoderPredictRequest({
+      dim: [10, 40, 70],
+      milkrecordings: [30, 38, 35],
+      parity: 2,
+    });
+
+    expect(request).toEqual({
+      dim: [10, 40, 70],
+      milkrecordings: [30, 38, 35],
+      parity: 2,
+    });
+  });
+
   test("includes herd_id only when a real herdId is available", () => {
     const withHerdId = buildAutoencoderPredictRequest({
       milk: [24],

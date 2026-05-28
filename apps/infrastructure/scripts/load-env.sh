@@ -8,10 +8,14 @@ if [[ ! -f .env ]]; then
     exit 1
 fi
 
-# Load env vars first — Pulumi needs AZURE_STORAGE_ACCOUNT/KEY to reach its state backend
+# Load env vars first — Pulumi needs AZURE_STORAGE_ACCOUNT_STATE/KEY to reach its state backend
 set -a
 source .env
 set +a
+
+if [[ -n "${AZURE_STORAGE_ACCOUNT_STATE:-}" ]]; then
+    export AZURE_STORAGE_ACCOUNT="$AZURE_STORAGE_ACCOUNT_STATE"
+fi
 
 CURRENT_STACK=$(pulumi stack --show-name)
 

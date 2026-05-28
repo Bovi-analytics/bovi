@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  createChallengeFromSavedDataset,
   createChallengePreset,
   createChallengeUpload,
   getChallenge,
@@ -10,7 +11,7 @@ import {
   type OrganizationListOptions,
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
-import type { ChallengeCreatePreset } from "@/types/api";
+import type { ChallengeCreatePreset, ChallengeDatasetSource, ChallengeDetail } from "@/types/api";
 
 const KEY = ["benchmark-challenges"] as const;
 
@@ -62,6 +63,36 @@ export function useCreateChallengeUpload() {
         throw new Error("Select a specific organization before uploading a challenge.");
       }
       return createChallengeUpload(name, testDayCsv, actualYieldsCsv, selectedOrganizationId);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export function useCreateChallengeFromSavedDataset() {
+  const qc = useQueryClient();
+  const { selectedOrganizationId } = useAuth();
+  return useMutation({
+    mutationFn: ({
+      name,
+      cowMetadata,
+      actualYields,
+      datasetSources,
+    }: {
+      name: string;
+      cowMetadata: ChallengeDetail["cow_metadata"];
+      actualYields: NonNullable<ChallengeDetail["actual_yields"]>;
+      datasetSources?: ChallengeDatasetSource[];
+    }) => {
+      if (typeof selectedOrganizationId !== "number") {
+        throw new Error("Select a specific organization before creating a challenge.");
+      }
+      return createChallengeFromSavedDataset(
+        name,
+        cowMetadata,
+        actualYields,
+        selectedOrganizationId,
+        datasetSources
+      );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });

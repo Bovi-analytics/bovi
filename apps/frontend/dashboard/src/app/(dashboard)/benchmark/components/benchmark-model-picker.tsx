@@ -3,6 +3,7 @@
 import type { ReactElement } from "react";
 import { Group, SegmentedControl, Select, Stack, Tabs, Text } from "@mantine/core";
 import type { BenchmarkModel, MilkBotRunOptions } from "@/types/api";
+import { MODEL_LABELS } from "@/lib/benchmark-dataset";
 
 type BenchmarkModelGroup = "yield" | "curve" | "deep";
 
@@ -23,26 +24,26 @@ const MODEL_GROUPS: Record<
     label: "305-day yield",
     description: "Direct ALY estimators from test-day records.",
     models: [
-      { value: "tim", label: "TIM (Test Interval Method)" },
-      { value: "islc", label: "ISLC" },
-      { value: "best_predict", label: "Best Predict" },
+      { value: "tim", label: MODEL_LABELS.tim },
+      { value: "islc", label: MODEL_LABELS.islc },
+      { value: "best_predict", label: MODEL_LABELS.best_predict },
     ],
   },
   curve: {
     label: "Curve fit",
     description: "Classical lactation curves scored by cumulative yield.",
     models: [
-      { value: "wood", label: "Wood" },
-      { value: "wilmink", label: "Wilmink" },
-      { value: "ali_schaeffer", label: "Ali-Schaeffer" },
-      { value: "fischer", label: "Fischer" },
-      { value: "milkbot", label: "MilkBot" },
+      { value: "wood", label: MODEL_LABELS.wood },
+      { value: "wilmink", label: MODEL_LABELS.wilmink },
+      { value: "ali_schaeffer", label: MODEL_LABELS.ali_schaeffer },
+      { value: "fischer", label: MODEL_LABELS.fischer },
+      { value: "milkbot", label: MODEL_LABELS.milkbot },
     ],
   },
   deep: {
     label: "Deep learning",
     description: "Full-curve neural prediction scored by cumulative yield.",
-    models: [{ value: "autoencoder", label: "Autoencoder" }],
+    models: [{ value: "autoencoder", label: MODEL_LABELS.autoencoder }],
   },
 };
 
@@ -151,7 +152,7 @@ export function BenchmarkModelPicker({
             />
           </Group>
           <Text size="xs" c="dimmed">
-            Parity is read per cow from the benchmark cohort.
+            Parity is read per lactation from the benchmark dataset.
           </Text>
         </Stack>
       )}

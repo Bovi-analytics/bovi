@@ -61,6 +61,9 @@ The package is organized into three main modules:
 2. `lactationcurve.characteristics`
 3. `lactationcurve.preprocessing`
 
+Generated API documentation is available at
+[bovi-analytics.github.io/bovi/lactationcurve.html](https://bovi-analytics.github.io/bovi/lactationcurve.html).
+
 
 ## Output Types Summary
 

@@ -6,14 +6,11 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ComparisonResults } from "../components/comparison-results";
+import { DatasetSummary } from "../components/dataset-summary";
 import { SubmissionForm } from "../components/submission-form";
 import { useChallenge } from "../hooks/use-challenges";
 import { useSubmissions } from "../hooks/use-submissions";
-
-const DATASET_LABEL: Record<string, string> = {
-  icar: "Reference cohort",
-  upload: "Custom upload",
-};
+import { getBenchmarkDatasetLabel } from "@/lib/benchmark-dataset";
 
 export default function ChallengeDetailPage(): ReactElement {
   const { id } = useParams<{ id: string }>();
@@ -41,26 +38,35 @@ export default function ChallengeDetailPage(): ReactElement {
           {challenge && (
             <>
               <Badge color="gray" variant="light">
-                {challenge.name ?? DATASET_LABEL[challenge.dataset] ?? challenge.dataset}
+                {challenge.name ?? getBenchmarkDatasetLabel(challenge)}
               </Badge>
               <Badge color="gray" variant="light">
-                {DATASET_LABEL[challenge.dataset] ?? challenge.dataset}
+                {getBenchmarkDatasetLabel(challenge)}
               </Badge>
             </>
           )}
         </Group>
         <Text size="sm" c="var(--benchmark-muted-text)">
-          Submit a challenger - a Bovi model or your own CSV - to compare against the fixed TIM
-          benchmark for this cohort.
+          Submit a challenger - a Bovi model or your own CSV - and select a benchmark for this
+          benchmark dataset.
         </Text>
       </Stack>
+
+      {challenge && (
+        <Card withBorder padding="md">
+          <Stack gap={4}>
+            <Text fw={600}>Challenge dataset</Text>
+            <DatasetSummary sources={challenge.dataset_sources} stats={challenge.dataset_stats} />
+          </Stack>
+        </Card>
+      )}
 
       <Card withBorder padding="md">
         <Stack gap={4} mb="sm">
           <Text fw={600}>Submit a challenger</Text>
           <Text size="xs" c="var(--benchmark-muted-text)">
             Pick a Bovi model to run, or upload the results of your own calculation. Bovi compares
-            it against the TIM benchmark for this challenge.
+            it against the selected benchmark for this challenge.
           </Text>
         </Stack>
         <SubmissionForm

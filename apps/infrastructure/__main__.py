@@ -11,6 +11,7 @@ Resources deployed:
 """
 
 import hashlib
+import json
 import os
 
 import pulumi
@@ -65,7 +66,6 @@ stack = pulumi.get_stack()
 location = config.require("location")
 subscription_id = config.require("subscriptionId")
 resource_group_name = config.require("resourceGroup")
-dashboard_origin = config.get("dashboardOrigin") or "http://localhost:3000"
 milkbot_key = config.get_secret("milkbotKey") or ""
 azure_ad_client_id = config.get("azureAdClientId") or os.getenv("AZURE_AD_CLIENT_ID") or ""
 azure_ad_api_scope = (
@@ -73,6 +73,10 @@ azure_ad_api_scope = (
     or os.getenv("NEXT_PUBLIC_AZURE_AD_API_SCOPE")
     or (f"api://{azure_ad_client_id}/access_as_user" if azure_ad_client_id else "")
 )
+autoencoder_model_version = (
+    os.getenv("AUTOENCODER_MODEL_VERSION") or config.get("autoencoderModelVersion") or "v15"
+)
+autoencoder_model_prefix = f"data/models/lactation_autoencoder/versions/{autoencoder_model_version}"
 api_image = (
     os.getenv("API_IMAGE")
     or config.get("apiImage")
@@ -146,6 +150,16 @@ uploads_container_result = create_blob_container(
     ),
 )
 
+autoencoder_model_assets_container_name = "model-assets"
+autoencoder_model_assets_container_result = create_blob_container(
+    "autoencoder-model-assets-container",
+    BlobContainerArgs(
+        resource_group_name=resource_group.name,
+        account_name=storage_result.account.name,
+        container_name=autoencoder_model_assets_container_name,
+    ),
+)
+
 # ---------------------------------------------------------------------------
 # Shared observability backend
 # ---------------------------------------------------------------------------
@@ -159,6 +173,27 @@ log_analytics_result = create_log_analytics(
         tags=tags,
     ),
 )
+
+# ---------------------------------------------------------------------------
+# Container App Environment + dashboard origin
+# ---------------------------------------------------------------------------
+cae_result = create_container_app_environment(
+    "container-app-env",
+    ContainerAppEnvironmentArgs(
+        resource_group_name=resource_group.name,
+        location=location,
+        env_name=f"bovi-env-{stack}",
+        log_analytics_customer_id=log_analytics_result.customer_id,
+        log_analytics_shared_key=log_analytics_result.shared_key,
+        tags=tags,
+    ),
+)
+
+configured_dashboard_origin = config.get("dashboardOrigin")
+dashboard_origin = configured_dashboard_origin or cae_result.default_domain.apply(
+    lambda domain: f"https://bovi-dashboard-{stack}.{domain}"
+)
+api_cors_origins = pulumi.Output.all(dashboard_origin).apply(lambda origins: json.dumps(origins))
 
 # ---------------------------------------------------------------------------
 # App Service Plan (shared by all Function Apps)
@@ -228,12 +263,26 @@ autoencoder_result = create_function_app(
         storage_connection_string=storage_result.connection_string,
         app_insights_connection_string=autoencoder_insights_result.connection_string,
         cors_origins=[dashboard_origin],
+        extra_app_settings=[
+            web.NameValuePairArgs(
+                name="AUTOENCODER_MODEL_CONTAINER",
+                value=autoencoder_model_assets_container_result.container.name,
+            ),
+            web.NameValuePairArgs(
+                name="AUTOENCODER_MODEL_PREFIX",
+                value=autoencoder_model_prefix,
+            ),
+            web.NameValuePairArgs(
+                name="AUTOENCODER_MODEL_CACHE_DIR",
+                value="/tmp/bovi-autoencoder-assets",
+            ),
+        ],
         tags=tags,
     ),
 )
 
 # ---------------------------------------------------------------------------
-# Container App Environment + central FastAPI
+# Central FastAPI
 # ---------------------------------------------------------------------------
 api_insights_result = create_app_insights(
     "api-insights",
@@ -242,18 +291,6 @@ api_insights_result = create_app_insights(
         location=location,
         resource_name=f"api-insights-{stack}",
         workspace_resource_id=log_analytics_result.workspace.id,
-        tags=tags,
-    ),
-)
-
-cae_result = create_container_app_environment(
-    "container-app-env",
-    ContainerAppEnvironmentArgs(
-        resource_group_name=resource_group.name,
-        location=location,
-        env_name=f"bovi-env-{stack}",
-        log_analytics_customer_id=log_analytics_result.customer_id,
-        log_analytics_shared_key=log_analytics_result.shared_key,
         tags=tags,
     ),
 )
@@ -276,6 +313,9 @@ api_result = create_container_app(
         registry_password=pulumi.Output.secret(ghcr_token) if ghcr_token else None,
         env={
             "APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string,
+            "LACTATION_CURVES_URL": curves_result.url,
+            "LACTATION_AUTOENCODER_URL": autoencoder_result.url,
+            "CORS_ORIGINS": api_cors_origins,
             "STORAGE_ACCOUNT_NAME_ICAR": icar_storage_account_name,
             "STORAGE_ACCOUNT_CONTAINER_ICAR": icar_storage_container,
             "CONNECTION_STRING": storage_result.connection_string,
@@ -352,6 +392,10 @@ dashboard_result = create_stateless_container_app(
 pulumi.export("resource_group_name", resource_group.name)
 pulumi.export("storage_account_name", storage_result.account.name)
 pulumi.export("uploads_container_name", uploads_container_result.container.name)
+pulumi.export(
+    "autoencoder_model_assets_container",
+    autoencoder_model_assets_container_result.container.name,
+)
 pulumi.export("curves_app_name", curves_result.app.name)
 pulumi.export("curves_app_url", curves_result.url)
 pulumi.export("autoencoder_app_name", autoencoder_result.app.name)

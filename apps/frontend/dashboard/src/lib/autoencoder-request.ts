@@ -1,7 +1,9 @@
 import type { AutoencoderPredictRequest, ImputationMethod } from "@/types/api";
 
 export interface AutoencoderPredictRequestInput {
-  readonly milk: readonly (number | null)[];
+  readonly milk?: readonly (number | null)[];
+  readonly dim?: readonly number[];
+  readonly milkrecordings?: readonly number[];
   readonly parity: number;
   readonly herdId?: number;
   readonly events?: readonly string[];
@@ -11,6 +13,8 @@ export interface AutoencoderPredictRequestInput {
 
 export function buildAutoencoderPredictRequest({
   milk,
+  dim,
+  milkrecordings,
   parity,
   herdId,
   events,
@@ -18,7 +22,9 @@ export function buildAutoencoderPredictRequest({
   imputationMethod,
 }: AutoencoderPredictRequestInput): AutoencoderPredictRequest {
   return {
-    milk: [...milk],
+    ...(milk !== undefined && { milk: [...milk] }),
+    ...(dim !== undefined && { dim: [...dim] }),
+    ...(milkrecordings !== undefined && { milkrecordings: [...milkrecordings] }),
     parity,
     ...(herdId !== undefined && { herd_id: herdId }),
     ...(events !== undefined && { events: [...events] }),

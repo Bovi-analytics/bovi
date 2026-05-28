@@ -1,0 +1,26 @@
+name: Prepare lactation-curves Function package
+description: Generate requirements.txt and copy wheels for the lactation-curves Function App.
+
+inputs:
+  app-dir:
+    description: Function App directory.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        app_dir="${{ inputs.app-dir }}"
+        rm -rf "$app_dir/wheels"
+        mkdir -p "$app_dir/wheels"
+        cp /tmp/bovi-function-wheels/lactationcurve-*.whl "$app_dir/wheels/"
+        uv export \
+          --no-dev \
+          --no-emit-workspace \
+          --no-hashes \
+          --package bovi-lactation-curves-app \
+          -o "$app_dir/requirements.txt"
+        wheel="$(basename "$app_dir"/wheels/lactationcurve-*.whl)"
+        printf '\n./wheels/%s\n' "$wheel" >> "$app_dir/requirements.txt"
