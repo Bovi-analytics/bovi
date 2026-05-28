@@ -5,7 +5,6 @@ import {
   FlaskConical,
   Home,
   Mail,
-  Settings,
   ShieldCheck,
   Trophy,
 } from "lucide-react";
@@ -24,6 +23,5 @@ export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
   { label: "Curves", href: "/curves", icon: FlaskConical },
   { label: "Benchmark", href: "/benchmark", icon: Trophy },
   { label: "Admin", href: "/admin", icon: ShieldCheck, adminOnly: true },
-  { label: "Organization", href: "/organization", icon: Settings },
   { label: "Contact", href: "/contact", icon: Mail },
 ];

@@ -15,7 +15,7 @@ import {
   Text,
   UnstyledButton,
 } from "@mantine/core";
-import { LogIn, LogOut } from "lucide-react";
+import { Building2, LogIn, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_NAVIGATION } from "./navigation";
@@ -92,6 +92,18 @@ export function Sidebar(): ReactElement {
                 <Text size="xs" c="dimmed" className="line-clamp-2">
                   {selectedOrganizationLabel}
                 </Text>
+                {selectedOrganizationId !== null && selectedOrganizationId !== "all" && (
+                  <Button
+                    component={Link}
+                    href="/organization"
+                    size="xs"
+                    variant="light"
+                    fullWidth
+                    leftSection={<Building2 size={13} />}
+                  >
+                    View organization
+                  </Button>
+                )}
                 {organizationOptions.length > 0 && (
                   <Select
                     label="Organization"
