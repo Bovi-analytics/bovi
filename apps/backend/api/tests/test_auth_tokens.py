@@ -6,9 +6,11 @@ from typing import cast
 import bovi_api.auth as auth
 import pytest
 from bovi_api.auth import PERSONAL_MICROSOFT_TENANT_ID, validate_entra_token
+from bovi_api.models import Organization, OrganizationMembership, User
 from bovi_api.settings import Settings
 from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlmodel import select
 from starlette.requests import Request
 
 
@@ -86,6 +88,44 @@ def test_get_current_user_rejects_missing_bearer_token():
 
     assert exc.value.status_code == 401
     assert exc.value.detail == "Authentication required."
+
+
+def test_auth_disabled_seeds_development_organization():
+    async def _run() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(User.__table__.create)  # type: ignore[union-attr]
+                await conn.run_sync(Organization.__table__.create)  # type: ignore[union-attr]
+                await conn.run_sync(OrganizationMembership.__table__.create)  # type: ignore[union-attr]
+
+            async with session_factory() as session:
+                current_user = await auth.get_current_user(
+                    request=Request({"type": "http", "headers": []}),
+                    session=session,
+                    settings=Settings(auth_disabled=True),
+                )
+
+                assert current_user.organizations[0].id == 1
+                assert current_user.organizations[0].name == "Development Organization"
+                assert current_user.organizations[0].role == "Owner"
+
+            async with session_factory() as session:
+                organization = await session.get(Organization, 1)
+                membership_result = await session.execute(
+                    select(OrganizationMembership).where(
+                        OrganizationMembership.user_id == 1,
+                        OrganizationMembership.organization_id == 1,
+                    )
+                )
+
+                assert organization is not None
+                assert membership_result.scalar_one_or_none() is not None
+        finally:
+            await engine.dispose()
+
+    asyncio.run(_run())
 
 
 @pytest.mark.parametrize(

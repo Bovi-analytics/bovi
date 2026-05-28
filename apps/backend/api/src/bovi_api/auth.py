@@ -256,6 +256,50 @@ async def _memberships_for_user(
     ]
 
 
+async def _ensure_auth_disabled_user(
+    identity: TokenIdentity,
+    session: AsyncSession,
+) -> CurrentUser:
+    """Return the local dev user and ensure the frontend's dev organization exists."""
+    current_user = await _ensure_local_user(identity, session)
+    organization = await session.get(Organization, 1)
+    if organization is None:
+        organization = Organization(
+            id=1,
+            name="Development Organization",
+            created_by_user_id=current_user.id,
+            source_entra_tenant_id=identity.entra_tenant_id,
+            source_domain="local.test",
+            source_display_name=identity.name,
+        )
+        session.add(organization)
+        await session.flush()
+
+    membership_result = await session.execute(
+        select(OrganizationMembership).where(
+            OrganizationMembership.user_id == current_user.id,
+            OrganizationMembership.organization_id == 1,
+        )
+    )
+    if membership_result.scalar_one_or_none() is None:
+        session.add(
+            OrganizationMembership(
+                user_id=current_user.id,
+                organization_id=1,
+                role=ORG_ROLE_OWNER,
+            )
+        )
+        await session.flush()
+
+    await session.commit()
+    return CurrentUser(
+        **current_user.model_dump(exclude={"organizations"}),
+        organizations=[
+            AuthenticatedOrganization(id=1, name=organization.name, role=ORG_ROLE_OWNER)
+        ],
+    )
+
+
 async def get_current_user(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -271,7 +315,7 @@ async def get_current_user(
             name="Development User",
             roles=[APP_ROLE_ADMIN],
         )
-        return await _ensure_local_user(identity, session)
+        return await _ensure_auth_disabled_user(identity, session)
 
     token = _extract_bearer_token(request)
     if token is None:
