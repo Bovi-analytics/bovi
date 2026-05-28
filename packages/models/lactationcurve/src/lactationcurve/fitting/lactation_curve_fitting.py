@@ -2,15 +2,26 @@
 Lactation curve fitting module.
 
 This module provides functions for fitting lactation curve models to dairy cow
-lactation data and predicting milk yield.
+lactation data and predicting milk yield. The background of lactation curve fitting,
+including all the references for the models can be found in the following book chapter:
+
+
+van Leerdam, M., Trapanese, L., Yongyan, C., Hermans, K., Salamone, M.,
+ Liu, E., & Hostens, M. (2026).
+*Advances in Precision Dairy and Beef Farming Technologies –
+Chapter 19: Modeling the Lactation Curves of Dairy Ruminants.*
+Francis Dodds. (in publication)
 
 Pre-defined lactation curve models
 ----------------------------------
-- Models that can be fitted using frequentist statistics (numeric or least squares optimization):
+- Models that can be fitted using frequentist statistics (numeric least squares optimization):
     - Wood
     - Wilmink
     - Ali & Schaeffer
     - Fischer
+    - MilkBot
+
+- Models that can be fitted using frequentist statistics (algebraic least squares optimization):
     - MilkBot
 
 - Models that can be fitted using Bayesian fitting:
@@ -29,7 +40,7 @@ Pre-defined lactation curve models
 
 Author: Meike van Leerdam
 Date: 12-8-2025
-Last update: 11-feb-2025
+Last update: 20-May-2026
 
 Requires
 --------
@@ -38,7 +49,7 @@ Requires
 - requests
 - lactationcurve.preprocessing.validate_and_prepare_inputs
 
-Public functions
+Core functions
 ----------------
 - fit_lactation_curve(dim, milkrecordings, model="wood",
   fitting="frequentist", breed="H", parity=3,
@@ -110,7 +121,7 @@ def wood_model(t, a, b, c) -> np.floating | np.ndarray:
         Predicted milk yield at `t`.
 
     Notes:
-        Formula: `y(t) = a * t**b * exp(-c * t)`.
+        Formula: `y(t) = a * t^b * exp(-c * t)`.
     """
     return a * (t**b) * np.exp(-c * t)
 
@@ -150,7 +161,8 @@ def ali_schaeffer_model(t, a, b, c, d, k) -> np.floating | np.ndarray:
         Predicted milk yield at `t`.
 
     Notes:
-        Uses `t_scaled = t / 305` and `log_term = ln(305 / t)`.
+        Formula: `t_scaled = t / 305` and `log_term = ln(305 / t)`
+        then `y(t) = a + b * t_scaled + c * t_scaled^2 + d * log_term + k * log_term^2`.
     """
     t_scaled = t / 305
     log_term = np.log(305 / t)
@@ -168,12 +180,15 @@ def fischer_model(t, a, b, c) -> np.floating | np.ndarray:
 
     Returns:
         Predicted milk yield at `t`.
+
+    Notes:
+        Formula: `y(t) = a - b * t - a * exp(-c * t)`.
     """
     return a - b * t - a * np.exp(-c * t)
 
 
 def brody_model(t, a, k) -> float:
-    """Brody lactation curve model.
+    """First Brody lactation curve model.
 
     Args:
         t: Time since calving in days (DIM).
@@ -182,6 +197,11 @@ def brody_model(t, a, k) -> float:
 
     Returns:
         Predicted milk yield at `t`.
+
+    Notes:
+        Formula: `y(t) = a * exp(-k * t)`.
+
+        This was the first lactation curve model ever developed in 1923.
     """
     return a * np.exp(-k * t)
 
@@ -197,6 +217,9 @@ def sikka_model(t, a, b, c) -> float:
 
     Returns:
         Predicted milk yield at `t`.
+
+    Notes:
+        Formula: `y(t) = a * exp(b * t - c * t^2)`.
     """
     return a * np.exp(b * t - c * t**2)
 
@@ -214,7 +237,7 @@ def nelder_model(t, a, b, c) -> float:
         Predicted milk yield at `t`.
 
     Notes:
-        Formula: `y(t) = t / (a + b*t + c*t**2)`.
+        Formula: `y(t) = t / (a + b*t + c*t^2)`.
     """
     return t / (a + b * t + c * t**2)
 
@@ -327,7 +350,7 @@ def prasad_model(t, a, b, c, d) -> float:
         Predicted milk yield at `t`.
 
     Notes:
-        Formula: `y(t) = a + b*t + c*t**2 + d/t`.
+        Formula: `y(t) = a + b*t + c*t^2 + d/t`.
     """
     return a + b * t + c * t**2 + d / t
 

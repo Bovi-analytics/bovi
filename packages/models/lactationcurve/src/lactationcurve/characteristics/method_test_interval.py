@@ -1,4 +1,5 @@
-"""ICAR 305-day yield calculation using the Test Interval Method.
+"""
+ICAR Test Interval Method for accumulated lactation yield.
 
 Purpose
 -------
@@ -7,40 +8,75 @@ Section 2) to compute cumulative milk yield from test-day records.
 
 Method Summary
 --------------
-Calculate total milk yield over 305 days by integrating test-day records using:
-- Linear projection from calving to the first test day,
-- Trapezoidal integration between consecutive test days,
-- Linear projection from the last test day to DIM=305.
+Calculate total milk yield over a lactation by summing three parts:
+        - First test-day milk yield multiplied by the number of days between
+            calving and the first test day.
+        - Trapezoidal integration between consecutive test days (the average of
+            two consecutive yields multiplied by the interval length).
+        - Last test-day milk yield multiplied by the number of days from the last
+            test day to the end of the calculation window.
+
+Formula:
+
+    MY = I0*M1
+         + I1*(M1 + M2)/2
+         + I2*(M2 + M3)/2
+         + ...
+         + I(n-1)*(M(n-1) + Mn)/2
+         + In*Mn
+
+Where:
+- ``MY``: total milk yield over the lactation window.
+- ``M1, M2, ..., Mn``: milk yield measured in the 24 hours of each test day.
+- ``I1, I2, ..., I(n-1)``: interval lengths (days) between consecutive test days.
+- ``I0``: days from lactation start (calving) to first test day.
+- ``In``: days from last test day to the end of the calculation window (e.g., DIM 305).
+
 
 Key Entry Points
 ----------------
-- ``test_interval_method``: Compute cumulative lactation milk yield per
+- ``test_interval_method``: Computes cumulative lactation milk yield per
     ``TestId`` using start, interval, and end segments.
 
---------
-- **Start segment**: Linear projection from calving (DIM=0) to the first test day.
-- **Intermediate segments**: **Trapezoidal rule** between consecutive test days.
-- **End segment**: Linear projection from the last test day to DIM=305 (exclusive
-  upper bound 306 for day counting).
 
 Column Flexibility
 ------------------
-The function can accept various column name aliases (case-insensitive) and
-optionally create a default `TestId` if missing. Recognized aliases:
+The function accepts several case-insensitive column name aliases and can
+create a default ``TestId`` if one is missing. Recognized aliases:
 
 - Days in Milk: `["daysinmilk", "dim", "testday"]`
 - Milk Yield: `["milkingyield", "testdaymilkyield", "milkyield", "yield"]`
 - Test Id: `["animalid", "testid", "id"]`
 
-Returns a DataFrame with columns: `["TestId", "LactationMilkYield"]`.
+It is also possible to provide your own column names so the function
+can be applied to dataframes with different column naming conventions.
+
+Returns a DataFrame with columns: ``["TestId", "LactationMilkYield"]``.
 
 Notes
 -----
-- Units: DIM in days, milk yield in kg.
-- Records with `DIM > 305` are excluded prior to computation.
+- Units: DIM (days in milk) is measured in days,
+    and milk yield can be in kg or lb. The
+    output stays in the same unit as the input.
+- Records with ``DIM > max_dim`` are excluded before computation.
+- This method's main strength is its ease of use and simplicity.
+- Its main disadvantage is that it does not account for the shape of the
+    lactation curve, which can lead to underestimation of total yield,
+    especially for lactations with few test days or irregular patterns.
+    Outliers in test-day records can also have a large influence on the final
+    result.
+- When a full lactation is known (i.e., test days up to DIM 305),
+this method will give a higher cumulative milk yield then the sum off all test days,
+because of the way the start and end contributions are calculated.
 
-Author: Meike van Leerdam,
+Reference
+---------
+Sargent, F. D., V. H. Lyton, and 0. G. Wall, J r . 1968. Test interval method of
+calculating Dairy Herd Improvement Association records. J. Dairy Sci. 51:170.
+
+Author: Meike van Leerdam
 Date: 07-31-2025
+Last update: 22-May-2026
 """
 
 import pandas as pd
@@ -56,27 +92,33 @@ def test_interval_method(
     default_test_id: int = 0,
     max_dim: int = 305,
 ) -> pd.DataFrame:
-    """Compute 305-day total milk yield using the ICAR Test Interval Method.
+    """Compute total lactation milk yield using the ICAR Test Interval Method.
 
     The method applies:
-    - Linear projection from calving to the first test day,
+    - First test day milk yield from calving to the first test day,
     - Trapezoidal integration between consecutive test days,
-    - Linear projection from the last test day to DIM=305.
+    - Last test day milk yield from the last test day to DIM = max_dim (default = 305).
 
     Args:
-        df (pd.DataFrame): Input DataFrame with at least DaysInMilk, MilkingYield,
-            and (optionally) TestId columns (names can be provided via arguments
-            or matched via known aliases, case-insensitive).
-        days_in_milk_col (str | None): Optional column name override for DaysInMilk.
-        milking_yield_col (str | None): Optional column name override for MilkingYield.
+        df (pd.DataFrame): Input DataFrame with at least DaysInMilk and
+            MilkingYield columns, plus an optional TestId column. Column names
+            can be provided explicitly or matched via known aliases.
+        days_in_milk_col (str | None): Optional column name override for
+            DaysInMilk.
+        milking_yield_col (str | None): Optional column name override for
+            MilkingYield.
         test_id_col (str | None): Optional column name override for TestId.
-        default_test_id (Any): If TestId is missing, a new `TestId` column is created
-            with this value.
+        default_test_id (int): Value used to create a default TestId column if
+            one is missing.
+        max_dim (int): Lactation length used to calculate cumulative
+            production. The default is 305 days.
+            Records with DIM > max_dim are excluded.
 
     Returns:
         pd.DataFrame: Two-column DataFrame with
             - "TestId": identifier per lactation,
-            - "LactationMilkYield": computed total milk yield over 305 days.
+            - "LactationMilkYield": computed total milk yield over the
+              specified window.
 
     Raises:
         ValueError: If required columns (DaysInMilk or MilkingYield) cannot be found.
@@ -87,7 +129,7 @@ def test_interval_method(
           otherwise the lactation is skipped.
     """
 
-    # Standardize columns and filter DIM <= 305
+    # Standardize columns and filter DIM <= max_dim
     df = standardize_lactation_columns(
         df,
         days_in_milk_col=days_in_milk_col,
@@ -118,7 +160,7 @@ def test_interval_method(
         MY0 = start["DaysInMilk"] * start["MilkingYield"]
 
         # End contribution
-        MYend = (306 - end["DaysInMilk"]) * end["MilkingYield"]
+        MYend = (max_dim + 1 - end["DaysInMilk"]) * end["MilkingYield"]
 
         # Intermediate trapezoidal contributions
         lactation_df["width"] = lactation_df["DaysInMilk"].diff().shift(-1)

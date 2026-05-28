@@ -8,11 +8,12 @@ on:
       - completed
 
 permissions:
+  contents: read
   id-token: write
 
 jobs:
   publish:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     environment: main
 
@@ -21,15 +22,40 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check lactationcurve release tag
+        id: release-tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch; publishing lactationcurve from current main."
+            exit 0
+          fi
+
+          TAGS="$(git tag --points-at "${{ github.event.workflow_run.head_sha }}" --list 'lactationcurve-v*')"
+          if [ -n "$TAGS" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Publishing lactationcurve release tag(s):"
+            echo "$TAGS"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No lactationcurve-v* tag points at ${{ github.event.workflow_run.head_sha }}; skipping PyPI publish."
+          fi
 
       - name: Install uv
+        if: steps.release-tag.outputs.publish == 'true'
         uses: astral-sh/setup-uv@v3
 
       - name: Set up Python 3.12
+        if: steps.release-tag.outputs.publish == 'true'
         run: uv python install 3.12
 
       - name: Build package
+        if: steps.release-tag.outputs.publish == 'true'
         run: uv build --package lactationcurve
 
       - name: Publish to PyPI
+        if: steps.release-tag.outputs.publish == 'true'
         run: uv publish dist/*.whl dist/*.tar.gz
