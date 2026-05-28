@@ -1,10 +1,15 @@
 """Token validation tests for multi-tenant Microsoft auth."""
 
+import asyncio
+from typing import cast
+
 import bovi_api.auth as auth
 import pytest
 from bovi_api.auth import PERSONAL_MICROSOFT_TENANT_ID, validate_entra_token
 from bovi_api.settings import Settings
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
 
 class _SigningKey:
@@ -67,6 +72,20 @@ def test_validate_entra_token_marks_personal_account(monkeypatch):
     identity = validate_entra_token("token", Settings(azure_ad_client_id="client-id"))
 
     assert identity.account_type == "personal"
+
+
+def test_get_current_user_rejects_missing_bearer_token():
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            auth.get_current_user(
+                request=Request({"type": "http", "headers": []}),
+                session=cast(AsyncSession, None),
+                settings=Settings(auth_disabled=False),
+            )
+        )
+
+    assert exc.value.status_code == 401
+    assert exc.value.detail == "Authentication required."
 
 
 @pytest.mark.parametrize(

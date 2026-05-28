@@ -68,6 +68,13 @@ def _required_blobs(prefix: str = "data/models/lactation_autoencoder/versions/v1
     }
 
 
+def _write_cache(tmp_path, blobs: dict[str, bytes]) -> None:
+    for name, data in blobs.items():
+        destination = tmp_path / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
+
+
 def test_settings_accepts_azure_web_jobs_storage_alias(tmp_path):
     settings = Settings.model_validate(
         {
@@ -107,6 +114,22 @@ def test_ensure_model_assets_reuses_complete_cache(tmp_path):
     ensure_model_assets(settings, blob_service_factory=lambda _: _FakeBlobService(container))
 
     assert container.downloaded == []
+
+
+def test_ensure_model_assets_uses_complete_cache_without_storage_connection(tmp_path):
+    _write_cache(tmp_path, _required_blobs())
+    settings = Settings(
+        azure_web_jobs_storage=None,
+        autoencoder_model_cache_dir=str(tmp_path),
+    )
+
+    paths = ensure_model_assets(settings, blob_service_factory=lambda _: None)
+
+    assert paths.config_path == (
+        tmp_path / "data/models/lactation_autoencoder/versions/v15/config/config.yaml"
+    )
+    assert (tmp_path / "pyproject.toml").exists()
+    assert (tmp_path / "data/models/lactation_autoencoder/versions/v15/.download-complete").exists()
 
 
 def test_ensure_model_assets_requires_storage_connection(tmp_path):
