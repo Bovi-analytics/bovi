@@ -250,6 +250,7 @@ jobs:
         with:
           containerapp-name: bovi-api-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           default-image: ${{ steps.defaults.outputs.api }}
 
       - id: current-dashboard-image
@@ -257,6 +258,7 @@ jobs:
         with:
           containerapp-name: bovi-dashboard-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           default-image: ${{ steps.defaults.outputs.dashboard }}
 
       - uses: ./.github/actions/pulumi-up
@@ -304,6 +306,7 @@ jobs:
           api-image: ${{ needs.build-api-image.outputs.image }}
           migration-job: bovi-api-migrate-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
   rollout-api:
     needs: [resolve-deployment, detect-changes, build-api-image, migrate-api]
@@ -347,6 +350,7 @@ jobs:
         with:
           containerapp-name: bovi-dashboard-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           default-image: ${{ steps.defaults.outputs.dashboard }}
 
       - uses: ./.github/actions/pulumi-up
@@ -370,6 +374,7 @@ jobs:
         with:
           containerapp-name: bovi-api-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           path: /health
 
   rollout-dashboard:
@@ -421,6 +426,7 @@ jobs:
         with:
           containerapp-name: bovi-api-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           default-image: ${{ steps.defaults.outputs.api }}
 
       - uses: ./.github/actions/pulumi-up
@@ -444,6 +450,7 @@ jobs:
         with:
           containerapp-name: bovi-dashboard-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           path: /
           discard-output: "true"
 
@@ -498,11 +505,13 @@ jobs:
         with:
           function-app-name: curves-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - uses: ./.github/actions/smoke-curves-fit
         with:
           function-app-name: curves-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
   deploy-lactation-autoencoder:
     needs: [resolve-deployment, detect-changes, infra, rollout-api]
@@ -553,6 +562,7 @@ jobs:
           autoencoder-model-version: ${{ env.AUTOENCODER_MODEL_VERSION }}
           function-app-name: autoencoder-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - uses: ./.github/actions/deploy-function-app
         with:
@@ -564,9 +574,11 @@ jobs:
         with:
           function-app-name: autoencoder-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - uses: ./.github/actions/smoke-function-health
         with:
           function-app-name: autoencoder-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           output-file: /tmp/autoencoder-health.json

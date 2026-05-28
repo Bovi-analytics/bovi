@@ -8,6 +8,9 @@ inputs:
   resource-group:
     description: Azure resource group.
     required: true
+  subscription-id:
+    description: Azure subscription ID.
+    required: true
 
 runs:
   using: composite
@@ -18,6 +21,7 @@ runs:
         host_name="$(az functionapp show \
           --name "${{ inputs.function-app-name }}" \
           --resource-group "${{ inputs.resource-group }}" \
+          --subscription "${{ inputs.subscription-id }}" \
           --query "defaultHostName" -o tsv)"
         curl --connect-timeout 5 --max-time 60 --retry 5 --retry-all-errors -fsS \
           -H "content-type: application/json" \

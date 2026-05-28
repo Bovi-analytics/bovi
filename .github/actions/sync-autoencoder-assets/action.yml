@@ -20,6 +20,9 @@ inputs:
   resource-group:
     description: Azure resource group.
     required: true
+  subscription-id:
+    description: Azure subscription ID.
+    required: true
   destination-container:
     description: Destination model asset container.
     required: false
@@ -55,6 +58,7 @@ runs:
         dest_connection_string="$(az functionapp config appsettings list \
           --name "${{ inputs.function-app-name }}" \
           --resource-group "${{ inputs.resource-group }}" \
+          --subscription "${{ inputs.subscription-id }}" \
           --query "[?name=='AzureWebJobsStorage'].value | [0]" -o tsv)"
         if [ -z "$dest_connection_string" ]; then
           echo "AzureWebJobsStorage is not configured for ${{ inputs.function-app-name }}."

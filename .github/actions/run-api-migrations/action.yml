@@ -11,6 +11,9 @@ inputs:
   resource-group:
     description: Azure resource group.
     required: true
+  subscription-id:
+    description: Azure subscription ID.
+    required: true
 
 runs:
   using: composite
@@ -21,16 +24,19 @@ runs:
         az containerapp job update \
           --name "${{ inputs.migration-job }}" \
           --resource-group "${{ inputs.resource-group }}" \
+          --subscription "${{ inputs.subscription-id }}" \
           --image "${{ inputs.api-image }}"
 
         execution_name="$(az containerapp job start \
           --name "${{ inputs.migration-job }}" \
           --resource-group "${{ inputs.resource-group }}" \
+          --subscription "${{ inputs.subscription-id }}" \
           --query "name" -o tsv)"
         if [ -z "$execution_name" ]; then
           execution_name="$(az containerapp job execution list \
             --name "${{ inputs.migration-job }}" \
             --resource-group "${{ inputs.resource-group }}" \
+            --subscription "${{ inputs.subscription-id }}" \
             --query "[-1].name" -o tsv)"
         fi
         if [ -z "$execution_name" ]; then
@@ -44,6 +50,7 @@ runs:
           status="$(az containerapp job execution show \
             --name "${{ inputs.migration-job }}" \
             --resource-group "${{ inputs.resource-group }}" \
+            --subscription "${{ inputs.subscription-id }}" \
             --job-execution-name "$execution_name" \
             --query "properties.status" -o tsv 2>/dev/null || true)"
           echo "Migration status: $status"

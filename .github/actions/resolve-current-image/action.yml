@@ -8,6 +8,9 @@ inputs:
   resource-group:
     description: Azure resource group.
     required: true
+  subscription-id:
+    description: Azure subscription ID.
+    required: true
   default-image:
     description: Default image when the Container App does not exist or has no image.
     required: true
@@ -27,6 +30,7 @@ runs:
         image="$(az containerapp show \
           --name "${{ inputs.containerapp-name }}" \
           --resource-group "${{ inputs.resource-group }}" \
+          --subscription "${{ inputs.subscription-id }}" \
           --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)"
         if [ -z "$image" ]; then
           image="${{ inputs.default-image }}"
