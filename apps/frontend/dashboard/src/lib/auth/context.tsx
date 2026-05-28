@@ -14,6 +14,7 @@ import {
   setDevAccessToken,
 } from "./service";
 import type { AuthContextValue, AuthUser } from "./types";
+import { getSafePostLoginRedirect, POST_LOGIN_REDIRECT_KEY } from "./post-login-redirect";
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -79,9 +80,19 @@ function AuthProvider({ children }: { readonly children: ReactNode }) {
           (typeof savedSelection === "number" &&
             currentUser.organizations.some((org) => org.id === savedSelection));
         setSelectedOrganizationIdState(
-          isValidSavedSelection ? savedSelection : currentUser.organizations[0]?.id ?? null
+          isValidSavedSelection ? savedSelection : (currentUser.organizations[0]?.id ?? null)
         );
         setAuthMarker(true);
+        const redirectPath = getSafePostLoginRedirect(
+          window.sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY)
+        );
+        if (redirectPath) {
+          window.sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+          const currentPath = `${window.location.pathname}${window.location.search}`;
+          if (currentPath !== redirectPath) {
+            window.location.assign(redirectPath);
+          }
+        }
       } catch (error) {
         console.error("Failed to load authenticated user", error);
         setUser(null);
@@ -121,7 +132,14 @@ function AuthProvider({ children }: { readonly children: ReactNode }) {
       getAccessToken: getBackendAccessToken,
       logout,
     }),
-    [isLoading, isMsalAuthenticated, logout, selectedOrganizationId, setSelectedOrganizationId, user]
+    [
+      isLoading,
+      isMsalAuthenticated,
+      logout,
+      selectedOrganizationId,
+      setSelectedOrganizationId,
+      user,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -221,8 +239,12 @@ export function useAuth(): AuthContextValue {
   return context;
 }
 
-export async function startLogin(): Promise<void> {
+export async function startLogin(nextPath?: string | null): Promise<void> {
   if (!msalConfig.auth.clientId) throw new Error("Microsoft Entra ID is not configured.");
+  const redirectPath = getSafePostLoginRedirect(nextPath ?? null);
+  if (redirectPath && typeof window !== "undefined") {
+    window.sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, redirectPath);
+  }
   const instance = new PublicClientApplication(msalConfig);
   await instance.initialize();
   await instance.loginRedirect(loginRequest);

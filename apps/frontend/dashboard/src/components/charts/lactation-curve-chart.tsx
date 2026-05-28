@@ -79,7 +79,7 @@ export function LactationCurveChart({
   annotations = [],
   height = 400,
 }: LactationCurveChartProps): ReactElement {
-  const { weightUnit } = useWeightUnit();
+  const { weightUnit, toggleWeightUnit } = useWeightUnit();
   const yAxisLabel = weightUnit === "lbs" ? "Milk Yield (lbs/day)" : "Milk Yield (kg/day)";
 
   const convertedCurves = useMemo(
@@ -96,81 +96,92 @@ export function LactationCurveChart({
   );
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+    <div className="relative w-full" style={{ height }}>
+      <button
+        type="button"
+        onClick={toggleWeightUnit}
+        className="absolute right-3 top-3 z-10 rounded-md border border-primary/40 bg-card/95 px-3 py-1.5 text-sm font-medium text-primary shadow-sm backdrop-blur transition-colors hover:bg-primary/10"
+        aria-label={`Show milk yield in ${weightUnit === "kg" ? "pounds" : "kilograms"}`}
+      >
+        {weightUnit === "kg" ? "kg -> lbs" : "lbs -> kg"}
+      </button>
 
-        <XAxis
-          dataKey="dim"
-          type="number"
-          domain={[0, "dataMax"]}
-          label={{ value: "Days in Milk", position: "bottom", offset: 0 }}
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
-        />
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
 
-        <YAxis
-          dataKey="yield"
-          type="number"
-          label={{
-            value: yAxisLabel,
-            angle: -90,
-            position: "insideLeft",
-            offset: 10,
-          }}
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
-        />
-
-        <Tooltip
-          contentStyle={{
-            backgroundColor: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: "0.5rem",
-            color: "hsl(var(--card-foreground))",
-            fontSize: 12,
-          }}
-          formatter={(value: number) => [formatTooltipValue(value, weightUnit), yAxisLabel]}
-        />
-
-        <Legend verticalAlign="top" height={36} />
-
-        {/* Fitted model curves - one Line per model */}
-        {convertedCurves.map((curve) => (
-          <Line
-            key={curve.name}
-            data={curve.data as CurvePoint[]}
-            dataKey="yield"
-            name={curve.name}
-            stroke={curve.color}
-            strokeWidth={2}
-            dot={false}
-            type="monotone"
+          <XAxis
+            dataKey="dim"
+            type="number"
+            domain={[0, "dataMax"]}
+            label={{ value: "Days in Milk", position: "bottom", offset: 0 }}
+            stroke="hsl(var(--muted-foreground))"
+            fontSize={12}
           />
-        ))}
 
-        {/* Raw observations - scatter points */}
-        {convertedObs.length > 0 && (
-          <Scatter
-            data={[...convertedObs]}
+          <YAxis
             dataKey="yield"
-            name="Observations"
-            fill="hsl(var(--foreground))"
-            opacity={0.7}
+            type="number"
+            label={{
+              value: yAxisLabel,
+              angle: -90,
+              position: "insideLeft",
+              offset: 10,
+            }}
+            stroke="hsl(var(--muted-foreground))"
+            fontSize={12}
           />
-        )}
 
-        {/* Annotations - highlighted scatter points with labels */}
-        {convertedAnnotations.length > 0 && (
-          <Scatter
-            data={[...convertedAnnotations]}
-            dataKey="yield"
-            name="Annotations"
-            fill="hsl(var(--accent))"
-            shape="diamond"
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "0.5rem",
+              color: "hsl(var(--card-foreground))",
+              fontSize: 12,
+            }}
+            formatter={(value: number) => [formatTooltipValue(value, weightUnit), yAxisLabel]}
           />
-        )}
-      </ComposedChart>
-    </ResponsiveContainer>
+
+          <Legend verticalAlign="top" height={36} />
+
+          {/* Fitted model curves - one Line per model */}
+          {convertedCurves.map((curve) => (
+            <Line
+              key={curve.name}
+              data={curve.data as CurvePoint[]}
+              dataKey="yield"
+              name={curve.name}
+              stroke={curve.color}
+              strokeWidth={2}
+              dot={false}
+              type="monotone"
+            />
+          ))}
+
+          {/* Raw observations - scatter points */}
+          {convertedObs.length > 0 && (
+            <Scatter
+              data={[...convertedObs]}
+              dataKey="yield"
+              name="Observations"
+              fill="hsl(var(--foreground))"
+              opacity={0.7}
+            />
+          )}
+
+          {/* Annotations - highlighted scatter points with labels */}
+          {convertedAnnotations.length > 0 && (
+            <Scatter
+              data={[...convertedAnnotations]}
+              dataKey="yield"
+              name="Annotations"
+              fill="hsl(var(--accent))"
+              shape="diamond"
+            />
+          )}
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

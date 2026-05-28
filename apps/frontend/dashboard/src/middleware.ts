@@ -6,15 +6,24 @@ const AUTH_MARKER_COOKIE = "auth_marker";
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const authDisabled =
-    process.env["AUTH_DISABLED"] === "true" || process.env["NEXT_PUBLIC_AUTH_DISABLED"] === "true";
+    process.env["AUTH_DISABLED"] === "true" ||
+    process.env["NEXT_PUBLIC_AUTH_DISABLED"] === "true" ||
+    process.env["NEXT_PUBLIC_DEV_MODE"] === "true";
 
-  if (authDisabled || pathname.startsWith("/auth")) {
+  if (
+    authDisabled ||
+    pathname === "/" ||
+    pathname.startsWith("/auth") ||
+    /\.[^/]+$/.test(pathname)
+  ) {
     return NextResponse.next();
   }
 
   const authMarker = request.cookies.get(AUTH_MARKER_COOKIE);
   if (!authMarker?.value) {
-    return NextResponse.redirect(new URL("/auth/login", request.url));
+    const loginUrl = new URL("/auth/login", request.url);
+    loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();

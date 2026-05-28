@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { useAuth } from "@/lib/auth";
 
 interface FlowStep {
   number: string;
@@ -72,143 +73,163 @@ const FLOW: FlowStep[] = [
   },
 ];
 
+function HomeContent({ isAuthenticated }: { readonly isAuthenticated: boolean }): ReactElement {
+  return (
+    <div className="relative flex min-h-full flex-col items-center py-12">
+      {/* Decorative gradient background */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-primary/15 via-primary/5 to-transparent"
+      />
+
+      <Stack align="center" gap="xl" maw={920} w="100%" style={{ position: "relative" }}>
+        {/* Hero */}
+        <Stack align="center" gap="md" w="100%">
+          <Image
+            src="/bovi-logo.png"
+            alt="Bovi-Analytics"
+            width={2255}
+            height={699}
+            priority
+            className="h-auto w-full max-w-[280px] drop-shadow-[0_0_24px_hsl(var(--primary)/0.35)]"
+          />
+          <Title order={1} ta="center">
+            From raw records to validated lactation curves
+          </Title>
+          <Text size="md" ta="center" maw={640}>
+            Bovi Analytics helps dairy teams explore, fit, and benchmark lactation curves from
+            browser-based herd records. Sign in to open your organization workspace.
+          </Text>
+          {!isAuthenticated && (
+            <Group gap="sm" mt="xs">
+              <Button component={Link} href="/auth/login" rightSection={<ChevronRight size={16} />}>
+                Sign in
+              </Button>
+              <Button component={Link} href="/curves" variant="light">
+                View curves
+              </Button>
+            </Group>
+          )}
+        </Stack>
+
+        {/* Flow steps with arrow connectors */}
+        <Stack gap={0} w="100%" align="stretch">
+          {FLOW.map((step, idx) => {
+            const Icon = step.icon;
+            return (
+              <div key={step.number}>
+                <Paper
+                  withBorder
+                  radius="md"
+                  p={0}
+                  style={{ overflow: "hidden", position: "relative" }}
+                >
+                  {/* Left accent bar */}
+                  <div
+                    aria-hidden
+                    className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-primary to-accent"
+                  />
+
+                  <Group align="stretch" gap={0} wrap="nowrap" className="relative">
+                    {/* Step number + icon column - fixed width for consistency */}
+                    <Stack
+                      align="center"
+                      justify="center"
+                      gap="sm"
+                      py="lg"
+                      style={{
+                        width: 140,
+                        minWidth: 140,
+                        flexShrink: 0,
+                        background:
+                          "linear-gradient(180deg, hsl(var(--primary)/0.10), hsl(var(--accent)/0.05))",
+                      }}
+                    >
+                      <Text size="xs" fw={700} c="blue.4" style={{ letterSpacing: "0.1em" }}>
+                        STEP {step.number}
+                      </Text>
+                      <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-primary/40 bg-primary/15 shadow-[0_0_24px_hsl(var(--primary)/0.25)]">
+                        <Icon size={32} className="text-primary" />
+                      </div>
+                    </Stack>
+
+                    {/* Body */}
+                    <Stack gap="xs" p="lg" style={{ flex: 1 }}>
+                      <Group gap="xs" align="center" wrap="wrap">
+                        <Title order={3} fw={700}>
+                          {step.title}
+                        </Title>
+                        {step.sparkle && (
+                          <Sparkles
+                            size={18}
+                            className="text-accent"
+                            style={{
+                              filter: "drop-shadow(0 0 6px hsl(var(--accent)/0.6))",
+                            }}
+                          />
+                        )}
+                      </Group>
+                      <Text size="xs" c="blue.4" fw={600}>
+                        {step.tab}
+                      </Text>
+                      <Text size="sm" mt={4}>
+                        {step.description}
+                      </Text>
+                      <Group mt="sm">
+                        <Button
+                          component={Link}
+                          href={step.href}
+                          size="sm"
+                          variant="light"
+                          rightSection={<ChevronRight size={14} />}
+                        >
+                          {step.cta}
+                        </Button>
+                      </Group>
+                    </Stack>
+                  </Group>
+                </Paper>
+
+                {/* Arrow between cards */}
+                {idx < FLOW.length - 1 && (
+                  <div className="flex justify-center py-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/40 bg-primary/15 shadow-[0_0_18px_hsl(var(--primary)/0.35)]">
+                      <ArrowDown size={18} className="text-primary" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </Stack>
+
+        {/* Final CTA - the logical first action after reading the flow */}
+        <Stack align="center" gap="xs" mt="md">
+          <Text size="sm" ta="center">
+            {isAuthenticated
+              ? "Ready to follow the flow? Start at step 1."
+              : "The workflow opens after sign-in so your data stays tied to the right organization."}
+          </Text>
+          <Button
+            component={Link}
+            href={isAuthenticated ? "/data-upload" : "/auth/login"}
+            size="lg"
+            rightSection={<ChevronRight size={18} />}
+          >
+            {isAuthenticated ? "Get started: go to Data Upload" : "Sign in to get started"}
+          </Button>
+        </Stack>
+      </Stack>
+    </div>
+  );
+}
+
 export default function HomePage(): ReactElement {
+  const { isAuthenticated } = useAuth();
+
   return (
     <DashboardShell>
-      <div className="relative flex min-h-full flex-col items-center py-12">
-        {/* Decorative gradient background */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-primary/15 via-primary/5 to-transparent"
-        />
-
-        <Stack align="center" gap="xl" maw={920} w="100%" style={{ position: "relative" }}>
-          {/* Hero */}
-          <Stack align="center" gap="md" w="100%">
-            <Image
-              src="/bovi-logo.png"
-              alt="Bovi-Analytics"
-              width={2255}
-              height={699}
-              priority
-              className="h-auto w-full max-w-[280px] drop-shadow-[0_0_24px_hsl(var(--primary)/0.35)]"
-            />
-            <Title order={1} ta="center">
-              From raw records to validated lactation curves
-            </Title>
-            <Text size="md" ta="center" maw={640}>
-              Explore, fit, and benchmark dairy cow lactation curves, all from your browser. Follow
-              the four steps below in order.
-            </Text>
-          </Stack>
-
-          {/* Flow steps with arrow connectors */}
-          <Stack gap={0} w="100%" align="stretch">
-            {FLOW.map((step, idx) => {
-              const Icon = step.icon;
-              return (
-                <div key={step.number}>
-                  <Paper
-                    withBorder
-                    radius="md"
-                    p={0}
-                    style={{ overflow: "hidden", position: "relative" }}
-                  >
-                    {/* Left accent bar */}
-                    <div
-                      aria-hidden
-                      className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-primary to-accent"
-                    />
-
-                    <Group align="stretch" gap={0} wrap="nowrap" className="relative">
-                      {/* Step number + icon column - fixed width for consistency */}
-                      <Stack
-                        align="center"
-                        justify="center"
-                        gap="sm"
-                        py="lg"
-                        style={{
-                          width: 140,
-                          minWidth: 140,
-                          flexShrink: 0,
-                          background:
-                            "linear-gradient(180deg, hsl(var(--primary)/0.10), hsl(var(--accent)/0.05))",
-                        }}
-                      >
-                        <Text size="xs" fw={700} c="blue.4" style={{ letterSpacing: "0.1em" }}>
-                          STEP {step.number}
-                        </Text>
-                        <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-primary/40 bg-primary/15 shadow-[0_0_24px_hsl(var(--primary)/0.25)]">
-                          <Icon size={32} className="text-primary" />
-                        </div>
-                      </Stack>
-
-                      {/* Body */}
-                      <Stack gap="xs" p="lg" style={{ flex: 1 }}>
-                        <Group gap="xs" align="center" wrap="wrap">
-                          <Title order={3} fw={700}>
-                            {step.title}
-                          </Title>
-                          {step.sparkle && (
-                            <Sparkles
-                              size={18}
-                              className="text-accent"
-                              style={{
-                                filter: "drop-shadow(0 0 6px hsl(var(--accent)/0.6))",
-                              }}
-                            />
-                          )}
-                        </Group>
-                        <Text size="xs" c="blue.4" fw={600}>
-                          {step.tab}
-                        </Text>
-                        <Text size="sm" mt={4}>
-                          {step.description}
-                        </Text>
-                        <Group mt="sm">
-                          <Button
-                            component={Link}
-                            href={step.href}
-                            size="sm"
-                            variant="light"
-                            rightSection={<ChevronRight size={14} />}
-                          >
-                            {step.cta}
-                          </Button>
-                        </Group>
-                      </Stack>
-                    </Group>
-                  </Paper>
-
-                  {/* Arrow between cards */}
-                  {idx < FLOW.length - 1 && (
-                    <div className="flex justify-center py-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/40 bg-primary/15 shadow-[0_0_18px_hsl(var(--primary)/0.35)]">
-                        <ArrowDown size={18} className="text-primary" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </Stack>
-
-          {/* Final CTA - the logical first action after reading the flow */}
-          <Stack align="center" gap="xs" mt="md">
-            <Text size="sm" ta="center">
-              Ready to follow the flow? Start at step 1.
-            </Text>
-            <Button
-              component={Link}
-              href="/data-upload"
-              size="lg"
-              rightSection={<ChevronRight size={18} />}
-            >
-              Get started: go to Data Upload
-            </Button>
-          </Stack>
-        </Stack>
-      </div>
+      <HomeContent isAuthenticated={isAuthenticated} />
     </DashboardShell>
   );
 }
