@@ -49,17 +49,23 @@ def ensure_model_assets(
     blob_service_factory: BlobServiceFactory = BlobServiceClient.from_connection_string,
 ) -> ModelAssetPaths:
     """Ensure autoencoder assets are available in the local runtime cache."""
-    if not settings.azure_web_jobs_storage:
-        raise ModelAssetError("AzureWebJobsStorage is required to load autoencoder model assets.")
-
     cache_root = Path(settings.autoencoder_model_cache_dir)
     prefix = _clean_prefix(settings.autoencoder_model_prefix)
     config_path = cache_root / prefix / "config/config.yaml"
     marker_path = cache_root / prefix / _CACHE_MARKER
 
-    if marker_path.exists() and _required_assets_exist(cache_root, prefix):
+    if _required_assets_exist(cache_root, prefix):
         _ensure_runtime_project_file(cache_root)
+        if not marker_path.exists():
+            marker_path.write_text("downloaded=0\nsource=existing-cache\n", encoding="utf-8")
         return ModelAssetPaths(project_root=cache_root, config_path=config_path)
+
+    if not settings.azure_web_jobs_storage:
+        missing = _missing_required_assets(cache_root, prefix)
+        raise ModelAssetError(
+            "AzureWebJobsStorage is required to load autoencoder model assets; "
+            "local cache is incomplete; missing: " + ", ".join(missing)
+        )
 
     logger.info(
         "Hydrating autoencoder model assets from blob container %s/%s",

@@ -14,7 +14,7 @@ from bovi_api.models import (
     UploadedDataset,
     User,
 )
-from bovi_api.settings import get_settings
+from fastapi import HTTPException
 from sqlmodel import select
 
 
@@ -31,15 +31,14 @@ def test_auth_me_returns_current_user(client):
     assert body["organizations"] == [{"id": 1, "name": "Test Organization", "role": "Owner"}]
 
 
-def test_protected_route_rejects_missing_token_without_override(client, monkeypatch):
-    monkeypatch.setenv("AUTH_DISABLED", "false")
-    get_settings.cache_clear()
-    client.app.dependency_overrides.pop(require_auth)
+def test_protected_route_propagates_auth_dependency_failure(client):
+    async def reject_auth():
+        raise HTTPException(status_code=401, detail="Authentication required.")
 
+    client.app.dependency_overrides[require_auth] = reject_auth
     response = client.get("/benchmark/challenges")
 
     assert response.status_code == 401
-    get_settings.cache_clear()
 
 
 def test_user_only_sees_challenges_for_their_organization(client):

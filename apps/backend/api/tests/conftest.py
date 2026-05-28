@@ -11,7 +11,13 @@ from bovi_core.storage import BlobStore
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-os.environ["DATABASE_URL"] = ""
+os.environ.update(
+    {
+        "DATABASE_URL": "",
+        "AUTH_DISABLED": "false",
+        "DEV_MODE": "false",
+    }
+)
 
 from bovi_api.app import create_app
 from bovi_api.auth import AuthenticatedOrganization, CurrentUser, require_auth
@@ -28,7 +34,19 @@ from bovi_api.models import (
     UploadedDataset,
     User,
 )
+from bovi_api.settings import Settings, get_settings
 from bovi_api.storage import ArtifactStorage, get_artifact_storage, get_optional_artifact_storage
+
+
+def test_settings(**overrides) -> Settings:
+    """Return API settings owned by tests, independent from the root .env."""
+    values = {
+        "database_url": "",
+        "auth_disabled": False,
+        "dev_mode": False,
+        **overrides,
+    }
+    return Settings(**values)
 
 
 @dataclass
@@ -209,6 +227,7 @@ def client(monkeypatch):
             yield session
 
     app = create_app()
+    app.dependency_overrides[get_settings] = lambda: test_settings()
 
     async def override_require_auth():
         return CurrentUser(
@@ -249,6 +268,19 @@ def client(monkeypatch):
     asyncio.run(_seed_auth_rows())
 
     yield ASGITestClient(app)
+
+
+@pytest.fixture()
+def api_settings(client: ASGITestClient):
+    """Override API settings for a specific test."""
+
+    def override(**settings_overrides) -> Settings:
+        settings = test_settings(**settings_overrides)
+        client.app.dependency_overrides[get_settings] = lambda: settings
+        get_settings.cache_clear()
+        return settings
+
+    return override
 
 
 @pytest.fixture()
