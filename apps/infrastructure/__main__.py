@@ -264,7 +264,7 @@ autoencoder_result = create_function_app(
                 value=autoencoder_model_prefix,
             ),
             web.NameValuePairArgs(
-                name="AUTOENCODER_MODEL_CACHE_DIR",
+                name="AUTOENCODER_MODEL_LOCAL_ROOT",
                 value="/tmp/bovi-autoencoder-assets",
             ),
         ],

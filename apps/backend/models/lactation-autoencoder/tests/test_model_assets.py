@@ -55,7 +55,7 @@ class _FakeBlobService:
 def _settings(tmp_path) -> Settings:
     return Settings(
         azure_web_jobs_storage="UseDevelopmentStorage=true",
-        autoencoder_model_cache_dir=str(tmp_path),
+        autoencoder_model_local_root=str(tmp_path),
     )
 
 
@@ -80,11 +80,18 @@ def test_settings_accepts_azure_web_jobs_storage_alias(tmp_path):
     settings = Settings.model_validate(
         {
             "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-            "autoencoder_model_cache_dir": str(tmp_path),
+            "AUTOENCODER_MODEL_LOCAL_ROOT": str(tmp_path),
         }
     )
 
     assert settings.azure_web_jobs_storage == "UseDevelopmentStorage=true"
+    assert settings.autoencoder_model_local_root == str(tmp_path)
+
+
+def test_settings_accepts_legacy_model_cache_dir_alias(tmp_path):
+    settings = Settings.model_validate({"AUTOENCODER_MODEL_CACHE_DIR": str(tmp_path)})
+
+    assert settings.autoencoder_model_local_root == str(tmp_path)
     assert settings.autoencoder_model_cache_dir == str(tmp_path)
 
 
@@ -92,7 +99,7 @@ def test_settings_default_model_cache_dir_points_to_repo_root():
     settings = Settings()
     repo_root = Path(__file__).resolve().parents[5]
 
-    assert settings.autoencoder_model_cache_dir == str(repo_root)
+    assert settings.autoencoder_model_local_root == str(repo_root)
 
 
 def test_ensure_model_assets_downloads_prefix_to_cache(tmp_path):
@@ -128,7 +135,7 @@ def test_ensure_model_assets_uses_complete_cache_without_storage_connection(tmp_
     _write_cache(tmp_path, _required_blobs())
     settings = Settings(
         azure_web_jobs_storage=None,
-        autoencoder_model_cache_dir=str(tmp_path),
+        autoencoder_model_local_root=str(tmp_path),
     )
 
     paths = ensure_model_assets(settings, blob_service_factory=lambda _: None)
@@ -137,13 +144,15 @@ def test_ensure_model_assets_uses_complete_cache_without_storage_connection(tmp_
         tmp_path / "data/models/lactation_autoencoder/versions/v15/config/config.yaml"
     )
     assert (tmp_path / "pyproject.toml").exists()
-    assert (tmp_path / "data/models/lactation_autoencoder/versions/v15/.download-complete").exists()
+    assert not (
+        tmp_path / "data/models/lactation_autoencoder/versions/v15/.download-complete"
+    ).exists()
 
 
 def test_ensure_model_assets_requires_storage_connection(tmp_path):
     settings = Settings(
         azure_web_jobs_storage=None,
-        autoencoder_model_cache_dir=str(tmp_path),
+        autoencoder_model_local_root=str(tmp_path),
     )
 
     with pytest.raises(ModelAssetError, match="AzureWebJobsStorage"):
