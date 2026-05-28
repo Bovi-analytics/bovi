@@ -4,6 +4,23 @@ import { LogLevel } from "@azure/msal-browser";
 const clientId = process.env["NEXT_PUBLIC_AZURE_AD_CLIENT_ID"] ?? "";
 const configuredScope = process.env["NEXT_PUBLIC_AZURE_AD_API_SCOPE"];
 const apiScope = configuredScope ?? (clientId ? `api://${clientId}/access_as_user` : "");
+const configuredRedirectUri = process.env["NEXT_PUBLIC_AZURE_AD_REDIRECT_URI"] ?? "/auth/login";
+const configuredPostLogoutRedirectUri =
+  process.env["NEXT_PUBLIC_AZURE_AD_POST_LOGOUT_REDIRECT_URI"] ?? "/";
+
+function resolveBrowserUri(value: string, origin?: string): string {
+  const browserOrigin = origin ?? (typeof window !== "undefined" ? window.location.origin : "");
+  if (!browserOrigin) return "";
+  return new URL(value, browserOrigin).toString();
+}
+
+export function getAuthRedirectUri(origin?: string): string {
+  return resolveBrowserUri(configuredRedirectUri, origin);
+}
+
+export function getPostLogoutRedirectUri(origin?: string): string {
+  return resolveBrowserUri(configuredPostLogoutRedirectUri, origin);
+}
 
 export function isAuthDisabled(): boolean {
   return (
@@ -20,9 +37,8 @@ export const msalConfig: Configuration = {
   auth: {
     clientId,
     authority: "https://login.microsoftonline.com/common/v2.0",
-    redirectUri: typeof window !== "undefined" ? window.location.origin : "",
-    postLogoutRedirectUri:
-      typeof window !== "undefined" ? `${window.location.origin}/auth/login` : "",
+    redirectUri: getAuthRedirectUri(),
+    postLogoutRedirectUri: getPostLogoutRedirectUri(),
     navigateToLoginRequestUrl: false,
   },
   cache: {

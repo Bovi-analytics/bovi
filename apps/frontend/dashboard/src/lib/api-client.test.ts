@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth/service", () => ({
   getBackendAccessToken: vi.fn(async () => "test-token"),
@@ -8,11 +8,31 @@ vi.mock("@/lib/auth/service", () => ({
 import { handleUnauthorizedResponse } from "@/lib/auth/service";
 import { downloadChallengeExport, listChallenges } from "./api-client";
 
+const ORIGINAL_DOCUMENT = globalThis.document;
+const ORIGINAL_FETCH = globalThis.fetch;
+const ORIGINAL_URL = globalThis.URL;
+
 describe("api-client authentication", () => {
   beforeEach(() => {
     process.env["NEXT_PUBLIC_API_URL"] = "https://api.example.test";
     vi.restoreAllMocks();
-    delete (globalThis as { fetch?: typeof fetch }).fetch;
+    globalThis.URL = ORIGINAL_URL;
+    globalThis.document = ORIGINAL_DOCUMENT;
+    if (ORIGINAL_FETCH === undefined) {
+      delete (globalThis as { fetch?: typeof fetch }).fetch;
+    } else {
+      globalThis.fetch = ORIGINAL_FETCH;
+    }
+  });
+
+  afterEach(() => {
+    globalThis.URL = ORIGINAL_URL;
+    globalThis.document = ORIGINAL_DOCUMENT;
+    if (ORIGINAL_FETCH === undefined) {
+      delete (globalThis as { fetch?: typeof fetch }).fetch;
+    } else {
+      globalThis.fetch = ORIGINAL_FETCH;
+    }
   });
 
   it("attaches bearer tokens to JSON API calls", async () => {

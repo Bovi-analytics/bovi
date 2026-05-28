@@ -6,7 +6,14 @@ import type { AuthenticationResult } from "@azure/msal-browser";
 import { EventType, PublicClientApplication } from "@azure/msal-browser";
 import { MsalProvider, useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { getApiBaseUrl } from "@/lib/env";
-import { isAuthDisabled, isAzureAdConfigured, loginRequest, msalConfig } from "./config";
+import {
+  getAuthRedirectUri,
+  getPostLogoutRedirectUri,
+  isAuthDisabled,
+  isAzureAdConfigured,
+  loginRequest,
+  msalConfig,
+} from "./config";
 import {
   getBackendAccessToken,
   initializeAuthService,
@@ -109,7 +116,7 @@ function AuthProvider({ children }: { readonly children: ReactNode }) {
     const account = instance.getActiveAccount();
     await instance.logoutRedirect({
       account: account ?? undefined,
-      postLogoutRedirectUri: `${window.location.origin}/auth/login`,
+      postLogoutRedirectUri: getPostLogoutRedirectUri(),
     });
   }, [instance]);
 
@@ -192,8 +199,8 @@ export function AuthProviderWrapper({ children }: { readonly children: ReactNode
           ...msalConfig,
           auth: {
             ...msalConfig.auth,
-            redirectUri: window.location.origin,
-            postLogoutRedirectUri: `${window.location.origin}/auth/login`,
+            redirectUri: getAuthRedirectUri(),
+            postLogoutRedirectUri: getPostLogoutRedirectUri(),
           },
         };
         const msal = new PublicClientApplication(runtimeConfig);
