@@ -65,7 +65,7 @@ jobs:
       PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v8.1.0
       - run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Azure Login (OIDC)
