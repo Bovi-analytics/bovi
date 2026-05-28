@@ -63,6 +63,11 @@ def _required_blobs(prefix: str = "data/models/lactation_autoencoder/versions/v1
     return {
         f"{prefix}/config/config.yaml": b"experiment_name: lactation_autoencoder\n",
         f"{prefix}/inputs/inference/pkl/event_to_idx_dict.pkl": b"pickle",
+        f"{prefix}/inputs/inference/pkl/herd_stat_means_global.pkl": b"pickle",
+        f"{prefix}/inputs/inference/pkl/herd_stat_means_per_parity.pkl": b"pickle",
+        f"{prefix}/inputs/inference/pkl/herd_stats_means_per_herd.pkl": b"pickle",
+        f"{prefix}/inputs/inference/pkl/herd_stats_per_parity_dict.pkl": b"pickle",
+        f"{prefix}/inputs/inference/pkl/idx_to_herd_par_dict.pkl": b"pickle",
         f"{prefix}/weights/autoencoder/saved_model.pb": b"model",
         f"{prefix}/weights/autoencoder/variables/variables.index": b"index",
         f"{prefix}/weights/autoencoder/variables/variables.data-00000-of-00001": b"data",
