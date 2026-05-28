@@ -6,6 +6,7 @@ import { MantineProvider, createTheme } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { UnitProvider } from "./unit-provider";
 import { UploadedCowsProvider } from "./uploaded-cows-provider";
+import { AuthProviderWrapper } from "@/lib/auth";
 
 const theme = createTheme({
   primaryColor: "blue",
@@ -21,14 +22,14 @@ export function Providers({ children }: ProvidersProps): ReactElement {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={theme} defaultColorScheme="dark">
-        <UnitProvider>
-          <UploadedCowsProvider>
-            {children}
-          </UploadedCowsProvider>
-        </UnitProvider>
-      </MantineProvider>
-    </QueryClientProvider>
+    <AuthProviderWrapper>
+      <QueryClientProvider client={queryClient}>
+        <MantineProvider theme={theme} defaultColorScheme="dark">
+          <UnitProvider>
+            <UploadedCowsProvider>{children}</UploadedCowsProvider>
+          </UnitProvider>
+        </MantineProvider>
+      </QueryClientProvider>
+    </AuthProviderWrapper>
   );
 }

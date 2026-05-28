@@ -18,7 +18,7 @@ import {
 } from "@mantine/core";
 import { Info } from "lucide-react";
 import { useState } from "react";
-import { exportChallengeUrl } from "@/lib/api-client";
+import { downloadChallengeExport } from "@/lib/api-client";
 import { MODEL_LABELS } from "@/lib/benchmark-dataset";
 import { useSubmitOwnMethod } from "../hooks/use-submissions";
 import type { BenchmarkModel, MilkBotRunOptions } from "@/types/api";
@@ -118,10 +118,8 @@ export function SubmissionFormUpload({ challengeId, onSuccess }: Props): ReactEl
             <Group gap="xs">
               <Button
                 variant="outline"
-                component="a"
-                href={exportChallengeUrl(challengeId)}
-                download
                 size="xs"
+                onClick={() => void downloadChallengeExport(challengeId)}
               >
                 Download test data
               </Button>

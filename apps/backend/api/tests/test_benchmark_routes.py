@@ -1,20 +1,22 @@
 """Integration tests for benchmark routes."""
 
 import asyncio
+import gzip
 import json
 
 import bovi_api.routes.benchmark as benchmark_routes
 import pytest
 from bovi_api.database import get_session
-from bovi_api.models import Challenge, Submission
+from bovi_api.models import Challenge, StorageArtifact
 from bovi_api.routes.benchmark import MilkBotRunOptions, _dispatch_model
 from bovi_api.routes.datasets import PresetCow, PresetDatasetResponse
 from bovi_api.settings import Settings
+from sqlmodel import select
 
 
 def test_list_challenges_empty(client):
     """GET /benchmark/challenges returns empty list when no challenges exist."""
-    response = client.get("/benchmark/challenges")
+    response = client.get("/benchmark/challenges?organization_id=1")
     assert response.status_code == 200
     assert response.json() == []
 
@@ -27,7 +29,7 @@ def test_get_submission_not_found(client):
 
 def test_list_submissions_empty(client):
     """GET /benchmark/submissions → []."""
-    resp = client.get("/benchmark/submissions")
+    resp = client.get("/benchmark/submissions?organization_id=1")
     assert resp.status_code == 200
     assert resp.json() == []
 
@@ -38,6 +40,7 @@ def test_create_challenge_from_saved_dataset(client):
         "/benchmark/challenges/saved-dataset",
         json={
             "name": "Saved upload",
+            "organization_id": 1,
             "dataset_sources": [
                 {
                     "role": "test_day_records",
@@ -63,6 +66,7 @@ def test_create_challenge_from_saved_dataset(client):
     assert data["dataset"] == "saved_upload"
     assert data["source"] == "upload"
     assert data["name"] == "Saved upload"
+    assert data["cow_count"] == 2
     assert data["dataset_sources"][0]["filename"] == "test_day.csv"
     assert data["dataset_stats"] == {
         "lactation_count": 2,
@@ -71,9 +75,13 @@ def test_create_challenge_from_saved_dataset(client):
         "herd_count": 1,
     }
 
+    detail = client.get(f"/benchmark/challenges/{data['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["cow_metadata"]["cow1"]["milk_kg"] == [25.0, 31.0]
 
-def test_create_challenge_upload_stores_source_filenames_and_stats(client):
-    """POST /benchmark/challenges/upload records the two source files and compact counts."""
+
+def test_create_upload_challenge_stores_raw_and_parsed_artifacts(client):
+    """POST /benchmark/challenges/upload stores raw CSV and parsed JSON blobs."""
     test_day_csv = (
         b"TestId,parity,dim,milk_kg\n"
         b"cow1,2,10,25.0\n"
@@ -85,7 +93,7 @@ def test_create_challenge_upload_stores_source_filenames_and_stats(client):
 
     resp = client.post(
         "/benchmark/challenges/upload",
-        data={"name": "Uploaded"},
+        data={"name": "Uploaded", "organization_id": "1"},
         files={
             "test_day_csv": ("farm_test_day.csv", test_day_csv, "text/csv"),
             "actual_yields_csv": ("farm_actual_yields.csv", actual_yields_csv, "text/csv"),
@@ -94,6 +102,9 @@ def test_create_challenge_upload_stores_source_filenames_and_stats(client):
 
     assert resp.status_code == 201
     data = resp.json()
+    assert data["row_count"] == 4
+    assert data["cow_count"] == 2
+    assert data["actual_yield_count"] == 2
     assert data["dataset_sources"] == [
         {
             "role": "test_day_records",
@@ -109,6 +120,27 @@ def test_create_challenge_upload_stores_source_filenames_and_stats(client):
     assert data["dataset_stats"]["lactation_count"] == 2
     assert data["dataset_stats"]["test_day_row_count"] == 4
     assert data["dataset_stats"]["actual_yield_count"] == 2
+
+    blob_paths = set(client.app.state.blob_container_client.store)
+    assert any(path.endswith("/raw/test_day.csv") for path in blob_paths)
+    assert any(path.endswith("/raw/actual_yields.csv") for path in blob_paths)
+    cow_blob_path = next(
+        path for path in blob_paths if path.endswith("/parsed/cow_metadata.json.gz")
+    )
+    stored = client.app.state.blob_container_client.store[cow_blob_path]
+    assert stored.content_type == "application/json"
+    assert stored.content_encoding == "gzip"
+    assert json.loads(gzip.decompress(stored.data))["cow1"]["dim"] == [10, 40]
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _artifact_count() -> int:
+        async for session in override():
+            result = await session.execute(select(StorageArtifact))
+            return len(result.scalars().all())
+        raise AssertionError("session override did not yield")
+
+    assert asyncio.run(_artifact_count()) == 4
 
 
 def test_create_preset_challenge_includes_icar_sources(client, monkeypatch):
@@ -134,7 +166,10 @@ def test_create_preset_challenge_includes_icar_sources(client, monkeypatch):
         ),
     )
 
-    resp = client.post("/benchmark/challenges", json={"source": "preset", "preset": "icar"})
+    resp = client.post(
+        "/benchmark/challenges",
+        json={"source": "preset", "preset": "icar", "organization_id": 1},
+    )
 
     assert resp.status_code == 201
     data = resp.json()
@@ -144,44 +179,6 @@ def test_create_preset_challenge_includes_icar_sources(client, monkeypatch):
     ]
     assert data["dataset_stats"]["lactation_count"] == 1
     assert data["dataset_stats"]["test_day_row_count"] == 2
-
-
-def test_list_challenges_falls_back_dataset_metadata_for_legacy_rows(client):
-    """Old rows without stored metadata still return usable list-view metadata."""
-    override = client.app.dependency_overrides[get_session]
-
-    async def _seed() -> None:
-        async for session in override():
-            session.add(
-                Challenge(
-                    dataset="icar",
-                    size="full",
-                    period="all",
-                    source="preset",
-                    name="Legacy",
-                    cow_metadata={
-                        "cow1": {
-                            "parity": 1,
-                            "herd_id": None,
-                            "dim": [10, 40],
-                            "milk_kg": [25.0, 31.0],
-                        }
-                    },
-                    reference_yields=None,
-                    actual_yields={"cow1": 8500.0},
-                )
-            )
-            await session.commit()
-            break
-
-    asyncio.run(_seed())
-
-    resp = client.get("/benchmark/challenges")
-
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data[0]["dataset_sources"][0]["filename"] == "TestDataSet.csv"
-    assert data[0]["dataset_stats"]["test_day_row_count"] == 2
 
 
 def test_pad_b_upload_rejects_high_failure_rate(client):
@@ -205,6 +202,8 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
                     period="all",
                     source="preset",
                     name="seed",
+                    user_id=1,
+                    organization_id=1,
                     cow_metadata={
                         f"cow{i}": {"parity": 1, "dim": [50], "milk_kg": [25.0]} for i in range(10)
                     },
@@ -229,6 +228,62 @@ def test_pad_b_upload_rejects_high_failure_rate(client):
     assert resp.status_code == 422
 
 
+def test_submission_upload_stores_raw_and_generated_artifacts(client, monkeypatch):
+    """Own-method submissions store raw CSV, parsed yields, and benchmark yields in blobs."""
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed() -> None:
+        async for session in override():
+            session.add(
+                Challenge(
+                    dataset="upload",
+                    size="custom",
+                    period="custom",
+                    source="upload",
+                    name="seed",
+                    user_id=1,
+                    organization_id=1,
+                    cow_metadata={
+                        "cow1": {"parity": 1, "dim": [50], "milk_kg": [25.0]},
+                        "cow2": {"parity": 2, "dim": [60], "milk_kg": [30.0]},
+                    },
+                    reference_yields=None,
+                    actual_yields={"cow1": 8000.0, "cow2": 9000.0},
+                )
+            )
+            await session.commit()
+            break
+
+    async def _fake_dispatch(*_args, **_kwargs):
+        return {"cow1": 7900.0, "cow2": 9100.0}
+
+    asyncio.run(_seed())
+    monkeypatch.setattr(benchmark_routes, "_dispatch_model", _fake_dispatch)
+
+    resp = client.post(
+        "/benchmark/challenges/1/submissions/upload",
+        data={"benchmark": "tim", "calculation_method": "own method"},
+        files={
+            "file": (
+                "results.csv",
+                b"TestId,LactationYield\ncow1,8100\ncow2,9200\n",
+                "text/csv",
+            )
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["row_count"] == 2
+    assert data["submitted_yield_count"] == 2
+    assert data["benchmark_yield_count"] == 2
+
+    blob_paths = set(client.app.state.blob_container_client.store)
+    assert any(path.endswith("/raw/results.csv") for path in blob_paths)
+    assert any(path.endswith("/parsed/submitted_yields.json.gz") for path in blob_paths)
+    assert any(path.endswith("/generated/bovi_yields.json.gz") for path in blob_paths)
+
+
 def test_export_challenge_uses_test_id_and_omits_empty_herd_id(client):
     """Downloaded test data omits herd_id when all herd IDs are empty."""
     override = client.app.dependency_overrides[get_session]
@@ -242,6 +297,8 @@ def test_export_challenge_uses_test_id_and_omits_empty_herd_id(client):
                     period="all",
                     source="preset",
                     name="Reference dataset",
+                    user_id=1,
+                    organization_id=1,
                     cow_metadata={
                         "lact-1": {"parity": 1, "herd_id": None, "dim": [10], "milk_kg": [25.0]}
                     },
@@ -273,6 +330,8 @@ def test_export_challenge_keeps_herd_id_when_available(client):
                     period="custom",
                     source="upload",
                     name="Uploaded",
+                    user_id=1,
+                    organization_id=1,
                     cow_metadata={
                         "lact-1": {"parity": 1, "herd_id": 123, "dim": [10], "milk_kg": [25.0]}
                     },
@@ -512,98 +571,3 @@ def test_dispatch_milkbot_sends_bayesian_options_per_cow(monkeypatch):
             "timeout": 300.0,
         },
     ]
-
-
-def test_download_report_repairs_legacy_icar_actual_yields(client, monkeypatch):
-    """Existing preset challenges with concatenated ALY are repaired before PDF export."""
-    override = client.app.dependency_overrides[get_session]
-    ids: dict[str, int] = {}
-
-    async def _seed() -> None:
-        async for session in override():
-            challenge = Challenge(
-                dataset="icar",
-                size="full",
-                period="all",
-                source="preset",
-                name="ICAR cohort",
-                cow_metadata={"1483": {"parity": 2, "dim": [10, 40], "milk_kg": [30.0, 31.0]}},
-                reference_yields=None,
-                actual_yields={"1483": 148310573.1},
-            )
-            session.add(challenge)
-            await session.commit()
-            await session.refresh(challenge)
-            assert challenge.id is not None
-            submission = Submission(
-                challenge_id=challenge.id,
-                submission_type="bovi_model",
-                model_type="wood",
-                benchmark_model="tim",
-                submitted_yields={"1483": 10500.0},
-                bovi_yields={"1483": 10600.0},
-                stats={
-                    "version": 2,
-                    "challenger_vs_aly": {
-                        "overall": {"rmse": 148300073.1, "n": 1},
-                        "by_parity": {},
-                    },
-                    "benchmark_vs_aly": {
-                        "overall": {"rmse": 148299973.1, "n": 1},
-                        "by_parity": {},
-                    },
-                    "challenger_vs_benchmark": {
-                        "overall": {"rmse": 100.0, "n": 1},
-                        "by_parity": {},
-                    },
-                    "failed_count": 0,
-                },
-                failed_cow_ids=[],
-            )
-            session.add(submission)
-            await session.commit()
-            await session.refresh(submission)
-            assert submission.id is not None
-            ids["submission"] = submission.id
-            ids["challenge"] = challenge.id
-            break
-
-    asyncio.run(_seed())
-
-    monkeypatch.setattr(
-        benchmark_routes,
-        "fetch_preset_cows",
-        lambda *args, **kwargs: PresetDatasetResponse(
-            dataset="icar",
-            size="full",
-            period="all",
-            cow_count=1,
-            cows=[
-                PresetCow(
-                    cow_id="1483",
-                    display_name="Cow 1483 - parity 2",
-                    parity=2,
-                    dim=[10, 40],
-                    milk_kg=[30.0, 31.0],
-                )
-            ],
-            actual_yields={"1483": 10573.1},
-        ),
-    )
-
-    captured: dict = {}
-
-    def _fake_pdf(**kwargs):
-        captured.update(kwargs)
-        return b"%PDF-1.4\n"
-
-    monkeypatch.setattr(benchmark_routes, "generate_report_pdf", _fake_pdf)
-
-    response = client.get(f"/benchmark/submissions/{ids['submission']}/report")
-
-    assert response.status_code == 200
-    assert captured["actual_yields"] == {"1483": 10573.1}
-    assert captured["stats"]["challenger_vs_aly"]["overall"]["rmse"] == pytest.approx(73.1)
-
-    challenge = client.get(f"/benchmark/challenges/{ids['challenge']}").json()
-    assert challenge["actual_yields"] == {"1483": 10573.1}

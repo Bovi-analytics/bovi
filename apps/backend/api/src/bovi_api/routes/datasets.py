@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from azure.core.exceptions import AzureError, ResourceNotFoundError
-from azure.storage.blob import BlobServiceClient
+from bovi_core.storage import BlobStore
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
@@ -97,7 +97,7 @@ class LocalPresetUnavailableError(RuntimeError):
     """Raised when a preset cannot be read from local JSON."""
 
 
-def _get_blob_client(settings: Settings) -> BlobServiceClient:
+def _get_blob_store(settings: Settings) -> BlobStore:
     connection_string = settings.connection_string
     if (
         not connection_string
@@ -118,7 +118,12 @@ def _get_blob_client(settings: Settings) -> BlobServiceClient:
                 "(CONNECTION_STRING or STORAGE_ACCOUNT_NAME_ICAR/STORAGE_ACCOUNT_KEY_ICAR missing)."
             ),
         )
-    return BlobServiceClient.from_connection_string(connection_string)
+    account_name = settings.storage_account_name_icar or ""
+    return BlobStore.from_connection_string(
+        connection_string=connection_string,
+        account_name=account_name,
+        container_name=_get_blob_container(settings),
+    )
 
 
 def _get_blob_container(settings: Settings) -> str:
@@ -157,10 +162,7 @@ def _fetch_blob_preset(
     settings: Settings,
 ) -> PresetDatasetResponse:
     blob_path = _preset_blob_path(dataset, size, period)
-    client = _get_blob_client(settings)
-    data = (
-        client.get_blob_client(_get_blob_container(settings), blob_path).download_blob().readall()
-    )
+    data = _get_blob_store(settings).download_bytes(blob_path)
     return PresetDatasetResponse(**json.loads(data))
 
 
@@ -171,12 +173,7 @@ def _fetch_blob_preset_count(
     settings: Settings,
 ) -> int:
     blob_path = _preset_blob_path(dataset, size, period)
-    client = _get_blob_client(settings)
-    data = (
-        client.get_blob_client(_get_blob_container(settings), blob_path)
-        .download_blob(offset=0, length=8192)
-        .readall()
-    )
+    data = _get_blob_store(settings).download_bytes(blob_path, offset=0, length=8192)
     match = _COW_COUNT_RE.search(data)
     if not match:
         raise AzureError(f"Preset cow_count not found in blob prefix: {blob_path}")

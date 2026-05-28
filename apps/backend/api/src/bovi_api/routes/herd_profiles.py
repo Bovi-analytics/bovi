@@ -1,6 +1,7 @@
 """CRUD endpoints for user-managed herd stat profiles."""
 
 import json
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -8,12 +9,20 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
+from bovi_api.auth import CurrentUser, ensure_organization_access, require_auth
 from bovi_api.database import get_session
 from bovi_api.herd_stats_ingestion import DEFAULT_STAT_RANGES, normalize_herd_stats, parse_csv
-from bovi_api.models import HerdProfile, HerdProfileCreate, HerdProfileRead
+from bovi_api.models import HerdProfile, HerdProfileCreate, HerdProfileRead, UploadedDataset
 from bovi_api.settings import Settings, get_settings
+from bovi_api.storage import (
+    ArtifactStorage,
+    create_bytes_artifact,
+    create_json_artifact,
+    delete_artifacts_best_effort,
+    get_artifact_storage,
+)
 
-router = APIRouter(tags=["herd-profiles"])
+router = APIRouter(tags=["herd-profiles"], dependencies=[Depends(require_auth)])
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
@@ -28,8 +37,9 @@ class CowRecordPayload(BaseModel):
 
 
 class HerdProfileUploadResponse(BaseModel):
-    """Preview of normalized herd stats parsed from a CSV upload. Not saved to DB."""
+    """Preview of normalized herd stats parsed from a CSV upload."""
 
+    upload_id: str | None = None
     stats: dict[str, float]
     raw_stats: dict[str, float]
     format_detected: str
@@ -46,10 +56,43 @@ class HerdProfileUploadResponse(BaseModel):
 @router.get("", response_model=list[HerdProfileRead], include_in_schema=False)
 @router.get("/", response_model=list[HerdProfileRead])
 async def list_herd_profiles(
+    organization_id: str | None = None,
+    scope: str = "organization",
+    sort: str = "created_at",
+    direction: str = "desc",
+    q: str | None = None,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> list[HerdProfile]:
     """List all herd profiles, newest first."""
-    result = await session.execute(select(HerdProfile).order_by(col(HerdProfile.created_at).desc()))
+    statement = select(HerdProfile)
+    if organization_id == "all":
+        if not current_user.is_admin:
+            raise HTTPException(status_code=403, detail="Admin access required.")
+    elif organization_id is not None:
+        try:
+            selected_organization_id = int(organization_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422, detail="organization_id must be an integer or all"
+            ) from exc
+        ensure_organization_access(current_user, selected_organization_id)
+        statement = statement.where(HerdProfile.organization_id == selected_organization_id)
+    elif current_user.is_admin:
+        pass
+    else:
+        raise HTTPException(status_code=422, detail="organization_id is required.")
+    if scope == "mine":
+        statement = statement.where(HerdProfile.user_id == current_user.id)
+    if q:
+        statement = statement.where(col(HerdProfile.name).contains(q))
+    sort_column = {
+        "created_at": col(HerdProfile.created_at),
+        "name": col(HerdProfile.name),
+        "user": col(HerdProfile.user_id),
+    }.get(sort, col(HerdProfile.created_at))
+    statement = statement.order_by(sort_column.asc() if direction == "asc" else sort_column.desc())
+    result = await session.execute(statement)
     return list(result.scalars().all())
 
 
@@ -57,10 +100,12 @@ async def list_herd_profiles(
 @router.post("/", response_model=HerdProfileRead, status_code=201)
 async def create_herd_profile(
     profile: HerdProfileCreate,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> HerdProfile:
     """Create a new herd profile."""
-    db_profile = HerdProfile(**profile.model_dump())
+    ensure_organization_access(current_user, profile.organization_id)
+    db_profile = HerdProfile(**profile.model_dump(), user_id=current_user.id)
     session.add(db_profile)
     try:
         await session.commit()
@@ -76,10 +121,14 @@ async def create_herd_profile(
 @router.post("/csv-preview", response_model=HerdProfileUploadResponse)
 async def csv_preview(
     file: UploadFile = File(...),
+    organization_id: int = Form(...),
     column_mapping: str | None = Form(default=None),
+    current_user: CurrentUser = Depends(require_auth),
     settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+    storage: ArtifactStorage = Depends(get_artifact_storage),
 ) -> HerdProfileUploadResponse:
-    """Parse and normalize an uploaded CSV. Returns a preview; does NOT save to DB."""
+    """Parse, normalize, and optionally persist an uploaded CSV preview."""
     filename = file.filename or ""
     if not filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files are accepted.")
@@ -87,6 +136,7 @@ async def csv_preview(
     content = await file.read()
     if len(content) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
+    ensure_organization_access(current_user, organization_id)
 
     parsed_mapping: dict[str, str] | None = None
     if column_mapping:
@@ -110,8 +160,91 @@ async def csv_preview(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     normalized = normalize_herd_stats(result.raw_stats, DEFAULT_STAT_RANGES)
+    upload_id = str(uuid4())
+    prefix = storage.path("herd-datasets", upload_id)
+    cows_payload = [
+        {
+            "cow_id": c.cow_id,
+            "parity": c.parity,
+            "dim": c.dim,
+            "milk_kg": c.milk_kg,
+        }
+        for c in (result.cows or [])
+    ]
+    uploaded = [
+        await create_bytes_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="herd_dataset_csv",
+            entity_type="uploaded_dataset",
+            entity_uuid=upload_id,
+            blob_path=f"{prefix}/raw/upload.csv",
+            data=content,
+            content_type="text/csv",
+            original_filename=filename,
+            row_count=result.row_count,
+            record_count=result.cow_count,
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="herd_dataset_cows_json",
+            entity_type="uploaded_dataset",
+            entity_uuid=upload_id,
+            blob_path=f"{prefix}/parsed/cows.json.gz",
+            payload=cows_payload,
+            row_count=result.row_count,
+            record_count=result.cow_count,
+        ),
+        await create_json_artifact(
+            session=session,
+            storage=storage,
+            artifact_kind="herd_dataset_stats_json",
+            entity_type="uploaded_dataset",
+            entity_uuid=upload_id,
+            blob_path=f"{prefix}/parsed/stats.json.gz",
+            payload={"stats": normalized, "raw_stats": result.raw_stats},
+            row_count=result.row_count,
+            record_count=result.cow_count,
+        ),
+    ]
+    try:
+        await session.flush()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
+
+    dataset = UploadedDataset(
+        id=upload_id,
+        name=filename,
+        dataset_type="herd_profile",
+        format_detected=result.format_detected,
+        user_id=current_user.id,
+        organization_id=organization_id,
+        raw_file_artifact_id=uploaded[0].id,
+        cows_artifact_id=uploaded[1].id,
+        stats_artifact_id=uploaded[2].id,
+        original_filename=filename,
+        row_count=result.row_count,
+        cow_count=result.cow_count,
+        detected_parity=result.detected_parity,
+        columns=result.columns or [],
+        column_mapping=result.column_mapping or {},
+        warnings=result.warnings,
+        stats_summary=normalized,
+        raw_stats_summary=result.raw_stats,
+    )
+    session.add(dataset)
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        await delete_artifacts_best_effort(storage, uploaded)
+        raise
 
     return HerdProfileUploadResponse(
+        upload_id=upload_id,
         stats=normalized,
         raw_stats=result.raw_stats,
         format_detected=result.format_detected,
@@ -137,12 +270,14 @@ async def csv_preview(
 @router.get("/{profile_id}", response_model=HerdProfileRead)
 async def get_herd_profile(
     profile_id: int,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> HerdProfile:
     """Retrieve a single herd profile by ID."""
     profile = await session.get(HerdProfile, profile_id)
     if profile is None:
         raise HTTPException(status_code=404, detail="Herd profile not found")
+    ensure_organization_access(current_user, profile.organization_id)
     return profile
 
 
@@ -150,12 +285,15 @@ async def get_herd_profile(
 async def update_herd_profile(
     profile_id: int,
     update: HerdProfileCreate,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> HerdProfile:
     """Update an existing herd profile."""
     profile = await session.get(HerdProfile, profile_id)
     if profile is None:
         raise HTTPException(status_code=404, detail="Herd profile not found")
+    ensure_organization_access(current_user, profile.organization_id)
+    ensure_organization_access(current_user, update.organization_id)
     for field, value in update.model_dump().items():
         setattr(profile, field, value)
     session.add(profile)
@@ -173,11 +311,13 @@ async def update_herd_profile(
 @router.delete("/{profile_id}", status_code=204)
 async def delete_herd_profile(
     profile_id: int,
+    current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Delete a herd profile."""
     profile = await session.get(HerdProfile, profile_id)
     if profile is None:
         raise HTTPException(status_code=404, detail="Herd profile not found")
+    ensure_organization_access(current_user, profile.organization_id)
     await session.delete(profile)
     await session.commit()

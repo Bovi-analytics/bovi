@@ -40,9 +40,7 @@ export function UnitProvider({ children }: UnitProviderProps): ReactElement {
   }, []);
 
   return (
-    <UnitContext.Provider value={{ weightUnit, toggleWeightUnit }}>
-      {children}
-    </UnitContext.Provider>
+    <UnitContext.Provider value={{ weightUnit, toggleWeightUnit }}>{children}</UnitContext.Provider>
   );
 }
 

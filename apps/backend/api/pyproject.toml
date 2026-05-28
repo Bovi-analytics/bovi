@@ -5,6 +5,7 @@ description = "Bovi central API — gateway, SQLite persistence, and monitoring"
 authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
 requires-python = ">= 3.12, < 3.13"
 dependencies = [
+    "bovi-core",
     "fastapi>=0.115.0",
     "uvicorn>=0.34.0",
     "pydantic>=2.0.0",
@@ -18,6 +19,7 @@ dependencies = [
     "aiosqlite>=0.20.0",
     "python-multipart>=0.0.12",
     "azure-storage-blob>=12.28.0",
+    "PyJWT[crypto]>=2.10",
     "pandas>=2.3",
     "scipy>=1.13",
     "scikit-learn>=1.5",

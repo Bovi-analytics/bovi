@@ -1,6 +1,13 @@
 """Tests for the herd profiles CRUD API."""
 
+import asyncio
+
+from bovi_api.database import get_session
+from bovi_api.models import UploadedDataset
+from sqlmodel import select
+
 VALID_PROFILE = {
+    "organization_id": 1,
     "name": "Test Herd",
     "description": "A test herd profile",
     "achieved_21_milk": 0.53,
@@ -26,14 +33,14 @@ def test_create_profile(client):
 
 
 def test_list_profiles_empty(client):
-    response = client.get("/herd-profiles/")
+    response = client.get("/herd-profiles/?organization_id=1")
     assert response.status_code == 200
     assert response.json() == []
 
 
 def test_list_profiles_after_create(client):
     client.post("/herd-profiles/", json=VALID_PROFILE)
-    response = client.get("/herd-profiles/")
+    response = client.get("/herd-profiles/?organization_id=1")
     assert response.status_code == 200
     assert len(response.json()) == 1
 
@@ -92,20 +99,42 @@ SAMPLE_CSV = (
 def test_csv_preview_returns_normalized_stats(client):
     response = client.post(
         "/herd-profiles/csv-preview",
+        data={"organization_id": "1"},
         files={"file": ("herd.csv", SAMPLE_CSV, "text/csv")},
     )
     assert response.status_code == 200
     data = response.json()
     assert "stats" in data
     assert data["format_detected"] == "aggregated"
+    assert data["upload_id"]
     assert data["row_count"] == 1
     for value in data["stats"].values():
         assert 0.0 <= value <= 1.0
+
+    blob_paths = set(client.app.state.blob_container_client.store)
+    assert any(path.endswith("/raw/upload.csv") for path in blob_paths)
+    assert any(path.endswith("/parsed/stats.json.gz") for path in blob_paths)
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _uploaded_dataset() -> UploadedDataset:
+        async for session in override():
+            result = await session.execute(select(UploadedDataset))
+            return result.scalars().one()
+        raise AssertionError("session override did not yield")
+
+    dataset = asyncio.run(_uploaded_dataset())
+    assert dataset.id == data["upload_id"]
+    assert dataset.user_id == 1
+    assert dataset.organization_id == 1
+    assert dataset.row_count == 1
+    assert dataset.original_filename == "herd.csv"
 
 
 def test_csv_preview_rejects_non_csv_extension(client):
     response = client.post(
         "/herd-profiles/csv-preview",
+        data={"organization_id": "1"},
         files={"file": ("data.xlsx", b"PK\x03\x04", "application/octet-stream")},
     )
     assert response.status_code == 400
@@ -114,6 +143,7 @@ def test_csv_preview_rejects_non_csv_extension(client):
 def test_csv_preview_rejects_unrecognised_columns(client):
     response = client.post(
         "/herd-profiles/csv-preview",
+        data={"organization_id": "1"},
         files={"file": ("bad.csv", b"breed,farm\nHolstein,Farm1\n", "text/csv")},
     )
     assert response.status_code == 400

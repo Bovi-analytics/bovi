@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 interface DashboardLayoutProps {
@@ -6,5 +7,9 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps): ReactElement {
-  return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <AuthGuard>
+      <DashboardShell>{children}</DashboardShell>
+    </AuthGuard>
+  );
 }

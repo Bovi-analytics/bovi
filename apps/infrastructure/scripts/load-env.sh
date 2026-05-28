@@ -16,6 +16,12 @@ set +a
 if [[ -n "${AZURE_STORAGE_ACCOUNT_STATE:-}" ]]; then
     export AZURE_STORAGE_ACCOUNT="$AZURE_STORAGE_ACCOUNT_STATE"
 fi
+if [[ -n "${AZURE_STORAGE_KEY_STATE:-}" ]]; then
+    export AZURE_STORAGE_KEY="$AZURE_STORAGE_KEY_STATE"
+fi
+if [[ -n "${PULUMI_PASSPHRASE:-}" ]]; then
+    export PULUMI_CONFIG_PASSPHRASE="$PULUMI_PASSPHRASE"
+fi
 
 CURRENT_STACK=$(pulumi stack --show-name)
 
@@ -24,4 +30,7 @@ set -a
 [[ -f ".env.${CURRENT_STACK}" ]] && source ".env.${CURRENT_STACK}"
 set +a
 
+if [[ -n "${PULUMI_PASSPHRASE:-}" ]]; then
+    export PULUMI_CONFIG_PASSPHRASE="$PULUMI_PASSPHRASE"
+fi
 export PULUMI_CONFIG_PASSPHRASE

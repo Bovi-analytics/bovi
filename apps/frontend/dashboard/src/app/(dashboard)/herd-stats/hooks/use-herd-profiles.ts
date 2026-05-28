@@ -4,33 +4,49 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createHerdProfile,
   deleteHerdProfile,
+  listOptionsKey,
   listHerdProfiles,
   updateHerdProfile,
+  type OrganizationListOptions,
 } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth";
 import type { HerdProfileCreate } from "@/types/api";
 
 const QUERY_KEY = ["herd-profiles"] as const;
 
-export function useHerdProfiles() {
+export function useHerdProfiles(options: OrganizationListOptions = {}) {
+  const { selectedOrganizationId } = useAuth();
   return useQuery({
-    queryKey: QUERY_KEY,
-    queryFn: listHerdProfiles,
+    queryKey: [...QUERY_KEY, selectedOrganizationId, listOptionsKey(options)],
+    queryFn: () => listHerdProfiles(selectedOrganizationId ?? 0, options),
+    enabled: selectedOrganizationId !== null,
   });
 }
 
 export function useCreateHerdProfile() {
   const qc = useQueryClient();
+  const { selectedOrganizationId } = useAuth();
   return useMutation({
-    mutationFn: (data: HerdProfileCreate) => createHerdProfile(data),
+    mutationFn: (data: Omit<HerdProfileCreate, "organization_id">) => {
+      if (typeof selectedOrganizationId !== "number") {
+        throw new Error("Select a specific organization before creating a herd profile.");
+      }
+      return createHerdProfile({ ...data, organization_id: selectedOrganizationId });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 }
 
 export function useUpdateHerdProfile() {
   const qc = useQueryClient();
+  const { selectedOrganizationId } = useAuth();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: HerdProfileCreate }) =>
-      updateHerdProfile(id, data),
+    mutationFn: ({ id, data }: { id: number; data: Omit<HerdProfileCreate, "organization_id"> }) => {
+      if (typeof selectedOrganizationId !== "number") {
+        throw new Error("Select a specific organization before updating a herd profile.");
+      }
+      return updateHerdProfile(id, { ...data, organization_id: selectedOrganizationId });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 }

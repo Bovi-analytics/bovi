@@ -200,6 +200,8 @@ export type TestIntervalResponse = z.infer<typeof TestIntervalResponseSchema>;
 
 export const HerdProfileSchema = z.object({
   id: z.number(),
+  user_id: z.number().nullable().optional(),
+  organization_id: z.number().nullable().optional(),
   name: z.string().max(100),
   description: z.string().max(500),
   achieved_21_milk: z.number().min(0).max(1),
@@ -218,9 +220,10 @@ export const HerdProfileSchema = z.object({
 
 export const HerdProfileCreateSchema = HerdProfileSchema.omit({
   id: true,
+  user_id: true,
   created_at: true,
   updated_at: true,
-});
+}).extend({ organization_id: z.number() });
 
 export const HerdProfileListSchema = z.array(HerdProfileSchema);
 
@@ -237,6 +240,7 @@ export const CowRecordSchema = z.object({
 export type CowRecord = z.infer<typeof CowRecordSchema>;
 
 export const HerdProfileUploadResponseSchema = z.object({
+  upload_id: z.string().nullable().optional(),
   stats: z.record(z.string(), z.number()),
   raw_stats: z.record(z.string(), z.number()),
   format_detected: z.enum(["aggregated", "icar_test_day"]),
@@ -327,8 +331,13 @@ export const ChallengeReadSchema = z.object({
   period: z.string(),
   name: z.string().nullable().optional(),
   source: z.string().nullable().optional(),
-  user_id: z.string().nullable(),
+  user_id: z.number().nullable(),
+  organization_id: z.number().nullable().optional(),
   created_at: z.string().nullable(),
+  row_count: z.number().nullable().optional(),
+  cow_count: z.number().nullable().optional(),
+  actual_yield_count: z.number().nullable().optional(),
+  ingest_status: z.string().optional(),
   dataset_sources: z.preprocess((value) => value ?? [], z.array(ChallengeDatasetSourceSchema)),
   dataset_stats: z.preprocess((value) => value ?? {}, ChallengeDatasetStatsSchema),
 });
@@ -353,6 +362,7 @@ export const ChallengeCreatePresetSchema = z.object({
   source: z.literal("preset").default("preset"),
   preset: z.literal("icar").default("icar"),
   name: z.string().optional(),
+  organization_id: z.number(),
 });
 export type ChallengeCreatePreset = z.infer<typeof ChallengeCreatePresetSchema>;
 
@@ -403,10 +413,16 @@ export const SubmissionReadSchema = z.object({
   country: z.string().nullable(),
   calculation_method: z.string().nullable(),
   notes: z.string().nullable(),
-  user_id: z.string().nullable(),
+  user_id: z.number().nullable(),
+  organization_id: z.number().nullable().optional(),
   stats: ComparisonStatsSchema,
   failed_cow_ids: z.array(z.string()),
   created_at: z.string().nullable(),
+  row_count: z.number().nullable().optional(),
+  submitted_yield_count: z.number().nullable().optional(),
+  benchmark_yield_count: z.number().nullable().optional(),
+  failed_count: z.number().optional(),
+  ingest_status: z.string().optional(),
 });
 export type SubmissionRead = z.infer<typeof SubmissionReadSchema>;
 

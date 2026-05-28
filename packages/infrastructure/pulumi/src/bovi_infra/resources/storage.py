@@ -1,4 +1,4 @@
-"""Storage resources: Storage Account and Azure Files share."""
+"""Storage resources: Storage Account, Blob containers, and Azure Files share."""
 
 from dataclasses import dataclass
 

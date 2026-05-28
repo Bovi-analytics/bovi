@@ -67,6 +67,12 @@ location = config.require("location")
 subscription_id = config.require("subscriptionId")
 resource_group_name = config.require("resourceGroup")
 milkbot_key = config.get_secret("milkbotKey") or ""
+azure_ad_client_id = config.get("azureAdClientId") or os.getenv("AZURE_AD_CLIENT_ID") or ""
+azure_ad_api_scope = (
+    config.get("azureAdApiScope")
+    or os.getenv("NEXT_PUBLIC_AZURE_AD_API_SCOPE")
+    or f"api://{azure_ad_client_id}/access_as_user"
+)
 autoencoder_model_version = (
     os.getenv("AUTOENCODER_MODEL_VERSION") or config.get("autoencoderModelVersion") or "v15"
 )
@@ -303,6 +309,10 @@ api_result = create_container_app(
             "CORS_ORIGINS": api_cors_origins,
             "STORAGE_ACCOUNT_NAME_ICAR": icar_storage_account_name,
             "STORAGE_ACCOUNT_CONTAINER_ICAR": icar_storage_container,
+            "BOVI_ENV": stack,
+            "UPLOAD_BLOB_PREFIX": "bovi/uploads",
+            "AZURE_AD_CLIENT_ID": azure_ad_client_id,
+            "AUTH_DISABLED": "false",
         },
         secret_env={"STORAGE_ACCOUNT_KEY_ICAR": icar_storage_account_key},
         tags=tags,
@@ -357,6 +367,9 @@ dashboard_result = create_stateless_container_app(
         env={
             "NODE_ENV": "production",
             "NEXT_PUBLIC_API_URL": api_result.url,
+            "NEXT_PUBLIC_AZURE_AD_CLIENT_ID": azure_ad_client_id,
+            "NEXT_PUBLIC_AZURE_AD_API_SCOPE": azure_ad_api_scope,
+            "NEXT_PUBLIC_AUTH_DISABLED": "false",
         },
         tags=tags,
     ),

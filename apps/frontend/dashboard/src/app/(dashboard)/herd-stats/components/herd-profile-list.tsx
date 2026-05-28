@@ -3,8 +3,22 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
 import Link from "next/link";
-import { ActionIcon, Alert, Button, Group, Modal, Stack, Table, Text } from "@mantine/core";
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Group,
+  Modal,
+  Select,
+  SegmentedControl,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { CheckCircle2, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import type { OrganizationListOptions } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth";
 import { HerdProfileForm } from "./herd-profile-form";
 import {
   ActiveDatasetPanel,
@@ -37,7 +51,13 @@ function profileSource(profile: HerdProfile): string {
 }
 
 export function HerdProfileList(): ReactElement {
-  const { data: profiles = [], isLoading } = useHerdProfiles();
+  const { selectedOrganizationId } = useAuth();
+  const [scope, setScope] = useState<"organization" | "mine">("organization");
+  const [sort, setSort] = useState<"created_at" | "name" | "user">("created_at");
+  const [direction, setDirection] = useState<"asc" | "desc">("desc");
+  const [q, setQ] = useState("");
+  const options: OrganizationListOptions = { scope, sort, direction, q: q.trim() || undefined };
+  const { data: profiles = [], isLoading } = useHerdProfiles(options);
   const { activePreset, dataset: uploadedDataset } = useUploadedCows();
   const activeDatasetLabel = useActiveDatasetLabel();
   const {
@@ -56,6 +76,7 @@ export function HerdProfileList(): ReactElement {
   const [createOpen, setCreateOpen] = useState(false);
   const [createMode, setCreateMode] = useState<"manual" | "dataset">("manual");
   const [editTarget, setEditTarget] = useState<HerdProfile | null>(null);
+  const createDisabled = selectedOrganizationId === "all";
   const [createdProfileName, setCreatedProfileName] = useState<string | null>(null);
 
   const uploadedDatasetStats = uploadedDataset?.stats
@@ -69,9 +90,10 @@ export function HerdProfileList(): ReactElement {
         ? uploadedDatasetStats
         : [...DEFAULT_HERD_STATS];
 
-  const canDetermineFromDataset =
+  const canDetermineFromDataset = Boolean(
     (activePreset && activePresetStats && !activePresetStatsError) ||
-    (!activePreset && uploadedDatasetStats);
+      (!activePreset && uploadedDatasetStats)
+  );
 
   function handleCreate(data: HerdProfileCreate) {
     createMutation.mutate(data, {
@@ -117,7 +139,7 @@ export function HerdProfileList(): ReactElement {
             <Button
               size="sm"
               variant="light"
-              disabled={!canDetermineFromDataset}
+              disabled={createDisabled || !canDetermineFromDataset}
               loading={activePresetStatsLoading}
               onClick={() => {
                 setCreateMode("dataset");
@@ -129,6 +151,7 @@ export function HerdProfileList(): ReactElement {
             <Button
               size="sm"
               color="violet"
+              disabled={createDisabled}
               onClick={() => {
                 setCreateMode("manual");
                 setCreateOpen(true);
@@ -137,6 +160,54 @@ export function HerdProfileList(): ReactElement {
               New profile
             </Button>
           </Group>
+        </Group>
+
+        {createDisabled && (
+          <Alert color="yellow" variant="light">
+            Select a specific organization before creating a herd profile.
+          </Alert>
+        )}
+
+        <Group gap="sm" align="flex-end">
+          <SegmentedControl
+            size="xs"
+            value={scope}
+            onChange={(value) => setScope(value as "organization" | "mine")}
+            data={[
+              { label: "Organization", value: "organization" },
+              { label: "My items", value: "mine" },
+            ]}
+          />
+          <TextInput
+            aria-label="Search herd profiles"
+            placeholder="Search by name"
+            value={q}
+            onChange={(event) => setQ(event.currentTarget.value)}
+            size="xs"
+          />
+          <Select
+            aria-label="Sort herd profiles"
+            size="xs"
+            value={sort}
+            onChange={(value) =>
+              setSort((value as "created_at" | "name" | "user") ?? "created_at")
+            }
+            data={[
+              { label: "Created", value: "created_at" },
+              { label: "Name", value: "name" },
+              { label: "User", value: "user" },
+            ]}
+          />
+          <Select
+            aria-label="Sort direction"
+            size="xs"
+            value={direction}
+            onChange={(value) => setDirection((value as "asc" | "desc") ?? "desc")}
+            data={[
+              { label: "Newest first", value: "desc" },
+              { label: "Oldest first", value: "asc" },
+            ]}
+          />
         </Group>
 
         {profiles.length === 0 ? (
