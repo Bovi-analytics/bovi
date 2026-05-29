@@ -103,10 +103,7 @@ function HomeContent({ isAuthenticated }: { readonly isAuthenticated: boolean })
           {!isAuthenticated && (
             <Group gap="sm" mt="xs">
               <Button component={Link} href="/auth/login" rightSection={<ChevronRight size={16} />}>
-                Sign in
-              </Button>
-              <Button component={Link} href="/curves" variant="light">
-                View curves
+                Create account
               </Button>
             </Group>
           )}
@@ -175,17 +172,19 @@ function HomeContent({ isAuthenticated }: { readonly isAuthenticated: boolean })
                       <Text size="sm" mt={4}>
                         {step.description}
                       </Text>
-                      <Group mt="sm">
-                        <Button
-                          component={Link}
-                          href={step.href}
-                          size="sm"
-                          variant="light"
-                          rightSection={<ChevronRight size={14} />}
-                        >
-                          {step.cta}
-                        </Button>
-                      </Group>
+                      {isAuthenticated && (
+                        <Group mt="sm">
+                          <Button
+                            component={Link}
+                            href={step.href}
+                            size="sm"
+                            variant="light"
+                            rightSection={<ChevronRight size={14} />}
+                          >
+                            {step.cta}
+                          </Button>
+                        </Group>
+                      )}
                     </Stack>
                   </Group>
                 </Paper>
@@ -216,7 +215,7 @@ function HomeContent({ isAuthenticated }: { readonly isAuthenticated: boolean })
             size="lg"
             rightSection={<ChevronRight size={18} />}
           >
-            {isAuthenticated ? "Get started: go to Data Upload" : "Sign in to get started"}
+            {isAuthenticated ? "Get Started: Go to Data Upload" : "Get Started: Create Account"}
           </Button>
         </Stack>
       </Stack>

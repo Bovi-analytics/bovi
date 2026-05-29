@@ -8,6 +8,7 @@ vi.mock("@/lib/auth/service", () => ({
 import { handleUnauthorizedResponse } from "@/lib/auth/service";
 import {
   downloadChallengeExport,
+  getInvitePreview,
   listAdminSubmissionsOverview,
   listChallenges,
 } from "./api-client";
@@ -75,6 +76,26 @@ describe("api-client authentication", () => {
 
     await expect(listChallenges(1)).rejects.toThrow("API error 401");
     expect(handleUnauthorizedResponse).toHaveBeenCalled();
+  });
+
+  it("loads invite preview without bearer auth", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        organization_id: 1,
+        organization_name: "Test Organization",
+        role: "Member",
+        expires_at: "2026-06-01T10:00:00Z",
+      })
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(getInvitePreview("invite token")).resolves.toMatchObject({
+      organization_name: "Test Organization",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/bovi/invites/invite%20token/preview", {
+      method: "GET",
+    });
   });
 
   it("sends organization list filters to challenge endpoints", async () => {

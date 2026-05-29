@@ -94,8 +94,7 @@ describe("auth redirect configuration", () => {
     delete process.env["AZURE_AD_API_SCOPE"];
     process.env["AUTH_DISABLED"] = "false";
 
-    const { getDefaultAuthRuntimeConfig, isAuthDisabled, isAzureAdConfigured } =
-      await loadConfig();
+    const { getDefaultAuthRuntimeConfig, isAuthDisabled, isAzureAdConfigured } = await loadConfig();
 
     const runtimeConfig = getDefaultAuthRuntimeConfig();
     expect(runtimeConfig.clientId).toBe("runtime-client-id");

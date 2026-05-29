@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DASHBOARD_NAVIGATION } from "./navigation";
+import { DASHBOARD_NAVIGATION, getVisibleNavigationItems } from "./navigation";
 
 describe("DASHBOARD_NAVIGATION", () => {
   test("orders data upload before herd profiles and curves", () => {
@@ -16,5 +16,23 @@ describe("DASHBOARD_NAVIGATION", () => {
 
   test("marks admin navigation as admin-only", () => {
     expect(DASHBOARD_NAVIGATION.find((item) => item.href === "/admin")?.adminOnly).toBe(true);
+  });
+
+  test("limits anonymous navigation to public pages", () => {
+    expect(getVisibleNavigationItems(null).map((item) => [item.label, item.href])).toEqual([
+      ["Home", "/"],
+      ["Contact", "/contact"],
+    ]);
+  });
+
+  test("shows all non-admin pages to signed-in non-admin users", () => {
+    expect(getVisibleNavigationItems({ is_admin: false }).map((item) => item.href)).toEqual([
+      "/",
+      "/data-upload",
+      "/herd-profiles",
+      "/curves",
+      "/benchmark",
+      "/contact",
+    ]);
   });
 });

@@ -66,6 +66,13 @@ class InviteCreateResponse(InviteRead):
     token: str
 
 
+class InvitePreviewRead(BaseModel):
+    organization_id: int
+    organization_name: str
+    role: str
+    expires_at: datetime
+
+
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -306,6 +313,32 @@ async def revoke_invite(
     invite.revoked_at = _now()
     session.add(invite)
     await session.commit()
+
+
+@router.get("/invites/{token}/preview", response_model=InvitePreviewRead)
+async def preview_invite(
+    token: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> InvitePreviewRead:
+    """Return public display metadata for a valid invite token."""
+    result = await session.execute(
+        select(OrganizationInvite).where(OrganizationInvite.token_hash == _token_hash(token))
+    )
+    invite = result.scalar_one_or_none()
+    now = _now()
+    if invite is None or invite.revoked_at is not None or _aware(invite.expires_at) <= now:
+        raise HTTPException(status_code=404, detail="Invite is expired, revoked, or invalid.")
+
+    org = await session.get(Organization, invite.organization_id)
+    if org is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    return InvitePreviewRead(
+        organization_id=org.id or 0,
+        organization_name=org.name,
+        role=ORG_ROLE_MEMBER,
+        expires_at=invite.expires_at,
+    )
 
 
 @router.post("/invites/{token}/accept", response_model=OrganizationRead)

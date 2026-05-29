@@ -63,7 +63,9 @@ export function isAzureAdConfigured(config: AuthRuntimeConfig = getAuthRuntimeCo
   return Boolean(config.clientId && config.apiScope);
 }
 
-export function createMsalConfig(config: AuthRuntimeConfig = getAuthRuntimeConfig()): Configuration {
+export function createMsalConfig(
+  config: AuthRuntimeConfig = getAuthRuntimeConfig()
+): Configuration {
   return {
     auth: {
       clientId: config.clientId,

@@ -11,9 +11,10 @@ export default function HerdProfilesPage(): ReactElement {
         <div>
           <h1 className="text-2xl font-semibold">Herd Profiles</h1>
           <p className="mt-1 text-sm text-foreground">
-            Save and manage the herd-level statistics used by the AI autoencoder. Profiles can be
-            created manually, determined from active preset data, or saved from files loaded in Data
-            Upload.
+            This step is optional; you can continue without creating a herd profile. Save and manage
+            herd-level statistics used by the AI autoencoder when you want to provide extra herd
+            context. Profiles can be created manually, determined from active preset data, or saved
+            from files loaded in Data Upload.
           </p>
         </div>
         <Button

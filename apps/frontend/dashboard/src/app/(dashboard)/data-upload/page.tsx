@@ -1,7 +1,6 @@
 import type { ReactElement } from "react";
-import Link from "next/link";
-import { Badge, Button, Group, Stack, Text } from "@mantine/core";
-import { ChevronRight, Database } from "lucide-react";
+import { Badge, Group, Stack, Text } from "@mantine/core";
+import { Database } from "lucide-react";
 import { DataSourcePicker } from "../herd-stats/components/data-source-picker";
 
 export default function DataUploadPage(): ReactElement {
@@ -15,14 +14,6 @@ export default function DataUploadPage(): ReactElement {
             explore the platform using one of the built-in demo herds.
           </p>
         </div>
-        <Button
-          component={Link}
-          href="/herd-profiles"
-          variant="light"
-          rightSection={<ChevronRight size={14} />}
-        >
-          Go to Herd Profiles
-        </Button>
       </Group>
 
       <Stack gap="md">

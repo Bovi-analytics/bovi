@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { startLogin, useAuth } from "@/lib/auth";
 
-function getNextPath(): string | null {
+function getInitialNextPath(): string | null {
   if (typeof window === "undefined") return null;
   return new URLSearchParams(window.location.search).get("next");
 }
@@ -17,11 +17,7 @@ function getNextPath(): string | null {
 export default function LoginPage(): ReactElement {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [nextPath, setNextPath] = useState<string | null>(null);
-
-  useEffect(() => {
-    setNextPath(getNextPath());
-  }, []);
+  const [nextPath] = useState(getInitialNextPath);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {

@@ -10,6 +10,8 @@ export function middleware(request: NextRequest): NextResponse {
   if (
     authDisabled ||
     pathname === "/" ||
+    pathname === "/contact" ||
+    pathname === "/join" ||
     pathname.startsWith("/auth") ||
     /\.[^/]+$/.test(pathname)
   ) {

@@ -1,6 +1,8 @@
 """Authentication and organization authorization tests."""
 
 import asyncio
+from datetime import datetime, timedelta, timezone
+from typing import cast
 
 from bovi_api.auth import CurrentUser, require_auth
 from bovi_api.database import get_session
@@ -14,7 +16,9 @@ from bovi_api.models import (
     UploadedDataset,
     User,
 )
+from bovi_api.routes.organizations import _token_hash, preview_invite
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 
@@ -682,3 +686,56 @@ def test_invite_accept_is_idempotent_and_adds_member(client):
     membership_count, accepted_count = asyncio.run(_counts())
     assert membership_count == 1
     assert accepted_count == 1
+
+
+class _ScalarResult:
+    def __init__(self, value):
+        self._value = value
+
+    def scalar_one_or_none(self):
+        return self._value
+
+
+class _InvitePreviewSession:
+    def __init__(self, invite=None, organization=None) -> None:
+        self.invite = invite
+        self.organization = organization
+
+    async def execute(self, _statement):
+        return _ScalarResult(self.invite)
+
+    async def get(self, _model, _id):
+        return self.organization
+
+
+def test_invite_preview_returns_organization_context():
+    token = "preview-token"
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    session = _InvitePreviewSession(
+        invite=OrganizationInvite(
+            organization_id=1,
+            token_hash=_token_hash(token),
+            created_by_user_id=1,
+            expires_at=expires_at,
+        ),
+        organization=Organization(id=1, name="Test Organization"),
+    )
+
+    body = asyncio.run(preview_invite(token, cast(AsyncSession, session)))
+
+    assert body.organization_id == 1
+    assert body.organization_name == "Test Organization"
+    assert body.role == "Member"
+    assert body.expires_at == expires_at
+
+
+def test_invite_preview_rejects_invalid_tokens():
+    session = _InvitePreviewSession()
+
+    try:
+        asyncio.run(preview_invite("not-a-real-token", cast(AsyncSession, session)))
+    except HTTPException as exc:
+        assert exc.status_code == 404
+        assert exc.detail == "Invite is expired, revoked, or invalid."
+    else:
+        raise AssertionError("Expected invalid invite preview to raise HTTPException")

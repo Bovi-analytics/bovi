@@ -214,6 +214,13 @@ export interface OrganizationInviteCreateResponse extends OrganizationInviteRead
   token: string;
 }
 
+export interface OrganizationInvitePreview {
+  organization_id: number;
+  organization_name: string;
+  role: string;
+  expires_at: string;
+}
+
 export interface OrganizationListOptions {
   scope?: "organization" | "mine";
   sort?: "created_at" | "uploaded_at" | "name" | "user";
@@ -292,6 +299,14 @@ export async function createOrganizationInvite(
 
 export async function revokeOrganizationInvite(id: number, inviteId: number): Promise<void> {
   return apiDelete(`/organizations/${id}/invites/${inviteId}`);
+}
+
+export async function getInvitePreview(token: string): Promise<OrganizationInvitePreview> {
+  const response = await fetch(`${getApiBaseUrl()}/invites/${encodeURIComponent(token)}/preview`, {
+    method: "GET",
+  });
+  await ensureOk(response, "/invites/preview");
+  return (await response.json()) as OrganizationInvitePreview;
 }
 
 export async function acceptInvite(token: string): Promise<OrganizationRead> {

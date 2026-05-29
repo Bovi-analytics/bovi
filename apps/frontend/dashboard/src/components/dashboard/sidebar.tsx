@@ -18,7 +18,7 @@ import {
 import { Building2, LogIn, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import { DASHBOARD_NAVIGATION } from "./navigation";
+import { getVisibleNavigationItems } from "./navigation";
 import {
   getSelectedOrganizationLabel,
   getUserDisplayName,
@@ -147,7 +147,7 @@ export function Sidebar(): ReactElement {
 
       {/* Navigation */}
       <nav className="mt-6 flex flex-col gap-1">
-        {DASHBOARD_NAVIGATION.filter((item) => !item.adminOnly || user?.is_admin).map((item) => {
+        {getVisibleNavigationItems(user).map((item) => {
           const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
 

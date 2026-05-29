@@ -25,3 +25,12 @@ export const DASHBOARD_NAVIGATION: readonly NavigationItem[] = [
   { label: "Admin", href: "/admin", icon: ShieldCheck, adminOnly: true },
   { label: "Contact", href: "/contact", icon: Mail },
 ];
+
+export function getVisibleNavigationItems(
+  user: { readonly is_admin?: boolean } | null | undefined
+): readonly NavigationItem[] {
+  return DASHBOARD_NAVIGATION.filter((item) => {
+    if (!user) return item.href === "/" || item.href === "/contact";
+    return !item.adminOnly || user.is_admin;
+  });
+}

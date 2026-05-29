@@ -38,6 +38,7 @@ import {
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 import { UPLOAD_LIMIT_DESCRIPTION } from "@/lib/upload-limits";
+import { getInitialDataSource, type DataSourcePickerSourceKey } from "./data-source-picker-state";
 import type {
   HerdProfileUploadResponse,
   PresetDatasetKey,
@@ -56,13 +57,13 @@ type FormatKey = "aggregated" | "icar_test_day";
 type SelectableFormatKey = FormatKey;
 type TestDayMappingKey = "cow_id" | "dim" | "milk_kg" | "parity" | "herd_id" | "event_type";
 
-interface SourceOption {
-  value: SourceKey;
+interface SourceOption<T extends SourceKey = SourceKey> {
+  value: T;
   label: string;
   description: string;
 }
 
-const SOURCE_OPTIONS: SourceOption[] = [
+const PRESET_SOURCE_OPTIONS: Array<SourceOption<PresetDatasetKey>> = [
   {
     value: "aurora",
     label: "Demo herd A",
@@ -73,18 +74,21 @@ const SOURCE_OPTIONS: SourceOption[] = [
     label: "Demo herd B",
     description: "Anonymized herd · 2000-2026",
   },
-  {
-    value: "upload",
-    label: "Upload a file",
-    description: "Use your own CSV",
-  },
 ];
+
+const UPLOAD_SOURCE_OPTION: SourceOption<"upload"> = {
+  value: "upload",
+  label: "Upload a file",
+  description: "Use your own CSV",
+};
 
 const SAVED_SOURCE_OPTION: SourceOption = {
   value: "saved",
   label: "Saved datasets",
   description: "Reuse your own uploaded datasets",
 };
+
+const OTHER_SOURCE_OPTIONS: SourceOption[] = [UPLOAD_SOURCE_OPTION, SAVED_SOURCE_OPTION];
 
 const SIZE_OPTIONS = [
   { value: "small", label: "Small" },
@@ -927,12 +931,10 @@ export function DataSourcePicker(): ReactElement {
   const { activePreset, dataset: uploadedDataset } = useUploadedCows();
   const activePresetDataset = activePreset?.dataset;
 
-  // Derive initial active source from context state
-  const [activeSource, setActiveSource] = useState<SourceKey | null>(() => {
-    if (activePreset) return activePreset.dataset;
-    if (uploadedDataset) return "upload";
-    return null;
-  });
+  // Open the preset section by default without selecting an active dataset.
+  const [activeSource, setActiveSource] = useState<DataSourcePickerSourceKey>(() =>
+    getInitialDataSource(activePreset, uploadedDataset)
+  );
 
   // Keep active source in sync when the active preset changes from outside
   // (e.g. set on another page). Only depends on activePreset.dataset so a local
@@ -943,8 +945,6 @@ export function DataSourcePicker(): ReactElement {
       setActiveSource(activePresetDataset);
     }
   }, [activePresetDataset]);
-
-  const sourceOptions = [...SOURCE_OPTIONS, SAVED_SOURCE_OPTION];
 
   return (
     <Stack gap="md">
@@ -959,46 +959,91 @@ export function DataSourcePicker(): ReactElement {
 
       <ActiveDatasetPanel actionHref="/herd-profiles" actionLabel="Go to Herd Profiles" />
 
-      {/* Source tiles */}
-      <Group gap="sm">
-        {sourceOptions.map((opt) => {
-          const isActive = activeSource === opt.value;
-          return (
-            <UnstyledButton
-              key={opt.value}
-              onClick={() => setActiveSource(opt.value)}
-              style={{ flex: 1, minWidth: 140, alignSelf: "stretch" }}
-            >
-              <Paper
-                withBorder
-                p="md"
-                radius="md"
-                h={104}
-                style={{
-                  borderColor: isActive ? "var(--mantine-color-violet-6)" : undefined,
-                  borderWidth: isActive ? 2 : 1,
-                  cursor: "pointer",
-                  transition: "border-color 0.12s",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                }}
+      <Stack gap="sm">
+        <Text size="sm" fw={700}>
+          Preset Datasets
+        </Text>
+        <Group gap="sm">
+          {PRESET_SOURCE_OPTIONS.map((opt) => {
+            const isActive = activeSource === opt.value;
+            return (
+              <UnstyledButton
+                key={opt.value}
+                onClick={() => setActiveSource(opt.value)}
+                style={{ flex: 1, minWidth: 140, alignSelf: "stretch" }}
               >
-                <Text size="md" fw={700}>
-                  {opt.label}
-                </Text>
-                <Text size="sm" mt={4}>
-                  {opt.description}
-                </Text>
-              </Paper>
-            </UnstyledButton>
-          );
-        })}
-      </Group>
+                <Paper
+                  withBorder
+                  p="md"
+                  radius="md"
+                  h={104}
+                  style={{
+                    borderColor: isActive ? "var(--mantine-color-violet-6)" : undefined,
+                    borderWidth: isActive ? 2 : 1,
+                    cursor: "pointer",
+                    transition: "border-color 0.12s",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text size="md" fw={700}>
+                    {opt.label}
+                  </Text>
+                  <Text size="sm" mt={4}>
+                    {opt.description}
+                  </Text>
+                </Paper>
+              </UnstyledButton>
+            );
+          })}
+        </Group>
+      </Stack>
 
-      {/* Panel for selected source */}
       {activeSource === "aurora" && <PresetPanel dataset="aurora" />}
       {activeSource === "sunnyside" && <PresetPanel dataset="sunnyside" />}
+
+      <Stack gap="sm">
+        <Text size="sm" fw={700}>
+          Other sources
+        </Text>
+        <Group gap="sm">
+          {OTHER_SOURCE_OPTIONS.map((opt) => {
+            const isActive = activeSource === opt.value;
+            return (
+              <UnstyledButton
+                key={opt.value}
+                onClick={() => setActiveSource(opt.value)}
+                style={{ flex: 1, minWidth: 140, alignSelf: "stretch" }}
+              >
+                <Paper
+                  withBorder
+                  p="md"
+                  radius="md"
+                  h={104}
+                  style={{
+                    borderColor: isActive ? "var(--mantine-color-violet-6)" : undefined,
+                    borderWidth: isActive ? 2 : 1,
+                    cursor: "pointer",
+                    transition: "border-color 0.12s",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text size="md" fw={700}>
+                    {opt.label}
+                  </Text>
+                  <Text size="sm" mt={4}>
+                    {opt.description}
+                  </Text>
+                </Paper>
+              </UnstyledButton>
+            );
+          })}
+        </Group>
+      </Stack>
+
       {activeSource === "upload" && <UploadPanel />}
       {activeSource === "saved" && <SavedDatasetsPanel />}
     </Stack>
