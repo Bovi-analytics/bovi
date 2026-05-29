@@ -7,4 +7,5 @@ config:
   bovi:resourceGroup: Bovi-Analytics-Tools
   bovi:apiImage: ghcr.io/bovi-analytics/bovi-api:dev-latest
   bovi:dashboardImage: ghcr.io/bovi-analytics/bovi-dashboard:dev-latest
-  bovi:authDisabled: true
+  bovi:azureAdClientId: 7cb91be2-42b9-491e-9979-a1c9b325ebbb
+  bovi:authDisabled: false
