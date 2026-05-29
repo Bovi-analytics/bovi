@@ -111,7 +111,7 @@ lactation and creates a default `TestId`.
 
 If you use the `lactationcurve` package in your research, please consider citing it as follows:
 
-*van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., & Hostens, M. (2026). Bovi-analytics/bovi: v.1.1.1. (v.1.1.3).*
+*van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., & Hostens, M. (2026). Bovi-analytics/bovi: v.1.1.1. (v.1.1.4).*
 
 *Zenodo. https://doi.org/10.5281/zenodo.18715145*
 
@@ -125,7 +125,7 @@ BibTeX:
 
   title        = {Bovi-analytics/lactation\_curve\_core: v.1.1.1},
 
-  version      = {1.1.3},
+  version      = {1.1.4},
 
   year         = {2026},
 
