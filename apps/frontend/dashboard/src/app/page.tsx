@@ -98,7 +98,8 @@ function HomeContent({ isAuthenticated }: { readonly isAuthenticated: boolean })
           </Title>
           <Text size="md" ta="center" maw={640}>
             Bovi Analytics helps dairy teams explore, fit, and benchmark lactation curves from
-            browser-based herd records. Sign in to open your organization workspace.
+            browser-based herd records.
+            {!isAuthenticated && " Sign in to open your organization workspace."}
           </Text>
           {!isAuthenticated && (
             <Group gap="sm" mt="xs">
