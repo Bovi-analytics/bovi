@@ -6,3 +6,11 @@ export function getSafePostLoginRedirect(value: string | null): string | null {
   }
   return value;
 }
+
+export function getInitialPostLoginRedirect(
+  search: string,
+  storedValue: string | null
+): string | null {
+  const queryNext = new URLSearchParams(search).get("next");
+  return getSafePostLoginRedirect(queryNext) ?? getSafePostLoginRedirect(storedValue);
+}

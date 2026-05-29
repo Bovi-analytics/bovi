@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import Image from "next/image";
 import {
@@ -22,6 +22,7 @@ import type { OrganizationInvitePreview, OrganizationRead } from "@/lib/api-clie
 import { startLogin, useAuth } from "@/lib/auth";
 
 const PENDING_INVITE_KEY = "bovi:pending-invite";
+const PENDING_INVITE_ACCEPT_KEY = "bovi:pending-invite-accept";
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -40,6 +41,7 @@ export default function JoinPage(): ReactElement {
   const [isPreviewLoading, setIsPreviewLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const autoAcceptAttemptedRef = useRef(false);
 
   const nextPath = useMemo(() => {
     if (!token) return "/join";
@@ -68,30 +70,67 @@ export default function JoinPage(): ReactElement {
       });
   }, [token]);
 
-  async function acceptCurrentInvite(): Promise<void> {
-    const pendingToken = token ?? window.localStorage.getItem(PENDING_INVITE_KEY);
-    if (!pendingToken) {
-      setError("This invite link is missing its token.");
+  const acceptCurrentInvite = useCallback(
+    async (explicitToken?: string): Promise<void> => {
+      const pendingToken =
+        explicitToken ?? token ?? window.localStorage.getItem(PENDING_INVITE_KEY);
+      if (!pendingToken) {
+        setError("This invite link is missing its token.");
+        return;
+      }
+
+      setIsAccepting(true);
+      setError(null);
+      try {
+        const organization = await acceptInvite(pendingToken);
+        window.localStorage.removeItem(PENDING_INVITE_KEY);
+        window.localStorage.removeItem(PENDING_INVITE_ACCEPT_KEY);
+        setSelectedOrganizationId(organization.id);
+        setJoinedOrganization(organization);
+      } catch {
+        window.localStorage.removeItem(PENDING_INVITE_ACCEPT_KEY);
+        setError("This invite link is expired, revoked, or invalid.");
+      } finally {
+        setIsAccepting(false);
+      }
+    },
+    [setSelectedOrganizationId, token]
+  );
+
+  useEffect(() => {
+    if (
+      autoAcceptAttemptedRef.current ||
+      !isAuthenticated ||
+      isLoading ||
+      isPreviewLoading ||
+      !preview ||
+      joinedOrganization ||
+      error
+    ) {
       return;
     }
 
-    setIsAccepting(true);
-    setError(null);
-    try {
-      const organization = await acceptInvite(pendingToken);
-      window.localStorage.removeItem(PENDING_INVITE_KEY);
-      setSelectedOrganizationId(organization.id);
-      setJoinedOrganization(organization);
-    } catch {
-      setError("This invite link is expired, revoked, or invalid.");
-    } finally {
-      setIsAccepting(false);
-    }
-  }
+    const pendingToken = token ?? window.localStorage.getItem(PENDING_INVITE_KEY);
+    const tokenToAccept = window.localStorage.getItem(PENDING_INVITE_ACCEPT_KEY);
+    if (!pendingToken || tokenToAccept !== pendingToken) return;
+
+    autoAcceptAttemptedRef.current = true;
+    void acceptCurrentInvite(pendingToken);
+  }, [
+    acceptCurrentInvite,
+    error,
+    isAuthenticated,
+    isLoading,
+    isPreviewLoading,
+    joinedOrganization,
+    preview,
+    token,
+  ]);
 
   async function signInToAccept(): Promise<void> {
     if (token) {
       window.localStorage.setItem(PENDING_INVITE_KEY, token);
+      window.localStorage.setItem(PENDING_INVITE_ACCEPT_KEY, token);
     }
     await startLogin(nextPath);
   }
@@ -195,7 +234,10 @@ export default function JoinPage(): ReactElement {
 
                   <Group>
                     {isAuthenticated ? (
-                      <Button loading={isLoading || isAccepting} onClick={acceptCurrentInvite}>
+                      <Button
+                        loading={isLoading || isAccepting}
+                        onClick={() => void acceptCurrentInvite()}
+                      >
                         Accept invite
                       </Button>
                     ) : (

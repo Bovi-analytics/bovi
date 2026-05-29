@@ -8,10 +8,17 @@ import { ArrowLeft, BarChart3, Building2, LineChart, LogIn, ShieldCheck } from "
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { startLogin, useAuth } from "@/lib/auth";
+import {
+  getInitialPostLoginRedirect,
+  POST_LOGIN_REDIRECT_KEY,
+} from "@/lib/auth/post-login-redirect";
 
 function getInitialNextPath(): string | null {
   if (typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get("next");
+  return getInitialPostLoginRedirect(
+    window.location.search,
+    window.sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY)
+  );
 }
 
 export default function LoginPage(): ReactElement {
