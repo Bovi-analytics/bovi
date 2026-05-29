@@ -18,7 +18,7 @@ const ORIGINAL_URL = globalThis.URL;
 
 describe("api-client authentication", () => {
   beforeEach(() => {
-    process.env["NEXT_PUBLIC_API_URL"] = "https://api.example.test";
+    process.env["API_URL"] = "https://api.example.test";
     vi.restoreAllMocks();
     globalThis.URL = ORIGINAL_URL;
     globalThis.document = ORIGINAL_DOCUMENT;

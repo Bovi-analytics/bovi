@@ -14,19 +14,14 @@ function readBoolean(value: string | undefined): boolean {
 }
 
 export function getDefaultAuthRuntimeConfig(): AuthRuntimeConfig {
-  const clientId =
-    process.env["NEXT_PUBLIC_AZURE_AD_CLIENT_ID"] ?? process.env["AZURE_AD_CLIENT_ID"] ?? "";
-  const configuredScope = process.env["NEXT_PUBLIC_AZURE_AD_API_SCOPE"];
+  const clientId = process.env["AZURE_AD_CLIENT_ID"] ?? "";
+  const configuredScope = process.env["AZURE_AD_API_SCOPE"];
   return {
     clientId,
     apiScope: configuredScope ?? (clientId ? `api://${clientId}/access_as_user` : ""),
-    authDisabled:
-      readBoolean(process.env["NEXT_PUBLIC_AUTH_DISABLED"]) ||
-      readBoolean(process.env["AUTH_DISABLED"]) ||
-      readBoolean(process.env["NEXT_PUBLIC_DEV_MODE"]) ||
-      readBoolean(process.env["DEV_MODE"]),
-    redirectUri: process.env["NEXT_PUBLIC_AZURE_AD_REDIRECT_URI"] ?? "/auth/login",
-    postLogoutRedirectUri: process.env["NEXT_PUBLIC_AZURE_AD_POST_LOGOUT_REDIRECT_URI"] ?? "/",
+    authDisabled: readBoolean(process.env["AUTH_DISABLED"]),
+    redirectUri: process.env["AUTH_REDIRECT_URI"] ?? "/auth/login",
+    postLogoutRedirectUri: process.env["AUTH_POST_LOGOUT_REDIRECT_URI"] ?? "/",
   };
 }
 

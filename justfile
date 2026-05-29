@@ -8,7 +8,7 @@ export PORT_DASHBOARD := env("PORT_DASHBOARD", "3000")
 
 export LACTATION_CURVES_URL := "http://localhost:" + PORT_CURVES
 export LACTATION_AUTOENCODER_URL := "http://localhost:" + PORT_AUTOENCODER
-export NEXT_PUBLIC_API_URL := "http://localhost:" + PORT_API
+export API_URL := "http://localhost:" + PORT_API
 export CORS_ORIGINS := "[\"http://localhost:" + PORT_DASHBOARD + "\"]"
 
 # ── Workspace ────────────────────────────────────────────────

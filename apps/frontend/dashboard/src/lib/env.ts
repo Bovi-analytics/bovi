@@ -3,11 +3,9 @@ export function getApiBaseUrl(): string {
 }
 
 export function getRuntimeApiBaseUrl(): string {
-  const url = process.env["NEXT_PUBLIC_API_URL"];
+  const url = process.env["API_URL"];
   if (!url) {
-    throw new Error(
-      "NEXT_PUBLIC_API_URL is not set. Configure it on the dashboard runtime environment."
-    );
+    throw new Error("API_URL is not set. Configure it on the dashboard runtime environment.");
   }
   return url.replace(/\/+$/, "");
 }

@@ -5,10 +5,7 @@ const AUTH_MARKER_COOKIE = "auth_marker";
 
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
-  const authDisabled =
-    process.env["AUTH_DISABLED"] === "true" ||
-    process.env["NEXT_PUBLIC_AUTH_DISABLED"] === "true" ||
-    process.env["NEXT_PUBLIC_DEV_MODE"] === "true";
+  const authDisabled = process.env["AUTH_DISABLED"] === "true";
 
   if (
     authDisabled ||
