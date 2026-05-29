@@ -9,6 +9,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: astral-sh/setup-uv@v8
+    - uses: astral-sh/setup-uv@v8.1.0
     - shell: bash
       run: uv python install "${{ inputs.python-version }}"
