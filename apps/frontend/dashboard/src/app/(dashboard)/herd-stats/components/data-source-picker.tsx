@@ -28,6 +28,7 @@ import Link from "next/link";
 import { VISIBLE_HERD_STATS_METADATA } from "@/data/herd-stats-metadata";
 import { useUploadedCows, type UploadedDataset } from "@/app/providers/uploaded-cows-provider";
 import { ActiveDatasetPanel } from "@/components/dashboard/active-dataset-panel";
+import { CenteredLoader } from "@/components/dashboard/centered-loader";
 import { usePresetCounts } from "@/app/(dashboard)/curves/hooks/use-preset-counts";
 import { usePresetDataset } from "@/app/(dashboard)/curves/hooks/use-preset-dataset";
 import {
@@ -765,7 +766,7 @@ function SavedDatasetsPanel(): ReactElement {
   const savedDatasets = datasetsQuery.data ?? [];
 
   if (datasetsQuery.isLoading) {
-    return <Loader size="sm" />;
+    return <CenteredLoader label="Loading saved datasets..." />;
   }
 
   if (datasetsQuery.isError) {

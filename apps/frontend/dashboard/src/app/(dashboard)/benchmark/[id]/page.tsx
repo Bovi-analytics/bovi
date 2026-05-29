@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { Anchor, Badge, Card, Divider, Group, Loader, Stack, Text } from "@mantine/core";
+import { Anchor, Badge, Card, Divider, Group, Stack, Text } from "@mantine/core";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -11,6 +11,7 @@ import { SubmissionForm } from "../components/submission-form";
 import { useChallenge } from "../hooks/use-challenges";
 import { useSubmissions } from "../hooks/use-submissions";
 import { getBenchmarkDatasetLabel } from "@/lib/benchmark-dataset";
+import { CenteredLoader } from "@/components/dashboard/centered-loader";
 
 export default function ChallengeDetailPage(): ReactElement {
   const { id } = useParams<{ id: string }>();
@@ -21,7 +22,8 @@ export default function ChallengeDetailPage(): ReactElement {
   const challengeSubmissions = submissions?.filter((s) => s.challenge_id === challengeId) ?? [];
   const latest = challengeSubmissions[0];
 
-  if (challengeLoading || submissionsLoading) return <Loader />;
+  if (challengeLoading || submissionsLoading)
+    return <CenteredLoader label="Loading challenge..." />;
 
   return (
     <div className="benchmark-page space-y-6 p-6">

@@ -11,6 +11,7 @@ import {
   CopyButton,
   Group,
   Loader,
+  Modal,
   Select,
   Stack,
   Table,
@@ -27,8 +28,9 @@ import {
   updateOrganizationMemberRole,
   updateOrganization,
 } from "@/lib/api-client";
-import type { OrganizationMemberRole } from "@/lib/api-client";
+import type { OrganizationMemberRead, OrganizationMemberRole } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
+import { CenteredLoader } from "@/components/dashboard/centered-loader";
 
 const membersKey = (organizationId: number) => ["organization-members", organizationId] as const;
 const invitesKey = (organizationId: number) => ["organization-invites", organizationId] as const;
@@ -50,6 +52,11 @@ export default function OrganizationPage(): ReactElement {
   const [name, setName] = useState(selectedOrganization?.name ?? "");
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [inviteRole, setInviteRole] = useState<OrganizationMemberRole>("Member");
+  const [memberToRemove, setMemberToRemove] = useState<OrganizationMemberRead | null>(null);
+  const [pendingRoleChange, setPendingRoleChange] = useState<{
+    member: OrganizationMemberRead;
+    role: OrganizationMemberRole;
+  } | null>(null);
   const organizationId = typeof selectedOrganizationId === "number" ? selectedOrganizationId : null;
   const canManage = Boolean(user?.is_admin || selectedOrganization?.role === "Owner");
 
@@ -98,6 +105,7 @@ export default function OrganizationPage(): ReactElement {
       if (organizationId) {
         qc.invalidateQueries({ queryKey: membersKey(organizationId) });
       }
+      setMemberToRemove(null);
     },
   });
   const updateMemberRoleMutation = useMutation({
@@ -107,10 +115,11 @@ export default function OrganizationPage(): ReactElement {
       if (organizationId) {
         qc.invalidateQueries({ queryKey: membersKey(organizationId) });
       }
+      setPendingRoleChange(null);
     },
   });
 
-  if (!user) return <Loader />;
+  if (!user) return <CenteredLoader label="Loading organization..." />;
 
   if (organizationId === null) {
     return (
@@ -288,20 +297,24 @@ export default function OrganizationPage(): ReactElement {
                             value={member.role}
                             onChange={(value) => {
                               const role = (value as OrganizationMemberRole) ?? "Member";
-                              updateMemberRoleMutation.mutate({ userId: member.user_id, role });
+                              if (role !== member.role) {
+                                setPendingRoleChange({ member, role });
+                              }
                             }}
                             data={[
                               { value: "Member", label: "Member" },
                               { value: "Owner", label: "Owner" },
                             ]}
-                            disabled={member.user_id === user.id}
+                            disabled={
+                              member.user_id === user.id || updateMemberRoleMutation.isPending
+                            }
                           />
                           <Button
                             size="xs"
                             variant="subtle"
                             color="red"
                             leftSection={<Trash2 size={12} />}
-                            onClick={() => removeMemberMutation.mutate(member.user_id)}
+                            onClick={() => setMemberToRemove(member)}
                             disabled={member.user_id === user.id}
                             loading={
                               removeMemberMutation.isPending &&
@@ -320,6 +333,76 @@ export default function OrganizationPage(): ReactElement {
           )}
         </Stack>
       </Card>
+
+      <Modal
+        opened={memberToRemove !== null}
+        onClose={() => setMemberToRemove(null)}
+        title="Remove member"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Are you sure you want to remove{" "}
+            <strong>
+              {memberToRemove?.name ?? memberToRemove?.email ?? `User #${memberToRemove?.user_id}`}
+            </strong>{" "}
+            from this organization?
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setMemberToRemove(null)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              loading={removeMemberMutation.isPending}
+              onClick={() => {
+                if (memberToRemove) {
+                  removeMemberMutation.mutate(memberToRemove.user_id);
+                }
+              }}
+            >
+              Remove member
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={pendingRoleChange !== null}
+        onClose={() => setPendingRoleChange(null)}
+        title={pendingRoleChange?.role === "Owner" ? "Promote member" : "Change member role"}
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Are you sure you want to change{" "}
+            <strong>
+              {pendingRoleChange?.member.name ??
+                pendingRoleChange?.member.email ??
+                `User #${pendingRoleChange?.member.user_id}`}
+            </strong>{" "}
+            to <strong>{pendingRoleChange?.role}</strong>?
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setPendingRoleChange(null)}>
+              Cancel
+            </Button>
+            <Button
+              loading={updateMemberRoleMutation.isPending}
+              onClick={() => {
+                if (pendingRoleChange) {
+                  updateMemberRoleMutation.mutate({
+                    userId: pendingRoleChange.member.user_id,
+                    role: pendingRoleChange.role,
+                  });
+                }
+              }}
+            >
+              Confirm role change
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </div>
   );
 }

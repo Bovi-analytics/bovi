@@ -1,15 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Button, Loader, Stack, TextInput, Title } from "@mantine/core";
+import { Button, Stack, TextInput, Title } from "@mantine/core";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { CenteredLoader } from "@/components/dashboard/centered-loader";
 import { createOrganization } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 
 export function AuthGuard({ children }: { readonly children: ReactNode }): ReactNode {
-  const { isAuthenticated, isLoading, selectedOrganizationId, setSelectedOrganizationId, user } =
-    useAuth();
+  const { isAuthenticated, isLoading, setSelectedOrganizationId, user } = useAuth();
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState("");
   const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
@@ -29,9 +29,9 @@ export function AuthGuard({ children }: { readonly children: ReactNode }): React
     }
   }, [isAuthenticated, isLoading, router]);
 
-  if (isLoading) return <Loader />;
+  if (isLoading) return <CenteredLoader label="Opening your workspace..." />;
   if (!isAuthenticated) return null;
-  if (user && user.organizations.length === 0 && selectedOrganizationId === null) {
+  if (user && user.organizations.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
         <Stack w="100%" maw={420} gap="md">

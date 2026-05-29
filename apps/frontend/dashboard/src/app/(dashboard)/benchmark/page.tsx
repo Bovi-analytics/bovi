@@ -9,7 +9,6 @@ import {
   Button,
   Grid,
   Group,
-  Loader,
   Select,
   SegmentedControl,
   Stack,
@@ -25,6 +24,7 @@ import { ChallengeCard } from "./components/challenge-card";
 import { DatasetSummary } from "./components/dataset-summary";
 import { useChallenges } from "./hooks/use-challenges";
 import { getBenchmarkDatasetLabel } from "@/lib/benchmark-dataset";
+import { CenteredLoader } from "@/components/dashboard/centered-loader";
 
 type ChallengeView = "cards" | "table";
 
@@ -52,7 +52,7 @@ export default function BenchmarkPage(): ReactElement {
   const createDisabled = selectedOrganizationId === "all";
   const [view, setView] = useState<ChallengeView>("cards");
 
-  if (isLoading) return <Loader />;
+  if (isLoading) return <CenteredLoader label="Loading benchmark challenges..." />;
   if (error) return <Text c="red">Failed to load challenges.</Text>;
 
   return (

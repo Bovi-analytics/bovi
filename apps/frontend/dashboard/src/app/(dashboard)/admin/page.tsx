@@ -41,6 +41,7 @@ import {
   type AdminOverviewOptions,
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
+import { CenteredLoader } from "@/components/dashboard/centered-loader";
 import type {
   AdminCategoryBreakdown,
   AdminDataCategory,
@@ -293,7 +294,7 @@ export default function AdminPage(): ReactElement {
     );
   }
 
-  if (homeQuery.isLoading) return <Loader />;
+  if (homeQuery.isLoading) return <CenteredLoader label="Loading admin overview..." />;
   if (homeQuery.error) return <Text c="red">Failed to load admin overview.</Text>;
 
   const home = homeQuery.data;

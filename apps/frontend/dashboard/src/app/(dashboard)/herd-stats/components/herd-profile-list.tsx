@@ -25,6 +25,7 @@ import {
   ActiveDatasetPanel,
   useActiveDatasetLabel,
 } from "@/components/dashboard/active-dataset-panel";
+import { CenteredLoader } from "@/components/dashboard/centered-loader";
 import {
   useCreateHerdProfile,
   useDeleteHerdProfile,
@@ -128,7 +129,7 @@ export function HerdProfileList(): ReactElement {
     }
   }
 
-  if (isLoading) return <Text>Loading profiles…</Text>;
+  if (isLoading) return <CenteredLoader label="Loading herd profiles..." />;
 
   return (
     <>
