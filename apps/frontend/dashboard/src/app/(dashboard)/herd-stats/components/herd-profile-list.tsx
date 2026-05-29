@@ -53,14 +53,14 @@ function profileSource(profile: HerdProfile): string {
 
 export function HerdProfileList(): ReactElement {
   const { selectedOrganizationId } = useAuth();
-  const [scope, setScope] = useState<"organization" | "mine" | "colleague">("organization");
+  const [scope, setScope] = useState<"mine" | "organization">("mine");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [sort, setSort] = useState<"created_at" | "name" | "user">("created_at");
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [q, setQ] = useState("");
   const options: OrganizationListOptions = {
     scope: scope === "mine" ? "mine" : "organization",
-    user_id: scope === "colleague" && selectedUserId ? Number(selectedUserId) : undefined,
+    user_id: scope === "organization" && selectedUserId ? Number(selectedUserId) : undefined,
     sort,
     direction,
     q: q.trim() || undefined,
@@ -185,20 +185,25 @@ export function HerdProfileList(): ReactElement {
           <SegmentedControl
             size="xs"
             value={scope}
-            onChange={(value) => setScope(value as "organization" | "mine" | "colleague")}
+            onChange={(value) => {
+              setScope(value as "mine" | "organization");
+              setSelectedUserId(null);
+            }}
             data={[
-              { label: "Organization", value: "organization" },
               { label: "My items", value: "mine" },
-              { label: "Colleague", value: "colleague" },
+              { label: "Organization", value: "organization" },
             ]}
           />
-          {scope === "colleague" && (
+          {scope === "organization" && (
             <Select
-              aria-label="Filter by colleague"
+              aria-label="Filter by organization member"
+              label="Person"
               size="xs"
               value={selectedUserId}
               onChange={setSelectedUserId}
-              placeholder="Select colleague"
+              placeholder="All organization members"
+              clearable
+              searchable
               data={(membersQuery.data ?? []).map((member) => ({
                 value: String(member.user_id),
                 label: member.name || member.email || `User #${member.user_id}`,
@@ -207,6 +212,7 @@ export function HerdProfileList(): ReactElement {
           )}
           <TextInput
             aria-label="Search herd profiles"
+            label="Search"
             placeholder="Search by name"
             value={q}
             onChange={(event) => setQ(event.currentTarget.value)}
@@ -214,17 +220,19 @@ export function HerdProfileList(): ReactElement {
           />
           <Select
             aria-label="Sort herd profiles"
+            label="Sort by"
             size="xs"
             value={sort}
             onChange={(value) => setSort((value as "created_at" | "name" | "user") ?? "created_at")}
             data={[
-              { label: "Created", value: "created_at" },
+              { label: "Created date", value: "created_at" },
               { label: "Name", value: "name" },
               { label: "User", value: "user" },
             ]}
           />
           <Select
             aria-label="Sort direction"
+            label="Order"
             size="xs"
             value={direction}
             onChange={(value) => setDirection((value as "asc" | "desc") ?? "desc")}

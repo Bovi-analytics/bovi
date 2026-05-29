@@ -725,15 +725,19 @@ function SavedDatasetsPanel(): ReactElement {
   const { dataset: uploadedDataset, setDataset, clearDataset } = useUploadedCows();
   const queryClient = useQueryClient();
   const [expandedMappingId, setExpandedMappingId] = useState<string | null>(null);
-  const [scope, setScope] = useState<"organization" | "mine" | "colleague">("organization");
+  const [scope, setScope] = useState<"mine" | "organization">("mine");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [sort, setSort] = useState<"uploaded_at" | "name" | "user">("uploaded_at");
+  const [direction, setDirection] = useState<"asc" | "desc">("desc");
+  const [q, setQ] = useState("");
   const organizationId = selectedOrganizationId ?? 0;
-  const userId = scope === "colleague" && selectedUserId ? Number(selectedUserId) : undefined;
+  const userId = scope === "organization" && selectedUserId ? Number(selectedUserId) : undefined;
   const datasetOptions = {
     scope: scope === "mine" ? "mine" : "organization",
     user_id: userId,
-    sort: "uploaded_at",
-    direction: "desc",
+    sort,
+    direction,
+    q: q.trim() || undefined,
   } as const;
   const datasetsQuery = useQuery({
     queryKey: ["uploaded-datasets", organizationId, datasetOptions],
@@ -778,26 +782,62 @@ function SavedDatasetsPanel(): ReactElement {
         <SegmentedControl
           size="xs"
           value={scope}
-          onChange={(value) => setScope(value as "organization" | "mine" | "colleague")}
+          onChange={(value) => {
+            setScope(value as "mine" | "organization");
+            setSelectedUserId(null);
+          }}
           data={[
-            { label: "Organization", value: "organization" },
             { label: "My items", value: "mine" },
-            { label: "Colleague", value: "colleague" },
+            { label: "Organization", value: "organization" },
           ]}
         />
-        {scope === "colleague" && (
+        {scope === "organization" && (
           <Select
-            aria-label="Filter by colleague"
+            aria-label="Filter by organization member"
+            label="Person"
             size="xs"
             value={selectedUserId}
             onChange={setSelectedUserId}
-            placeholder="Select colleague"
+            placeholder="All organization members"
+            clearable
+            searchable
             data={(membersQuery.data ?? []).map((member) => ({
               value: String(member.user_id),
               label: member.name || member.email || `User #${member.user_id}`,
             }))}
           />
         )}
+        <TextInput
+          aria-label="Search saved datasets"
+          label="Search"
+          placeholder="Search by name"
+          value={q}
+          onChange={(event) => setQ(event.currentTarget.value)}
+          size="xs"
+        />
+        <Select
+          aria-label="Sort saved datasets"
+          label="Sort by"
+          size="xs"
+          value={sort}
+          onChange={(value) => setSort((value as "uploaded_at" | "name" | "user") ?? "uploaded_at")}
+          data={[
+            { label: "Uploaded date", value: "uploaded_at" },
+            { label: "Name", value: "name" },
+            { label: "User", value: "user" },
+          ]}
+        />
+        <Select
+          aria-label="Sort direction"
+          label="Order"
+          size="xs"
+          value={direction}
+          onChange={(value) => setDirection((value as "asc" | "desc") ?? "desc")}
+          data={[
+            { label: "Newest first", value: "desc" },
+            { label: "Oldest first", value: "asc" },
+          ]}
+        />
       </Group>
 
       {savedDatasets.length === 0 && (

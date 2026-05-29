@@ -52,13 +52,13 @@ export function Sidebar(): ReactElement {
           priority
           className="h-auto w-full max-w-[160px]"
         />
-        <h2 className="text-base font-semibold text-foreground">Lactation Curves</h2>
+        <h2 className="text-center text-base font-semibold text-foreground">Lactation Curves</h2>
         {user && (
           <Menu position="bottom-start" width={240} shadow="md" closeOnItemClick={false}>
             <Menu.Target>
               <UnstyledButton
                 aria-label="Open user menu"
-                className="w-fit rounded-full outline-none ring-primary/40 transition hover:ring-2 focus-visible:ring-2"
+                className="mx-auto rounded-full outline-none ring-primary/40 transition hover:ring-2 focus-visible:ring-2"
               >
                 <Avatar size={38} radius="xl" color="blue">
                   {getUserInitials(user)}

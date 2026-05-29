@@ -15,10 +15,10 @@ import {
   ThemeIcon,
   Title,
 } from "@mantine/core";
-import { Building2, CalendarClock, Check, LogIn, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Building2, CalendarClock, LogIn, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { acceptInvite, getInvitePreview } from "@/lib/api-client";
-import type { OrganizationInvitePreview, OrganizationRead } from "@/lib/api-client";
+import type { OrganizationInvitePreview } from "@/lib/api-client";
 import { startLogin, useAuth } from "@/lib/auth";
 
 const PENDING_INVITE_KEY = "bovi:pending-invite";
@@ -37,7 +37,6 @@ export default function JoinPage(): ReactElement {
   const { isAuthenticated, isLoading, setSelectedOrganizationId } = useAuth();
   const token = params.get("invite");
   const [preview, setPreview] = useState<OrganizationInvitePreview | null>(null);
-  const [joinedOrganization, setJoinedOrganization] = useState<OrganizationRead | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +85,7 @@ export default function JoinPage(): ReactElement {
         window.localStorage.removeItem(PENDING_INVITE_KEY);
         window.localStorage.removeItem(PENDING_INVITE_ACCEPT_KEY);
         setSelectedOrganizationId(organization.id);
-        setJoinedOrganization(organization);
+        window.location.assign("/");
       } catch {
         window.localStorage.removeItem(PENDING_INVITE_ACCEPT_KEY);
         setError("This invite link is expired, revoked, or invalid.");
@@ -104,7 +103,6 @@ export default function JoinPage(): ReactElement {
       isLoading ||
       isPreviewLoading ||
       !preview ||
-      joinedOrganization ||
       error
     ) {
       return;
@@ -116,16 +114,7 @@ export default function JoinPage(): ReactElement {
 
     autoAcceptAttemptedRef.current = true;
     void acceptCurrentInvite(pendingToken);
-  }, [
-    acceptCurrentInvite,
-    error,
-    isAuthenticated,
-    isLoading,
-    isPreviewLoading,
-    joinedOrganization,
-    preview,
-    token,
-  ]);
+  }, [acceptCurrentInvite, error, isAuthenticated, isLoading, isPreviewLoading, preview, token]);
 
   async function signInToAccept(): Promise<void> {
     if (token) {
@@ -173,22 +162,6 @@ export default function JoinPage(): ReactElement {
                     <Button variant="light" onClick={() => router.push("/")}>
                       Go to dashboard
                     </Button>
-                  </Group>
-                </>
-              ) : joinedOrganization ? (
-                <>
-                  <ThemeIcon size={52} radius="xl" color="green" variant="light">
-                    <Check size={28} />
-                  </ThemeIcon>
-                  <Stack gap="xs">
-                    <Title order={1}>You joined {joinedOrganization.name}</Title>
-                    <Text c="dimmed">
-                      Your workspace access is ready. Continue to the dashboard to start working in
-                      this organization.
-                    </Text>
-                  </Stack>
-                  <Group>
-                    <Button onClick={() => router.push("/")}>Continue to dashboard</Button>
                   </Group>
                 </>
               ) : preview ? (

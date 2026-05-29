@@ -57,7 +57,7 @@ export default function OrganizationPage(): ReactElement {
   const members = useQuery({
     queryKey: organizationId ? membersKey(organizationId) : ["organization-members"],
     queryFn: () => listOrganizationMembers(organizationId ?? 0),
-    enabled: organizationId !== null && canManage,
+    enabled: organizationId !== null,
   });
   const invites = useQuery({
     queryKey: organizationId ? invitesKey(organizationId) : ["organization-invites"],
@@ -128,7 +128,7 @@ export default function OrganizationPage(): ReactElement {
 
       {!canManage && (
         <Alert color="blue" variant="light">
-          Organization settings are available to Owners and Admins.
+          Organization settings and invite links are available to Owners and Admins.
         </Alert>
       )}
 
@@ -154,118 +154,118 @@ export default function OrganizationPage(): ReactElement {
       </Card>
 
       {canManage && (
-        <>
-          <Card withBorder radius="sm" padding="md">
-            <Stack gap="md">
-              <Group justify="space-between">
-                <Text fw={600}>Invite links</Text>
-                <Button
-                  leftSection={<LinkIcon size={14} />}
-                  onClick={() => createInviteMutation.mutate()}
-                  loading={createInviteMutation.isPending}
-                >
-                  Create invite
-                </Button>
+        <Card withBorder radius="sm" padding="md">
+          <Stack gap="md">
+            <Group justify="space-between">
+              <Text fw={600}>Invite links</Text>
+              <Button
+                leftSection={<LinkIcon size={14} />}
+                onClick={() => createInviteMutation.mutate()}
+                loading={createInviteMutation.isPending}
+              >
+                Create invite
+              </Button>
+            </Group>
+            {inviteUrl && (
+              <Group gap="sm">
+                <TextInput
+                  aria-label="New invite link"
+                  value={inviteUrl}
+                  readOnly
+                  className="flex-1"
+                />
+                <CopyButton value={inviteUrl}>
+                  {({ copied, copy }) => (
+                    <Button variant="light" onClick={copy}>
+                      {copied ? "Copied" : "Copy"}
+                    </Button>
+                  )}
+                </CopyButton>
               </Group>
-              {inviteUrl && (
-                <Group gap="sm">
-                  <TextInput
-                    aria-label="New invite link"
-                    value={inviteUrl}
-                    readOnly
-                    className="flex-1"
-                  />
-                  <CopyButton value={inviteUrl}>
-                    {({ copied, copy }) => (
-                      <Button variant="light" onClick={copy}>
-                        {copied ? "Copied" : "Copy"}
-                      </Button>
-                    )}
-                  </CopyButton>
-                </Group>
-              )}
-              {invites.isLoading ? (
-                <Loader size="sm" />
-              ) : (
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Created</Table.Th>
-                      <Table.Th>Expires</Table.Th>
-                      <Table.Th>Accepted</Table.Th>
-                      <Table.Th />
+            )}
+            {invites.isLoading ? (
+              <Loader size="sm" />
+            ) : (
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Created</Table.Th>
+                    <Table.Th>Expires</Table.Th>
+                    <Table.Th>Accepted</Table.Th>
+                    <Table.Th />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {(invites.data ?? []).map((invite) => (
+                    <Table.Tr key={invite.id}>
+                      <Table.Td>{formatDate(invite.created_at)}</Table.Td>
+                      <Table.Td>{formatDate(invite.expires_at)}</Table.Td>
+                      <Table.Td>{invite.accepted_count}</Table.Td>
+                      <Table.Td>
+                        <Group justify="flex-end">
+                          <Button
+                            size="xs"
+                            variant="subtle"
+                            color="red"
+                            onClick={() => revokeInviteMutation.mutate(invite.id)}
+                          >
+                            Revoke
+                          </Button>
+                        </Group>
+                      </Table.Td>
                     </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {(invites.data ?? []).map((invite) => (
-                      <Table.Tr key={invite.id}>
-                        <Table.Td>{formatDate(invite.created_at)}</Table.Td>
-                        <Table.Td>{formatDate(invite.expires_at)}</Table.Td>
-                        <Table.Td>{invite.accepted_count}</Table.Td>
-                        <Table.Td>
-                          <Group justify="flex-end">
-                            <Button
-                              size="xs"
-                              variant="subtle"
-                              color="red"
-                              onClick={() => revokeInviteMutation.mutate(invite.id)}
-                            >
-                              Revoke
-                            </Button>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              )}
-            </Stack>
-          </Card>
-
-          <Card withBorder radius="sm" padding="md">
-            <Stack gap="md">
-              <Text fw={600}>Members</Text>
-              {members.isLoading ? (
-                <Loader size="sm" />
-              ) : (
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Name</Table.Th>
-                      <Table.Th>Email</Table.Th>
-                      <Table.Th>Role</Table.Th>
-                      <Table.Th />
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {(members.data ?? []).map((member) => (
-                      <Table.Tr key={member.user_id}>
-                        <Table.Td>{member.name ?? "-"}</Table.Td>
-                        <Table.Td>{member.email ?? "-"}</Table.Td>
-                        <Table.Td>{member.role}</Table.Td>
-                        <Table.Td>
-                          <Group justify="flex-end">
-                            <Button
-                              size="xs"
-                              variant="subtle"
-                              color="red"
-                              leftSection={<Trash2 size={12} />}
-                              onClick={() => removeMemberMutation.mutate(member.user_id)}
-                              disabled={member.user_id === user.id}
-                            >
-                              Remove
-                            </Button>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              )}
-            </Stack>
-          </Card>
-        </>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            )}
+          </Stack>
+        </Card>
       )}
+
+      <Card withBorder radius="sm" padding="md">
+        <Stack gap="md">
+          <Text fw={600}>Members</Text>
+          {members.isLoading ? (
+            <Loader size="sm" />
+          ) : (
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Name</Table.Th>
+                  <Table.Th>Email</Table.Th>
+                  <Table.Th>Role</Table.Th>
+                  {canManage && <Table.Th />}
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {(members.data ?? []).map((member) => (
+                  <Table.Tr key={member.user_id}>
+                    <Table.Td>{member.name ?? "-"}</Table.Td>
+                    <Table.Td>{member.email ?? "-"}</Table.Td>
+                    <Table.Td>{member.role}</Table.Td>
+                    {canManage && (
+                      <Table.Td>
+                        <Group justify="flex-end">
+                          <Button
+                            size="xs"
+                            variant="subtle"
+                            color="red"
+                            leftSection={<Trash2 size={12} />}
+                            onClick={() => removeMemberMutation.mutate(member.user_id)}
+                            disabled={member.user_id === user.id}
+                          >
+                            Remove
+                          </Button>
+                        </Group>
+                      </Table.Td>
+                    )}
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          )}
+        </Stack>
+      </Card>
     </div>
   );
 }

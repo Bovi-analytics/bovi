@@ -3,7 +3,7 @@
 import type { ReactElement } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Alert, Badge, Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { Alert, Badge, Button, Group, Loader, Paper, Stack, Text, Title } from "@mantine/core";
 import { ArrowLeft, BarChart3, Building2, LineChart, LogIn, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -31,6 +31,19 @@ export default function LoginPage(): ReactElement {
       router.push(nextPath ?? "/");
     }
   }, [isAuthenticated, isLoading, nextPath, router]);
+
+  if (isLoading || isAuthenticated) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-6 py-8 text-foreground">
+        <Stack align="center" gap="md">
+          <Loader />
+          <Text size="sm" c="dimmed">
+            Opening your workspace...
+          </Text>
+        </Stack>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-background px-6 py-8 text-foreground">
