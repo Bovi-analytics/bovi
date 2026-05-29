@@ -196,13 +196,16 @@ export interface OrganizationMemberRead {
   user_id: number;
   email: string | null;
   name: string | null;
-  role: string;
+  role: OrganizationMemberRole;
 }
+
+export type OrganizationMemberRole = "Member" | "Owner";
 
 export interface OrganizationInviteRead {
   id: number;
   organization_id: number;
   created_by_user_id: number | null;
+  role: OrganizationMemberRole;
   created_at: string | null;
   expires_at: string;
   revoked_at: string | null;
@@ -277,6 +280,14 @@ export async function removeOrganizationMember(id: number, userId: number): Prom
   return apiDelete(`/organizations/${id}/members/${userId}`);
 }
 
+export async function updateOrganizationMemberRole(
+  id: number,
+  userId: number,
+  role: OrganizationMemberRole
+): Promise<OrganizationMemberRead> {
+  return apiPatch<OrganizationMemberRead>(`/organizations/${id}/members/${userId}`, { role });
+}
+
 export async function listOrganizationInvites(id: number): Promise<OrganizationInviteRead[]> {
   const response = await fetch(`${getApiBaseUrl()}/organizations/${id}/invites`, {
     method: "GET",
@@ -287,11 +298,13 @@ export async function listOrganizationInvites(id: number): Promise<OrganizationI
 }
 
 export async function createOrganizationInvite(
-  id: number
+  id: number,
+  role: OrganizationMemberRole = "Member"
 ): Promise<OrganizationInviteCreateResponse> {
   const response = await fetch(`${getApiBaseUrl()}/organizations/${id}/invites`, {
     method: "POST",
     headers: await jsonHeaders(),
+    body: JSON.stringify({ role }),
   });
   await ensureOk(response, `/organizations/${id}/invites`);
   return (await response.json()) as OrganizationInviteCreateResponse;

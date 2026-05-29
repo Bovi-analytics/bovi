@@ -11,6 +11,7 @@ import {
   CopyButton,
   Group,
   Loader,
+  Select,
   Stack,
   Table,
   Text,
@@ -23,8 +24,10 @@ import {
   listOrganizationMembers,
   removeOrganizationMember,
   revokeOrganizationInvite,
+  updateOrganizationMemberRole,
   updateOrganization,
 } from "@/lib/api-client";
+import type { OrganizationMemberRole } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 
 const membersKey = (organizationId: number) => ["organization-members", organizationId] as const;
@@ -46,6 +49,7 @@ export default function OrganizationPage(): ReactElement {
   );
   const [name, setName] = useState(selectedOrganization?.name ?? "");
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteRole, setInviteRole] = useState<OrganizationMemberRole>("Member");
   const organizationId = typeof selectedOrganizationId === "number" ? selectedOrganizationId : null;
   const canManage = Boolean(user?.is_admin || selectedOrganization?.role === "Owner");
 
@@ -71,7 +75,7 @@ export default function OrganizationPage(): ReactElement {
     },
   });
   const createInviteMutation = useMutation({
-    mutationFn: () => createOrganizationInvite(organizationId ?? 0),
+    mutationFn: () => createOrganizationInvite(organizationId ?? 0, inviteRole),
     onSuccess: (invite) => {
       const baseUrl = window.location.origin;
       setInviteUrl(`${baseUrl}/join?invite=${encodeURIComponent(invite.token)}`);
@@ -90,6 +94,15 @@ export default function OrganizationPage(): ReactElement {
   });
   const removeMemberMutation = useMutation({
     mutationFn: (userId: number) => removeOrganizationMember(organizationId ?? 0, userId),
+    onSuccess: () => {
+      if (organizationId) {
+        qc.invalidateQueries({ queryKey: membersKey(organizationId) });
+      }
+    },
+  });
+  const updateMemberRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: number; role: OrganizationMemberRole }) =>
+      updateOrganizationMemberRole(organizationId ?? 0, userId, role),
     onSuccess: () => {
       if (organizationId) {
         qc.invalidateQueries({ queryKey: membersKey(organizationId) });
@@ -132,39 +145,60 @@ export default function OrganizationPage(): ReactElement {
         </Alert>
       )}
 
-      <Card withBorder radius="sm" padding="md">
-        <Stack gap="sm">
-          <Text fw={600}>Name</Text>
-          <Group align="flex-end">
-            <TextInput
-              aria-label="Organization name"
-              value={name}
-              onChange={(event) => setName(event.currentTarget.value)}
-              disabled={!canManage}
-            />
-            <Button
-              onClick={() => renameMutation.mutate()}
-              disabled={!canManage || name.trim().length === 0}
-              loading={renameMutation.isPending}
-            >
-              Save
-            </Button>
-          </Group>
-        </Stack>
-      </Card>
+      {canManage && (
+        <Card withBorder radius="sm" padding="md">
+          <Stack gap="sm">
+            <Text fw={600}>Name</Text>
+            <Group align="flex-end">
+              <TextInput
+                aria-label="Organization name"
+                value={name}
+                onChange={(event) => setName(event.currentTarget.value)}
+              />
+              <Button
+                onClick={() => renameMutation.mutate()}
+                disabled={name.trim().length === 0}
+                loading={renameMutation.isPending}
+              >
+                Save
+              </Button>
+            </Group>
+          </Stack>
+        </Card>
+      )}
+
+      {user.is_admin && (
+        <Alert color="green" variant="light">
+          Global Admin access is managed through Microsoft Entra app role assignments, not through
+          organization invites.
+        </Alert>
+      )}
 
       {canManage && (
         <Card withBorder radius="sm" padding="md">
           <Stack gap="md">
             <Group justify="space-between">
               <Text fw={600}>Invite links</Text>
-              <Button
-                leftSection={<LinkIcon size={14} />}
-                onClick={() => createInviteMutation.mutate()}
-                loading={createInviteMutation.isPending}
-              >
-                Create invite
-              </Button>
+              <Group gap="xs" align="flex-end">
+                <Select
+                  aria-label="Invite role"
+                  label="Invite as"
+                  size="xs"
+                  value={inviteRole}
+                  onChange={(value) => setInviteRole((value as OrganizationMemberRole) ?? "Member")}
+                  data={[
+                    { value: "Member", label: "Member" },
+                    { value: "Owner", label: "Owner" },
+                  ]}
+                />
+                <Button
+                  leftSection={<LinkIcon size={14} />}
+                  onClick={() => createInviteMutation.mutate()}
+                  loading={createInviteMutation.isPending}
+                >
+                  Create invite
+                </Button>
+              </Group>
             </Group>
             {inviteUrl && (
               <Group gap="sm">
@@ -190,6 +224,7 @@ export default function OrganizationPage(): ReactElement {
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Created</Table.Th>
+                    <Table.Th>Role</Table.Th>
                     <Table.Th>Expires</Table.Th>
                     <Table.Th>Accepted</Table.Th>
                     <Table.Th />
@@ -199,6 +234,7 @@ export default function OrganizationPage(): ReactElement {
                   {(invites.data ?? []).map((invite) => (
                     <Table.Tr key={invite.id}>
                       <Table.Td>{formatDate(invite.created_at)}</Table.Td>
+                      <Table.Td>{invite.role}</Table.Td>
                       <Table.Td>{formatDate(invite.expires_at)}</Table.Td>
                       <Table.Td>{invite.accepted_count}</Table.Td>
                       <Table.Td>
@@ -246,6 +282,20 @@ export default function OrganizationPage(): ReactElement {
                     {canManage && (
                       <Table.Td>
                         <Group justify="flex-end">
+                          <Select
+                            aria-label={`Role for ${member.name ?? member.email ?? member.user_id}`}
+                            size="xs"
+                            value={member.role}
+                            onChange={(value) => {
+                              const role = (value as OrganizationMemberRole) ?? "Member";
+                              updateMemberRoleMutation.mutate({ userId: member.user_id, role });
+                            }}
+                            data={[
+                              { value: "Member", label: "Member" },
+                              { value: "Owner", label: "Owner" },
+                            ]}
+                            disabled={member.user_id === user.id}
+                          />
                           <Button
                             size="xs"
                             variant="subtle"
@@ -253,6 +303,10 @@ export default function OrganizationPage(): ReactElement {
                             leftSection={<Trash2 size={12} />}
                             onClick={() => removeMemberMutation.mutate(member.user_id)}
                             disabled={member.user_id === user.id}
+                            loading={
+                              removeMemberMutation.isPending &&
+                              removeMemberMutation.variables === member.user_id
+                            }
                           >
                             Remove
                           </Button>

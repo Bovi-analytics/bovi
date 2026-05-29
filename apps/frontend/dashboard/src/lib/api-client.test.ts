@@ -7,10 +7,12 @@ vi.mock("@/lib/auth/service", () => ({
 
 import { handleUnauthorizedResponse } from "@/lib/auth/service";
 import {
+  createOrganizationInvite,
   downloadChallengeExport,
   getInvitePreview,
   listAdminSubmissionsOverview,
   listChallenges,
+  updateOrganizationMemberRole,
 } from "./api-client";
 
 const ORIGINAL_DOCUMENT = globalThis.document;
@@ -95,6 +97,63 @@ describe("api-client authentication", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("/api/bovi/invites/invite%20token/preview", {
       method: "GET",
+    });
+  });
+
+  it("creates organization invites with the selected role", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        id: 1,
+        organization_id: 1,
+        created_by_user_id: 1,
+        role: "Owner",
+        created_at: "2026-05-29T10:00:00Z",
+        expires_at: "2026-06-28T10:00:00Z",
+        revoked_at: null,
+        accepted_count: 0,
+        last_accepted_at: null,
+        token: "invite-token",
+      })
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(createOrganizationInvite(1, "Owner")).resolves.toMatchObject({
+      role: "Owner",
+      token: "invite-token",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/bovi/organizations/1/invites", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer test-token",
+      },
+      body: JSON.stringify({ role: "Owner" }),
+    });
+  });
+
+  it("updates organization member roles", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        user_id: 2,
+        email: "member@example.test",
+        name: "Member User",
+        role: "Owner",
+      })
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(updateOrganizationMemberRole(1, 2, "Owner")).resolves.toMatchObject({
+      role: "Owner",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/bovi/organizations/1/members/2", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer test-token",
+      },
+      body: JSON.stringify({ role: "Owner" }),
     });
   });
 

@@ -688,6 +688,83 @@ def test_invite_accept_is_idempotent_and_adds_member(client):
     assert accepted_count == 1
 
 
+def test_owner_invite_adds_owner_membership(client):
+    created = client.post("/organizations/1/invites", json={"role": "Owner"})
+    assert created.status_code == 201
+    assert created.json()["role"] == "Owner"
+    token = created.json()["token"]
+
+    async def invited_user():
+        return CurrentUser(
+            id=2,
+            entra_tenant_id="other-tenant",
+            entra_oid="invited-owner-oid",
+            account_type="entra",
+            email="owner-invite@example.test",
+            name="Invited Owner",
+            roles=["User"],
+            organizations=[],
+        )
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed_invited_user() -> None:
+        async for session in override():
+            session.add(
+                User(
+                    id=2,
+                    entra_tenant_id="other-tenant",
+                    entra_oid="invited-owner-oid",
+                    account_type="entra",
+                    email="owner-invite@example.test",
+                    name="Invited Owner",
+                )
+            )
+            await session.commit()
+            break
+
+    asyncio.run(_seed_invited_user())
+    client.app.dependency_overrides[require_auth] = invited_user
+
+    accepted = client.post(f"/invites/{token}/accept")
+
+    assert accepted.status_code == 200
+    assert accepted.json()["role"] == "Owner"
+
+
+def test_owner_can_update_member_role(client):
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed_member() -> None:
+        async for session in override():
+            session.add(
+                User(
+                    id=2,
+                    entra_tenant_id="test-tenant",
+                    entra_oid="member-oid",
+                    account_type="entra",
+                    email="member@example.test",
+                    name="Member User",
+                )
+            )
+            await session.commit()
+            session.add(OrganizationMembership(user_id=2, organization_id=1, role="Member"))
+            await session.commit()
+            break
+
+    asyncio.run(_seed_member())
+
+    response = client.patch("/organizations/1/members/2", json={"role": "Owner"})
+
+    assert response.status_code == 200
+    assert response.json()["role"] == "Owner"
+
+    members = client.get("/organizations/1/members")
+    assert members.status_code == 200
+    updated = next(member for member in members.json() if member["user_id"] == 2)
+    assert updated["role"] == "Owner"
+
+
 class _ScalarResult:
     def __init__(self, value):
         self._value = value

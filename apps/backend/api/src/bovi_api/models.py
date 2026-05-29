@@ -215,6 +215,7 @@ class OrganizationInvite(SQLModel, table=True):
     organization_id: int = Field(foreign_key="organizations.id", index=True)
     token_hash: str = Field(index=True, unique=True, max_length=64)
     created_by_user_id: int | None = Field(default=None, foreign_key="users.id")
+    role: str = Field(default="Member", index=True)
     created_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
