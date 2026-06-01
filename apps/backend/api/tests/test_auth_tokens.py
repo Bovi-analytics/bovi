@@ -173,9 +173,9 @@ class _FakeSession:
 
     async def execute(self, _statement):
         self.execute_count += 1
-        if self.execute_count == 1:
+        if self.execute_count <= 2:
             return _ScalarResult()
-        if self.execute_count == 2:
+        if self.execute_count == 3:
             return _ScalarResult(self.user)
         return _ScalarResult(rows=[])
 

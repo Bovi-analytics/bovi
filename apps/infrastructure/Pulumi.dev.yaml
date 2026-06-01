@@ -9,3 +9,5 @@ config:
   bovi:dashboardImage: ghcr.io/bovi-analytics/bovi-dashboard:dev-latest
   bovi:azureAdClientId: 7cb91be2-42b9-491e-9979-a1c9b325ebbb
   bovi:authDisabled: false
+  bovi:bootstrapAdminEmails:
+    - douwedekok@gmail.com

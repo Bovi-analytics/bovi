@@ -75,6 +75,8 @@ azure_ad_api_scope = (
     or os.getenv("AZURE_AD_API_SCOPE")
     or (f"api://{azure_ad_client_id}/access_as_user" if azure_ad_client_id else "")
 )
+bootstrap_admin_emails = config.get_object("bootstrapAdminEmails") or []
+bootstrap_admin_emails_value = ",".join(str(email) for email in bootstrap_admin_emails if email)
 autoencoder_model_version = (
     os.getenv("AUTOENCODER_MODEL_VERSION") or config.get("autoencoderModelVersion") or "v15"
 )
@@ -315,6 +317,7 @@ api_result = create_container_app(
             "UPLOAD_BLOB_PREFIX": "bovi/uploads",
             "AZURE_AD_CLIENT_ID": azure_ad_client_id,
             "AUTH_DISABLED": auth_disabled_value,
+            "BOVI_BOOTSTRAP_ADMIN_EMAILS": bootstrap_admin_emails_value,
             "UPLOAD_MAX_BYTES": str(500 * 1024 * 1024),
         },
         secret_env={"STORAGE_ACCOUNT_KEY_ICAR": icar_storage_account_key},
@@ -336,6 +339,39 @@ api_migration_job_result = create_container_app_job(
         env={
             "DATABASE_URL": SQLITE_DATABASE_URL,
             "APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string,
+            "BOVI_BOOTSTRAP_ADMIN_EMAILS": bootstrap_admin_emails_value,
+        },
+        volumes=[
+            ContainerAppJobVolumeArgs(
+                name=DATA_VOLUME_NAME,
+                storage_name=AZURE_FILES_STORAGE_NAME,
+                mount_path=DATA_MOUNT_PATH,
+            )
+        ],
+        registry_server="ghcr.io" if ghcr_username and ghcr_token else None,
+        registry_username=ghcr_username,
+        registry_password=pulumi.Output.secret(ghcr_token) if ghcr_token else None,
+        depends_on=[api_result.environment_storage],
+        tags=tags,
+    ),
+)
+
+api_admin_bootstrap_job_name = f"bovi-api-bootstrap-admins-{stack}"
+api_admin_bootstrap_job_result = create_container_app_job(
+    "bovi-api-bootstrap-admins",
+    ContainerAppJobArgs(
+        resource_group_name=resource_group.name,
+        location=location,
+        job_name=api_admin_bootstrap_job_name,
+        environment_id=cae_result.id,
+        image=api_image,
+        command=["manage-access"],
+        args=["bootstrap-admins"],
+        container_name="bovi-api-bootstrap-admins",
+        env={
+            "DATABASE_URL": SQLITE_DATABASE_URL,
+            "APPLICATIONINSIGHTS_CONNECTION_STRING": api_insights_result.connection_string,
+            "BOVI_BOOTSTRAP_ADMIN_EMAILS": bootstrap_admin_emails_value,
         },
         volumes=[
             ContainerAppJobVolumeArgs(
@@ -393,5 +429,6 @@ pulumi.export("autoencoder_app_name", autoencoder_result.app.name)
 pulumi.export("autoencoder_app_url", autoencoder_result.url)
 pulumi.export("api_url", api_result.url)
 pulumi.export("api_migration_job_name", api_migration_job_result.name)
+pulumi.export("api_admin_bootstrap_job_name", api_admin_bootstrap_job_result.name)
 pulumi.export("dashboard_app_name", dashboard_result.container_app.name)
 pulumi.export("dashboard_url", dashboard_result.url)

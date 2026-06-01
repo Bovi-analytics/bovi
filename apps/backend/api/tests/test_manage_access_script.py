@@ -1,20 +1,14 @@
 """Tests for the database access management script."""
 
 import asyncio
-import importlib.util
-from pathlib import Path
 
+import bovi_api.auth as auth
+from bovi_api.auth import PENDING_BOOTSTRAP_TENANT_ID, TokenIdentity, pending_bootstrap_oid
 from bovi_api.database import create_tables, dispose_engine
 from bovi_api.models import AccessRoleAudit, Organization, OrganizationMembership, User
+from bovi_api.scripts import manage_access
 from bovi_api.settings import get_settings
 from sqlmodel import select
-
-SCRIPT_PATH = Path(__file__).parents[1] / "scripts" / "manage_access.py"
-SPEC = importlib.util.spec_from_file_location("manage_access", SCRIPT_PATH)
-assert SPEC is not None
-assert SPEC.loader is not None
-manage_access = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(manage_access)
 
 
 def test_manage_access_grants_admin_to_existing_user(tmp_path, monkeypatch):
@@ -51,6 +45,68 @@ def test_manage_access_grants_admin_to_existing_user(tmp_path, monkeypatch):
                 assert user.role == "Admin"
                 assert audit.old_role == "User"
                 assert audit.new_role == "Admin"
+        finally:
+            await dispose_engine()
+            get_settings.cache_clear()
+
+    asyncio.run(_run())
+
+
+def test_manage_access_bootstraps_default_admin_as_pending_user(tmp_path, monkeypatch):
+    async def _run() -> None:
+        monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path / 'access.db'}")
+        monkeypatch.delenv("BOVI_BOOTSTRAP_ADMIN_EMAILS", raising=False)
+        get_settings.cache_clear()
+        await dispose_engine()
+        try:
+            await create_tables()
+            await manage_access._main(["bootstrap-admins"])
+
+            factory = manage_access._get_session_factory()
+            async with factory() as session:
+                user = (
+                    await session.execute(select(User).where(User.email == "douwedekok@gmail.com"))
+                ).scalar_one()
+                assert user.entra_tenant_id == PENDING_BOOTSTRAP_TENANT_ID
+                assert user.entra_oid == pending_bootstrap_oid("douwedekok@gmail.com")
+                assert user.role == "Admin"
+        finally:
+            await dispose_engine()
+            get_settings.cache_clear()
+
+    asyncio.run(_run())
+
+
+def test_pending_bootstrap_admin_is_claimed_on_first_login(tmp_path, monkeypatch):
+    async def _run() -> None:
+        monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path / 'access.db'}")
+        get_settings.cache_clear()
+        await dispose_engine()
+        try:
+            await create_tables()
+            await manage_access._main(["grant-admin", "--email", "douwedekok@gmail.com"])
+
+            factory = manage_access._get_session_factory()
+            async with factory() as session:
+                current_user = await auth._ensure_local_user(
+                    TokenIdentity(
+                        entra_tenant_id="real-tenant",
+                        entra_oid="real-oid",
+                        account_type="entra",
+                        email="douwedekok@gmail.com",
+                        name="Douwe de Kok",
+                    ),
+                    session,
+                )
+                assert current_user.is_admin is True
+                assert current_user.roles == ["Admin"]
+
+            async with factory() as session:
+                users = (await session.execute(select(User))).scalars().all()
+                assert len(users) == 1
+                assert users[0].entra_tenant_id == "real-tenant"
+                assert users[0].entra_oid == "real-oid"
+                assert users[0].role == "Admin"
         finally:
             await dispose_engine()
             get_settings.cache_clear()
