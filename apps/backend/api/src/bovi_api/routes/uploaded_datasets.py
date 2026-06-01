@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,7 +13,6 @@ from bovi_api.auth import CurrentUser, ensure_organization_access, require_auth
 from bovi_api.database import get_session
 from bovi_api.models import (
     Organization,
-    StorageArtifact,
     UploadedDataset,
     UploadedDatasetDetail,
     UploadedDatasetRead,
@@ -21,8 +21,6 @@ from bovi_api.models import (
 from bovi_api.ownership import read_model
 from bovi_api.storage import (
     ArtifactStorage,
-    delete_artifacts_best_effort,
-    delete_unreferenced_artifacts,
     get_artifact_storage,
     load_json_artifact,
 )
@@ -58,6 +56,7 @@ async def list_uploaded_datasets(
     sort: Literal["uploaded_at", "name", "user"] = "uploaded_at",
     direction: Literal["asc", "desc"] = "desc",
     q: str | None = None,
+    include_deleted: bool = False,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ) -> list[UploadedDatasetRead]:
@@ -88,6 +87,11 @@ async def list_uploaded_datasets(
         statement = statement.where(UploadedDataset.user_id == user_id)
     elif scope == "mine":
         statement = statement.where(UploadedDataset.user_id == current_user.id)
+    if include_deleted:
+        if not current_user.is_admin:
+            raise HTTPException(status_code=403, detail="Admin access required.")
+    else:
+        statement = statement.where(col(UploadedDataset.deleted_at).is_(None))
     if q:
         statement = statement.where(col(UploadedDataset.name).contains(q))
     sort_column = {
@@ -116,6 +120,8 @@ async def get_uploaded_dataset(
     if row is None:
         raise HTTPException(status_code=404, detail="Uploaded dataset not found")
     dataset, user, organization = row
+    if dataset.deleted_at is not None and not current_user.is_admin:
+        raise HTTPException(status_code=404, detail="Uploaded dataset not found")
     ensure_organization_access(current_user, dataset.organization_id)
     cows = await load_json_artifact(
         session=session,
@@ -146,30 +152,15 @@ async def delete_uploaded_dataset(
     dataset_id: str,
     current_user: CurrentUser = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
-    storage: ArtifactStorage = Depends(get_artifact_storage),
 ) -> None:
-    """Delete uploaded dataset metadata and best-effort delete its blobs."""
+    """Archive uploaded dataset metadata while retaining blob artifacts for audit/admin use."""
     dataset = await session.get(UploadedDataset, dataset_id)
     if dataset is None:
         raise HTTPException(status_code=404, detail="Uploaded dataset not found")
     ensure_organization_access(current_user, dataset.organization_id)
 
-    artifact_ids = [
-        dataset.raw_file_artifact_id,
-        dataset.cows_artifact_id,
-        dataset.stats_artifact_id,
-    ]
-    artifacts = [
-        artifact
-        for artifact_id in artifact_ids
-        if artifact_id is not None
-        if (artifact := await session.get(StorageArtifact, artifact_id)) is not None
-    ]
-    await session.delete(dataset)
-    await session.flush()
-    artifacts_to_delete = await delete_unreferenced_artifacts(
-        session=session,
-        artifacts=artifacts,
-    )
+    if dataset.deleted_at is None:
+        dataset.deleted_at = datetime.now(UTC)
+        dataset.deleted_by_user_id = current_user.id
+        session.add(dataset)
     await session.commit()
-    await delete_artifacts_best_effort(storage, artifacts_to_delete)

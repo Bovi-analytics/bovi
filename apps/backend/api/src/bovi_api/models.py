@@ -319,6 +319,8 @@ class UploadedDataset(UploadedDatasetBase, table=True):
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
     )
+    deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    deleted_by_user_id: int | None = Field(default=None, foreign_key="users.id", index=True)
 
 
 class UploadedDatasetRead(UploadedDatasetBase):
@@ -326,6 +328,8 @@ class UploadedDatasetRead(UploadedDatasetBase):
 
     id: str
     uploaded_at: datetime | None
+    deleted_at: datetime | None = None
+    deleted_by_user_id: int | None = None
     user_name: str | None = None
     user_email: str | None = None
     organization_name: str | None = None
