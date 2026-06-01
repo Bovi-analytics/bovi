@@ -135,6 +135,23 @@ class TestUtilityFunctions:
         assert standardized["DaysInMilk"].tolist() == [1, 305]
         assert standardized["MilkingYield"].tolist() == [10.0, 11.0]
 
+    def test_standardize_lactation_columns_accepts_human_readable_headers(self):
+        """Standardization should tolerate common uploaded milk-recording headers."""
+        df = pd.DataFrame(
+            {
+                "Cow ID": ["cow1", "cow1"],
+                "Days in Milk": [10, 20],
+                "Milk Yield (kg)": [25.5, 28.0],
+            }
+        )
+
+        standardized = standardize_lactation_columns(df)
+
+        assert list(standardized.columns) == ["TestId", "DaysInMilk", "MilkingYield"]
+        assert standardized["TestId"].tolist() == ["cow1", "cow1"]
+        assert standardized["DaysInMilk"].tolist() == [10, 20]
+        assert standardized["MilkingYield"].tolist() == [25.5, 28.0]
+
 
 class TestPredictionFunctions:
     """Test prediction behavior for single and multiple lactations."""

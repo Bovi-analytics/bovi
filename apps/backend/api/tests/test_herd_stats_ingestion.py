@@ -90,6 +90,42 @@ def test_benchmark_test_day_columns_detect_as_test_day_with_mapping_review():
     assert result.cows[0].cow_id == "cow1"
 
 
+def test_parse_user_friendly_milk_recording_headers_detects_test_day():
+    csv_bytes = (
+        b"Cow ID,Days in Milk,Milk Yield (kg),Lactation\n"
+        b"cow1,10,25.5,2\n"
+        b"cow1,20,28.0,2\n"
+        b"cow2,12,30.0,3\n"
+        b"cow2,24,33.0,3\n"
+    )
+
+    result = parse_csv(csv_bytes)
+
+    assert result.format_detected == "icar_test_day"
+    assert result.mapping_required is True
+    assert result.column_mapping is not None
+    assert result.column_mapping["cow_id"] == "Cow ID"
+    assert result.column_mapping["dim"] == "Days in Milk"
+    assert result.column_mapping["milk_kg"] == "Milk Yield (kg)"
+    assert result.cow_count == 2
+    assert result.cows is not None
+    assert {c.cow_id for c in result.cows} == {"cow1", "cow2"}
+
+
+def test_parse_dim_and_milk_without_id_stays_milk_recordings():
+    csv_bytes = b"DaysInMilk,Milk kg\n10,25.5\n20,28.0\n40,31.0\n"
+
+    result = parse_csv(csv_bytes)
+
+    assert result.format_detected == "icar_test_day"
+    assert result.mapping_required is True
+    assert result.column_mapping == {"dim": "DaysInMilk", "milk_kg": "Milk kg"}
+    assert result.cow_count == 1
+    assert result.cows is not None
+    assert result.cows[0].cow_id == "0"
+    assert result.cows[0].dim == [10, 20, 40]
+
+
 def test_parse_test_day_with_explicit_column_mapping():
     csv_bytes = (
         b"lactation,days,milk,par\ncow1,10,25.5,2\ncow1,20,28.0,2\ncow2,12,30.0,3\ncow2,24,33.0,3\n"

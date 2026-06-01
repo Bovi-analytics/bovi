@@ -6,6 +6,7 @@ authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
 requires-python = ">= 3.12, < 3.13"
 dependencies = [
     "bovi-core",
+    "lactationcurve",
     "fastapi>=0.115.0",
     "uvicorn>=0.34.0",
     "pydantic>=2.0.0",

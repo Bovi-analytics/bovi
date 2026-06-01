@@ -30,6 +30,8 @@ Author: Meike van Leerdam
 Last update: 13 feb 2026
 """
 
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypedDict, cast
 
@@ -48,6 +50,144 @@ class MilkBotPriors(TypedDict):
     decay: ParameterPrior
     offset: ParameterPrior
     seMilk: float
+
+
+LACTATION_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
+    "DaysInMilk": (
+        "DaysInMilk",
+        "Days in Milk",
+        "Days In Milk",
+        "Days_In_Milk",
+        "DIM",
+        "Dim",
+        "Days",
+        "Day",
+        "TestDay",
+        "Test Day",
+        "LactationDay",
+        "Lactation Day",
+    ),
+    "MilkingYield": (
+        "MilkingYield",
+        "Milking Yield",
+        "Milking_Yield",
+        "DailyMilkingYield",
+        "Daily Milking Yield",
+        "Daily Milking Yield (kg)",
+        "DailyMilkYield",
+        "Daily Milk Yield",
+        "TestDayMilkYield",
+        "Test Day Milk Yield",
+        "MilkYield",
+        "Milk Yield",
+        "Milk Yield (kg)",
+        "Milk_Yield",
+        "Milk kg",
+        "milk_kg",
+        "MILK",
+        "Milk",
+        "Yield",
+        "MilkProduction",
+        "Milk Production",
+        "MilkRecording",
+        "Milk Recording",
+    ),
+    "TestId": (
+        "TestId",
+        "Test ID",
+        "Test_ID",
+        "CowId",
+        "Cow ID",
+        "Cow_ID",
+        "Cow",
+        "AnimalId",
+        "Animal ID",
+        "Animal_ID",
+        "AnimalNumber",
+        "Animal Number",
+        "Animal",
+        "EarNumber",
+        "Ear Number",
+        "Oornummer",
+        "Koe",
+        "Diernummer",
+        "LactationId",
+        "Lactation ID",
+        "Lactation",
+        "ID",
+        "Id",
+    ),
+}
+
+
+def normalize_lactation_column_name(column: str) -> str:
+    """Normalize a lactation-data column label for alias matching."""
+    return re.sub(r"[^a-z0-9]+", "", str(column).strip().lower())
+
+
+def _first_matching_column(
+    columns_by_normalized_name: dict[str, str],
+    aliases: Sequence[str],
+) -> str | None:
+    for alias in aliases:
+        match = columns_by_normalized_name.get(normalize_lactation_column_name(alias))
+        if match is not None:
+            return match
+    return None
+
+
+def resolve_lactation_column_mapping(
+    columns: Sequence[str],
+    *,
+    days_in_milk_col: str | None = None,
+    milking_yield_col: str | None = None,
+    test_id_col: str | None = None,
+    require_test_id: bool = False,
+) -> dict[str, str]:
+    """Resolve flexible lactation-data headers to canonical column names.
+
+    The returned mapping is ``canonical name -> original uploaded column``.
+    ``DaysInMilk`` and ``MilkingYield`` are required because the lactation
+    calculations cannot run without them. ``TestId`` is optional by default so
+    callers can choose whether to create a single-lactation fallback.
+    """
+
+    columns_by_normalized_name: dict[str, str] = {}
+    for column in columns:
+        normalized = normalize_lactation_column_name(column)
+        if normalized and normalized not in columns_by_normalized_name:
+            columns_by_normalized_name[normalized] = column
+
+    resolved: dict[str, str] = {}
+    requested_columns = {
+        "DaysInMilk": days_in_milk_col,
+        "MilkingYield": milking_yield_col,
+        "TestId": test_id_col,
+    }
+
+    for canonical, requested in requested_columns.items():
+        if requested:
+            match = columns_by_normalized_name.get(normalize_lactation_column_name(requested))
+            if match is None:
+                raise ValueError(f"Column '{requested}' was not found.")
+        else:
+            match = _first_matching_column(
+                columns_by_normalized_name, LACTATION_COLUMN_ALIASES[canonical]
+            )
+
+        if match is not None:
+            resolved[canonical] = match
+
+    missing_required = [
+        canonical for canonical in ("DaysInMilk", "MilkingYield") if canonical not in resolved
+    ]
+    if require_test_id and "TestId" not in resolved:
+        missing_required.append("TestId")
+    if missing_required:
+        expected = ", ".join(missing_required)
+        raise ValueError(f"No lactation column found for: {expected}.")
+
+    return resolved
 
 
 @dataclass
@@ -268,42 +408,15 @@ def standardize_lactation_columns(
     """
 
     df = df.copy()
-
-    # Accepted aliases (case-insensitive)
-    aliases = {
-        "DaysInMilk": ["daysinmilk", "dim", "testday"],
-        "MilkingYield": [
-            "milkingyield",
-            "testdaymilkyield",
-            "milkyield",
-            "yield",
-            "milkproduction",
-            "milk_yield",
-        ],
-        "TestId": ["testid", "animalid", "id"],
-    }
-
-    # Lowercase lookup → actual column name
-    col_lookup = {col.lower(): col for col in df.columns}
-
-    def resolve_col(override, possible_names):
-        if override:
-            return col_lookup.get(override.lower())
-        for name in possible_names:
-            if name in col_lookup:
-                return col_lookup[name]
-        return None
-
-    # Resolve columns
-    dim_col = resolve_col(days_in_milk_col, aliases["DaysInMilk"])
-    if not dim_col:
-        raise ValueError("No DaysInMilk column found.")
-
-    yield_col = resolve_col(milking_yield_col, aliases["MilkingYield"])
-    if not yield_col:
-        raise ValueError("No MilkingYield column found.")
-
-    id_col = resolve_col(test_id_col, aliases["TestId"])
+    mapping = resolve_lactation_column_mapping(
+        [str(col) for col in df.columns],
+        days_in_milk_col=days_in_milk_col,
+        milking_yield_col=milking_yield_col,
+        test_id_col=test_id_col,
+    )
+    dim_col = mapping["DaysInMilk"]
+    yield_col = mapping["MilkingYield"]
+    id_col = mapping.get("TestId")
 
     # Create TestId if missing
     if not id_col:
