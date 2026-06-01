@@ -24,6 +24,7 @@ Standard output structure:
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
@@ -39,6 +40,58 @@ if TYPE_CHECKING:
     from bovi_core.config import Config
     from bovi_core.ml.models import Model
     from mlflow.models import ModelSignature
+
+
+AUTOENCODER_INPUT_DAYS = 304
+
+
+def project_periodic_records_to_daily(
+    dim: list[int],
+    milkrecordings: list[float],
+    max_days: int = AUTOENCODER_INPUT_DAYS,
+) -> list[float]:
+    """Project sparse DIM observations into the fixed daily autoencoder horizon.
+
+    Observations outside day 1..``max_days`` are ignored. This keeps raw test-day
+    data with DIM 0 or records after the trained horizon from failing inference.
+    """
+    projected = [0.0] * max_days
+    for day, milk in zip(dim, milkrecordings, strict=True):
+        if 1 <= day <= max_days:
+            projected[day - 1] = milk
+    return projected
+
+
+def periodic_records_in_horizon(
+    dim: list[int],
+    milkrecordings: list[float],
+    max_days: int = AUTOENCODER_INPUT_DAYS,
+) -> tuple[list[int], list[float]]:
+    """Return periodic observations usable by the autoencoder horizon."""
+    if len(dim) != len(milkrecordings):
+        raise ValueError(
+            "dim and milkrecordings must have the same length, "
+            f"got {len(dim)} and {len(milkrecordings)}"
+        )
+
+    invalid_milk = [value for value in milkrecordings if not math.isfinite(value) or value < 0]
+    if invalid_milk:
+        raise ValueError("milkrecordings values must be finite, non-negative numbers.")
+
+    pairs = [
+        (day, milk) for day, milk in zip(dim, milkrecordings, strict=True) if 1 <= day <= max_days
+    ]
+    if not pairs:
+        raise ValueError(
+            f"Periodic input must include at least one dim value between 1 and {max_days} "
+            "for autoencoder projection."
+        )
+
+    usable_dim = [day for day, _ in pairs]
+    if len(set(usable_dim)) != len(usable_dim):
+        raise ValueError("dim values must be unique for autoencoder projection.")
+
+    return usable_dim, [milk for _, milk in pairs]
 
 
 # Note: this dataset intentionally does NOT inherit from torch.utils.data.Dataset.
@@ -141,6 +194,17 @@ class LactationDataset(FeatureVectorDataset):
         """
         # Get sequences
         milk = raw_data.get("milk")
+        has_periodic = (
+            raw_data.get("dim") is not None and raw_data.get("milkrecordings") is not None
+        )
+        if milk is None and has_periodic:
+            dim, milkrecordings = periodic_records_in_horizon(
+                [int(day) for day in cast(list[int], raw_data["dim"])],
+                [float(milk) for milk in cast(list[float], raw_data["milkrecordings"])],
+                self.max_days,
+            )
+            milk = project_periodic_records_to_daily(dim, milkrecordings, self.max_days)
+
         # Use if/else to avoid numpy array truth value error
         events = raw_data.get("events_encoded")
         if events is None:
@@ -194,6 +258,16 @@ class LactationDataset(FeatureVectorDataset):
             Milk array (target for reconstruction)
         """
         milk = raw_data.get("milk")
+        has_periodic = (
+            raw_data.get("dim") is not None and raw_data.get("milkrecordings") is not None
+        )
+        if milk is None and has_periodic:
+            dim, milkrecordings = periodic_records_in_horizon(
+                [int(day) for day in cast(list[int], raw_data["dim"])],
+                [float(milk) for milk in cast(list[float], raw_data["milkrecordings"])],
+                self.max_days,
+            )
+            milk = project_periodic_records_to_daily(dim, milkrecordings, self.max_days)
 
         if milk is None:
             raise ValueError("'milk' field not found in raw data")
