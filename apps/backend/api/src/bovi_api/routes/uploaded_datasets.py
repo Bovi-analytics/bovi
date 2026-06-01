@@ -22,6 +22,7 @@ from bovi_api.ownership import read_model
 from bovi_api.storage import (
     ArtifactStorage,
     delete_artifacts_best_effort,
+    delete_unreferenced_artifacts,
     get_artifact_storage,
     load_json_artifact,
 )
@@ -165,7 +166,10 @@ async def delete_uploaded_dataset(
         if (artifact := await session.get(StorageArtifact, artifact_id)) is not None
     ]
     await session.delete(dataset)
-    for artifact in artifacts:
-        await session.delete(artifact)
+    await session.flush()
+    artifacts_to_delete = await delete_unreferenced_artifacts(
+        session=session,
+        artifacts=artifacts,
+    )
     await session.commit()
-    await delete_artifacts_best_effort(storage, artifacts)
+    await delete_artifacts_best_effort(storage, artifacts_to_delete)

@@ -609,7 +609,7 @@ async def create_challenge_preset(
         await session.flush()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
 
     challenge = Challenge(
@@ -639,7 +639,7 @@ async def create_challenge_preset(
         await session.commit()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
     await session.refresh(challenge)
     return await _challenge_read(session, challenge.id or 0)
@@ -703,7 +703,7 @@ async def create_challenge_saved_dataset(
         await session.flush()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
 
     challenge = Challenge(
@@ -733,7 +733,7 @@ async def create_challenge_saved_dataset(
         await session.commit()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
     await session.refresh(challenge)
     return await _challenge_read(session, challenge.id or 0)
@@ -844,7 +844,7 @@ async def create_challenge_upload(
         await session.flush()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
 
     challenge = Challenge(
@@ -878,7 +878,7 @@ async def create_challenge_upload(
         await session.commit()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
     await session.refresh(challenge)
     return await _challenge_read(session, challenge.id or 0)
@@ -1125,7 +1125,7 @@ async def create_submission_bovi(
         await session.flush()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
 
     submission = Submission(
@@ -1162,7 +1162,7 @@ async def create_submission_bovi(
         await session.commit()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
     await session.refresh(submission)
     return await _submission_read(session, submission.id or 0)
@@ -1296,7 +1296,7 @@ async def create_submission_upload(
         await session.flush()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
 
     submission = Submission(
@@ -1332,7 +1332,7 @@ async def create_submission_upload(
         await session.commit()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
     await session.refresh(submission)
     return await _submission_read(session, submission.id or 0)

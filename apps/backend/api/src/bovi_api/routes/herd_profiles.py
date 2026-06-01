@@ -243,7 +243,7 @@ async def csv_preview(
         await session.flush()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
 
     dataset = UploadedDataset(
@@ -271,7 +271,7 @@ async def csv_preview(
         await session.commit()
     except Exception:
         await session.rollback()
-        await delete_artifacts_best_effort(storage, uploaded)
+        await delete_artifacts_best_effort(storage, uploaded, session=session)
         raise
 
     return HerdProfileUploadResponse(
