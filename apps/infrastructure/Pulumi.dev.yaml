@@ -7,6 +7,8 @@ config:
   bovi:resourceGroup: Bovi-Analytics-Tools
   bovi:apiImage: ghcr.io/bovi-analytics/bovi-api:dev-latest
   bovi:dashboardImage: ghcr.io/bovi-analytics/bovi-dashboard:dev-latest
+  bovi:dashboardCustomDomain: tools-dev.bovi-analytics.org
+  bovi:dashboardManagedCertificateName: tools-dev.bovi-analytics.org-bovi-ana-260531140507
   bovi:azureAdClientId: 7cb91be2-42b9-491e-9979-a1c9b325ebbb
   bovi:authDisabled: false
   bovi:bootstrapAdminEmails:
