@@ -16,6 +16,14 @@ SQLITE_DATABASE_URL = (
 
 
 @dataclass
+class ContainerAppCustomDomainArgs:
+    name: str
+    managed_certificate_name: str
+    binding_type: str = "SniEnabled"
+    domain_control_validation: str = "CNAME"
+
+
+@dataclass
 class ContainerAppArgs:
     resource_group_name: pulumi.Input[str]
     location: str
@@ -59,6 +67,7 @@ class StatelessContainerAppArgs:
     environment_id: pulumi.Input[str]
     image: pulumi.Input[str]
     port: int
+    environment_name: pulumi.Input[str] | None = None
     env: dict[str, pulumi.Input[str]] = field(default_factory=dict)
     cpu: float = 0.25
     memory: str = "0.5Gi"
@@ -68,12 +77,14 @@ class StatelessContainerAppArgs:
     registry_username: pulumi.Input[str] | None = None
     registry_password: pulumi.Input[str] | None = None
     registry_password_secret_name: str = "ghcr-token"
+    custom_domain: ContainerAppCustomDomainArgs | None = None
     tags: ResourceTags | None = None
 
 
 @dataclass
 class StatelessContainerAppResult:
     container_app: app.ContainerApp
+    managed_certificate: app.ManagedCertificate | None
     id: pulumi.Output[str]
     fqdn: pulumi.Output[str]
     url: pulumi.Output[str]
@@ -216,6 +227,34 @@ def create_stateless_container_app(
         registry_password_secret_name=args.registry_password_secret_name,
     )
 
+    managed_certificate: app.ManagedCertificate | None = None
+    custom_domains: list[app.CustomDomainArgs] | None = None
+    depends_on: list[pulumi.Resource] = []
+    if args.custom_domain:
+        if not args.environment_name:
+            raise ValueError("environment_name is required when custom_domain is configured")
+        managed_certificate = app.ManagedCertificate(
+            f"{name}-managed-certificate",
+            resource_group_name=args.resource_group_name,
+            environment_name=args.environment_name,
+            managed_certificate_name=args.custom_domain.managed_certificate_name,
+            location=args.location,
+            properties=app.ManagedCertificatePropertiesArgs(
+                subject_name=args.custom_domain.name,
+                domain_control_validation=args.custom_domain.domain_control_validation,
+            ),
+            tags=args.tags,
+            opts=pulumi.ResourceOptions(protect=True),
+        )
+        custom_domains = [
+            app.CustomDomainArgs(
+                name=args.custom_domain.name,
+                binding_type=args.custom_domain.binding_type,
+                certificate_id=managed_certificate.id,
+            )
+        ]
+        depends_on.append(managed_certificate)
+
     container_app = app.ContainerApp(
         name,
         resource_group_name=args.resource_group_name,
@@ -231,6 +270,7 @@ def create_stateless_container_app(
                 target_port=args.port,
                 transport="http",
                 allow_insecure=False,
+                custom_domains=custom_domains,
             ),
         ),
         template=app.TemplateArgs(
@@ -251,6 +291,7 @@ def create_stateless_container_app(
             ),
         ),
         tags=args.tags,
+        opts=pulumi.ResourceOptions(depends_on=depends_on) if depends_on else None,
     )
 
     fqdn = container_app.configuration.apply(
@@ -258,6 +299,7 @@ def create_stateless_container_app(
     )
     return StatelessContainerAppResult(
         container_app=container_app,
+        managed_certificate=managed_certificate,
         id=container_app.id,
         fqdn=fqdn,
         url=fqdn.apply(lambda h: f"https://{h}" if h else ""),
