@@ -23,6 +23,7 @@ from bovi_infra.resources.container_app import (
     DATA_VOLUME_NAME,
     SQLITE_DATABASE_URL,
     ContainerAppArgs,
+    ContainerAppCustomDomainArgs,
     StatelessContainerAppArgs,
     create_container_app,
     create_stateless_container_app,
@@ -91,6 +92,12 @@ dashboard_image = (
     or config.get("dashboardImage")
     or "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 )
+dashboard_custom_domain = config.get("dashboardCustomDomain")
+dashboard_managed_certificate_name = config.get("dashboardManagedCertificateName")
+if bool(dashboard_custom_domain) != bool(dashboard_managed_certificate_name):
+    raise ValueError(
+        "dashboardCustomDomain and dashboardManagedCertificateName must be set together"
+    )
 ghcr_username = os.getenv("GHCR_USERNAME")
 ghcr_token = os.getenv("GHCR_TOKEN")
 if bool(ghcr_username) != bool(ghcr_token):
@@ -185,8 +192,10 @@ cae_result = create_container_app_environment(
 )
 
 configured_dashboard_origin = config.get("dashboardOrigin")
-dashboard_origin = configured_dashboard_origin or cae_result.default_domain.apply(
-    lambda domain: f"https://bovi-dashboard-{stack}.{domain}"
+dashboard_origin = (
+    configured_dashboard_origin
+    or (f"https://{dashboard_custom_domain}" if dashboard_custom_domain else None)
+    or cae_result.default_domain.apply(lambda domain: f"https://bovi-dashboard-{stack}.{domain}")
 )
 api_cors_origins = pulumi.Output.all(dashboard_origin).apply(lambda origins: json.dumps(origins))
 
@@ -398,6 +407,7 @@ dashboard_result = create_stateless_container_app(
         location=location,
         app_name=f"bovi-dashboard-{stack}",
         environment_id=cae_result.id,
+        environment_name=cae_result.name,
         image=dashboard_image,
         port=3000,
         registry_server="ghcr.io" if ghcr_username and ghcr_token else None,
@@ -410,6 +420,14 @@ dashboard_result = create_stateless_container_app(
             "AZURE_AD_API_SCOPE": azure_ad_api_scope,
             "AUTH_DISABLED": auth_disabled_value,
         },
+        custom_domain=(
+            ContainerAppCustomDomainArgs(
+                name=dashboard_custom_domain,
+                managed_certificate_name=dashboard_managed_certificate_name,
+            )
+            if dashboard_custom_domain and dashboard_managed_certificate_name
+            else None
+        ),
         tags=tags,
     ),
 )
