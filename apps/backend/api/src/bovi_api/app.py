@@ -1,6 +1,7 @@
 """FastAPI application factory."""
 
-import fcntl
+import os
+import time
 from collections.abc import Iterator
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
@@ -20,6 +21,8 @@ from bovi_api.settings import get_settings
 _ALEMBIC_DIR = Path(__file__).parent / "alembic"
 _MIGRATION_LOCK_RETRIES = 5
 _MIGRATION_LOCK_RETRY_SECONDS = 2.0
+_MIGRATION_FILE_LOCK_STALE_SECONDS = 15.0
+_MIGRATION_FILE_LOCK_RETRY_SECONDS = 0.5
 
 
 def _is_sqlite_locked(exc: OperationalError) -> bool:
@@ -44,12 +47,32 @@ def _migration_lock(database_url: str) -> Iterator[None]:
         return
 
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    with lock_path.open("w") as lock_file:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+    while True:
         try:
-            yield
-        finally:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            break
+        except FileExistsError:
+            try:
+                age_seconds = time.time() - lock_path.stat().st_mtime
+            except FileNotFoundError:
+                continue
+            if age_seconds > _MIGRATION_FILE_LOCK_STALE_SECONDS:
+                try:
+                    lock_path.unlink()
+                except FileNotFoundError:
+                    pass
+                continue
+            sleep(_MIGRATION_FILE_LOCK_RETRY_SECONDS)
+
+    with os.fdopen(fd, "w") as lock_file:
+        lock_file.write(f"{os.getpid()}\n")
+    try:
+        yield
+    finally:
+        try:
+            lock_path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def _run_migrations() -> None:
