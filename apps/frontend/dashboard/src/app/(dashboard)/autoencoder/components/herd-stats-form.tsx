@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactElement } from "react";
+import React from "react";
 import { NumberInput, Slider, Tooltip } from "@mantine/core";
 import {
   HERD_STATS_METADATA,
@@ -21,25 +21,35 @@ export function HerdStatsForm({
   onChange,
   showRaw = false,
   showBoth = false,
-}: HerdStatsFormProps): ReactElement {
+}: HerdStatsFormProps): React.ReactElement {
+  function clampNormalized(value: number) {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  function clampValue(index: number) {
+    const next = [...values];
+    next[index] = clampNormalized(next[index] ?? 0);
+    onChange(next);
+  }
+
   function handleChange(index: number, value: number) {
     const stat = HERD_STATS_METADATA[index];
     const normalized = showRaw ? toNormalized(stat, value) : value;
     const next = [...values];
-    next[index] = Math.max(0, Math.min(1, normalized));
+    next[index] = normalized;
     onChange(next);
   }
 
   function handleRawChange(index: number, value: number) {
     const stat = HERD_STATS_METADATA[index];
     const next = [...values];
-    next[index] = Math.max(0, Math.min(1, toNormalized(stat, value)));
+    next[index] = toNormalized(stat, value);
     onChange(next);
   }
 
   function handleNormalizedChange(index: number, value: number) {
     const next = [...values];
-    next[index] = Math.max(0, Math.min(1, value));
+    next[index] = value;
     onChange(next);
   }
 
@@ -74,10 +84,12 @@ export function HerdStatsForm({
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <NumberInput
                   label={stat.unit || "Raw value"}
+                  aria-label={`${stat.label} ${stat.unit || "raw value"}`}
                   value={rawValue}
                   onChange={(val) => {
                     if (typeof val === "number") handleRawChange(stat.index, val);
                   }}
+                  onBlur={() => clampValue(stat.index)}
                   min={stat.rawMin}
                   max={stat.rawMax}
                   step={rawStep}
@@ -86,10 +98,12 @@ export function HerdStatsForm({
                 />
                 <NumberInput
                   label="Normalized 0-1"
+                  aria-label={`${stat.label} normalized`}
                   value={normalized}
                   onChange={(val) => {
                     if (typeof val === "number") handleNormalizedChange(stat.index, val);
                   }}
+                  onBlur={() => clampValue(stat.index)}
                   min={0}
                   max={1}
                   step={0.01}
@@ -101,7 +115,13 @@ export function HerdStatsForm({
               <div className="mt-3 space-y-2">
                 <Slider
                   value={displayValue}
-                  onChange={(val) => handleChange(stat.index, val)}
+                  onChange={(val) => {
+                    const next = [...values];
+                    next[stat.index] = showRaw
+                      ? clampNormalized(toNormalized(stat, val))
+                      : clampNormalized(val);
+                    onChange(next);
+                  }}
                   min={sliderMin}
                   max={sliderMax}
                   step={sliderStep}
@@ -111,10 +131,12 @@ export function HerdStatsForm({
                   }
                 />
                 <NumberInput
+                  aria-label={stat.label}
                   value={displayValue}
                   onChange={(val) => {
                     if (typeof val === "number") handleChange(stat.index, val);
                   }}
+                  onBlur={() => clampValue(stat.index)}
                   min={sliderMin}
                   max={sliderMax}
                   step={sliderStep}
