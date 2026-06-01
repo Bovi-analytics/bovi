@@ -5,7 +5,15 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from bovi_api.database import get_session
-from bovi_api.models import Challenge, HerdProfile, Submission, UploadedDataset
+from bovi_api.models import (
+    AccessRoleAudit,
+    Challenge,
+    HerdProfile,
+    Submission,
+    UploadedDataset,
+    User,
+)
+from sqlmodel import select
 
 
 def _profile_kwargs(name: str, user_id: int, organization_id: int, created_at: datetime) -> dict:
@@ -199,3 +207,55 @@ def test_admin_overview_filters_category_organization_user_and_search(client, mu
     search = client.get("/admin/submissions-overview?q=farm%20sheet")
     assert search.status_code == 200
     assert [item["item_type"] for item in search.json()["items"]] == ["benchmark_submission"]
+
+
+def test_admin_users_lists_database_roles_and_memberships(client, multi_org_auth):
+    multi_org_auth.as_user("admin")
+
+    response = client.get("/admin/users")
+
+    assert response.status_code == 200
+    body = response.json()
+    admin = next(user for user in body if user["email"] == "admin@example.test")
+    owner = next(user for user in body if user["email"] == "user@example.test")
+    assert admin["role"] == "Admin"
+    assert owner["role"] == "User"
+    assert owner["memberships"] == [
+        {"organization_id": 1, "organization_name": "Test Organization", "role": "Owner"}
+    ]
+
+
+def test_admin_can_update_global_user_role_and_audit_change(client, multi_org_auth):
+    multi_org_auth.as_user("admin")
+
+    response = client.patch("/admin/users/1/role", json={"role": "Admin"})
+
+    assert response.status_code == 200
+    assert response.json()["role"] == "Admin"
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _assert_db() -> None:
+        async for session in override():
+            assert (await session.get(User, 1)).role == "Admin"  # type: ignore[union-attr]
+            audit = (
+                await session.execute(
+                    select(AccessRoleAudit).where(AccessRoleAudit.target_user_id == 1)
+                )
+            ).scalar_one()
+            assert audit.actor_user_id == 7
+            assert audit.scope == "global"
+            assert audit.old_role == "User"
+            assert audit.new_role == "Admin"
+            break
+
+    asyncio.run(_assert_db())
+
+
+def test_admin_cannot_demote_last_global_admin(client, multi_org_auth):
+    multi_org_auth.as_user("admin")
+
+    response = client.patch("/admin/users/7/role", json={"role": "User"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cannot remove the last global admin."

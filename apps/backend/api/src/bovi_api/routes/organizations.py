@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
@@ -21,7 +22,13 @@ from bovi_api.auth import (
     require_auth,
 )
 from bovi_api.database import get_session
-from bovi_api.models import Organization, OrganizationInvite, OrganizationMembership, User
+from bovi_api.models import (
+    AccessRoleAudit,
+    Organization,
+    OrganizationInvite,
+    OrganizationMembership,
+    User,
+)
 
 router = APIRouter(tags=["organizations"])
 
@@ -115,6 +122,31 @@ async def _membership(
         )
     )
     return result.scalar_one_or_none()
+
+
+async def _owner_count(session: AsyncSession, organization_id: int) -> int:
+    result = await session.execute(
+        select(func.count())
+        .select_from(OrganizationMembership)
+        .where(
+            OrganizationMembership.organization_id == organization_id,
+            OrganizationMembership.role == ORG_ROLE_OWNER,
+        )
+    )
+    return int(result.scalar_one())
+
+
+async def _ensure_not_last_owner(
+    session: AsyncSession,
+    membership: OrganizationMembership,
+) -> None:
+    if membership.role != ORG_ROLE_OWNER:
+        return
+    if await _owner_count(session, membership.organization_id) <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot remove the last organization owner.",
+        )
 
 
 async def _require_owner_or_admin(
@@ -251,6 +283,17 @@ async def remove_member(
     membership = await _membership(session, user_id, organization_id)
     if membership is None:
         raise HTTPException(status_code=404, detail="Membership not found")
+    await _ensure_not_last_owner(session, membership)
+    session.add(
+        AccessRoleAudit(
+            actor_user_id=current_user.id,
+            target_user_id=user_id,
+            organization_id=organization_id,
+            scope="organization",
+            old_role=membership.role,
+            new_role="None",
+        )
+    )
     await session.delete(membership)
     await session.commit()
 
@@ -268,8 +311,22 @@ async def update_member(
     membership = await _membership(session, user_id, organization_id)
     if membership is None:
         raise HTTPException(status_code=404, detail="Membership not found")
+    old_role = membership.role
+    if old_role == ORG_ROLE_OWNER and body.role != ORG_ROLE_OWNER:
+        await _ensure_not_last_owner(session, membership)
     membership.role = body.role
     session.add(membership)
+    if old_role != body.role:
+        session.add(
+            AccessRoleAudit(
+                actor_user_id=current_user.id,
+                target_user_id=user_id,
+                organization_id=organization_id,
+                scope="organization",
+                old_role=old_role,
+                new_role=body.role,
+            )
+        )
     await session.commit()
 
     user = await session.get(User, user_id)

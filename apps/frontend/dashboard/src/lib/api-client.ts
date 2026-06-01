@@ -22,11 +22,14 @@ import {
   SubmissionListSchema,
   SubmissionReadSchema,
   AdminOverviewResponseSchema,
+  AdminUserListSchema,
+  AdminUserSchema,
   UploadedDatasetDetailSchema,
   UploadedDatasetListSchema,
 } from "@/types/api";
 import type {
   AdminDataCategory,
+  AdminUser,
   AdminOverviewResponse,
   AutoencoderPredictRequest,
   AutoencoderPredictResponse,
@@ -451,6 +454,19 @@ export async function listAdminSubmissionsOverview(
     `/admin/submissions-overview${adminOverviewQuery(options)}`,
     AdminOverviewResponseSchema
   );
+}
+
+export async function listAdminUsers(q?: string): Promise<AdminUser[]> {
+  const params = q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
+  return apiGet(`/admin/users${params}`, AdminUserListSchema);
+}
+
+export async function updateAdminUserRole(
+  userId: number,
+  role: "Admin" | "User"
+): Promise<AdminUser> {
+  const response = await apiPatch<unknown>(`/admin/users/${userId}/role`, { role });
+  return AdminUserSchema.parse(response);
 }
 
 /* ------------------------------------------------------------------ */
