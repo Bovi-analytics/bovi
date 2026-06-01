@@ -60,7 +60,7 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
   icar_test_day: {
     label: "Milk Recordings",
     blurb:
-      "One row per lactation per milk recording, as exported by milk-recording software. We aggregate across lactations to derive AchievedMilk, Achieved21Milk, Achieved75Milk, Achieved305Milk (trapezoidal test-interval method) and DaysInMilk. Parity is also detected and shown as a hint for the AI autoencoder. All other herd stats remain at slider defaults.",
+      "One row per lactation per milk recording, as exported by milk-recording software. We aggregate by lactation to derive cumulative milk, estimated 305-day milk, daily milk yield around DIM 21 and DIM 75, and average days in milk. Parity is also detected and shown as a hint for the AI autoencoder. All other herd stats remain at slider defaults.",
     columns: [
       { name: "TestId", description: "Unique lactation identifier", required: true },
       { name: "DaysInMilk", description: "Days since calving for this record", required: true },
@@ -89,7 +89,7 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
       "One row per herd summary, with the 10 canonical columns already pre-averaged. Column order is flexible; missing columns are left at slider defaults. Use this format if your herd-management platform already exports per-herd aggregates.",
     columns: VISIBLE_HERD_STATS_METADATA.map((m) => ({
       name: m.name,
-      description: `${m.description} (${m.unit || "0–1 score"}, typical ${m.rawMin}–${m.rawMax})`,
+      description: `${m.description} (${m.unit || "0–1 score"}, package range ${m.rawMin}–${m.rawMax})`,
       required: false,
     })),
     template: buildAggregatedTemplate,

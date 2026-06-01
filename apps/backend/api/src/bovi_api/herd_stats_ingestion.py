@@ -816,9 +816,9 @@ def _aggregate_test_days(
     else:
         warnings.append("No test-day records near DIM 75 - Achieved75Milk left to slider default.")
 
-    max_dims = [max(d for d, _ in cow.test_days) for cow in cows if cow.test_days]
-    if max_dims:
-        stats["DaysInMilk"] = statistics.fmean(max_dims)
+    mean_dims = [statistics.fmean(d for d, _ in cow.test_days) for cow in cows if cow.test_days]
+    if mean_dims:
+        stats["DaysInMilk"] = statistics.fmean(mean_dims)
 
     direct_305 = [c.milk_305d for c in cows if c.milk_305d is not None]
     if len(direct_305) >= max(1, int(0.8 * len(cows))):
