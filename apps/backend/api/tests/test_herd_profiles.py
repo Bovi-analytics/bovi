@@ -3,7 +3,7 @@
 import asyncio
 
 from bovi_api.database import get_session
-from bovi_api.models import UploadedDataset
+from bovi_api.models import StorageArtifact, UploadedDataset
 from bovi_api.settings import Settings, get_settings
 from sqlmodel import select
 
@@ -141,6 +141,51 @@ def test_csv_preview_returns_normalized_stats(client):
     detail = client.get(f"/uploaded-datasets/{data['upload_id']}")
     assert detail.status_code == 200
     assert detail.json()["stats"] == data["stats"]
+
+
+def test_csv_preview_reuses_identical_dataset_artifacts_and_deletes_last_reference(client):
+    first = client.post(
+        "/herd-profiles/csv-preview",
+        data={"organization_id": "1"},
+        files={"file": ("herd.csv", SAMPLE_CSV, "text/csv")},
+    )
+    second = client.post(
+        "/herd-profiles/csv-preview",
+        data={"organization_id": "1"},
+        files={"file": ("renamed.csv", SAMPLE_CSV, "text/csv")},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["upload_id"] != second.json()["upload_id"]
+    assert len(client.app.state.blob_container_client.store) == 3
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _storage_state() -> tuple[list[UploadedDataset], list[StorageArtifact]]:
+        async for session in override():
+            datasets = (await session.execute(select(UploadedDataset))).scalars().all()
+            artifacts = (await session.execute(select(StorageArtifact))).scalars().all()
+            return datasets, artifacts
+        raise AssertionError("session override did not yield")
+
+    datasets, artifacts = asyncio.run(_storage_state())
+    assert len(datasets) == 2
+    assert len(artifacts) == 3
+    assert datasets[0].raw_file_artifact_id == datasets[1].raw_file_artifact_id
+    assert datasets[0].stats_artifact_id == datasets[1].stats_artifact_id
+
+    assert client.delete(f"/uploaded-datasets/{first.json()['upload_id']}").status_code == 204
+    datasets, artifacts = asyncio.run(_storage_state())
+    assert len(datasets) == 1
+    assert len(artifacts) == 3
+    assert len(client.app.state.blob_container_client.store) == 3
+
+    assert client.delete(f"/uploaded-datasets/{second.json()['upload_id']}").status_code == 204
+    datasets, artifacts = asyncio.run(_storage_state())
+    assert datasets == []
+    assert artifacts == []
+    assert client.app.state.blob_container_client.store == {}
 
 
 def test_csv_preview_rejects_non_csv_extension(client):

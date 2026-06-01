@@ -143,6 +143,101 @@ def test_create_upload_challenge_stores_raw_and_parsed_artifacts(client):
     assert asyncio.run(_artifact_count()) == 4
 
 
+def test_create_upload_challenge_reuses_identical_artifacts(client):
+    """Identical upload content is stored once even when filenames differ."""
+    test_day_csv = (
+        b"TestId,parity,dim,milk_kg\n"
+        b"cow1,2,10,25.0\n"
+        b"cow1,2,40,31.0\n"
+        b"cow2,3,12,28.0\n"
+        b"cow2,3,42,34.0\n"
+    )
+    actual_yields_csv = b"TestId,LactationYield\ncow1,8500.0\ncow2,9100.0\n"
+
+    first = client.post(
+        "/benchmark/challenges/upload",
+        data={"name": "First upload", "organization_id": "1"},
+        files={
+            "test_day_csv": ("first_test_day.csv", test_day_csv, "text/csv"),
+            "actual_yields_csv": ("first_actual_yields.csv", actual_yields_csv, "text/csv"),
+        },
+    )
+    second = client.post(
+        "/benchmark/challenges/upload",
+        data={"name": "Second upload", "organization_id": "1"},
+        files={
+            "test_day_csv": ("renamed_test_day.csv", test_day_csv, "text/csv"),
+            "actual_yields_csv": ("renamed_actual_yields.csv", actual_yields_csv, "text/csv"),
+        },
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert second.json()["dataset_sources"][0]["filename"] == "renamed_test_day.csv"
+    assert len(client.app.state.blob_container_client.store) == 4
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _artifact_and_challenge_state() -> tuple[list[StorageArtifact], list[Challenge]]:
+        async for session in override():
+            artifacts = (await session.execute(select(StorageArtifact))).scalars().all()
+            challenges = (await session.execute(select(Challenge))).scalars().all()
+            return artifacts, challenges
+        raise AssertionError("session override did not yield")
+
+    artifacts, challenges = asyncio.run(_artifact_and_challenge_state())
+    assert len(artifacts) == 4
+    assert len(challenges) == 2
+    assert challenges[0].test_day_file_artifact_id == challenges[1].test_day_file_artifact_id
+    assert challenges[0].cow_metadata_artifact_id == challenges[1].cow_metadata_artifact_id
+
+
+def test_create_upload_challenge_does_not_reuse_same_filename_with_different_content(client):
+    """Filename collisions do not matter when the uploaded bytes differ."""
+    first_test_day_csv = (
+        b"TestId,parity,dim,milk_kg\n"
+        b"cow1,2,10,25.0\n"
+        b"cow1,2,40,31.0\n"
+        b"cow2,3,12,28.0\n"
+        b"cow2,3,42,34.0\n"
+    )
+    second_test_day_csv = (
+        b"TestId,parity,dim,milk_kg\n"
+        b"cow1,2,10,26.0\n"
+        b"cow1,2,40,32.0\n"
+        b"cow2,3,12,29.0\n"
+        b"cow2,3,42,35.0\n"
+    )
+    actual_yields_csv = b"TestId,LactationYield\ncow1,8500.0\ncow2,9100.0\n"
+
+    for content in (first_test_day_csv, second_test_day_csv):
+        resp = client.post(
+            "/benchmark/challenges/upload",
+            data={"name": "Upload", "organization_id": "1"},
+            files={
+                "test_day_csv": ("same_name.csv", content, "text/csv"),
+                "actual_yields_csv": ("same_aly.csv", actual_yields_csv, "text/csv"),
+            },
+        )
+        assert resp.status_code == 201
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _test_day_artifacts() -> list[StorageArtifact]:
+        async for session in override():
+            result = await session.execute(
+                select(StorageArtifact).where(
+                    StorageArtifact.artifact_kind == "challenge_test_day_csv"
+                )
+            )
+            return result.scalars().all()
+        raise AssertionError("session override did not yield")
+
+    artifacts = asyncio.run(_test_day_artifacts())
+    assert len(artifacts) == 2
+    assert artifacts[0].sha256 != artifacts[1].sha256
+
+
 def test_create_upload_challenge_rejects_large_file_with_clear_message(client):
     client.app.dependency_overrides[get_settings] = lambda: Settings(upload_max_bytes=16)
 
