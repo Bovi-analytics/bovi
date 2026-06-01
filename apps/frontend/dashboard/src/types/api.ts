@@ -288,6 +288,8 @@ export const UploadedDatasetReadSchema = z
     stats_summary: z.record(z.string(), z.number()).default({}),
     raw_stats_summary: z.record(z.string(), z.number()).default({}),
     uploaded_at: z.string().nullable(),
+    deleted_at: z.string().nullable().optional(),
+    deleted_by_user_id: z.number().nullable().optional(),
   })
   .merge(OwnershipFieldsSchema);
 

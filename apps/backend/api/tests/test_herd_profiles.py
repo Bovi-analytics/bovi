@@ -1,6 +1,7 @@
 """Tests for the herd profiles CRUD API."""
 
 import asyncio
+from datetime import datetime
 
 from bovi_api.database import get_session
 from bovi_api.models import StorageArtifact, UploadedDataset
@@ -143,7 +144,7 @@ def test_csv_preview_returns_normalized_stats(client):
     assert detail.json()["stats"] == data["stats"]
 
 
-def test_csv_preview_reuses_identical_dataset_artifacts_and_deletes_last_reference(client):
+def test_csv_preview_reuses_identical_dataset_artifacts_and_archives_uploads(client):
     first = client.post(
         "/herd-profiles/csv-preview",
         data={"organization_id": "1"},
@@ -177,15 +178,26 @@ def test_csv_preview_reuses_identical_dataset_artifacts_and_deletes_last_referen
 
     assert client.delete(f"/uploaded-datasets/{first.json()['upload_id']}").status_code == 204
     datasets, artifacts = asyncio.run(_storage_state())
-    assert len(datasets) == 1
+    assert len(datasets) == 2
+    archived = next(dataset for dataset in datasets if dataset.id == first.json()["upload_id"])
+    assert isinstance(archived.deleted_at, datetime)
+    assert archived.deleted_by_user_id == 1
     assert len(artifacts) == 3
     assert len(client.app.state.blob_container_client.store) == 3
+    uploads = client.get("/uploaded-datasets?organization_id=1")
+    assert uploads.status_code == 200
+    assert [upload["id"] for upload in uploads.json()] == [second.json()["upload_id"]]
+    assert client.get(f"/uploaded-datasets/{first.json()['upload_id']}").status_code == 404
 
     assert client.delete(f"/uploaded-datasets/{second.json()['upload_id']}").status_code == 204
     datasets, artifacts = asyncio.run(_storage_state())
-    assert datasets == []
-    assert artifacts == []
-    assert client.app.state.blob_container_client.store == {}
+    assert len(datasets) == 2
+    assert all(dataset.deleted_at is not None for dataset in datasets)
+    assert len(artifacts) == 3
+    assert len(client.app.state.blob_container_client.store) == 3
+    uploads = client.get("/uploaded-datasets?organization_id=1")
+    assert uploads.status_code == 200
+    assert uploads.json() == []
 
 
 def test_csv_preview_rejects_non_csv_extension(client):

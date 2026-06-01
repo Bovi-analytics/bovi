@@ -46,6 +46,7 @@ import type {
   PresetPeriodKey,
   PresetSizeKey,
   UploadedDatasetDetail,
+  UploadedDatasetRead,
 } from "@/types/api";
 import { useHerdProfileUpload } from "../hooks/use-herd-profile-upload";
 
@@ -731,6 +732,7 @@ function SavedDatasetsPanel(): ReactElement {
   const [sort, setSort] = useState<"uploaded_at" | "name" | "user">("uploaded_at");
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [q, setQ] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<UploadedDatasetRead | null>(null);
   const organizationId = selectedOrganizationId ?? 0;
   const userId = scope === "organization" && selectedUserId ? Number(selectedUserId) : undefined;
   const datasetOptions = {
@@ -760,6 +762,7 @@ function SavedDatasetsPanel(): ReactElement {
       if (uploadedDataset?.id === deletedId) {
         clearDataset();
       }
+      setDeleteTarget(null);
       void queryClient.invalidateQueries({ queryKey: ["uploaded-datasets"] });
     },
   });
@@ -779,6 +782,41 @@ function SavedDatasetsPanel(): ReactElement {
 
   return (
     <Stack gap="md">
+      <Modal
+        opened={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete saved dataset"
+        centered
+      >
+        <Stack gap="sm">
+          <Text size="sm">
+            This removes the dataset from saved dataset lists. Bovi keeps the uploaded file and
+            derived metadata for admin review and audit history.
+          </Text>
+          {deleteTarget && (
+            <Text size="sm" fw={600}>
+              {deleteTarget.name}
+            </Text>
+          )}
+          <Group justify="flex-end" gap="xs">
+            <Button variant="subtle" color="gray" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              loading={deleteMutation.isPending}
+              onClick={() => {
+                if (deleteTarget) {
+                  deleteMutation.mutate(deleteTarget.id);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
       <Group gap="sm" align="flex-end">
         <SegmentedControl
           size="xs"
@@ -929,7 +967,7 @@ function SavedDatasetsPanel(): ReactElement {
                         color="red"
                         variant="subtle"
                         loading={deleteMutation.isPending && deleteMutation.variables === saved.id}
-                        onClick={() => deleteMutation.mutate(saved.id)}
+                        onClick={() => setDeleteTarget(saved)}
                       >
                         <Trash2 size={14} />
                       </ActionIcon>
