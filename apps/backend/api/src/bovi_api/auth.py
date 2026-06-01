@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from functools import lru_cache
+from hashlib import sha256
 from typing import Annotated, Any, cast
 
 import jwt
@@ -24,6 +25,7 @@ APP_ROLE_USER = "User"
 ORG_ROLE_OWNER = "Owner"
 ORG_ROLE_MEMBER = "Member"
 PERSONAL_MICROSOFT_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66dad"
+PENDING_BOOTSTRAP_TENANT_ID = "pending-bootstrap"
 
 
 class AuthenticatedOrganization(BaseModel):
@@ -84,6 +86,12 @@ def _extract_bearer_token(request: Request) -> str | None:
     if scheme.lower() != "bearer" or not token:
         return None
     return token
+
+
+def pending_bootstrap_oid(email: str) -> str:
+    """Return deterministic placeholder oid for pre-login bootstrap users."""
+    normalized = email.strip().casefold()
+    return f"email:{sha256(normalized.encode('utf-8')).hexdigest()}"
 
 
 def validate_entra_token(token: str, settings: Settings) -> TokenIdentity:
@@ -176,6 +184,19 @@ async def _ensure_local_user(
     )
     user = result.scalar_one_or_none()
     now = datetime.now(timezone.utc)
+
+    if user is None and identity.email:
+        result = await session.execute(
+            select(User).where(
+                User.entra_tenant_id == PENDING_BOOTSTRAP_TENANT_ID,
+                User.entra_oid == pending_bootstrap_oid(identity.email),
+                User.email == identity.email,
+            )
+        )
+        user = result.scalar_one_or_none()
+        if user is not None:
+            user.entra_tenant_id = identity.entra_tenant_id
+            user.entra_oid = identity.entra_oid
 
     if user is None:
         user = User(
