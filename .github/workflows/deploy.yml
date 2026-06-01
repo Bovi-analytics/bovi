@@ -307,6 +307,7 @@ jobs:
         with:
           api-image: ${{ needs.build-api-image.outputs.image }}
           migration-job: bovi-api-migrate-${{ env.PULUMI_STACK }}
+          admin-bootstrap-job: bovi-api-bootstrap-admins-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 

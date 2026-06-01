@@ -11,7 +11,9 @@ import {
   downloadChallengeExport,
   getInvitePreview,
   listAdminSubmissionsOverview,
+  listAdminUsers,
   listChallenges,
+  updateAdminUserRole,
   updateOrganizationMemberRole,
 } from "./api-client";
 
@@ -222,6 +224,63 @@ describe("api-client authentication", () => {
         },
       }
     );
+  });
+
+  it("loads admin users with search", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json([
+        {
+          id: 1,
+          entra_tenant_id: "tenant-a",
+          entra_oid: "oid-a",
+          account_type: "entra",
+          email: "admin@example.test",
+          name: "Admin User",
+          role: "Admin",
+          last_login_at: null,
+          memberships: [],
+        },
+      ])
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(listAdminUsers("admin")).resolves.toHaveLength(1);
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/bovi/admin/users?q=admin", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer test-token",
+      },
+    });
+  });
+
+  it("updates global admin user roles", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        id: 1,
+        entra_tenant_id: "tenant-a",
+        entra_oid: "oid-a",
+        account_type: "entra",
+        email: "admin@example.test",
+        name: "Admin User",
+        role: "User",
+        last_login_at: null,
+        memberships: [],
+      })
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(updateAdminUserRole(1, "User")).resolves.toMatchObject({ role: "User" });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/bovi/admin/users/1/role", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer test-token",
+      },
+      body: JSON.stringify({ role: "User" }),
+    });
   });
 
   it("downloads challenge exports with bearer token and response filename", async () => {

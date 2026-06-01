@@ -38,6 +38,7 @@ def test_alembic_upgrade_head_creates_all_runtime_tables(tmp_path, monkeypatch):
             "organizations",
             "organization_memberships",
             "upload_audits",
+            "access_role_audits",
         }.issubset(set(inspector.get_table_names()))
         assert {column["name"] for column in inspector.get_columns("fitting_results")} == {
             "model_type",

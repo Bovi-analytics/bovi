@@ -111,6 +111,7 @@ def test_auth_disabled_seeds_development_organization():
                 assert current_user.organizations[0].id == 1
                 assert current_user.organizations[0].name == "Development Organization"
                 assert current_user.organizations[0].role == "Owner"
+                assert current_user.is_admin is True
 
             async with session_factory() as session:
                 organization = await session.get(Organization, 1)
@@ -122,6 +123,7 @@ def test_auth_disabled_seeds_development_organization():
                 )
 
                 assert organization is not None
+                assert (await session.get(User, 1)).role == "Admin"  # type: ignore[union-attr]
                 assert membership_result.scalar_one_or_none() is not None
         finally:
             await engine.dispose()
@@ -171,9 +173,9 @@ class _FakeSession:
 
     async def execute(self, _statement):
         self.execute_count += 1
-        if self.execute_count == 1:
+        if self.execute_count <= 2:
             return _ScalarResult()
-        if self.execute_count == 2:
+        if self.execute_count == 3:
             return _ScalarResult(self.user)
         return _ScalarResult(rows=[])
 
@@ -212,7 +214,6 @@ def test_ensure_local_user_recovers_from_concurrent_insert_race():
                 account_type="entra",
                 email="dev@local.test",
                 name="Development User",
-                roles=["Admin"],
             ),
             session,  # type: ignore[arg-type]
         )
@@ -222,4 +223,104 @@ def test_ensure_local_user_recovers_from_concurrent_insert_race():
     assert session.commit_count == 1
     assert current_user.id == 42
     assert current_user.email == "dev@local.test"
-    assert current_user.is_admin is True
+    assert current_user.is_admin is False
+    assert existing_user.role == "User"
+
+
+def test_ensure_local_user_uses_database_global_role_instead_of_token_roles():
+    async def _run() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(User.__table__.create)  # type: ignore[union-attr]
+                await conn.run_sync(Organization.__table__.create)  # type: ignore[union-attr]
+                await conn.run_sync(OrganizationMembership.__table__.create)  # type: ignore[union-attr]
+
+            async with session_factory() as session:
+                admin = User(
+                    entra_tenant_id="tenant-a",
+                    entra_oid="admin-oid",
+                    account_type="entra",
+                    email="admin@example.test",
+                    name="DB Admin",
+                    role="Admin",
+                )
+                token_admin_denied = User(
+                    entra_tenant_id="tenant-a",
+                    entra_oid="token-admin-oid",
+                    account_type="entra",
+                    email="token-admin@example.test",
+                    name="Token Admin",
+                    role="User",
+                )
+                session.add(admin)
+                session.add(token_admin_denied)
+                await session.commit()
+
+            async with session_factory() as session:
+                current_user = await auth._ensure_local_user(
+                    TokenIdentity(
+                        entra_tenant_id="tenant-a",
+                        entra_oid="admin-oid",
+                        account_type="entra",
+                        email="admin-updated@example.test",
+                        name="Updated DB Admin",
+                    ),
+                    session,
+                )
+                assert current_user.is_admin is True
+                assert current_user.roles == ["Admin"]
+
+            async with session_factory() as session:
+                current_user = await auth._ensure_local_user(
+                    TokenIdentity(
+                        entra_tenant_id="tenant-a",
+                        entra_oid="token-admin-oid",
+                        account_type="entra",
+                        email="token-admin@example.test",
+                        name="Token Admin",
+                    ),
+                    session,
+                )
+                assert current_user.is_admin is False
+                assert current_user.roles == ["User"]
+        finally:
+            await engine.dispose()
+
+    asyncio.run(_run())
+
+
+def test_ensure_local_user_new_user_defaults_to_user_role():
+    async def _run() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(User.__table__.create)  # type: ignore[union-attr]
+                await conn.run_sync(Organization.__table__.create)  # type: ignore[union-attr]
+                await conn.run_sync(OrganizationMembership.__table__.create)  # type: ignore[union-attr]
+
+            async with session_factory() as session:
+                current_user = await auth._ensure_local_user(
+                    TokenIdentity(
+                        entra_tenant_id="tenant-a",
+                        entra_oid="new-user-oid",
+                        account_type="entra",
+                        email="new@example.test",
+                        name="New User",
+                    ),
+                    session,
+                )
+
+                assert current_user.is_admin is False
+                assert current_user.roles == ["User"]
+
+                user = (
+                    await session.execute(select(User).where(User.entra_oid == "new-user-oid"))
+                ).scalar_one()
+                assert user.role == "User"
+        finally:
+            await engine.dispose()
+
+    asyncio.run(_run())

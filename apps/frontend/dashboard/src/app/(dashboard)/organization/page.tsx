@@ -178,8 +178,8 @@ export default function OrganizationPage(): ReactElement {
 
       {user.is_admin && (
         <Alert color="green" variant="light">
-          Global Admin access is managed through Microsoft Entra app role assignments, not through
-          organization invites.
+          Global Admin access is managed in Bovi. Organization invites only assign
+          organization-local Owner or Member access.
         </Alert>
       )}
 

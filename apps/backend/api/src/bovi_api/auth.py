@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from functools import lru_cache
+from hashlib import sha256
 from typing import Annotated, Any, cast
 
 import jwt
@@ -24,6 +25,7 @@ APP_ROLE_USER = "User"
 ORG_ROLE_OWNER = "Owner"
 ORG_ROLE_MEMBER = "Member"
 PERSONAL_MICROSOFT_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66dad"
+PENDING_BOOTSTRAP_TENANT_ID = "pending-bootstrap"
 
 
 class AuthenticatedOrganization(BaseModel):
@@ -61,7 +63,6 @@ class TokenIdentity(BaseModel):
     account_type: str = "entra"
     email: str | None = None
     name: str | None = None
-    roles: list[str] = [APP_ROLE_USER]
 
 
 def _jwks_uri(tenant_id: str) -> str:
@@ -85,6 +86,12 @@ def _extract_bearer_token(request: Request) -> str | None:
     if scheme.lower() != "bearer" or not token:
         return None
     return token
+
+
+def pending_bootstrap_oid(email: str) -> str:
+    """Return deterministic placeholder oid for pre-login bootstrap users."""
+    normalized = email.strip().casefold()
+    return f"email:{sha256(normalized.encode('utf-8')).hexdigest()}"
 
 
 def validate_entra_token(token: str, settings: Settings) -> TokenIdentity:
@@ -142,11 +149,6 @@ def validate_entra_token(token: str, settings: Settings) -> TokenIdentity:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    raw_roles = claims.get("roles") or []
-    roles = [role for role in raw_roles if isinstance(role, str)]
-    if not roles:
-        roles = [APP_ROLE_USER]
-
     email = claims.get("preferred_username") or claims.get("email")
     name = claims.get("name")
     return TokenIdentity(
@@ -155,7 +157,6 @@ def validate_entra_token(token: str, settings: Settings) -> TokenIdentity:
         account_type="personal" if tenant_id == PERSONAL_MICROSOFT_TENANT_ID else "entra",
         email=email if isinstance(email, str) else None,
         name=name if isinstance(name, str) else None,
-        roles=roles,
     )
 
 
@@ -172,6 +173,8 @@ def _default_organization_name(identity: TokenIdentity) -> str:
 async def _ensure_local_user(
     identity: TokenIdentity,
     session: AsyncSession,
+    *,
+    default_role: str = APP_ROLE_USER,
 ) -> CurrentUser:
     result = await session.execute(
         select(User).where(
@@ -181,7 +184,19 @@ async def _ensure_local_user(
     )
     user = result.scalar_one_or_none()
     now = datetime.now(timezone.utc)
-    primary_role = APP_ROLE_ADMIN if APP_ROLE_ADMIN in identity.roles else APP_ROLE_USER
+
+    if user is None and identity.email:
+        result = await session.execute(
+            select(User).where(
+                User.entra_tenant_id == PENDING_BOOTSTRAP_TENANT_ID,
+                User.entra_oid == pending_bootstrap_oid(identity.email),
+                User.email == identity.email,
+            )
+        )
+        user = result.scalar_one_or_none()
+        if user is not None:
+            user.entra_tenant_id = identity.entra_tenant_id
+            user.entra_oid = identity.entra_oid
 
     if user is None:
         user = User(
@@ -190,7 +205,7 @@ async def _ensure_local_user(
             account_type=identity.account_type,
             email=identity.email,
             name=identity.name,
-            role=primary_role,
+            role=default_role,
             last_login_at=now,
         )
         session.add(user)
@@ -210,20 +225,19 @@ async def _ensure_local_user(
             user.email = identity.email
             user.name = identity.name
             user.account_type = identity.account_type
-            user.role = primary_role
             user.last_login_at = now
     else:
         user.email = identity.email
         user.name = identity.name
         user.account_type = identity.account_type
-        user.role = primary_role
         user.last_login_at = now
 
     await session.flush()
     assert user.id is not None
 
     memberships = await _memberships_for_user(user.id, session)
-    if APP_ROLE_ADMIN in identity.roles:
+    is_admin = user.role == APP_ROLE_ADMIN
+    if is_admin:
         all_organizations = await session.execute(
             select(Organization).order_by(col(Organization.name))
         )
@@ -245,8 +259,8 @@ async def _ensure_local_user(
         account_type=user.account_type,
         email=user.email,
         name=user.name,
-        roles=identity.roles,
-        is_admin=APP_ROLE_ADMIN in identity.roles,
+        roles=[user.role],
+        is_admin=is_admin,
         organizations=[
             AuthenticatedOrganization(id=org.id or 0, name=org.name, role=membership.role)
             for org, membership in memberships
@@ -279,7 +293,7 @@ async def _ensure_auth_disabled_user(
     session: AsyncSession,
 ) -> CurrentUser:
     """Return the local dev user and ensure the frontend's dev organization exists."""
-    current_user = await _ensure_local_user(identity, session)
+    current_user = await _ensure_local_user(identity, session, default_role=APP_ROLE_ADMIN)
     organization = await session.get(Organization, 1)
     if organization is None:
         organization = Organization(
@@ -331,7 +345,6 @@ async def get_current_user(
             account_type="entra",
             email="dev@local.test",
             name="Development User",
-            roles=[APP_ROLE_ADMIN],
         )
         return await _ensure_auth_disabled_user(identity, session)
 

@@ -30,6 +30,7 @@ dependencies = [
 
 [project.scripts]
 run-migrations = "bovi_api.migrations:run_migrations"
+manage-access = "bovi_api.scripts.manage_access:main"
 
 [dependency-groups]
 dev = [

@@ -1,4 +1,5 @@
 set dotenv-load
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 # ── Derived URLs (from PORT_* in .env) ───────────────────────
 export PORT_API := env("PORT_API", "8000")
@@ -17,7 +18,8 @@ sync:
     git config core.hooksPath .githooks
 
 lint:
-    uv run ruff check --fix && uv run ruff format
+    uv run ruff check --fix
+    uv run ruff format
 
 typecheck:
     uv run python scripts/typecheck_affected.py

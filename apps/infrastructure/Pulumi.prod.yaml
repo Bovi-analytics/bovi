@@ -4,7 +4,10 @@ config:
   bovi:resourceGroup: Bovi-Analytics-Tools
   bovi:apiImage: ghcr.io/bovi-analytics/bovi-api:prod-latest
   bovi:dashboardImage: ghcr.io/bovi-analytics/bovi-dashboard:prod-latest
+  bovi:azureAdClientId: 7cb91be2-42b9-491e-9979-a1c9b325ebbb
   bovi:authDisabled: false
+  bovi:bootstrapAdminEmails:
+    - douwedekok@gmail.com
   bovi:milkbotKey:
     secure: v1:sqyXjl8NrXUmCiRw:lKih/bpWYTGutiTYkyaDftpEmJQFCNPMq5okCyiIfzY=
 encryptionsalt: v1:MmhyEDcwaVg=:v1:87GusJ8/FmW2mZOR:DE1zdtMv8RYvlvmnhoWaTYc5FvRCOA==
