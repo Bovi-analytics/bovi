@@ -19,4 +19,4 @@ runs:
       with:
         client-id: ${{ inputs.client-id }}
         tenant-id: ${{ inputs.tenant-id }}
-        subscription-id: ${{ inputs.subscription-id }}
+        allow-no-subscriptions: true

@@ -4,6 +4,7 @@ config:
   bovi:resourceGroup: Bovi-Analytics-Tools
   bovi:apiImage: ghcr.io/bovi-analytics/bovi-api:prod-latest
   bovi:dashboardImage: ghcr.io/bovi-analytics/bovi-dashboard:prod-latest
+  bovi:authDisabled: false
   bovi:milkbotKey:
     secure: v1:sqyXjl8NrXUmCiRw:lKih/bpWYTGutiTYkyaDftpEmJQFCNPMq5okCyiIfzY=
 encryptionsalt: v1:MmhyEDcwaVg=:v1:87GusJ8/FmW2mZOR:DE1zdtMv8RYvlvmnhoWaTYc5FvRCOA==

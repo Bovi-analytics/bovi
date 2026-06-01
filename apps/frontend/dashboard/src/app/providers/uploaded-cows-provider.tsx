@@ -79,70 +79,13 @@ export function UploadedCowsProvider({ children }: UploadedCowsProviderProps): R
   const [activePreset, setActivePresetState] = useState<ActivePreset | null>(null);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) return;
-      const parsed = JSON.parse(stored) as UploadedDataset;
-      if (parsed && Array.isArray(parsed.cows)) {
-        setDatasetState({
-          ...parsed,
-          id: parsed.id || `${parsed.uploadedAt}-${parsed.name}`,
-        });
-      }
-    } catch {
-      // Corrupt state - ignore and start fresh.
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(SAVED_DATASETS_STORAGE_KEY);
-      if (!stored) return;
-      const parsed = JSON.parse(stored) as UploadedDataset[];
-      if (Array.isArray(parsed)) {
-        setSavedDatasetsState(
-          parsed
-            .filter((item) => item && Array.isArray(item.cows))
-            .map((item) => ({
-              ...item,
-              id: item.id || `${item.uploadedAt}-${item.name}`,
-            }))
-        );
-      }
-    } catch {
-      localStorage.removeItem(SAVED_DATASETS_STORAGE_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(PRESET_STORAGE_KEY);
-      if (!stored) return;
-      const parsed = JSON.parse(stored) as ActivePreset;
-      if (parsed && parsed.dataset && parsed.size && parsed.period) {
-        setActivePresetState(parsed);
-      }
-    } catch {
-      localStorage.removeItem(PRESET_STORAGE_KEY);
-    }
-  }, []);
-
-  const persistSavedDatasets = useCallback((items: UploadedDataset[]) => {
-    try {
-      localStorage.setItem(SAVED_DATASETS_STORAGE_KEY, JSON.stringify(items));
-    } catch {
-      // Quota or other storage error - keep the datasets in memory anyway.
-    }
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(SAVED_DATASETS_STORAGE_KEY);
+    localStorage.removeItem(PRESET_STORAGE_KEY);
   }, []);
 
   const setDataset = useCallback((d: UploadedDataset) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-      localStorage.removeItem(PRESET_STORAGE_KEY);
-    } catch {
-      // Quota or other storage error - keep the dataset in memory anyway.
-    }
+    localStorage.removeItem(PRESET_STORAGE_KEY);
     setDatasetState(d);
     setActivePresetState(null);
   }, []);
@@ -151,12 +94,10 @@ export function UploadedCowsProvider({ children }: UploadedCowsProviderProps): R
     (d: UploadedDataset) => {
       setDataset(d);
       setSavedDatasetsState((current) => {
-        const next = [d, ...current.filter((item) => item.id !== d.id)].slice(0, 10);
-        persistSavedDatasets(next);
-        return next;
+        return [d, ...current.filter((item) => item.id !== d.id)].slice(0, 10);
       });
     },
-    [persistSavedDatasets, setDataset]
+    [setDataset]
   );
 
   const selectSavedDataset = useCallback(
@@ -179,15 +120,13 @@ export function UploadedCowsProvider({ children }: UploadedCowsProviderProps): R
   const deleteSavedDataset = useCallback(
     (id: string) => {
       setSavedDatasetsState((current) => {
-        const next = current.filter((item) => item.id !== id);
-        persistSavedDatasets(next);
-        return next;
+        return current.filter((item) => item.id !== id);
       });
       if (dataset?.id === id) {
         clearDataset();
       }
     },
-    [clearDataset, dataset?.id, persistSavedDatasets]
+    [clearDataset, dataset?.id]
   );
 
   const getCow = useCallback(
@@ -203,7 +142,6 @@ export function UploadedCowsProvider({ children }: UploadedCowsProviderProps): R
 
   const setActivePreset = useCallback((p: ActivePreset | null) => {
     if (p) {
-      localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(p));
       localStorage.removeItem(STORAGE_KEY);
       setDatasetState(null);
     } else {

@@ -19,6 +19,21 @@ class TestHealthEndpoint:
         assert response.json() == {"status": "ok"}
 
 
+class TestValidationEndpoint:
+    def test_validation_error_does_not_echo_large_input(self):
+        response = client.post(
+            "/predict",
+            json={"dim": [0, 305], "milkrecordings": [25.0, 27.0]},
+        )
+
+        assert response.status_code == 422
+        body = response.json()
+        assert "request_id" in body
+        assert body["detail"]
+        assert "input" not in body["detail"][0]
+        assert "305" not in response.text
+
+
 @pytest.mark.model_weights
 class TestPredictEndpoint:
     def test_predict_minimal(self):

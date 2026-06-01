@@ -3,31 +3,47 @@
 import type { ReactElement } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Alert, Badge, Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { Alert, Badge, Button, Group, Loader, Paper, Stack, Text, Title } from "@mantine/core";
 import { ArrowLeft, BarChart3, Building2, LineChart, LogIn, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { startLogin, useAuth } from "@/lib/auth";
+import {
+  getInitialPostLoginRedirect,
+  POST_LOGIN_REDIRECT_KEY,
+} from "@/lib/auth/post-login-redirect";
 
-function getNextPath(): string | null {
+function getInitialNextPath(): string | null {
   if (typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get("next");
+  return getInitialPostLoginRedirect(
+    window.location.search,
+    window.sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY)
+  );
 }
 
 export default function LoginPage(): ReactElement {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [nextPath, setNextPath] = useState<string | null>(null);
-
-  useEffect(() => {
-    setNextPath(getNextPath());
-  }, []);
+  const [nextPath] = useState(getInitialNextPath);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
       router.push(nextPath ?? "/");
     }
   }, [isAuthenticated, isLoading, nextPath, router]);
+
+  if (isLoading || isAuthenticated) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-6 py-8 text-foreground">
+        <Stack align="center" gap="md">
+          <Loader />
+          <Text size="sm" c="dimmed">
+            Opening your workspace...
+          </Text>
+        </Stack>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-background px-6 py-8 text-foreground">

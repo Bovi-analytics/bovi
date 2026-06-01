@@ -61,6 +61,7 @@ def create_function_app(name: str, args: FunctionAppArgs) -> FunctionAppResult:
         web.NameValuePairArgs(name="FUNCTIONS_WORKER_RUNTIME", value="python"),
         web.NameValuePairArgs(name="FUNCTIONS_EXTENSION_VERSION", value="~4"),
         web.NameValuePairArgs(name="AzureWebJobsFeatureFlags", value="EnableWorkerIndexing"),
+        web.NameValuePairArgs(name="PYTHON_ISOLATE_WORKER_DEPENDENCIES", value="1"),
         web.NameValuePairArgs(
             name="APPLICATIONINSIGHTS_CONNECTION_STRING",
             value=args.app_insights_connection_string,

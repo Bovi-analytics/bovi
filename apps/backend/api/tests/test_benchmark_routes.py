@@ -148,7 +148,7 @@ def test_create_upload_challenge_rejects_large_file_with_clear_message(client):
 
     resp = client.post(
         "/benchmark/challenges/upload",
-        data={"name": "Uploaded"},
+        data={"name": "Uploaded", "organization_id": "1"},
         files={
             "test_day_csv": (
                 "farm_test_day.csv",
@@ -320,6 +320,8 @@ def test_submission_upload_rejects_large_file_with_clear_message(client):
                     period="custom",
                     source="upload",
                     name="seed",
+                    organization_id=1,
+                    user_id=1,
                     cow_metadata={"cow1": {"parity": 1, "dim": [50], "milk_kg": [25.0]}},
                     reference_yields=None,
                     actual_yields={"cow1": 8000.0},

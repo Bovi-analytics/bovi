@@ -20,6 +20,9 @@ inputs:
   resource-group:
     description: Azure resource group.
     required: true
+  subscription-id:
+    description: Azure subscription ID.
+    required: true
   destination-container:
     description: Destination model asset container.
     required: false
@@ -41,6 +44,11 @@ runs:
         required_blobs=(
           "${prefix}/config/config.yaml"
           "${prefix}/inputs/inference/pkl/event_to_idx_dict.pkl"
+          "${prefix}/inputs/inference/pkl/herd_stat_means_global.pkl"
+          "${prefix}/inputs/inference/pkl/herd_stat_means_per_parity.pkl"
+          "${prefix}/inputs/inference/pkl/herd_stats_means_per_herd.pkl"
+          "${prefix}/inputs/inference/pkl/herd_stats_per_parity_dict.pkl"
+          "${prefix}/inputs/inference/pkl/idx_to_herd_par_dict.pkl"
           "${prefix}/weights/autoencoder/saved_model.pb"
           "${prefix}/weights/autoencoder/variables/variables.index"
         )
@@ -55,6 +63,7 @@ runs:
         dest_connection_string="$(az functionapp config appsettings list \
           --name "${{ inputs.function-app-name }}" \
           --resource-group "${{ inputs.resource-group }}" \
+          --subscription "${{ inputs.subscription-id }}" \
           --query "[?name=='AzureWebJobsStorage'].value | [0]" -o tsv)"
         if [ -z "$dest_connection_string" ]; then
           echo "AzureWebJobsStorage is not configured for ${{ inputs.function-app-name }}."
@@ -113,8 +122,19 @@ runs:
           exit 1
         fi
 
+        mapfile -t source_blobs < <(az storage blob list \
+          --account-name "$STORAGE_ACCOUNT_NAME_ICAR" \
+          --account-key "$STORAGE_ACCOUNT_KEY_ICAR" \
+          --container-name "$STORAGE_ACCOUNT_CONTAINER_ICAR" \
+          --prefix "${prefix}/" \
+          --query "[?properties.contentLength > \`0\`].name" -o tsv)
+        if [ "${#source_blobs[@]}" -eq 0 ]; then
+          echo "No autoencoder source assets found in ICAR Storage for prefix: ${prefix}/"
+          exit 1
+        fi
+
         tmp_dir="$(mktemp -d)"
-        sync_blobs=("${required_blobs[@]}" "${variable_data_blobs[@]}")
+        sync_blobs=("${source_blobs[@]}")
         for blob in "${sync_blobs[@]}"; do
           local_path="${tmp_dir}/${blob}"
           mkdir -p "$(dirname "$local_path")"

@@ -1,4 +1,5 @@
 set dotenv-load
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 # ── Derived URLs (from PORT_* in .env) ───────────────────────
 export PORT_API := env("PORT_API", "8000")
@@ -8,7 +9,7 @@ export PORT_DASHBOARD := env("PORT_DASHBOARD", "3000")
 
 export LACTATION_CURVES_URL := "http://localhost:" + PORT_CURVES
 export LACTATION_AUTOENCODER_URL := "http://localhost:" + PORT_AUTOENCODER
-export NEXT_PUBLIC_API_URL := "http://localhost:" + PORT_API
+export API_URL := "http://localhost:" + PORT_API
 export CORS_ORIGINS := "[\"http://localhost:" + PORT_DASHBOARD + "\"]"
 
 # ── Workspace ────────────────────────────────────────────────
@@ -17,7 +18,8 @@ sync:
     git config core.hooksPath .githooks
 
 lint:
-    uv run ruff check --fix && uv run ruff format
+    uv run ruff check --fix
+    uv run ruff format
 
 typecheck:
     uv run python scripts/typecheck_affected.py

@@ -222,6 +222,24 @@ def test_model_auto_discover_loads_matching_entry_point(mock_eps):
 
 
 @patch("bovi_core.ml.registry.entry_points")
+def test_model_auto_discover_registers_loaded_class_without_side_effect(mock_eps):
+    """Entry points may return the model class without decorator side effects."""
+    ModelRegistry.clear()
+
+    class EntryPointModel(Model):
+        pass
+
+    ep = MagicMock()
+    ep.name = "entry_model"
+    ep.value = "fake_module.entry_model:EntryPointModel"
+    ep.load.return_value = EntryPointModel
+    mock_eps.return_value = [ep]
+
+    assert ModelRegistry.get("entry_model") is EntryPointModel
+    assert ModelRegistry.is_registered("entry_model")
+
+
+@patch("bovi_core.ml.registry.entry_points")
 def test_model_auto_discover_skips_unrelated(mock_eps):
     """get('a') does NOT load entry point for 'b'."""
     ModelRegistry.clear()
@@ -353,6 +371,24 @@ def test_predictor_auto_discover(mock_eps):
 
     assert result is not None
     ep.load.assert_called_once()
+
+
+@patch("bovi_core.ml.registry.entry_points")
+def test_predictor_auto_discover_registers_loaded_class_without_side_effect(mock_eps):
+    """Entry points may return the predictor class without decorator side effects."""
+    PredictorRegistry.clear()
+
+    class EntryPointPredictor:
+        pass
+
+    ep = MagicMock()
+    ep.name = "entry_predictor"
+    ep.value = "fake_module.entry_predictor:EntryPointPredictor"
+    ep.load.return_value = EntryPointPredictor
+    mock_eps.return_value = [ep]
+
+    assert PredictorRegistry.get("entry_predictor") is EntryPointPredictor
+    assert PredictorRegistry.is_registered("entry_predictor")
 
 
 def test_predictor_clear_resets_discovered():

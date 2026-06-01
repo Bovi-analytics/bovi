@@ -87,7 +87,7 @@ class ModelRegistry:
         for ep in entry_points(group=cls._EP_GROUP, name=name):
             logger.debug("Auto-discovering model '%s' from entry point: %s", name, ep)
             try:
-                ep.load()
+                loaded = ep.load()
             except Exception:
                 logger.warning(
                     "Failed to load entry point '%s' for model '%s'",
@@ -95,6 +95,20 @@ class ModelRegistry:
                     name,
                     exc_info=True,
                 )
+                continue
+
+            if name not in cls._models:
+                if isinstance(loaded, type):
+                    cls._models[name] = loaded
+                    logger.debug("Registered model from entry point: %s -> %s", name, loaded)
+                else:
+                    logger.warning(
+                        "Entry point '%s' for model '%s' did not register a model "
+                        "and loaded non-class object %r",
+                        ep,
+                        name,
+                        loaded,
+                    )
 
         return name in cls._models
 
@@ -224,7 +238,7 @@ class PredictorRegistry:
         for ep in entry_points(group=cls._EP_GROUP, name=name):
             logger.debug("Auto-discovering predictor '%s' from entry point: %s", name, ep)
             try:
-                ep.load()
+                loaded = ep.load()
             except Exception:
                 logger.warning(
                     "Failed to load entry point '%s' for predictor '%s'",
@@ -232,6 +246,24 @@ class PredictorRegistry:
                     name,
                     exc_info=True,
                 )
+                continue
+
+            if name not in cls._predictors:
+                if isinstance(loaded, type):
+                    cls._predictors[name] = loaded
+                    logger.debug(
+                        "Registered predictor from entry point: %s -> %s",
+                        name,
+                        loaded,
+                    )
+                else:
+                    logger.warning(
+                        "Entry point '%s' for predictor '%s' did not register a predictor "
+                        "and loaded non-class object %r",
+                        ep,
+                        name,
+                        loaded,
+                    )
 
         return name in cls._predictors
 

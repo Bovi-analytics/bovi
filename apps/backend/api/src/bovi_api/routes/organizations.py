@@ -5,9 +5,9 @@ from __future__ import annotations
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +34,17 @@ class OrganizationUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
 
 
+OrganizationInviteRole = Literal["Member", "Owner"]
+
+
+class MemberUpdate(BaseModel):
+    role: OrganizationInviteRole
+
+
+class InviteCreate(BaseModel):
+    role: OrganizationInviteRole = ORG_ROLE_MEMBER
+
+
 class OrganizationRead(BaseModel):
     id: int
     name: str
@@ -55,6 +66,7 @@ class InviteRead(BaseModel):
     id: int
     organization_id: int
     created_by_user_id: int | None
+    role: str
     created_at: datetime | None
     expires_at: datetime
     revoked_at: datetime | None
@@ -64,6 +76,13 @@ class InviteRead(BaseModel):
 
 class InviteCreateResponse(InviteRead):
     token: str
+
+
+class InvitePreviewRead(BaseModel):
+    organization_id: int
+    organization_name: str
+    role: str
+    expires_at: datetime
 
 
 def _token_hash(token: str) -> str:
@@ -236,6 +255,32 @@ async def remove_member(
     await session.commit()
 
 
+@router.patch("/organizations/{organization_id}/members/{user_id}", response_model=MemberRead)
+async def update_member(
+    organization_id: int,
+    user_id: int,
+    body: MemberUpdate,
+    current_user: Annotated[CurrentUser, Depends(require_auth)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> MemberRead:
+    """Update a member's organization-local role."""
+    await _require_owner_or_admin(session, current_user, organization_id)
+    membership = await _membership(session, user_id, organization_id)
+    if membership is None:
+        raise HTTPException(status_code=404, detail="Membership not found")
+    membership.role = body.role
+    session.add(membership)
+    await session.commit()
+
+    user = await session.get(User, user_id)
+    return MemberRead(
+        user_id=user_id,
+        email=user.email if user else None,
+        name=user.name if user else None,
+        role=membership.role,
+    )
+
+
 @router.post(
     "/organizations/{organization_id}/invites",
     response_model=InviteCreateResponse,
@@ -243,6 +288,7 @@ async def remove_member(
 )
 async def create_invite(
     organization_id: int,
+    body: Annotated[InviteCreate, Body(default_factory=InviteCreate)],
     current_user: Annotated[CurrentUser, Depends(require_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> InviteCreateResponse:
@@ -253,6 +299,7 @@ async def create_invite(
         organization_id=organization_id,
         token_hash=_token_hash(token),
         created_by_user_id=current_user.id,
+        role=body.role,
         expires_at=_now() + timedelta(days=30),
     )
     session.add(invite)
@@ -262,6 +309,7 @@ async def create_invite(
         id=invite.id or 0,
         organization_id=invite.organization_id,
         created_by_user_id=invite.created_by_user_id,
+        role=invite.role,
         created_at=invite.created_at,
         expires_at=invite.expires_at,
         revoked_at=invite.revoked_at,
@@ -308,6 +356,32 @@ async def revoke_invite(
     await session.commit()
 
 
+@router.get("/invites/{token}/preview", response_model=InvitePreviewRead)
+async def preview_invite(
+    token: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> InvitePreviewRead:
+    """Return public display metadata for a valid invite token."""
+    result = await session.execute(
+        select(OrganizationInvite).where(OrganizationInvite.token_hash == _token_hash(token))
+    )
+    invite = result.scalar_one_or_none()
+    now = _now()
+    if invite is None or invite.revoked_at is not None or _aware(invite.expires_at) <= now:
+        raise HTTPException(status_code=404, detail="Invite is expired, revoked, or invalid.")
+
+    org = await session.get(Organization, invite.organization_id)
+    if org is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    return InvitePreviewRead(
+        organization_id=org.id or 0,
+        organization_name=org.name,
+        role=invite.role,
+        expires_at=invite.expires_at,
+    )
+
+
 @router.post("/invites/{token}/accept", response_model=OrganizationRead)
 async def accept_invite(
     token: str,
@@ -332,7 +406,7 @@ async def accept_invite(
         membership = OrganizationMembership(
             user_id=current_user.id,
             organization_id=invite.organization_id,
-            role=ORG_ROLE_MEMBER,
+            role=invite.role,
         )
         session.add(membership)
         invite.accepted_count += 1

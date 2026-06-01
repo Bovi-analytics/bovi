@@ -15,6 +15,11 @@ logger = logging.getLogger("lactation_autoencoder.assets")
 REQUIRED_ASSET_SUFFIXES = (
     "config/config.yaml",
     "inputs/inference/pkl/event_to_idx_dict.pkl",
+    "inputs/inference/pkl/herd_stat_means_global.pkl",
+    "inputs/inference/pkl/herd_stat_means_per_parity.pkl",
+    "inputs/inference/pkl/herd_stats_means_per_herd.pkl",
+    "inputs/inference/pkl/herd_stats_per_parity_dict.pkl",
+    "inputs/inference/pkl/idx_to_herd_par_dict.pkl",
     "weights/autoencoder/saved_model.pb",
     "weights/autoencoder/variables/variables.index",
 )

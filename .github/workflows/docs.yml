@@ -27,7 +27,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_run' && 'main' || '' }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Set up Python 3.12 (via uv)
         run: uv python install 3.12

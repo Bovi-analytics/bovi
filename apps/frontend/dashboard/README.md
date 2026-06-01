@@ -11,12 +11,12 @@ bun install
 bun dev --port 3000
 ```
 
-The dashboard reads the API base URL from `NEXT_PUBLIC_API_URL`. When running
+The dashboard reads the API base URL from `API_URL`. When running
 outside the root `just dev` command, copy `.env.local.example` to `.env.local`
 and set:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
+API_URL=http://localhost:8000
 ```
 
 ## Docker
@@ -39,25 +39,25 @@ publishes it to `http://localhost:3000`.
 ## API URL
 
 Browser-side code calls the local Next.js proxy at `/api/bovi`. The proxy runs
-inside the dashboard server and forwards requests to `NEXT_PUBLIC_API_URL` at
+inside the dashboard server and forwards requests to `API_URL` at
 runtime. This keeps the Docker image reusable across environments.
 
 For local development outside Docker, the API runs on the host:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
+API_URL=http://localhost:8000
 ```
 
 For root Docker Compose, the dashboard container uses the internal Docker
 network:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://api:8000
+API_URL=http://api:8000
 ```
 
-Do not read `NEXT_PUBLIC_API_URL` directly from client components. Next.js
-embeds public env values into browser bundles at build time; the proxy route is
-what makes this value runtime-configurable.
+Do not read the backend origin directly from client components. The proxy route
+keeps this value runtime-configurable without baking environment-specific values
+into browser bundles.
 
 ## Production Build
 

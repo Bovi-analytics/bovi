@@ -8,6 +8,9 @@ inputs:
   resource-group:
     description: Azure resource group.
     required: true
+  subscription-id:
+    description: Azure subscription ID.
+    required: true
   path:
     description: Health check path.
     required: true
@@ -25,6 +28,7 @@ runs:
         fqdn="$(az containerapp show \
           --name "${{ inputs.containerapp-name }}" \
           --resource-group "${{ inputs.resource-group }}" \
+          --subscription "${{ inputs.subscription-id }}" \
           --query "properties.configuration.ingress.fqdn" -o tsv)"
         health_url="https://${fqdn}${{ inputs.path }}"
         echo "Checking health at ${health_url}"
@@ -42,6 +46,7 @@ runs:
         az containerapp revision list \
           --name "${{ inputs.containerapp-name }}" \
           --resource-group "${{ inputs.resource-group }}" \
+          --subscription "${{ inputs.subscription-id }}" \
           --query "[].{name:name,active:properties.active,health:properties.healthState,image:properties.template.containers[0].image}" \
           -o table
         exit 1

@@ -16,7 +16,6 @@ class Settings(BaseSettings):
     azure_ad_client_id: str = ""
     azure_ad_tenant_id: str = ""
     auth_disabled: bool = False
-    dev_mode: bool = False
     connection_string: str | None = (
         None  # Azure Storage connection string (CONNECTION_STRING env var)
     )

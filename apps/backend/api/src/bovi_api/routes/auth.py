@@ -17,7 +17,7 @@ async def auth_status(settings: Annotated[Settings, Depends(get_settings)]) -> d
     return {
         "auth_configured": configured,
         "require_auth": not settings.auth_disabled,
-        "auth_mode": "dev" if settings.dev_mode or settings.auth_disabled else "azure_ad",
+        "auth_mode": "disabled" if settings.auth_disabled else "azure_ad",
     }
 
 

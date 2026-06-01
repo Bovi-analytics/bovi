@@ -9,7 +9,6 @@ import {
   Button,
   Grid,
   Group,
-  Loader,
   Select,
   SegmentedControl,
   Stack,
@@ -25,20 +24,21 @@ import { ChallengeCard } from "./components/challenge-card";
 import { DatasetSummary } from "./components/dataset-summary";
 import { useChallenges } from "./hooks/use-challenges";
 import { getBenchmarkDatasetLabel } from "@/lib/benchmark-dataset";
+import { CenteredLoader } from "@/components/dashboard/centered-loader";
 
 type ChallengeView = "cards" | "table";
 
 export default function BenchmarkPage(): ReactElement {
   const router = useRouter();
   const { selectedOrganizationId } = useAuth();
-  const [scope, setScope] = useState<"organization" | "mine" | "colleague">("organization");
+  const [scope, setScope] = useState<"mine" | "organization">("mine");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [sort, setSort] = useState<"created_at" | "name" | "user">("created_at");
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [q, setQ] = useState("");
   const options: OrganizationListOptions = {
     scope: scope === "mine" ? "mine" : "organization",
-    user_id: scope === "colleague" && selectedUserId ? Number(selectedUserId) : undefined,
+    user_id: scope === "organization" && selectedUserId ? Number(selectedUserId) : undefined,
     sort,
     direction,
     q: q.trim() || undefined,
@@ -52,7 +52,7 @@ export default function BenchmarkPage(): ReactElement {
   const createDisabled = selectedOrganizationId === "all";
   const [view, setView] = useState<ChallengeView>("cards");
 
-  if (isLoading) return <Loader />;
+  if (isLoading) return <CenteredLoader label="Loading benchmark challenges..." />;
   if (error) return <Text c="red">Failed to load challenges.</Text>;
 
   return (
@@ -80,60 +80,6 @@ export default function BenchmarkPage(): ReactElement {
         </Alert>
       )}
 
-      <Group gap="sm" align="flex-end">
-        <SegmentedControl
-          size="xs"
-          value={scope}
-          onChange={(value) => setScope(value as "organization" | "mine" | "colleague")}
-          data={[
-            { label: "Organization", value: "organization" },
-            { label: "My items", value: "mine" },
-            { label: "Colleague", value: "colleague" },
-          ]}
-        />
-        {scope === "colleague" && (
-          <Select
-            aria-label="Filter by colleague"
-            size="xs"
-            value={selectedUserId}
-            onChange={setSelectedUserId}
-            placeholder="Select colleague"
-            data={(membersQuery.data ?? []).map((member) => ({
-              value: String(member.user_id),
-              label: member.name || member.email || `User #${member.user_id}`,
-            }))}
-          />
-        )}
-        <TextInput
-          aria-label="Search challenges"
-          placeholder="Search by name"
-          value={q}
-          onChange={(event) => setQ(event.currentTarget.value)}
-          size="xs"
-        />
-        <Select
-          aria-label="Sort challenges"
-          size="xs"
-          value={sort}
-          onChange={(value) => setSort((value as "created_at" | "name" | "user") ?? "created_at")}
-          data={[
-            { label: "Created", value: "created_at" },
-            { label: "Name", value: "name" },
-            { label: "User", value: "user" },
-          ]}
-        />
-        <Select
-          aria-label="Sort direction"
-          size="xs"
-          value={direction}
-          onChange={(value) => setDirection((value as "asc" | "desc") ?? "desc")}
-          data={[
-            { label: "Newest first", value: "desc" },
-            { label: "Oldest first", value: "asc" },
-          ]}
-        />
-      </Group>
-
       <Alert color="blue" variant="light" title="How the benchmark works">
         <Stack gap={4}>
           <Text size="sm">
@@ -159,6 +105,68 @@ export default function BenchmarkPage(): ReactElement {
           </Text>
         </Stack>
       </Alert>
+
+      <Group gap="sm" align="flex-end">
+        <SegmentedControl
+          size="xs"
+          value={scope}
+          onChange={(value) => {
+            setScope(value as "mine" | "organization");
+            setSelectedUserId(null);
+          }}
+          data={[
+            { label: "My items", value: "mine" },
+            { label: "Organization", value: "organization" },
+          ]}
+        />
+        {scope === "organization" && (
+          <Select
+            aria-label="Filter by organization member"
+            label="Person"
+            size="xs"
+            value={selectedUserId}
+            onChange={setSelectedUserId}
+            placeholder="All organization members"
+            clearable
+            searchable
+            data={(membersQuery.data ?? []).map((member) => ({
+              value: String(member.user_id),
+              label: member.name || member.email || `User #${member.user_id}`,
+            }))}
+          />
+        )}
+        <TextInput
+          aria-label="Search challenges"
+          label="Search"
+          placeholder="Search by name"
+          value={q}
+          onChange={(event) => setQ(event.currentTarget.value)}
+          size="xs"
+        />
+        <Select
+          aria-label="Sort challenges"
+          label="Sort by"
+          size="xs"
+          value={sort}
+          onChange={(value) => setSort((value as "created_at" | "name" | "user") ?? "created_at")}
+          data={[
+            { label: "Created date", value: "created_at" },
+            { label: "Name", value: "name" },
+            { label: "User", value: "user" },
+          ]}
+        />
+        <Select
+          aria-label="Sort direction"
+          label="Order"
+          size="xs"
+          value={direction}
+          onChange={(value) => setDirection((value as "asc" | "desc") ?? "desc")}
+          data={[
+            { label: "Newest first", value: "desc" },
+            { label: "Oldest first", value: "asc" },
+          ]}
+        />
+      </Group>
 
       {challenges && challenges.length === 0 && (
         <Text c="var(--benchmark-muted-text)" size="sm">

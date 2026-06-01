@@ -65,7 +65,7 @@ jobs:
       PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v8.1.0
       - run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Azure Login (OIDC)
@@ -73,7 +73,7 @@ jobs:
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          allow-no-subscriptions: true
 
       - name: Install infrastructure dependencies
         working-directory: ${{ env.INFRA_DIR }}
@@ -88,7 +88,7 @@ jobs:
           comment-on-pr: true
           cloud-url: azblob://pulumi-state
         env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_PASSPHRASE }}
           AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT_STATE }}
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
           STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}

@@ -8,6 +8,9 @@ inputs:
   resource-group:
     description: Azure resource group.
     required: true
+  subscription-id:
+    description: Azure subscription ID.
+    required: true
   path:
     description: Health endpoint path.
     required: false
@@ -25,6 +28,7 @@ runs:
         host_name="$(az functionapp show \
           --name "${{ inputs.function-app-name }}" \
           --resource-group "${{ inputs.resource-group }}" \
+          --subscription "${{ inputs.subscription-id }}" \
           --query "defaultHostName" -o tsv)"
         curl --connect-timeout 5 --max-time 30 --retry 5 --retry-all-errors -fsS \
           "https://${host_name}${{ inputs.path }}" > "${{ inputs.output-file }}"

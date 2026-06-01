@@ -15,7 +15,6 @@ os.environ.update(
     {
         "DATABASE_URL": "",
         "AUTH_DISABLED": "false",
-        "DEV_MODE": "false",
     }
 )
 
@@ -43,7 +42,6 @@ def test_settings(**overrides) -> Settings:
     values = {
         "database_url": "",
         "auth_disabled": False,
-        "dev_mode": False,
         **overrides,
     }
     return Settings(**values)
