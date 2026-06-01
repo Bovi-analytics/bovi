@@ -216,8 +216,10 @@ def test_parse_icar_detects_format_and_aggregates():
     assert result.raw_stats["AchievedMilk"] == pytest.approx((2262 + 1917) / 2)
     # Achieved21Milk: within ±7 days of 21, cow 1 has DIM 15, cow 2 has DIM 10 → mean
     assert "Achieved21Milk" in result.raw_stats
-    # DaysInMilk: max per cow (70, 66) → mean = 68
-    assert result.raw_stats["DaysInMilk"] == pytest.approx(68.0)
+    # DaysInMilk: mean per TestId/lactation, then herd mean.
+    assert result.raw_stats["DaysInMilk"] == pytest.approx(
+        ((15 + 42 + 70) / 3 + (10 + 38 + 66) / 3) / 2
+    )
     # Achieved305Milk estimated via trapezoid - just sanity-check it is a large number
     assert result.raw_stats["Achieved305Milk"] > 0
 

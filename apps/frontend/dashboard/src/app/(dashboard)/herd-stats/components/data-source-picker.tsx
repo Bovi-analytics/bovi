@@ -169,7 +169,7 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
       "A single row with the herd statistics already averaged across your herd. Use this when your farm software exports per-herd aggregates.",
     columns: VISIBLE_HERD_STATS_METADATA.map((m) => ({
       name: m.name,
-      description: `${m.description} (${m.unit || "0–1 score"}, typical ${m.rawMin}–${m.rawMax})`,
+      description: `${m.description} (${m.unit || "0–1 score"}, package range ${m.rawMin}–${m.rawMax})`,
       required: false,
     })),
     template: buildAggregatedTemplate,
