@@ -2,7 +2,8 @@
 
 import type { ReactElement } from "react";
 import { useWeightUnit } from "@/app/providers/unit-provider";
-import { formatWeight, getUnitLabel } from "@/lib/units";
+import { formatCharacteristicValue, isWeightCharacteristic } from "@/lib/characteristics";
+import { getUnitLabel } from "@/lib/units";
 
 const CHARACTERISTIC_META: Record<string, { label: string; unit: string }> = {
   peak_yield: { label: "Peak Yield", unit: "kg/day" },
@@ -10,9 +11,6 @@ const CHARACTERISTIC_META: Record<string, { label: string; unit: string }> = {
   cumulative_milk_yield: { label: "Cumulative Yield", unit: "kg" },
   persistency: { label: "Persistency", unit: "" },
 };
-
-/** Characteristics whose values represent a weight (need conversion). */
-const WEIGHT_CHARACTERISTICS = new Set(["peak_yield", "cumulative_milk_yield"]);
 
 interface StatCardProps {
   readonly name: string;
@@ -24,10 +22,9 @@ export function StatCard({ name, value, isLoading }: StatCardProps): ReactElemen
   const meta = CHARACTERISTIC_META[name] ?? { label: name, unit: "" };
   const { weightUnit } = useWeightUnit();
 
-  const isWeight = WEIGHT_CHARACTERISTICS.has(name);
+  const isWeight = isWeightCharacteristic(name);
   const displayUnit = isWeight ? getUnitLabel(meta.unit, weightUnit) : meta.unit;
-  const displayValue =
-    value !== null && isWeight ? formatWeight(value, weightUnit) : (value?.toFixed(1) ?? null);
+  const displayValue = value !== null ? formatCharacteristicValue(name, value, weightUnit) : null;
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
