@@ -93,7 +93,7 @@ regressed toward the mean unless all 305 daily yields are observed.
     different subgroups of lactations (e.g., by breed or parity).
 - For the used standard lactation curve currently the Wood LC model is used, it is possible to
     use other methods aswell.
-- Strengths of Best Predction includes its ability to leverage the full covariance structure
+- Strengths of Best Prediction includes its ability to leverage the full covariance structure
     of the lactation curve and to therefore potentially provide more accurate predictions
     especially for lactations with few test days. This is because the inherent shape of the
     lactation curve is taken into account in the projection of
