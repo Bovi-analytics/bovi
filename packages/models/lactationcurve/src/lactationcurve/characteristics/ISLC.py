@@ -2,11 +2,24 @@
 
 Purpose
 -------
-This module implements the ISLC family of methods for estimating lactation
-milk production from intermittent test-day records. The implementation follows
-the CRV/ICAR approach based on Wilmink-style standard lactation curves and
-correlation-based deviation corrections for ICAR Procedure 2, Section 2
-(computing accumulated lactation yield).
+The Interpolation using Standard Lactation Curves (ISLC) method estimates
+lactation yield from intermittent test-day records by predicting
+deviations from an expected lactation curve. 
+The method uses standard lactation curves that represent the expected 
+course of lactation for specific cow subgroups, such
+as breed or parity.
+
+By incorporating these standard curves, ISLC accounts for the typical
+lactation pattern in which milk yield increases after calving, reaches a
+peak, and subsequently declines. Daily yields are estimated at fixed
+lactation days (e.g., 0, 10, 30, 50) and used to calculate accumulated
+lactation production.
+
+This module implements the ISLC family of methods following the CRV/ICAR
+approach described in ICAR Procedure 2, Section 2 (Computing Accumulated
+Lactation Yield). The implementation is based on Wilmink-type standard
+lactation curves combined with correlation-based deviation corrections.
+
 
 Method Summary
 --------------
@@ -64,6 +77,9 @@ Notes
     or use the default lactation curve.
 - The methods can be applied to lactations without any measurements,
     in which case the result will be the population mean from the standard curve.
+- Predicted milk yields have less variance than true milk yields. With TIM,
+    estimated yields have more variance than true yields. The reason is that predicted yields are
+    regressed toward the mean unless all 305 daily yields are observed. 
 - The main ISLC method in this package is not the same as the original method
     described in the paper by Wilmink.
     The original method is implemented in ``ISLC_original_method`` and ``ISLC_original``.
