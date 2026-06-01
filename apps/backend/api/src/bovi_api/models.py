@@ -228,6 +228,24 @@ class OrganizationInvite(SQLModel, table=True):
     )
 
 
+class AccessRoleAudit(SQLModel, table=True):
+    """Audit trail for global and organization role changes."""
+
+    __tablename__: ClassVar[str] = "access_role_audits"
+
+    id: int | None = Field(default=None, primary_key=True)
+    actor_user_id: int | None = Field(default=None, foreign_key="users.id", index=True)
+    target_user_id: int = Field(foreign_key="users.id", index=True)
+    organization_id: int | None = Field(default=None, foreign_key="organizations.id", index=True)
+    scope: str = Field(index=True)
+    old_role: str | None = Field(default=None, max_length=64)
+    new_role: str = Field(max_length=64)
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
+
+
 class StorageArtifactBase(SQLModel):
     """Metadata for a blob-backed artifact owned by the API."""
 

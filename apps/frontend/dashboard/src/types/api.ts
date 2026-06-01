@@ -570,3 +570,25 @@ export const AdminOverviewResponseSchema = z.object({
   items: z.array(AdminOverviewItemSchema),
 });
 export type AdminOverviewResponse = z.infer<typeof AdminOverviewResponseSchema>;
+
+export const AdminUserMembershipSchema = z.object({
+  organization_id: z.number(),
+  organization_name: z.string(),
+  role: z.string(),
+});
+export type AdminUserMembership = z.infer<typeof AdminUserMembershipSchema>;
+
+export const AdminUserSchema = z.object({
+  id: z.number(),
+  entra_tenant_id: z.string(),
+  entra_oid: z.string(),
+  account_type: z.string(),
+  email: z.string().nullable(),
+  name: z.string().nullable(),
+  role: z.string(),
+  last_login_at: z.string().nullable(),
+  memberships: z.array(AdminUserMembershipSchema),
+});
+export type AdminUser = z.infer<typeof AdminUserSchema>;
+
+export const AdminUserListSchema = z.array(AdminUserSchema);

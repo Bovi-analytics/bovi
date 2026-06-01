@@ -7,6 +7,7 @@ from typing import cast
 from bovi_api.auth import CurrentUser, require_auth
 from bovi_api.database import get_session
 from bovi_api.models import (
+    AccessRoleAudit,
     Challenge,
     HerdProfile,
     Organization,
@@ -763,6 +764,34 @@ def test_owner_can_update_member_role(client):
     assert members.status_code == 200
     updated = next(member for member in members.json() if member["user_id"] == 2)
     assert updated["role"] == "Owner"
+
+    async def _assert_audit() -> None:
+        async for session in override():
+            audit = (
+                await session.execute(
+                    select(AccessRoleAudit).where(AccessRoleAudit.target_user_id == 2)
+                )
+            ).scalar_one()
+            assert audit.actor_user_id == 1
+            assert audit.organization_id == 1
+            assert audit.scope == "organization"
+            assert audit.old_role == "Member"
+            assert audit.new_role == "Owner"
+            break
+
+    asyncio.run(_assert_audit())
+
+
+def test_owner_cannot_demote_or_remove_last_owner(client):
+    demote = client.patch("/organizations/1/members/1", json={"role": "Member"})
+
+    assert demote.status_code == 400
+    assert demote.json()["detail"] == "Cannot remove the last organization owner."
+
+    remove = client.delete("/organizations/1/members/1")
+
+    assert remove.status_code == 400
+    assert remove.json()["detail"] == "Cannot remove the last organization owner."
 
 
 class _ScalarResult:
