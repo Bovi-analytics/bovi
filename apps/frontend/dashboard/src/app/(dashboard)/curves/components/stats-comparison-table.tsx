@@ -4,7 +4,8 @@ import type { ReactElement } from "react";
 import { Table, Tooltip } from "@mantine/core";
 import { Info } from "lucide-react";
 import { useWeightUnit } from "@/app/providers/unit-provider";
-import { formatWeight, getUnitLabel } from "@/lib/units";
+import { formatCharacteristicValue, isWeightCharacteristic } from "@/lib/characteristics";
+import { getUnitLabel } from "@/lib/units";
 import type { WeightUnit } from "@/lib/units";
 
 export interface StatsRow {
@@ -22,15 +23,15 @@ interface StatsComparisonTableProps {
 }
 
 function CellValue({
+  name,
   value,
   isLoading,
-  isWeight,
   weightUnit,
   unit,
 }: {
+  name: string;
   value: number | null;
   isLoading: boolean;
-  isWeight: boolean;
   weightUnit: WeightUnit;
   unit: string;
 }): ReactElement {
@@ -41,7 +42,8 @@ function CellValue({
     return <span className="text-muted-foreground">-</span>;
   }
 
-  const displayValue = isWeight ? formatWeight(value, weightUnit) : value.toFixed(1);
+  const isWeight = isWeightCharacteristic(name);
+  const displayValue = formatCharacteristicValue(name, value, weightUnit);
   const displayUnit = isWeight ? getUnitLabel(unit, weightUnit) : unit;
 
   return (
@@ -98,36 +100,36 @@ export function StatsComparisonTable({ rows }: StatsComparisonTableProps): React
               </Table.Td>
               <Table.Td>
                 <CellValue
+                  name="peak_yield"
                   value={row.peakYield}
                   isLoading={row.isLoading}
-                  isWeight
                   weightUnit={weightUnit}
                   unit="kg/day"
                 />
               </Table.Td>
               <Table.Td>
                 <CellValue
+                  name="time_to_peak"
                   value={row.timeToPeak}
                   isLoading={row.isLoading}
-                  isWeight={false}
                   weightUnit={weightUnit}
                   unit="days"
                 />
               </Table.Td>
               <Table.Td>
                 <CellValue
+                  name="cumulative_milk_yield"
                   value={row.cumulativeYield}
                   isLoading={row.isLoading}
-                  isWeight
                   weightUnit={weightUnit}
                   unit="kg"
                 />
               </Table.Td>
               <Table.Td>
                 <CellValue
+                  name="persistency"
                   value={row.persistency}
                   isLoading={row.isLoading}
-                  isWeight={false}
                   weightUnit={weightUnit}
                   unit=""
                 />
