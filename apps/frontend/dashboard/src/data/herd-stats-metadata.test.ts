@@ -17,7 +17,7 @@ const PACKAGE_RANGES: Record<string, readonly [number, number]> = {
 describe("herd stats metadata", () => {
   test("uses the package herd stats normalization ranges", () => {
     for (const stat of HERD_STATS_METADATA) {
-      expect([stat.rawMin, stat.rawMax]).toEqual(PACKAGE_RANGES[stat.name]);
+      expect([stat.rawMin, stat.rawMax]).toEqual([...PACKAGE_RANGES[stat.name]]);
     }
   });
 });

@@ -42,7 +42,7 @@ const MODEL_GROUPS: Record<
   },
   deep: {
     label: "Deep learning",
-    description: "Full-curve neural prediction scored by cumulative yield.",
+    description: "AI sequential autoencoder",
     models: [{ value: "autoencoder", label: MODEL_LABELS.autoencoder }],
   },
 };
