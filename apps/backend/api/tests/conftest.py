@@ -22,6 +22,7 @@ from bovi_api.app import create_app
 from bovi_api.auth import AuthenticatedOrganization, CurrentUser, require_auth
 from bovi_api.database import get_session
 from bovi_api.models import (
+    AccessRoleAudit,
     Challenge,
     FittingResult,
     HerdProfile,
@@ -211,6 +212,7 @@ def client(monkeypatch):
             await conn.run_sync(Organization.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(OrganizationMembership.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(OrganizationInvite.__table__.create)  # type: ignore[union-attr]
+            await conn.run_sync(AccessRoleAudit.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(FittingResult.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(HerdProfile.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(StorageArtifact.__table__.create)  # type: ignore[union-attr]

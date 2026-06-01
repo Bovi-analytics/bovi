@@ -4,8 +4,8 @@ Purpose
 -------
 The Interpolation using Standard Lactation Curves (ISLC) method estimates
 lactation yield from intermittent test-day records by predicting
-deviations from an expected lactation curve. 
-The method uses standard lactation curves that represent the expected 
+deviations from an expected lactation curve.
+The method uses standard lactation curves that represent the expected
 course of lactation for specific cow subgroups, such
 as breed or parity.
 
@@ -79,7 +79,7 @@ Notes
     in which case the result will be the population mean from the standard curve.
 - Predicted milk yields have less variance than true milk yields. With TIM,
     estimated yields have more variance than true yields. The reason is that predicted yields are
-    regressed toward the mean unless all 305 daily yields are observed. 
+    regressed toward the mean unless all 305 daily yields are observed.
 - The main ISLC method in this package is not the same as the original method
     described in the paper by Wilmink.
     The original method is implemented in ``ISLC_original_method`` and ``ISLC_original``.

@@ -22,7 +22,7 @@ import {
   TextInput,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   ChevronDown,
@@ -32,12 +32,15 @@ import {
   Layers3,
   Search,
   ShieldCheck,
+  UsersRound,
 } from "lucide-react";
 import {
   adminOverviewOptionsKey,
   downloadSubmissionReport,
   listAdminSubmissionsOverview,
+  listAdminUsers,
   listOrganizations,
+  updateAdminUserRole,
   type AdminOverviewOptions,
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
@@ -45,6 +48,7 @@ import { CenteredLoader } from "@/components/dashboard/centered-loader";
 import type {
   AdminCategoryBreakdown,
   AdminDataCategory,
+  AdminUser,
   AdminOrganizationBreakdown,
   AdminOverviewItem,
 } from "@/types/api";
@@ -234,6 +238,7 @@ function CategoryTable({ rows }: { readonly rows: AdminCategoryBreakdown[] }): R
 }
 
 export default function AdminPage(): ReactElement {
+  const qc = useQueryClient();
   const { user } = useAuth();
   const [organizationId, setOrganizationId] = useState<number | "all">("all");
   const [category, setCategory] = useState<AdminDataCategory | "all">("all");
@@ -244,7 +249,13 @@ export default function AdminPage(): ReactElement {
   const [direction, setDirection] =
     useState<NonNullable<AdminOverviewOptions["direction"]>>("desc");
   const [selectedItem, setSelectedItem] = useState<AdminOverviewItem | null>(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [pendingRoleUser, setPendingRoleUser] = useState<{
+    user: AdminUser;
+    role: "Admin" | "User";
+  } | null>(null);
   const [detailsOpen, detailsHandlers] = useDisclosure(false);
+  const [roleModalOpen, roleModalHandlers] = useDisclosure(false);
 
   const activityOptions = useMemo<AdminOverviewOptions>(
     () => ({
@@ -275,6 +286,20 @@ export default function AdminPage(): ReactElement {
     queryFn: () => listAdminSubmissionsOverview(activityOptions),
     enabled: Boolean(user?.is_admin),
   });
+  const usersQuery = useQuery({
+    queryKey: ["admin-users", userSearch.trim()],
+    queryFn: () => listAdminUsers(userSearch),
+    enabled: Boolean(user?.is_admin),
+  });
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: number; role: "Admin" | "User" }) =>
+      updateAdminUserRole(userId, role),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin-users"] });
+      setPendingRoleUser(null);
+      roleModalHandlers.close();
+    },
+  });
 
   const organizationOptions = [
     { label: "All companies", value: "all" },
@@ -284,6 +309,11 @@ export default function AdminPage(): ReactElement {
   const openDetails = (item: AdminOverviewItem) => {
     setSelectedItem(item);
     detailsHandlers.open();
+  };
+  const openRoleChange = (targetUser: AdminUser, role: "Admin" | "User") => {
+    if (targetUser.role === role) return;
+    setPendingRoleUser({ user: targetUser, role });
+    roleModalHandlers.open();
   };
 
   if (!user?.is_admin) {
@@ -330,6 +360,9 @@ export default function AdminPage(): ReactElement {
           </Tabs.Tab>
           <Tabs.Tab value="resources" leftSection={<Layers3 size={14} />}>
             Resources
+          </Tabs.Tab>
+          <Tabs.Tab value="access" leftSection={<UsersRound size={14} />}>
+            Access
           </Tabs.Tab>
         </Tabs.List>
 
@@ -482,6 +515,43 @@ export default function AdminPage(): ReactElement {
             {home && <CategoryTable rows={home.by_category} />}
           </Paper>
         </Tabs.Panel>
+
+        <Tabs.Panel value="access" pt="md">
+          <Stack gap="md">
+            <Paper withBorder radius="sm" p="md">
+              <Group justify="space-between" align="flex-end">
+                <Stack gap={2}>
+                  <Text fw={700} size="sm">
+                    Database access
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Global admins and organization roles are managed in Bovi.
+                  </Text>
+                </Stack>
+                <TextInput
+                  label="Search users"
+                  size="xs"
+                  leftSection={<Search size={14} />}
+                  value={userSearch}
+                  onChange={(event) => setUserSearch(event.currentTarget.value)}
+                  placeholder="Name or email"
+                  w={260}
+                />
+              </Group>
+            </Paper>
+            <Paper withBorder radius="sm" p="md">
+              {usersQuery.isLoading && <Loader />}
+              {usersQuery.error && <Text c="red">Failed to load users.</Text>}
+              {usersQuery.data && (
+                <AccessTable
+                  users={usersQuery.data}
+                  onRoleChange={openRoleChange}
+                  isUpdating={updateRoleMutation.isPending}
+                />
+              )}
+            </Paper>
+          </Stack>
+        </Tabs.Panel>
       </Tabs>
 
       <Modal opened={detailsOpen} onClose={detailsHandlers.close} title="Submission metadata">
@@ -514,7 +584,119 @@ export default function AdminPage(): ReactElement {
           </Stack>
         )}
       </Modal>
+      <Modal opened={roleModalOpen} onClose={roleModalHandlers.close} title="Change global role">
+        {pendingRoleUser && (
+          <Stack gap="md">
+            <Text size="sm">
+              Set {pendingRoleUser.user.email ?? pendingRoleUser.user.name ?? "this user"} to{" "}
+              <strong>{pendingRoleUser.role}</strong>?
+            </Text>
+            {updateRoleMutation.error && (
+              <Alert color="red" variant="light">
+                {updateRoleMutation.error.message}
+              </Alert>
+            )}
+            <Group justify="flex-end">
+              <Button variant="subtle" onClick={roleModalHandlers.close}>
+                Cancel
+              </Button>
+              <Button
+                loading={updateRoleMutation.isPending}
+                onClick={() =>
+                  updateRoleMutation.mutate({
+                    userId: pendingRoleUser.user.id,
+                    role: pendingRoleUser.role,
+                  })
+                }
+              >
+                Save
+              </Button>
+            </Group>
+          </Stack>
+        )}
+      </Modal>
     </div>
+  );
+}
+
+function AccessTable({
+  users,
+  onRoleChange,
+  isUpdating,
+}: {
+  readonly users: AdminUser[];
+  readonly onRoleChange: (user: AdminUser, role: "Admin" | "User") => void;
+  readonly isUpdating: boolean;
+}): ReactElement {
+  const adminCount = users.filter((item) => item.role === "Admin").length;
+
+  return (
+    <Table.ScrollContainer minWidth={980}>
+      <Table striped highlightOnHover fz="sm">
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>User</Table.Th>
+            <Table.Th>Global role</Table.Th>
+            <Table.Th>Organizations</Table.Th>
+            <Table.Th>Last login</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {users.map((item) => {
+            const isLastAdmin = item.role === "Admin" && adminCount <= 1;
+            return (
+              <Table.Tr key={item.id}>
+                <Table.Td>
+                  <Text size="sm" fw={600}>
+                    {item.name ?? item.email ?? `User #${item.id}`}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {item.email ?? "No email"} | {item.account_type}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Select
+                    size="xs"
+                    data={[
+                      { label: "User", value: "User" },
+                      { label: "Admin", value: "Admin" },
+                    ]}
+                    value={item.role}
+                    disabled={isUpdating || isLastAdmin}
+                    onChange={(value) => onRoleChange(item, (value as "Admin" | "User") ?? "User")}
+                    w={120}
+                  />
+                  {isLastAdmin && (
+                    <Text size="xs" c="dimmed" mt={4}>
+                      Last admin
+                    </Text>
+                  )}
+                </Table.Td>
+                <Table.Td>
+                  <Group gap={6}>
+                    {item.memberships.length === 0 && (
+                      <Text size="xs" c="dimmed">
+                        No organization access
+                      </Text>
+                    )}
+                    {item.memberships.map((membership) => (
+                      <Badge
+                        key={`${item.id}-${membership.organization_id}`}
+                        color={membership.role === "Owner" ? "green" : "gray"}
+                        variant="light"
+                      >
+                        {membership.organization_name}: {membership.role}
+                      </Badge>
+                    ))}
+                  </Group>
+                </Table.Td>
+                <Table.Td>{formatDate(item.last_login_at)}</Table.Td>
+              </Table.Tr>
+            );
+          })}
+        </Table.Tbody>
+      </Table>
+    </Table.ScrollContainer>
   );
 }
 

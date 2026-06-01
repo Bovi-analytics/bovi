@@ -8,12 +8,22 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
-from bovi_api.auth import CurrentUser, require_admin
+from bovi_api.auth import APP_ROLE_ADMIN, APP_ROLE_USER, CurrentUser, require_admin
 from bovi_api.database import get_session
-from bovi_api.models import Challenge, HerdProfile, Organization, Submission, UploadedDataset, User
+from bovi_api.models import (
+    AccessRoleAudit,
+    Challenge,
+    HerdProfile,
+    Organization,
+    OrganizationMembership,
+    Submission,
+    UploadedDataset,
+    User,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -32,6 +42,7 @@ AdminCategoryFilter = Literal[
 ]
 AdminOverviewSort = Literal["created_at", "organization", "user", "category", "status"]
 SortDirection = Literal["asc", "desc"]
+GlobalRole = Literal["Admin", "User"]
 
 CATEGORY_LABELS: dict[AdminDataCategory, str] = {
     "benchmark_submission": "Benchmark submissions",
@@ -113,6 +124,34 @@ class AdminOverviewResponse(BaseModel):
     by_organization: list[AdminOrganizationBreakdown]
     by_category: list[AdminCategoryBreakdown]
     items: list[AdminOverviewItem]
+
+
+class AdminUserMembershipRead(BaseModel):
+    """Organization membership shown in the admin access view."""
+
+    organization_id: int
+    organization_name: str
+    role: str
+
+
+class AdminUserRead(BaseModel):
+    """Local user with database-managed global and organization roles."""
+
+    id: int
+    entra_tenant_id: str
+    entra_oid: str
+    account_type: str
+    email: str | None
+    name: str | None
+    role: str
+    last_login_at: datetime | None
+    memberships: list[AdminUserMembershipRead]
+
+
+class AdminUserRoleUpdate(BaseModel):
+    """Request body for changing a global application role."""
+
+    role: GlobalRole
 
 
 def _latest(a: datetime | None, b: datetime | None) -> datetime | None:
@@ -211,6 +250,38 @@ def _category_count_attr(category: AdminDataCategory) -> str:
         "herd_dataset_upload": "herd_dataset_uploads",
         "herd_profile": "herd_profiles",
     }[category]
+
+
+async def _admin_count(session: AsyncSession) -> int:
+    result = await session.execute(
+        select(func.count()).select_from(User).where(User.role == APP_ROLE_ADMIN)
+    )
+    return int(result.scalar_one())
+
+
+def _admin_user_read(
+    user: User,
+    memberships: list[tuple[Organization, OrganizationMembership]],
+) -> AdminUserRead:
+    return AdminUserRead(
+        id=user.id or 0,
+        entra_tenant_id=user.entra_tenant_id,
+        entra_oid=user.entra_oid,
+        account_type=user.account_type,
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        last_login_at=user.last_login_at,
+        memberships=[
+            AdminUserMembershipRead(
+                organization_id=organization.id or 0,
+                organization_name=organization.name,
+                role=membership.role,
+            )
+            for organization, membership in memberships
+            if organization.id is not None
+        ],
+    )
 
 
 async def _fetch_items(session: AsyncSession) -> list[AdminOverviewItem]:
@@ -342,6 +413,99 @@ async def _fetch_items(session: AsyncSession) -> list[AdminOverviewItem]:
         )
 
     return items
+
+
+@router.get("/users", response_model=list[AdminUserRead])
+async def list_admin_users(
+    current_user: Annotated[CurrentUser, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    q: str | None = None,
+) -> list[AdminUserRead]:
+    """List local users and their database-managed access roles."""
+    _ = current_user
+    user_query = select(User).order_by(col(User.email), col(User.name), col(User.id))
+    if q:
+        needle = f"%{q.strip()}%"
+        user_query = user_query.where(
+            (col(User.email).ilike(needle)) | (col(User.name).ilike(needle))
+        )
+    users = (await session.execute(user_query)).scalars().all()
+    if not users:
+        return []
+
+    user_ids = [user.id for user in users if user.id is not None]
+    membership_rows = await session.execute(
+        select(User, Organization, OrganizationMembership)
+        .join(OrganizationMembership, col(OrganizationMembership.user_id) == col(User.id))
+        .join(Organization, col(OrganizationMembership.organization_id) == col(Organization.id))
+        .where(col(User.id).in_(user_ids))
+        .order_by(col(Organization.name))
+    )
+    memberships_by_user: dict[int, list[tuple[Organization, OrganizationMembership]]] = defaultdict(
+        list
+    )
+    for user, organization, membership in membership_rows.all():
+        if user.id is not None:
+            memberships_by_user[user.id].append((organization, membership))
+
+    return [_admin_user_read(user, memberships_by_user[user.id or 0]) for user in users]
+
+
+@router.patch("/users/{user_id}/role", response_model=AdminUserRead)
+async def update_admin_user_role(
+    user_id: int,
+    body: AdminUserRoleUpdate,
+    current_user: Annotated[CurrentUser, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminUserRead:
+    """Update a user's global role stored in the local Bovi database."""
+    user = await session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    old_role = user.role
+    if old_role == body.role:
+        memberships = await _memberships_for_admin_user(session, user_id)
+        return _admin_user_read(user, memberships)
+
+    if (
+        old_role == APP_ROLE_ADMIN
+        and body.role == APP_ROLE_USER
+        and await _admin_count(session) <= 1
+    ):
+        raise HTTPException(status_code=400, detail="Cannot remove the last global admin.")
+
+    user.role = body.role
+    session.add(user)
+    session.add(
+        AccessRoleAudit(
+            actor_user_id=current_user.id,
+            target_user_id=user_id,
+            scope="global",
+            old_role=old_role,
+            new_role=body.role,
+        )
+    )
+    await session.commit()
+    await session.refresh(user)
+    memberships = await _memberships_for_admin_user(session, user_id)
+    return _admin_user_read(user, memberships)
+
+
+async def _memberships_for_admin_user(
+    session: AsyncSession,
+    user_id: int,
+) -> list[tuple[Organization, OrganizationMembership]]:
+    rows = await session.execute(
+        select(Organization, OrganizationMembership)
+        .join(
+            OrganizationMembership,
+            col(OrganizationMembership.organization_id) == col(Organization.id),
+        )
+        .where(OrganizationMembership.user_id == user_id)
+        .order_by(col(Organization.name))
+    )
+    return [(organization, membership) for organization, membership in rows.all()]
 
 
 def _build_response(items: list[AdminOverviewItem], limit: int) -> AdminOverviewResponse:

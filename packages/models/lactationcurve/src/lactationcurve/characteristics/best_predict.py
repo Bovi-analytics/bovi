@@ -84,7 +84,7 @@ Notes
     in which case the result will be the population mean from the standard curve.
 - Predicted milk yields have less variance than true milk yields. With TIM,
 estimated yields have more variance than true yields. The reason is that predicted yields are
-regressed toward the mean unless all 305 daily yields are observed. 
+regressed toward the mean unless all 305 daily yields are observed.
 - Currently it is not yet possible to predict lactation yields for lactation windows
     other than 305 days, but this is on the roadmap for future updates.
 - The method currently assumes that the standard curves and covariance structure is the same
@@ -93,7 +93,7 @@ regressed toward the mean unless all 305 daily yields are observed.
     different subgroups of lactations (e.g., by breed or parity).
 - For the used standard lactation curve currently the Wood LC model is used, it is possible to
     use other methods aswell.
-- Strengths of Best Predction includes its ability to leverage the full covariance structure
+- Strengths of Best Prediction includes its ability to leverage the full covariance structure
     of the lactation curve and to therefore potentially provide more accurate predictions
     especially for lactations with few test days. This is because the inherent shape of the
     lactation curve is taken into account in the projection of
@@ -116,9 +116,9 @@ regressed toward the mean unless all 305 daily yields are observed.
 Still coming functionality
 --------------------------
 - Milk, fat, and protein yields can be processed separately using single-trait best
-    prediction or jointly using multi-trait best prediction. 
-    Replacement of the measured milk yields by the fat or protein yields gives the 
-    single-trait predictions for fat or for protein. 
+    prediction or jointly using multi-trait best prediction.
+    Replacement of the measured milk yields by the fat or protein yields gives the
+    single-trait predictions for fat or for protein.
     Multi-trait predictions require larger vectors and matrices but similar algebra.
 
 
