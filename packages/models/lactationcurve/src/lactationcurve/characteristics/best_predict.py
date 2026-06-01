@@ -2,9 +2,21 @@
 
 Purpose
 -------
-This module implements the best-prediction approach described by VanRaden
-(1997) for ICAR Procedure 2, Section 2 (computing accumulated lactation
-yield).
+The Best Prediction (BP) method estimates 305-day lactation yield from
+intermittent test-day records by predicting deviations from an expected
+lactation curve at **all** unobserved days in milk. The method uses standard
+lactation curves that represent the expected course of lactation for
+specific cow subgroups, such as breed or parity.
+
+By incorporating these standard curves, BP accounts for the typical
+lactation pattern in which milk yield increases after calving, reaches a
+peak, and subsequently declines. Missing daily yields are estimated from
+the covariance structure of test-day records and their deviations from the
+expected curve.
+
+This module implements the best-prediction approach described by
+VanRaden (1997) for ICAR Procedure 2, Section 2 (Computing Accumulated
+Lactation Yield).
 
 Method Summary
 --------------
@@ -70,6 +82,9 @@ Notes
     population.
 - The method can be applied to lactations without any measurements,
     in which case the result will be the population mean from the standard curve.
+- Predicted milk yields have less variance than true milk yields. With TIM,
+estimated yields have more variance than true yields. The reason is that predicted yields are
+regressed toward the mean unless all 305 daily yields are observed.
 - Currently it is not yet possible to predict lactation yields for lactation windows
     other than 305 days, but this is on the roadmap for future updates.
 - The method currently assumes that the standard curves and covariance structure is the same
@@ -97,6 +112,16 @@ Notes
     A cow with the exact same test-day records
     can have a different cumulative milk yield estimates depending
     on the standard curve used, which can be considered unfair.
+
+Still coming functionality
+--------------------------
+- Milk, fat, and protein yields can be processed separately using single-trait best
+    prediction or jointly using multi-trait best prediction.
+    Replacement of the measured milk yields by the fat or protein yields gives the
+    single-trait predictions for fat or for protein.
+    Multi-trait predictions require larger vectors and matrices but similar algebra.
+
+
 
 References
 ---------
