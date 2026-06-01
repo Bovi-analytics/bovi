@@ -1,9 +1,53 @@
-import { MantineProvider } from "@mantine/core";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { JSDOM } from "jsdom";
 import React, { useState } from "react";
-import { beforeAll, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { DEFAULT_HERD_STATS } from "@/data/herd-stats-metadata";
 import { HerdStatsForm } from "./herd-stats-form";
+
+vi.mock("@mantine/core", () => ({
+  NumberInput: ({
+    "aria-label": ariaLabel,
+    label,
+    onBlur,
+    onChange,
+    value,
+  }: {
+    "aria-label"?: string;
+    label?: string;
+    onBlur?: () => void;
+    onChange?: (value: number) => void;
+    value?: number;
+  }) => (
+    <label>
+      {label}
+      <input
+        aria-label={ariaLabel ?? label}
+        onBlur={onBlur}
+        onInput={(event) => {
+          onChange?.(Number((event.currentTarget as HTMLInputElement).value));
+        }}
+        value={String(value ?? "")}
+      />
+    </label>
+  ),
+  Slider: () => null,
+  Tooltip: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+const dom = new JSDOM("<!doctype html><html><body></body></html>");
+
+Object.defineProperties(globalThis, {
+  window: { value: dom.window },
+  document: { value: dom.window.document },
+  Element: { value: dom.window.Element },
+  HTMLElement: { value: dom.window.HTMLElement },
+  HTMLInputElement: { value: dom.window.HTMLInputElement },
+  Node: { value: dom.window.Node },
+  navigator: { value: dom.window.navigator },
+  requestAnimationFrame: { value: (callback: FrameRequestCallback) => setTimeout(callback, 0) },
+  cancelAnimationFrame: { value: (handle: number) => clearTimeout(handle) },
+});
 
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
@@ -21,41 +65,43 @@ beforeAll(() => {
   });
 });
 
+afterEach(() => {
+  cleanup();
+});
+
 function renderEditableHerdStatsForm() {
   function Wrapper() {
     const [values, setValues] = useState<number[]>([...DEFAULT_HERD_STATS]);
 
     return (
-      <MantineProvider>
-        <HerdStatsForm values={values} onChange={setValues} showBoth />
-      </MantineProvider>
+      <HerdStatsForm values={values} onChange={setValues} showBoth />
     );
   }
 
-  render(<Wrapper />);
+  return render(<Wrapper />);
 }
 
 describe("HerdStatsForm", () => {
   test("does not clamp raw manual input while a value is still being typed", () => {
-    renderEditableHerdStatsForm();
+    const { getByLabelText } = renderEditableHerdStatsForm();
 
-    const rawInput = screen.getByLabelText("305-day milk kg") as HTMLInputElement;
+    const rawInput = getByLabelText("305-day milk kg") as HTMLInputElement;
 
-    fireEvent.change(rawInput, { target: { value: "9" } });
+    fireEvent.input(rawInput, { target: { value: "9" } });
     expect(rawInput.value).toBe("9");
 
-    fireEvent.change(rawInput, { target: { value: "9000" } });
+    fireEvent.input(rawInput, { target: { value: "9000" } });
     expect(rawInput.value).toBe("9000");
   });
 
-  test("clamps raw manual input on blur", () => {
-    renderEditableHerdStatsForm();
+  test("clamps raw manual input on blur", async () => {
+    const { getByLabelText } = renderEditableHerdStatsForm();
 
-    const rawInput = screen.getByLabelText("305-day milk kg") as HTMLInputElement;
+    const rawInput = getByLabelText("305-day milk kg") as HTMLInputElement;
 
-    fireEvent.change(rawInput, { target: { value: "9" } });
+    fireEvent.input(rawInput, { target: { value: "9" } });
     fireEvent.blur(rawInput);
 
-    expect(rawInput.value).toBe("2925");
+    await waitFor(() => expect(rawInput.value).toBe("3000"));
   });
 });
