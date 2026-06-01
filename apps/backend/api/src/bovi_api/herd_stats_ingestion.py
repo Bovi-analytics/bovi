@@ -34,14 +34,27 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Literal
 
+from lactationcurve.preprocessing import (
+    normalize_lactation_column_name,
+    resolve_lactation_column_mapping,
+)
+
 FormatDetected = Literal["aggregated", "icar_test_day", "dairycom_test_day"]
 
 TEST_DAY_MAPPING_KEYS = ("cow_id", "dim", "milk_kg", "parity", "herd_id", "event_type")
-_TEST_DAY_REQUIRED_MAPPING_KEYS = ("cow_id", "dim", "milk_kg")
+_TEST_DAY_REQUIRED_MAPPING_KEYS = ("dim", "milk_kg")
 _TEST_DAY_ALIASES: dict[str, tuple[str, ...]] = {
-    "cow_id": ("testid", "cow_id", "cowid", "id"),
-    "dim": ("daysinmilk", "days_in_milk", "dim"),
-    "milk_kg": ("dailymilkingyield", "milk_kg", "milk", "milkrecording"),
+    "cow_id": ("testid", "cow_id", "cowid", "animalid", "animal_id", "id"),
+    "dim": ("daysinmilk", "days_in_milk", "days in milk", "dim"),
+    "milk_kg": (
+        "dailymilkingyield",
+        "daily milking yield",
+        "milk_kg",
+        "milk kg",
+        "milk",
+        "milk yield",
+        "milkrecording",
+    ),
     "parity": ("parity", "lact", "lactation"),
     "herd_id": ("herd_id", "herdid", "herd", "farm_id", "farmid"),
     "event_type": ("eventtype", "event_type"),
@@ -125,14 +138,33 @@ class _DetectedColumns:
 
 
 def _normalise_header(h: str) -> str:
-    return h.strip().lower().replace(" ", "").replace("_", "")
+    return normalize_lactation_column_name(h)
 
 
 def _detect_test_day_mapping(header: list[str]) -> tuple[dict[str, str], bool]:
     """Return likely test-day semantic column mapping and whether it needs review."""
     by_norm = {_normalise_header(h): h for h in header}
     mapping: dict[str, str] = {}
+
+    try:
+        lactation_mapping = resolve_lactation_column_mapping(header)
+    except ValueError:
+        lactation_mapping = {}
+    mapping.update(
+        {
+            key: value
+            for key, value in {
+                "cow_id": lactation_mapping.get("TestId"),
+                "dim": lactation_mapping.get("DaysInMilk"),
+                "milk_kg": lactation_mapping.get("MilkingYield"),
+            }.items()
+            if value is not None
+        }
+    )
+
     for semantic, aliases in _TEST_DAY_ALIASES.items():
+        if semantic in mapping:
+            continue
         for alias in aliases:
             match = by_norm.get(_normalise_header(alias))
             if match is not None:
@@ -142,9 +174,9 @@ def _detect_test_day_mapping(header: list[str]) -> tuple[dict[str, str], bool]:
     exact = all(
         _normalise_header(mapping.get(key, "")) == _normalise_header(exact_name)
         for key, exact_name in _EXACT_ICAR_COLUMNS.items()
-        if key in _TEST_DAY_REQUIRED_MAPPING_KEYS
+        if key in ("cow_id", "dim", "milk_kg")
     )
-    return mapping, not exact
+    return mapping, not exact or "cow_id" not in mapping
 
 
 def _coerce_column_mapping(header: list[str], mapping: dict[str, str]) -> dict[str, str]:
@@ -602,10 +634,9 @@ def _parse_icar_test_day(
         _header_index(header, *_TEST_DAY_ALIASES["event_type"]),
     )
 
-    if idx_id is None or idx_dim is None or idx_milk is None:
+    if idx_dim is None or idx_milk is None:
         raise ValueError(
-            "ICAR test-day file is missing required columns "
-            "(TestId, DaysInMilk, DailyMilkingYield)."
+            "ICAR test-day file is missing required columns (DaysInMilk, DailyMilkingYield)."
         )
 
     by_cow: dict[str, list[tuple[int, float]]] = defaultdict(list)
@@ -620,11 +651,11 @@ def _parse_icar_test_day(
                 skipped_event += 1
                 continue
 
-        if idx_id >= len(row) or idx_dim >= len(row) or idx_milk >= len(row):
+        if idx_dim >= len(row) or idx_milk >= len(row):
             skipped_parse += 1
             continue
 
-        cow_id = row[idx_id].strip()
+        cow_id = row[idx_id].strip() if idx_id is not None and idx_id < len(row) else "0"
         dim_val = _parse_number(row[idx_dim])
         milk_val = _parse_number(row[idx_milk])
         if not cow_id or dim_val is None or milk_val is None or milk_val < 0:

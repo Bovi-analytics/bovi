@@ -161,7 +161,7 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
       { name: "Parity", description: "Lactation number", required: false },
     ],
     template: () => ICAR_TEMPLATE,
-    templateName: "herd_stats_template_icar.csv",
+    templateName: "milk_recordings_template.csv",
   },
   aggregated: {
     label: "Herd summary",
@@ -173,7 +173,7 @@ const FORMATS: Record<SelectableFormatKey, FormatMeta> = {
       required: false,
     })),
     template: buildAggregatedTemplate,
-    templateName: "herd_stats_template_aggregated.csv",
+    templateName: "herd_stats_template.csv",
   },
 };
 
