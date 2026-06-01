@@ -5,8 +5,12 @@ import pickle
 
 import numpy as np
 import pytest
-from bovi_core.ml.dataloaders.sources import TransformedSource
-from lactation_autoencoder.dataloaders.datasets.lactation_dataset import LactationDataset
+from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource
+from lactation_autoencoder.dataloaders.datasets.lactation_dataset import (
+    LactationDataset,
+    periodic_records_in_horizon,
+    project_periodic_records_to_daily,
+)
 from lactation_autoencoder.dataloaders.sources.lactation_pkl_source import LactationPKLSource
 from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
     HerdStatsEnrichmentTransform,
@@ -225,6 +229,39 @@ class TestLactationDatasetBasic:
         assert "herd_id" in metadata
         assert "parity" in metadata
         assert metadata["animal_id"] == "cow_001"
+
+    def test_periodic_records_project_inside_autoencoder_horizon(self):
+        """Raw periodic records can include DIM 0 and records after day 304."""
+        projected = project_periodic_records_to_daily([0, 1, 304, 305], [9.0, 20.0, 18.0, 21.0])
+
+        assert projected[0] == 20.0
+        assert projected[303] == 18.0
+        assert sum(1 for value in projected if value != 0.0) == 2
+
+    def test_periodic_records_in_horizon_rejects_no_usable_observations(self):
+        with pytest.raises(ValueError, match="at least one dim value"):
+            periodic_records_in_horizon([0, 305], [9.0, 21.0])
+
+    def test_dataset_accepts_periodic_records_with_out_of_horizon_dims(self):
+        source = DictSource(
+            [
+                {
+                    "dim": [0, 1, 304, 305],
+                    "milkrecordings": [9.0, 20.0, 18.0, 21.0],
+                    "events": ["calving"] + ["pad"] * 303,
+                    "parity": 4,
+                    "herd_stats": [0.5] * 10,
+                }
+            ]
+        )
+        dataset = LactationDataset(source, max_days=304)
+
+        item = dataset[0]
+
+        assert item["features"]["milk"][0] == 20.0
+        assert item["features"]["milk"][303] == 18.0
+        assert item["labels"][0] == 20.0
+        assert item["labels"][303] == 18.0
 
 
 class TestLactationDatasetFeatureValues:

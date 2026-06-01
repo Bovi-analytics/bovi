@@ -20,6 +20,13 @@ def test_project_periodic_records_to_daily_zero_fills_unobserved_days():
     assert sum(1 for value in projected if value != 0.0) == 3
 
 
+def test_project_periodic_records_to_daily_ignores_records_outside_horizon():
+    projected = project_periodic_records_to_daily([0, 1, 305], [19.0, 20.0, 21.0])
+
+    assert projected[0] == 20.0
+    assert sum(1 for value in projected if value != 0.0) == 1
+
+
 def test_predict_request_accepts_periodic_records():
     request = AutoencoderPredictRequest.model_validate(
         {
@@ -32,6 +39,21 @@ def test_predict_request_accepts_periodic_records():
     assert request.model_milk_input()[9] == 30.0
     assert request.model_milk_input()[39] == 38.0
     assert request.model_milk_input()[69] == 35.0
+
+
+def test_predict_request_drops_periodic_records_outside_autoencoder_horizon():
+    request = AutoencoderPredictRequest.model_validate(
+        {
+            "dim": [0, 1, 304, 305],
+            "milkrecordings": [19.0, 20.0, 18.0, 21.0],
+            "parity": 4,
+        }
+    )
+
+    assert request.dim == [1, 304]
+    assert request.milkrecordings == [20.0, 18.0]
+    assert request.model_milk_input()[0] == 20.0
+    assert request.model_milk_input()[303] == 18.0
 
 
 def test_predict_request_rejects_mixed_daily_and_periodic_records():
@@ -60,11 +82,26 @@ def test_predict_request_rejects_periodic_length_mismatch():
         )
 
 
-def test_predict_request_rejects_periodic_dim_outside_autoencoder_horizon():
+def test_predict_request_rejects_negative_daily_milk():
+    with pytest.raises(ValidationError):
+        AutoencoderPredictRequest.model_validate({"milk": [25.0, -1.0, None]})
+
+
+def test_predict_request_rejects_negative_periodic_milk():
     with pytest.raises(ValidationError):
         AutoencoderPredictRequest.model_validate(
             {
-                "dim": [1, 305],
+                "dim": [1, 3],
+                "milkrecordings": [25.0, -1.0],
+            }
+        )
+
+
+def test_predict_request_rejects_periodic_records_entirely_outside_autoencoder_horizon():
+    with pytest.raises(ValidationError):
+        AutoencoderPredictRequest.model_validate(
+            {
+                "dim": [0, 305],
                 "milkrecordings": [25.0, 27.0],
             }
         )

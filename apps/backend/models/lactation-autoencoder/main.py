@@ -35,6 +35,7 @@ from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource  # no
 from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.timeseries import ImputationTransform  # noqa: E402
 from fastapi import FastAPI, Request  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
 from lactation_autoencoder.dataloaders import LactationDataset  # noqa: E402
@@ -149,6 +150,22 @@ async def model_asset_error_handler(request: Request, exc: ModelAssetError) -> J
     return JSONResponse(
         status_code=503,
         content={"detail": str(exc), "request_id": request_id},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Return validation errors without echoing large request payloads."""
+    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+    errors: list[dict[str, object]] = []
+    for error in exc.errors():
+        public_error = dict(error)
+        public_error.pop("input", None)
+        public_error.pop("ctx", None)
+        errors.append(public_error)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": errors, "request_id": request_id},
     )
 
 

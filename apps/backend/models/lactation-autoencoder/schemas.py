@@ -2,29 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Literal, Self
+import math
+from typing import Literal, Self, cast
 
+from lactation_autoencoder.dataloaders.datasets.lactation_dataset import (
+    AUTOENCODER_INPUT_DAYS,
+    periodic_records_in_horizon,
+    project_periodic_records_to_daily,
+)
 from pydantic import BaseModel, Field, model_validator
 
 VALID_IMPUTATION_METHODS = Literal["forward_fill", "backward_fill", "linear"]
-AUTOENCODER_INPUT_DAYS = 304
-
-
-def project_periodic_records_to_daily(
-    dim: list[int],
-    milkrecordings: list[float],
-    max_days: int = AUTOENCODER_INPUT_DAYS,
-) -> list[float | None]:
-    """Project sparse DIM observations into a fixed daily sequence.
-
-    Observed values are placed at ``DIM - 1``. All unobserved days remain
-    ``0.0`` so periodic records can be sent through the existing autoencoder
-    pipeline without inventing interpolated yields.
-    """
-    projected: list[float | None] = [0.0] * max_days
-    for day, milk in zip(dim, milkrecordings, strict=True):
-        projected[day - 1] = milk
-    return projected
 
 
 class AutoencoderPredictRequest(BaseModel):
@@ -69,20 +57,26 @@ class AutoencoderPredictRequest(BaseModel):
         if has_periodic and not (has_dim and has_periodic_milk):
             raise ValueError("Periodic input requires both dim and milkrecordings.")
 
+        if self.milk is not None:
+            invalid_milk = [
+                value
+                for value in self.milk
+                if value is not None and (not math.isfinite(value) or value < 0)
+            ]
+            if invalid_milk:
+                raise ValueError("milk values must be finite, non-negative numbers or null.")
+
         if self.dim is not None and self.milkrecordings is not None:
             if len(self.dim) != len(self.milkrecordings):
                 raise ValueError(
                     "dim and milkrecordings must have the same length, "
                     f"got {len(self.dim)} and {len(self.milkrecordings)}"
                 )
-            invalid_dims = [day for day in self.dim if day < 1 or day > AUTOENCODER_INPUT_DAYS]
-            if invalid_dims:
-                raise ValueError(
-                    f"dim values must be between 1 and {AUTOENCODER_INPUT_DAYS} for "
-                    "autoencoder projection."
-                )
-            if len(set(self.dim)) != len(self.dim):
-                raise ValueError("dim values must be unique for autoencoder projection.")
+            self.dim, self.milkrecordings = periodic_records_in_horizon(
+                self.dim,
+                self.milkrecordings,
+                AUTOENCODER_INPUT_DAYS,
+            )
 
         return self
 
@@ -92,7 +86,10 @@ class AutoencoderPredictRequest(BaseModel):
             return self.milk
         if self.dim is None or self.milkrecordings is None:
             raise ValueError("Validated request has no usable milk input.")
-        return project_periodic_records_to_daily(self.dim, self.milkrecordings)
+        return cast(
+            list[float | None],
+            project_periodic_records_to_daily(self.dim, self.milkrecordings),
+        )
 
 
 class AutoencoderPredictResponse(BaseModel):
