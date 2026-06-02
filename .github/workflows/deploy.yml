@@ -11,6 +11,7 @@ on:
       - "apps/infrastructure/**"
       - ".github/actions/**"
       - ".github/workflows/deploy.yml"
+      - ".dockerignore"
       - "docker-compose.yml"
       - "pyproject.toml"
       - "uv.lock"
@@ -112,6 +113,9 @@ jobs:
               - ".github/actions/pulumi-up/**"
             api:
               - "apps/backend/api/**"
+              - ".dockerignore"
+              - "packages/models/lactationcurve/src/**"
+              - "packages/models/lactationcurve/pyproject.toml"
               - ".github/actions/docker-build-push/**"
               - ".github/actions/setup-python-uv/**"
               - ".github/actions/azure-login/**"
