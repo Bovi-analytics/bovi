@@ -18,12 +18,17 @@ WORKDIR /app
 
 COPY packages/bovi-core/pyproject.toml ./packages/bovi-core/
 COPY packages/bovi-core/src ./packages/bovi-core/src
+COPY packages/models/lactationcurve/pyproject.toml ./packages/models/lactationcurve/
+COPY packages/models/lactationcurve/src ./packages/models/lactationcurve/src
 COPY apps/backend/api/pyproject.toml ./apps/backend/api/
 COPY apps/backend/api/src ./apps/backend/api/src
 COPY apps/backend/api/scripts ./apps/backend/api/scripts
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system ./packages/bovi-core ./apps/backend/api
+    uv pip install --system \
+        ./packages/bovi-core \
+        ./packages/models/lactationcurve \
+        ./apps/backend/api
 
 # SQLite file lives on a mounted volume.
 ENV DATABASE_URL=sqlite+aiosqlite:////data/bovi.db
