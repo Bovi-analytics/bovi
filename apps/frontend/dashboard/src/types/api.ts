@@ -209,6 +209,7 @@ export const HerdProfileSchema = z
     id: z.number(),
     user_id: z.number().nullable().optional(),
     organization_id: z.number().nullable().optional(),
+    source_uploaded_dataset_id: z.string().nullable().optional(),
     name: z.string().max(100),
     description: z.string().max(500),
     achieved_21_milk: z.number().min(0).max(1),
@@ -299,9 +300,24 @@ export const UploadedDatasetDetailSchema = UploadedDatasetReadSchema.extend({
   raw_stats: z.record(z.string(), z.number()).default({}),
 });
 
+export const UploadedDatasetProfileReferenceSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  user_name: z.string().nullable().optional(),
+  user_email: z.string().nullable().optional(),
+  reference_type: z.enum(["linked", "matching_stats"]),
+});
+
+export const UploadedDatasetDeleteImpactSchema = z.object({
+  dataset_id: z.string(),
+  dataset_name: z.string(),
+  herd_profiles: z.array(UploadedDatasetProfileReferenceSchema).default([]),
+});
+
 export const UploadedDatasetListSchema = z.array(UploadedDatasetReadSchema);
 export type UploadedDatasetRead = z.infer<typeof UploadedDatasetReadSchema>;
 export type UploadedDatasetDetail = z.infer<typeof UploadedDatasetDetailSchema>;
+export type UploadedDatasetDeleteImpact = z.infer<typeof UploadedDatasetDeleteImpactSchema>;
 
 /* ------------------------------------------------------------------ */
 /*  Preset cow-dataset schemas                                         */

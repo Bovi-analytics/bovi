@@ -34,6 +34,7 @@ import { usePresetDataset } from "@/app/(dashboard)/curves/hooks/use-preset-data
 import {
   deleteUploadedDataset,
   getUploadedDataset,
+  getUploadedDatasetDeleteImpact,
   listOrganizationMembers,
   listUploadedDatasets,
 } from "@/lib/api-client";
@@ -766,6 +767,11 @@ function SavedDatasetsPanel(): ReactElement {
       void queryClient.invalidateQueries({ queryKey: ["uploaded-datasets"] });
     },
   });
+  const deleteImpactQuery = useQuery({
+    queryKey: ["uploaded-dataset-delete-impact", deleteTarget?.id],
+    queryFn: () => getUploadedDatasetDeleteImpact(deleteTarget?.id ?? ""),
+    enabled: deleteTarget !== null,
+  });
   const savedDatasets = datasetsQuery.data ?? [];
 
   if (datasetsQuery.isLoading) {
@@ -789,14 +795,39 @@ function SavedDatasetsPanel(): ReactElement {
         centered
       >
         <Stack gap="sm">
-          <Text size="sm">
-            This removes the dataset from saved dataset lists. Bovi keeps the uploaded file and
-            derived metadata for admin review and audit history.
-          </Text>
+          <Text size="sm">This removes the saved dataset from dataset lists.</Text>
           {deleteTarget && (
             <Text size="sm" fw={600}>
               {deleteTarget.name}
             </Text>
+          )}
+          {deleteImpactQuery.isLoading && (
+            <Group gap="xs">
+              <Loader size="xs" />
+              <Text size="sm" c="dimmed">
+                Checking related herd profiles...
+              </Text>
+            </Group>
+          )}
+          {deleteImpactQuery.isError && (
+            <Alert icon={<AlertCircle size={16} />} color="red" variant="light">
+              Failed to check related herd profiles.
+            </Alert>
+          )}
+          {deleteImpactQuery.data && deleteImpactQuery.data.herd_profiles.length > 0 && (
+            <Stack gap={4}>
+              <Text size="sm" fw={600}>
+                Related herd profiles
+              </Text>
+              {deleteImpactQuery.data.herd_profiles.map((profile) => (
+                <Text key={profile.id} size="sm" c="dimmed">
+                  {profile.name}
+                  {profile.user_name || profile.user_email
+                    ? ` by ${profile.user_name || profile.user_email}`
+                    : ""}
+                </Text>
+              ))}
+            </Stack>
           )}
           <Group justify="flex-end" gap="xs">
             <Button variant="subtle" color="gray" onClick={() => setDeleteTarget(null)}>
@@ -804,7 +835,8 @@ function SavedDatasetsPanel(): ReactElement {
             </Button>
             <Button
               color="red"
-              loading={deleteMutation.isPending}
+              loading={deleteMutation.isPending || deleteImpactQuery.isLoading}
+              disabled={deleteImpactQuery.isError}
               onClick={() => {
                 if (deleteTarget) {
                   deleteMutation.mutate(deleteTarget.id);

@@ -43,6 +43,7 @@ const PRESET_LABELS: Record<string, string> = {
 };
 const PERIOD_LABELS: Record<string, string> = { recent: "Recent", old: "Old", mixed: "Mixed" };
 const SIZE_LABELS: Record<string, string> = { small: "Small", medium: "Medium", large: "Large" };
+type HerdProfileFormData = Omit<HerdProfileCreate, "organization_id">;
 
 function profileSource(profile: HerdProfile): string {
   const description = profile.description.toLowerCase();
@@ -109,7 +110,7 @@ export function HerdProfileList(): ReactElement {
     (!activePreset && uploadedDatasetStats)
   );
 
-  function handleCreate(data: HerdProfileCreate) {
+  function handleCreate(data: HerdProfileFormData) {
     createMutation.mutate(data, {
       onSuccess: (created) => {
         setCreateOpen(false);
@@ -118,7 +119,7 @@ export function HerdProfileList(): ReactElement {
     });
   }
 
-  function handleUpdate(data: HerdProfileCreate) {
+  function handleUpdate(data: HerdProfileFormData) {
     if (!editTarget) return;
     updateMutation.mutate({ id: editTarget.id, data }, { onSuccess: () => setEditTarget(null) });
   }
@@ -327,6 +328,9 @@ export function HerdProfileList(): ReactElement {
             createMode === "dataset" && activeDatasetLabel
               ? `Values are determined from ${activeDatasetLabel}.`
               : undefined
+          }
+          sourceUploadedDatasetId={
+            createMode === "dataset" && !activePreset && uploadedDataset ? uploadedDataset.id : null
           }
           onSubmit={handleCreate}
           onCancel={() => setCreateOpen(false)}

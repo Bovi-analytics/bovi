@@ -6,7 +6,10 @@
 import type { HerdProfile, HerdProfileCreate } from "@/types/api";
 import { QUALITY_SEQUENCE_INDEX, QUALITY_SEQUENCE_VALUE } from "@/data/herd-stats-metadata";
 
-type StatField = keyof Omit<HerdProfileCreate, "name" | "description">;
+type StatField = keyof Omit<
+  HerdProfileCreate,
+  "name" | "description" | "organization_id" | "source_uploaded_dataset_id"
+>;
 
 /**
  * snake_case field names in the same order as HERD_STATS_METADATA indices 0–9.

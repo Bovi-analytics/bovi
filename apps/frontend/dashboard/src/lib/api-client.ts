@@ -24,6 +24,7 @@ import {
   AdminOverviewResponseSchema,
   AdminUserListSchema,
   AdminUserSchema,
+  UploadedDatasetDeleteImpactSchema,
   UploadedDatasetDetailSchema,
   UploadedDatasetListSchema,
 } from "@/types/api";
@@ -61,6 +62,7 @@ import type {
   ChallengeDetail,
   ChallengeRead,
   SubmissionRead,
+  UploadedDatasetDeleteImpact,
   UploadedDatasetDetail,
   UploadedDatasetRead,
 } from "@/types/api";
@@ -562,6 +564,12 @@ export async function listUploadedDatasets(
 
 export async function getUploadedDataset(id: string): Promise<UploadedDatasetDetail> {
   return apiGet(`/uploaded-datasets/${id}`, UploadedDatasetDetailSchema);
+}
+
+export async function getUploadedDatasetDeleteImpact(
+  id: string
+): Promise<UploadedDatasetDeleteImpact> {
+  return apiGet(`/uploaded-datasets/${id}/delete-impact`, UploadedDatasetDeleteImpactSchema);
 }
 
 export async function deleteUploadedDataset(id: string): Promise<void> {

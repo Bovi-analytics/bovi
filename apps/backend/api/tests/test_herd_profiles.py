@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime
 
 from bovi_api.database import get_session
-from bovi_api.models import StorageArtifact, UploadedDataset
+from bovi_api.models import HerdProfile, StorageArtifact, UploadedDataset
 from bovi_api.settings import Settings, get_settings
 from sqlmodel import select
 
@@ -23,6 +23,28 @@ VALID_PROFILE = {
     "historic_calving_interval": 0.54,
     "quality_sequence": 0.33,
 }
+
+PROFILE_FIELD_TO_STAT = {
+    "achieved_21_milk": "Achieved21Milk",
+    "achieved_305_milk": "Achieved305Milk",
+    "achieved_75_milk": "Achieved75Milk",
+    "achieved_milk": "AchievedMilk",
+    "days_dry": "DaysDry",
+    "days_in_milk": "DaysInMilk",
+    "days_open": "DaysOpen",
+    "days_pregnant": "DaysPregnant",
+    "historic_calving_interval": "HistoricCalvingInterval",
+    "quality_sequence": "QualitySequence",
+}
+
+
+def _profile_payload_from_upload(upload: dict, *, name: str) -> dict:
+    return {
+        "organization_id": 1,
+        "name": name,
+        "description": "Derived from uploaded dataset",
+        **{field: upload["stats"][stat] for field, stat in PROFILE_FIELD_TO_STAT.items()},
+    }
 
 
 def test_create_profile(client):
@@ -198,6 +220,50 @@ def test_csv_preview_reuses_identical_dataset_artifacts_and_archives_uploads(cli
     uploads = client.get("/uploaded-datasets?organization_id=1")
     assert uploads.status_code == 200
     assert uploads.json() == []
+
+
+def test_uploaded_dataset_delete_impact_lists_linked_and_matching_profiles(client):
+    upload = client.post(
+        "/herd-profiles/csv-preview",
+        data={"organization_id": "1"},
+        files={"file": ("herd.csv", SAMPLE_CSV, "text/csv")},
+    )
+    assert upload.status_code == 200
+    upload_data = upload.json()
+
+    linked_payload = {
+        **_profile_payload_from_upload(upload_data, name="Linked profile"),
+        "source_uploaded_dataset_id": upload_data["upload_id"],
+    }
+    linked = client.post("/herd-profiles/", json=linked_payload)
+    assert linked.status_code == 201
+    assert linked.json()["source_uploaded_dataset_id"] == upload_data["upload_id"]
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _seed_legacy_matching_profile() -> None:
+        async for session in override():
+            session.add(
+                HerdProfile(
+                    id=902,
+                    user_id=1,
+                    **_profile_payload_from_upload(upload_data, name="Legacy matching profile"),
+                )
+            )
+            await session.commit()
+            break
+
+    asyncio.run(_seed_legacy_matching_profile())
+
+    impact = client.get(f"/uploaded-datasets/{upload_data['upload_id']}/delete-impact")
+
+    assert impact.status_code == 200
+    profiles = impact.json()["herd_profiles"]
+    assert {profile["name"] for profile in profiles} == {
+        "Linked profile",
+        "Legacy matching profile",
+    }
+    assert {profile["reference_type"] for profile in profiles} == {"linked", "matching_stats"}
 
 
 def test_csv_preview_rejects_non_csv_extension(client):
