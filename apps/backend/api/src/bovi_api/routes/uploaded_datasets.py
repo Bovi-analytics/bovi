@@ -193,12 +193,48 @@ async def get_uploaded_dataset_delete_impact(
         raise HTTPException(status_code=404, detail="Uploaded dataset not found")
     ensure_organization_access(current_user, dataset.organization_id)
 
+    references = await _uploaded_dataset_profile_references(session, dataset)
+
+    return UploadedDatasetDeleteImpact(
+        dataset_id=dataset.id,
+        dataset_name=dataset.name or dataset.original_filename,
+        herd_profiles=[reference for reference, _profile in references],
+    )
+
+
+@router.delete("/{dataset_id}", status_code=204)
+async def delete_uploaded_dataset(
+    dataset_id: str,
+    current_user: CurrentUser = Depends(require_auth),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """Archive uploaded dataset metadata and remove herd profiles derived from it."""
+    dataset = await session.get(UploadedDataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Uploaded dataset not found")
+    ensure_organization_access(current_user, dataset.organization_id)
+
+    references = await _uploaded_dataset_profile_references(session, dataset)
+    for _reference, profile in references:
+        await session.delete(profile)
+
+    if dataset.deleted_at is None:
+        dataset.deleted_at = datetime.now(UTC)
+        dataset.deleted_by_user_id = current_user.id
+        session.add(dataset)
+    await session.commit()
+
+
+async def _uploaded_dataset_profile_references(
+    session: AsyncSession,
+    dataset: UploadedDataset,
+) -> list[tuple[UploadedDatasetProfileReference, HerdProfile]]:
     result = await session.execute(
         select(HerdProfile, User)
         .outerjoin(User, col(HerdProfile.user_id) == col(User.id))
         .where(HerdProfile.organization_id == dataset.organization_id)
     )
-    references: list[UploadedDatasetProfileReference] = []
+    references: list[tuple[UploadedDatasetProfileReference, HerdProfile]] = []
     seen: set[int] = set()
     for profile, user in result.all():
         reference_type: Literal["linked", "matching_stats"] | None = None
@@ -212,39 +248,18 @@ async def get_uploaded_dataset_delete_impact(
             continue
         seen.add(profile.id)
         references.append(
-            UploadedDatasetProfileReference(
-                id=profile.id,
-                name=profile.name,
-                user_name=user.name if user else None,
-                user_email=user.email if user else None,
-                reference_type=reference_type,
+            (
+                UploadedDatasetProfileReference(
+                    id=profile.id,
+                    name=profile.name,
+                    user_name=user.name if user else None,
+                    user_email=user.email if user else None,
+                    reference_type=reference_type,
+                ),
+                profile,
             )
         )
-
-    return UploadedDatasetDeleteImpact(
-        dataset_id=dataset.id,
-        dataset_name=dataset.name or dataset.original_filename,
-        herd_profiles=references,
-    )
-
-
-@router.delete("/{dataset_id}", status_code=204)
-async def delete_uploaded_dataset(
-    dataset_id: str,
-    current_user: CurrentUser = Depends(require_auth),
-    session: AsyncSession = Depends(get_session),
-) -> None:
-    """Archive uploaded dataset metadata while retaining blob artifacts for audit/admin use."""
-    dataset = await session.get(UploadedDataset, dataset_id)
-    if dataset is None:
-        raise HTTPException(status_code=404, detail="Uploaded dataset not found")
-    ensure_organization_access(current_user, dataset.organization_id)
-
-    if dataset.deleted_at is None:
-        dataset.deleted_at = datetime.now(UTC)
-        dataset.deleted_by_user_id = current_user.id
-        session.add(dataset)
-    await session.commit()
+    return references
 
 
 def _profile_matches_dataset_stats(profile: HerdProfile, dataset: UploadedDataset) -> bool:

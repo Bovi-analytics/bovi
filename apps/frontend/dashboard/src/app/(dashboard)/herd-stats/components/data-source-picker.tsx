@@ -795,7 +795,9 @@ function SavedDatasetsPanel(): ReactElement {
         centered
       >
         <Stack gap="sm">
-          <Text size="sm">This removes the saved dataset from dataset lists.</Text>
+          <Text size="sm">
+            This removes the saved dataset and any herd profiles derived from it.
+          </Text>
           {deleteTarget && (
             <Text size="sm" fw={600}>
               {deleteTarget.name}
@@ -817,7 +819,7 @@ function SavedDatasetsPanel(): ReactElement {
           {deleteImpactQuery.data && deleteImpactQuery.data.herd_profiles.length > 0 && (
             <Stack gap={4}>
               <Text size="sm" fw={600}>
-                Related herd profiles
+                Herd profiles to delete
               </Text>
               {deleteImpactQuery.data.herd_profiles.map((profile) => (
                 <Text key={profile.id} size="sm" c="dimmed">
@@ -828,6 +830,11 @@ function SavedDatasetsPanel(): ReactElement {
                 </Text>
               ))}
             </Stack>
+          )}
+          {deleteImpactQuery.data && deleteImpactQuery.data.herd_profiles.length === 0 && (
+            <Text size="sm" c="dimmed">
+              No herd profiles will be deleted.
+            </Text>
           )}
           <Group justify="flex-end" gap="xs">
             <Button variant="subtle" color="gray" onClick={() => setDeleteTarget(null)}>
@@ -843,7 +850,7 @@ function SavedDatasetsPanel(): ReactElement {
                 }
               }}
             >
-              Delete
+              Delete dataset
             </Button>
           </Group>
         </Stack>

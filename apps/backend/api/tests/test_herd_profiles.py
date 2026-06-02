@@ -238,6 +238,11 @@ def test_uploaded_dataset_delete_impact_lists_linked_and_matching_profiles(clien
     linked = client.post("/herd-profiles/", json=linked_payload)
     assert linked.status_code == 201
     assert linked.json()["source_uploaded_dataset_id"] == upload_data["upload_id"]
+    unrelated = client.post(
+        "/herd-profiles/",
+        json={**VALID_PROFILE, "name": "Unrelated profile"},
+    )
+    assert unrelated.status_code == 201
 
     override = client.app.dependency_overrides[get_session]
 
@@ -264,6 +269,12 @@ def test_uploaded_dataset_delete_impact_lists_linked_and_matching_profiles(clien
         "Legacy matching profile",
     }
     assert {profile["reference_type"] for profile in profiles} == {"linked", "matching_stats"}
+
+    delete_response = client.delete(f"/uploaded-datasets/{upload_data['upload_id']}")
+    assert delete_response.status_code == 204
+    remaining_profiles = client.get("/herd-profiles/?organization_id=1")
+    assert remaining_profiles.status_code == 200
+    assert [profile["name"] for profile in remaining_profiles.json()] == ["Unrelated profile"]
 
 
 def test_csv_preview_rejects_non_csv_extension(client):
