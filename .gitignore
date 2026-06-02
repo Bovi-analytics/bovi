@@ -26,6 +26,9 @@ htmlcov/
 # Type checking
 .basedpyright/
 
+# Playwright
+.playwright-mcp
+
 # IDE
 .vscode/
 .idea/
