@@ -82,6 +82,11 @@ class HerdProfile(HerdProfileBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int | None = Field(default=None, foreign_key="users.id", index=True)
     organization_id: int | None = Field(default=None, foreign_key="organizations.id", index=True)
+    source_uploaded_dataset_id: str | None = Field(
+        default=None,
+        foreign_key="uploaded_datasets.id",
+        index=True,
+    )
     created_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
@@ -100,6 +105,7 @@ class HerdProfileCreate(HerdProfileBase):
     """Request body for creating or updating a herd profile."""
 
     organization_id: int
+    source_uploaded_dataset_id: str | None = None
 
 
 class HerdProfileRead(HerdProfileBase):
@@ -111,6 +117,7 @@ class HerdProfileRead(HerdProfileBase):
     user_email: str | None = None
     organization_id: int | None = None
     organization_name: str | None = None
+    source_uploaded_dataset_id: str | None = None
     created_at: datetime | None  # None only when DB does not fill server default (e.g. SQLite)
     updated_at: datetime | None
 
@@ -319,6 +326,8 @@ class UploadedDataset(UploadedDatasetBase, table=True):
         default=None,
         sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
     )
+    deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    deleted_by_user_id: int | None = Field(default=None, foreign_key="users.id", index=True)
 
 
 class UploadedDatasetRead(UploadedDatasetBase):
@@ -326,6 +335,8 @@ class UploadedDatasetRead(UploadedDatasetBase):
 
     id: str
     uploaded_at: datetime | None
+    deleted_at: datetime | None = None
+    deleted_by_user_id: int | None = None
     user_name: str | None = None
     user_email: str | None = None
     organization_name: str | None = None

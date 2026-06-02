@@ -136,6 +136,16 @@ async def create_herd_profile(
 ) -> HerdProfileRead:
     """Create a new herd profile."""
     ensure_organization_access(current_user, profile.organization_id)
+    if profile.source_uploaded_dataset_id is not None:
+        dataset = await session.get(UploadedDataset, profile.source_uploaded_dataset_id)
+        if dataset is None or dataset.deleted_at is not None:
+            raise HTTPException(status_code=404, detail="Source uploaded dataset not found")
+        ensure_organization_access(current_user, dataset.organization_id)
+        if dataset.organization_id != profile.organization_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Source uploaded dataset must belong to the profile organization.",
+            )
     db_profile = HerdProfile(**profile.model_dump(), user_id=current_user.id)
     session.add(db_profile)
     try:
@@ -325,6 +335,16 @@ async def update_herd_profile(
         raise HTTPException(status_code=404, detail="Herd profile not found")
     ensure_organization_access(current_user, profile.organization_id)
     ensure_organization_access(current_user, update.organization_id)
+    if update.source_uploaded_dataset_id is not None:
+        dataset = await session.get(UploadedDataset, update.source_uploaded_dataset_id)
+        if dataset is None or dataset.deleted_at is not None:
+            raise HTTPException(status_code=404, detail="Source uploaded dataset not found")
+        ensure_organization_access(current_user, dataset.organization_id)
+        if dataset.organization_id != update.organization_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Source uploaded dataset must belong to the profile organization.",
+            )
     for field, value in update.model_dump().items():
         setattr(profile, field, value)
     session.add(profile)

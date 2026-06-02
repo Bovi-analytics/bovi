@@ -188,6 +188,33 @@ def test_admin_overview_returns_all_categories_without_raw_payloads(client, mult
     assert "actual_yields" not in encoded
 
 
+def test_admin_overview_retains_archived_uploaded_datasets(client, multi_org_auth):
+    _seed_admin_items(client)
+    override = client.app.dependency_overrides[get_session]
+
+    async def _archive_upload() -> None:
+        async for session in override():
+            upload = await session.get(UploadedDataset, "upload-1")
+            assert upload is not None
+            upload.deleted_at = datetime(2026, 5, 29, 12, 0, tzinfo=timezone.utc)
+            upload.deleted_by_user_id = 2
+            session.add(upload)
+            await session.commit()
+            break
+
+    asyncio.run(_archive_upload())
+    multi_org_auth.as_user("admin")
+
+    response = client.get("/admin/submissions-overview?organization_id=all")
+
+    assert response.status_code == 200
+    dataset_item = next(
+        item for item in response.json()["items"] if item["item_type"] == "herd_dataset_upload"
+    )
+    assert dataset_item["id"] == "upload-1"
+    assert dataset_item["status"] == "deleted"
+
+
 def test_admin_overview_filters_category_organization_user_and_search(client, multi_org_auth):
     _seed_admin_items(client)
     multi_org_auth.as_user("admin")

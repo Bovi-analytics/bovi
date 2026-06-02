@@ -194,11 +194,13 @@ def _metric_from_stats(stats: dict | None) -> tuple[str | None, float | None]:
 
 
 def _status_from_upload(dataset: UploadedDataset) -> str:
+    if dataset.deleted_at is not None:
+        return "deleted"
     return "warning" if dataset.warnings else "ready"
 
 
 def _is_problem(item: AdminOverviewItem) -> bool:
-    return item.failed_count > 0 or item.status not in {"ready", "completed"}
+    return item.failed_count > 0 or item.status not in {"ready", "completed", "deleted"}
 
 
 def _matches_text(item: AdminOverviewItem, q: str | None) -> bool:

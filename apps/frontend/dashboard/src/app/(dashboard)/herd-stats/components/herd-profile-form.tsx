@@ -14,7 +14,8 @@ interface HerdProfileFormProps {
   readonly defaultName?: string;
   readonly defaultDescription?: string;
   readonly sourceSummary?: string;
-  readonly onSubmit: (data: HerdProfileCreate) => void;
+  readonly sourceUploadedDatasetId?: string | null;
+  readonly onSubmit: (data: Omit<HerdProfileCreate, "organization_id">) => void;
   readonly onCancel: () => void;
   readonly isLoading: boolean;
 }
@@ -25,6 +26,7 @@ export function HerdProfileForm({
   defaultName,
   defaultDescription,
   sourceSummary,
+  sourceUploadedDatasetId,
   onSubmit,
   onCancel,
   isLoading,
@@ -43,6 +45,8 @@ export function HerdProfileForm({
     onSubmit({
       name,
       description,
+      source_uploaded_dataset_id:
+        sourceUploadedDatasetId ?? initial?.source_uploaded_dataset_id ?? null,
       ...statsToHerdProfileFields(stats),
     });
   }

@@ -34,6 +34,7 @@ import { usePresetDataset } from "@/app/(dashboard)/curves/hooks/use-preset-data
 import {
   deleteUploadedDataset,
   getUploadedDataset,
+  getUploadedDatasetDeleteImpact,
   listOrganizationMembers,
   listUploadedDatasets,
 } from "@/lib/api-client";
@@ -46,6 +47,7 @@ import type {
   PresetPeriodKey,
   PresetSizeKey,
   UploadedDatasetDetail,
+  UploadedDatasetRead,
 } from "@/types/api";
 import { useHerdProfileUpload } from "../hooks/use-herd-profile-upload";
 
@@ -57,6 +59,7 @@ type SourceKey = PresetDatasetKey | "upload" | "saved";
 type FormatKey = "aggregated" | "icar_test_day";
 type SelectableFormatKey = FormatKey;
 type TestDayMappingKey = "cow_id" | "dim" | "milk_kg" | "parity" | "herd_id" | "event_type";
+type HerdStatsRecord = Record<string, number>;
 
 interface SourceOption<T extends SourceKey = SourceKey> {
   value: T;
@@ -265,6 +268,49 @@ function mappingSummary(mapping: Readonly<Record<string, string>> | undefined): 
   if (!mapping) return "-";
   return REQUIRED_MAPPING_KEYS.map((key) => `${MAPPING_LABELS[key]}: ${mapping[key] ?? "-"}`).join(
     " · "
+  );
+}
+
+function HerdStatsSummaryTable({
+  stats,
+  rawStats,
+}: {
+  stats: HerdStatsRecord;
+  rawStats: HerdStatsRecord;
+}): ReactElement {
+  return (
+    <Table striped withColumnBorders fz="xs">
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th>Stat</Table.Th>
+          <Table.Th>Raw value</Table.Th>
+          <Table.Th>Normalised (0–1)</Table.Th>
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {VISIBLE_HERD_STATS_METADATA.map((meta) => {
+          const filled = stats[meta.name] !== undefined;
+          const raw = rawStats[meta.name];
+          const unit = meta.unit || "";
+          const rawDigits = raw !== undefined && Math.abs(raw) >= 100 ? 0 : 2;
+          return (
+            <Table.Tr key={meta.name}>
+              <Table.Td>{meta.label}</Table.Td>
+              <Table.Td>
+                {raw !== undefined ? (
+                  `${raw.toFixed(rawDigits)}${unit ? ` ${unit}` : ""}`
+                ) : (
+                  <Text size="xs">-</Text>
+                )}
+              </Table.Td>
+              <Table.Td>
+                {filled ? stats[meta.name]?.toFixed(3) : <Text size="xs">slider default</Text>}
+              </Table.Td>
+            </Table.Tr>
+          );
+        })}
+      </Table.Tbody>
+    </Table>
   );
 }
 
@@ -612,42 +658,7 @@ function UploadPanel(): ReactElement {
                 : "ready."}
             </Alert>
           )}
-          <Table striped withColumnBorders fz="xs">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Stat</Table.Th>
-                <Table.Th>Raw value</Table.Th>
-                <Table.Th>Normalised (0–1)</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {VISIBLE_HERD_STATS_METADATA.map((meta) => {
-                const filled = preview.stats[meta.name] !== undefined;
-                const raw = preview.raw_stats[meta.name];
-                const unit = meta.unit || "";
-                const rawDigits = raw !== undefined && Math.abs(raw) >= 100 ? 0 : 2;
-                return (
-                  <Table.Tr key={meta.name}>
-                    <Table.Td>{meta.label}</Table.Td>
-                    <Table.Td>
-                      {raw !== undefined ? (
-                        `${raw.toFixed(rawDigits)}${unit ? ` ${unit}` : ""}`
-                      ) : (
-                        <Text size="xs">-</Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {filled ? (
-                        preview.stats[meta.name]?.toFixed(3)
-                      ) : (
-                        <Text size="xs">slider default</Text>
-                      )}
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
+          <HerdStatsSummaryTable stats={preview.stats} rawStats={preview.raw_stats} />
           <Group>
             {preview.mapping_required && (
               <Button size="sm" color="violet" onClick={() => setMappingOpen(true)}>
@@ -731,6 +742,7 @@ function SavedDatasetsPanel(): ReactElement {
   const [sort, setSort] = useState<"uploaded_at" | "name" | "user">("uploaded_at");
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [q, setQ] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<UploadedDatasetRead | null>(null);
   const organizationId = selectedOrganizationId ?? 0;
   const userId = scope === "organization" && selectedUserId ? Number(selectedUserId) : undefined;
   const datasetOptions = {
@@ -760,8 +772,14 @@ function SavedDatasetsPanel(): ReactElement {
       if (uploadedDataset?.id === deletedId) {
         clearDataset();
       }
+      setDeleteTarget(null);
       void queryClient.invalidateQueries({ queryKey: ["uploaded-datasets"] });
     },
+  });
+  const deleteImpactQuery = useQuery({
+    queryKey: ["uploaded-dataset-delete-impact", deleteTarget?.id],
+    queryFn: () => getUploadedDatasetDeleteImpact(deleteTarget?.id ?? ""),
+    enabled: deleteTarget !== null,
   });
   const savedDatasets = datasetsQuery.data ?? [];
 
@@ -779,6 +797,74 @@ function SavedDatasetsPanel(): ReactElement {
 
   return (
     <Stack gap="md">
+      <Modal
+        opened={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete saved dataset"
+        centered
+      >
+        <Stack gap="sm">
+          <Text size="sm">
+            This removes the saved dataset and any herd profiles derived from it.
+          </Text>
+          {deleteTarget && (
+            <Text size="sm" fw={600}>
+              {deleteTarget.name}
+            </Text>
+          )}
+          {deleteImpactQuery.isLoading && (
+            <Group gap="xs">
+              <Loader size="xs" />
+              <Text size="sm" c="dimmed">
+                Checking related herd profiles...
+              </Text>
+            </Group>
+          )}
+          {deleteImpactQuery.isError && (
+            <Alert icon={<AlertCircle size={16} />} color="red" variant="light">
+              Failed to check related herd profiles.
+            </Alert>
+          )}
+          {deleteImpactQuery.data && deleteImpactQuery.data.herd_profiles.length > 0 && (
+            <Stack gap={4}>
+              <Text size="sm" fw={600}>
+                Herd profiles to delete
+              </Text>
+              {deleteImpactQuery.data.herd_profiles.map((profile) => (
+                <Text key={profile.id} size="sm" c="dimmed">
+                  {profile.name}
+                  {profile.user_name || profile.user_email
+                    ? ` by ${profile.user_name || profile.user_email}`
+                    : ""}
+                </Text>
+              ))}
+            </Stack>
+          )}
+          {deleteImpactQuery.data && deleteImpactQuery.data.herd_profiles.length === 0 && (
+            <Text size="sm" c="dimmed">
+              No herd profiles will be deleted.
+            </Text>
+          )}
+          <Group justify="flex-end" gap="xs">
+            <Button variant="subtle" color="gray" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              loading={deleteMutation.isPending || deleteImpactQuery.isLoading}
+              disabled={deleteImpactQuery.isError}
+              onClick={() => {
+                if (deleteTarget) {
+                  deleteMutation.mutate(deleteTarget.id);
+                }
+              }}
+            >
+              Delete dataset
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
       <Group gap="sm" align="flex-end">
         <SegmentedControl
           size="xs"
@@ -896,7 +982,7 @@ function SavedDatasetsPanel(): ReactElement {
                   <Table.Td>{saved.cow_count?.toLocaleString() ?? "-"}</Table.Td>
                   <Table.Td>
                     <ActionIcon
-                      aria-label="Show column mapping"
+                      aria-label="Show saved dataset details"
                       color="pink"
                       radius="xl"
                       variant="filled"
@@ -929,7 +1015,7 @@ function SavedDatasetsPanel(): ReactElement {
                         color="red"
                         variant="subtle"
                         loading={deleteMutation.isPending && deleteMutation.variables === saved.id}
-                        onClick={() => deleteMutation.mutate(saved.id)}
+                        onClick={() => setDeleteTarget(saved)}
                       >
                         <Trash2 size={14} />
                       </ActionIcon>
@@ -939,9 +1025,15 @@ function SavedDatasetsPanel(): ReactElement {
                 {expandedMappingId === saved.id && (
                   <Table.Tr>
                     <Table.Td colSpan={9}>
-                      <Text size="xs" c="dimmed">
-                        {mappingSummary(saved.column_mapping)}
-                      </Text>
+                      <Stack gap="xs">
+                        <Text size="xs" c="dimmed">
+                          {mappingSummary(saved.column_mapping)}
+                        </Text>
+                        <HerdStatsSummaryTable
+                          stats={saved.stats_summary}
+                          rawStats={saved.raw_stats_summary}
+                        />
+                      </Stack>
                     </Table.Td>
                   </Table.Tr>
                 )}
