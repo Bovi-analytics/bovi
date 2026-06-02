@@ -9,7 +9,7 @@ config:
   bovi:dashboardImage: ghcr.io/bovi-analytics/bovi-dashboard:dev-latest
   bovi:dashboardCustomDomain: tools-dev.bovi-analytics.org
   bovi:dashboardManagedCertificateName: tools-dev.bovi-analytics.org-bovi-ana-260531140507
-  bovi:azureAdClientId: 7cb91be2-42b9-491e-9979-a1c9b325ebbb
+  bovi:azureAdClientId: abd3c7d0-54a6-4f21-ba5e-c2c56f469e5a
   bovi:authDisabled: false
   bovi:bootstrapAdminEmails:
     - douwedekok@gmail.com
