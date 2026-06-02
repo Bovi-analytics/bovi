@@ -91,6 +91,7 @@ export function HerdProfileList(): ReactElement {
   const [createOpen, setCreateOpen] = useState(false);
   const [createMode, setCreateMode] = useState<"manual" | "dataset">("manual");
   const [editTarget, setEditTarget] = useState<HerdProfile | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<HerdProfile | null>(null);
   const createDisabled = selectedOrganizationId === "all";
   const [createdProfileName, setCreatedProfileName] = useState<string | null>(null);
 
@@ -124,10 +125,9 @@ export function HerdProfileList(): ReactElement {
     updateMutation.mutate({ id: editTarget.id, data }, { onSuccess: () => setEditTarget(null) });
   }
 
-  function handleDelete(profile: HerdProfile) {
-    if (confirm(`Delete profile "${profile.name}"?`)) {
-      deleteMutation.mutate(profile.id);
-    }
+  function handleDeleteConfirmed() {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
   }
 
   if (isLoading) return <CenteredLoader label="Loading herd profiles..." />;
@@ -286,9 +286,11 @@ export function HerdProfileList(): ReactElement {
                       <ActionIcon
                         variant="subtle"
                         color="red"
-                        onClick={() => handleDelete(profile)}
+                        onClick={() => setDeleteTarget(profile)}
                         aria-label="Delete profile"
-                        loading={deleteMutation.isPending}
+                        loading={
+                          deleteMutation.isPending && deleteMutation.variables === profile.id
+                        }
                       >
                         <Trash2 size={14} />
                       </ActionIcon>
@@ -381,6 +383,33 @@ export function HerdProfileList(): ReactElement {
             isLoading={updateMutation.isPending}
           />
         )}
+      </Modal>
+
+      <Modal
+        opened={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete herd profile"
+        centered
+      >
+        <Stack gap="sm">
+          <Text size="sm">
+            This deletes the saved herd profile. It will no longer be available when fitting
+            lactation curves.
+          </Text>
+          {deleteTarget && (
+            <Text size="sm" fw={600}>
+              {deleteTarget.name}
+            </Text>
+          )}
+          <Group justify="flex-end" gap="xs">
+            <Button variant="subtle" color="gray" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button color="red" loading={deleteMutation.isPending} onClick={handleDeleteConfirmed}>
+              Delete profile
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
     </>
   );

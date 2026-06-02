@@ -59,6 +59,7 @@ type SourceKey = PresetDatasetKey | "upload" | "saved";
 type FormatKey = "aggregated" | "icar_test_day";
 type SelectableFormatKey = FormatKey;
 type TestDayMappingKey = "cow_id" | "dim" | "milk_kg" | "parity" | "herd_id" | "event_type";
+type HerdStatsRecord = Record<string, number>;
 
 interface SourceOption<T extends SourceKey = SourceKey> {
   value: T;
@@ -267,6 +268,49 @@ function mappingSummary(mapping: Readonly<Record<string, string>> | undefined): 
   if (!mapping) return "-";
   return REQUIRED_MAPPING_KEYS.map((key) => `${MAPPING_LABELS[key]}: ${mapping[key] ?? "-"}`).join(
     " · "
+  );
+}
+
+function HerdStatsSummaryTable({
+  stats,
+  rawStats,
+}: {
+  stats: HerdStatsRecord;
+  rawStats: HerdStatsRecord;
+}): ReactElement {
+  return (
+    <Table striped withColumnBorders fz="xs">
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th>Stat</Table.Th>
+          <Table.Th>Raw value</Table.Th>
+          <Table.Th>Normalised (0–1)</Table.Th>
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {VISIBLE_HERD_STATS_METADATA.map((meta) => {
+          const filled = stats[meta.name] !== undefined;
+          const raw = rawStats[meta.name];
+          const unit = meta.unit || "";
+          const rawDigits = raw !== undefined && Math.abs(raw) >= 100 ? 0 : 2;
+          return (
+            <Table.Tr key={meta.name}>
+              <Table.Td>{meta.label}</Table.Td>
+              <Table.Td>
+                {raw !== undefined ? (
+                  `${raw.toFixed(rawDigits)}${unit ? ` ${unit}` : ""}`
+                ) : (
+                  <Text size="xs">-</Text>
+                )}
+              </Table.Td>
+              <Table.Td>
+                {filled ? stats[meta.name]?.toFixed(3) : <Text size="xs">slider default</Text>}
+              </Table.Td>
+            </Table.Tr>
+          );
+        })}
+      </Table.Tbody>
+    </Table>
   );
 }
 
@@ -614,42 +658,7 @@ function UploadPanel(): ReactElement {
                 : "ready."}
             </Alert>
           )}
-          <Table striped withColumnBorders fz="xs">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Stat</Table.Th>
-                <Table.Th>Raw value</Table.Th>
-                <Table.Th>Normalised (0–1)</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {VISIBLE_HERD_STATS_METADATA.map((meta) => {
-                const filled = preview.stats[meta.name] !== undefined;
-                const raw = preview.raw_stats[meta.name];
-                const unit = meta.unit || "";
-                const rawDigits = raw !== undefined && Math.abs(raw) >= 100 ? 0 : 2;
-                return (
-                  <Table.Tr key={meta.name}>
-                    <Table.Td>{meta.label}</Table.Td>
-                    <Table.Td>
-                      {raw !== undefined ? (
-                        `${raw.toFixed(rawDigits)}${unit ? ` ${unit}` : ""}`
-                      ) : (
-                        <Text size="xs">-</Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {filled ? (
-                        preview.stats[meta.name]?.toFixed(3)
-                      ) : (
-                        <Text size="xs">slider default</Text>
-                      )}
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
+          <HerdStatsSummaryTable stats={preview.stats} rawStats={preview.raw_stats} />
           <Group>
             {preview.mapping_required && (
               <Button size="sm" color="violet" onClick={() => setMappingOpen(true)}>
@@ -973,7 +982,7 @@ function SavedDatasetsPanel(): ReactElement {
                   <Table.Td>{saved.cow_count?.toLocaleString() ?? "-"}</Table.Td>
                   <Table.Td>
                     <ActionIcon
-                      aria-label="Show column mapping"
+                      aria-label="Show saved dataset details"
                       color="pink"
                       radius="xl"
                       variant="filled"
@@ -1016,9 +1025,15 @@ function SavedDatasetsPanel(): ReactElement {
                 {expandedMappingId === saved.id && (
                   <Table.Tr>
                     <Table.Td colSpan={9}>
-                      <Text size="xs" c="dimmed">
-                        {mappingSummary(saved.column_mapping)}
-                      </Text>
+                      <Stack gap="xs">
+                        <Text size="xs" c="dimmed">
+                          {mappingSummary(saved.column_mapping)}
+                        </Text>
+                        <HerdStatsSummaryTable
+                          stats={saved.stats_summary}
+                          rawStats={saved.raw_stats_summary}
+                        />
+                      </Stack>
                     </Table.Td>
                   </Table.Tr>
                 )}
