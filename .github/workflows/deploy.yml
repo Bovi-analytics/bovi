@@ -114,6 +114,7 @@ jobs:
             api:
               - "apps/backend/api/**"
               - ".dockerignore"
+              - ".github/workflows/deploy.yml"
               - "packages/models/lactationcurve/src/**"
               - "packages/models/lactationcurve/pyproject.toml"
               - ".github/actions/docker-build-push/**"
