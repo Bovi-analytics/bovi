@@ -46,6 +46,11 @@ models
 **/*.joblib
 **/*.pkl
 
+# The API image builds the local lactationcurve package, so keep its runtime
+# package data available in the Docker context.
+!packages/models/lactationcurve/src/lactationcurve/characteristics/data
+!packages/models/lactationcurve/src/lactationcurve/characteristics/data/**
+
 *.db
 *.db-shm
 *.db-wal

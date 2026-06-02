@@ -36,6 +36,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lactationcurve"]
+artifacts = ["src/lactationcurve/characteristics/data/*"]
 
 [tool.ruff]
 target-version = "py312"
