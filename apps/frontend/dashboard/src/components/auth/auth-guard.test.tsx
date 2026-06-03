@@ -106,13 +106,14 @@ describe("AuthGuard", () => {
       user: USER_WITHOUT_ORG,
     };
 
-    const { queryByText } = render(
+    const { container, queryByText } = render(
       <AuthGuard>
         <div>Protected dashboard</div>
       </AuthGuard>
     );
 
     expect(queryByText("Create your Bovi organization")).not.toBeNull();
+    expect(container.querySelector("input")?.getAttribute("placeholder")).toBe("Your Organization");
     expect(queryByText("Create organization")).not.toBeNull();
     expect(queryByText("Protected dashboard")).toBeNull();
   });

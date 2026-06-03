@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { Button, Stack, TextInput, Title } from "@mantine/core";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CenteredLoader } from "@/components/dashboard/centered-loader";
 import { createOrganization } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
@@ -13,10 +13,7 @@ export function AuthGuard({ children }: { readonly children: ReactNode }): React
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState("");
   const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
-  const suggestedName = useMemo(() => {
-    if (user?.email?.includes("@")) return user.email.split("@")[1];
-    return user?.name ? `${user.name}'s organization` : "My organization";
-  }, [user]);
+  const suggestedName = "Your Organization";
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
