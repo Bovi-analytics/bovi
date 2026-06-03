@@ -14,6 +14,7 @@ import {
   Trophy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { useAuth } from "@/lib/auth";
 
@@ -226,10 +227,12 @@ function HomeContent({ isAuthenticated }: { readonly isAuthenticated: boolean })
 
 export default function HomePage(): ReactElement {
   const { isAuthenticated } = useAuth();
-
-  return (
+  const content = (
     <DashboardShell>
       <HomeContent isAuthenticated={isAuthenticated} />
     </DashboardShell>
   );
+
+  if (isAuthenticated) return <AuthGuard>{content}</AuthGuard>;
+  return content;
 }
