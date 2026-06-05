@@ -106,35 +106,15 @@ jobs:
             infra:
               - "apps/infrastructure/**"
               - "packages/infrastructure/**"
-              - ".github/actions/setup-python-uv/**"
-              - ".github/actions/azure-login/**"
-              - ".github/actions/install-infra-dependencies/**"
-              - ".github/actions/resolve-current-image/**"
-              - ".github/actions/pulumi-up/**"
             api:
               - "apps/backend/api/**"
               - ".dockerignore"
               - ".github/workflows/deploy.yml"
               - "packages/models/lactationcurve/src/**"
               - "packages/models/lactationcurve/pyproject.toml"
-              - ".github/actions/docker-build-push/**"
-              - ".github/actions/setup-python-uv/**"
-              - ".github/actions/azure-login/**"
-              - ".github/actions/install-infra-dependencies/**"
-              - ".github/actions/resolve-current-image/**"
-              - ".github/actions/pulumi-up/**"
-              - ".github/actions/run-api-migrations/**"
-              - ".github/actions/check-containerapp-health/**"
             dashboard:
               - "apps/frontend/dashboard/**"
               - "docker-compose.yml"
-              - ".github/actions/docker-build-push/**"
-              - ".github/actions/setup-python-uv/**"
-              - ".github/actions/azure-login/**"
-              - ".github/actions/install-infra-dependencies/**"
-              - ".github/actions/resolve-current-image/**"
-              - ".github/actions/pulumi-up/**"
-              - ".github/actions/check-containerapp-health/**"
             functions_curves:
               - "apps/backend/models/lactation-curves/**"
               - "pyproject.toml"
@@ -143,8 +123,6 @@ jobs:
               - "packages/bovi-core/pyproject.toml"
               - "packages/models/lactationcurve/src/**"
               - "packages/models/lactationcurve/pyproject.toml"
-              - ".github/actions/setup-python-uv/**"
-              - ".github/actions/azure-login/**"
               - ".github/actions/install-functions-core-tools/**"
               - ".github/actions/build-function-wheels/**"
               - ".github/actions/prepare-curves-function-package/**"
@@ -159,8 +137,6 @@ jobs:
               - "packages/bovi-core/pyproject.toml"
               - "packages/models/lactation-autoencoder/src/**"
               - "packages/models/lactation-autoencoder/pyproject.toml"
-              - ".github/actions/setup-python-uv/**"
-              - ".github/actions/azure-login/**"
               - ".github/actions/install-functions-core-tools/**"
               - ".github/actions/build-function-wheels/**"
               - ".github/actions/prepare-autoencoder-function-package/**"
@@ -181,7 +157,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: build
-        uses: ./.github/actions/docker-build-push
+        uses: bovi-analytics/github-actions/.github/actions/docker-build-push@v1
         with:
           image-name: bovi-api
           context: .
@@ -202,7 +178,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: build
-        uses: ./.github/actions/docker-build-push
+        uses: bovi-analytics/github-actions/.github/actions/docker-build-push@v1
         with:
           image-name: bovi-dashboard
           context: apps/frontend/dashboard
@@ -231,19 +207,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-python-uv
+      - uses: bovi-analytics/github-actions/.github/actions/setup-python-uv@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - uses: ./.github/actions/azure-login
+      - uses: bovi-analytics/github-actions/.github/actions/azure-login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - uses: ./.github/actions/install-infra-dependencies
+      - uses: bovi-analytics/github-actions/.github/actions/install-uv-project@v1
         with:
-          infra-dir: ${{ env.INFRA_DIR }}
+          work-dir: ${{ env.INFRA_DIR }}
 
       - name: Set default image names
         id: defaults
@@ -253,7 +229,7 @@ jobs:
           echo "dashboard=ghcr.io/${owner}/bovi-dashboard:${{ needs.resolve-deployment.outputs.image-tag }}" >> "$GITHUB_OUTPUT"
 
       - id: current-api-image
-        uses: ./.github/actions/resolve-current-image
+        uses: bovi-analytics/github-actions/.github/actions/resolve-current-image@v1
         with:
           containerapp-name: bovi-api-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
@@ -261,29 +237,31 @@ jobs:
           default-image: ${{ steps.defaults.outputs.api }}
 
       - id: current-dashboard-image
-        uses: ./.github/actions/resolve-current-image
+        uses: bovi-analytics/github-actions/.github/actions/resolve-current-image@v1
         with:
           containerapp-name: bovi-dashboard-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           default-image: ${{ steps.defaults.outputs.dashboard }}
 
-      - uses: ./.github/actions/pulumi-up
+      - uses: bovi-analytics/github-actions/.github/actions/pulumi-command@v1
         with:
+          command: up
           stack-name: ${{ env.PULUMI_STACK }}
           work-dir: ${{ env.INFRA_DIR }}
           cloud-url: azblob://pulumi-state
           pulumi-config-passphrase: ${{ secrets.PULUMI_PASSPHRASE }}
           azure-storage-account-state: ${{ secrets.AZURE_STORAGE_ACCOUNT_STATE }}
           azure-storage-key: ${{ secrets.AZURE_STORAGE_KEY }}
-          storage-account-name-icar: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
-          storage-account-key-icar: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
-          storage-account-container-icar: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
-          ghcr-username: ${{ secrets.GHCR_USERNAME }}
-          ghcr-token: ${{ secrets.GHCR_TOKEN }}
-          autoencoder-model-version: ${{ env.AUTOENCODER_MODEL_VERSION }}
-          api-image: ${{ needs.build-api-image.result == 'success' && needs.build-api-image.outputs.image || steps.current-api-image.outputs.image }}
-          dashboard-image: ${{ needs.build-dashboard-image.result == 'success' && needs.build-dashboard-image.outputs.image || steps.current-dashboard-image.outputs.image }}
+        env:
+          STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
+          STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
+          STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          AUTOENCODER_MODEL_VERSION: ${{ env.AUTOENCODER_MODEL_VERSION }}
+          API_IMAGE: ${{ needs.build-api-image.result == 'success' && needs.build-api-image.outputs.image || steps.current-api-image.outputs.image }}
+          DASHBOARD_IMAGE: ${{ needs.build-dashboard-image.result == 'success' && needs.build-dashboard-image.outputs.image || steps.current-dashboard-image.outputs.image }}
 
   migrate-api:
     needs: [resolve-deployment, detect-changes, build-api-image, infra]
@@ -302,19 +280,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/azure-login
+      - uses: bovi-analytics/github-actions/.github/actions/azure-login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - uses: ./.github/actions/run-api-migrations
+      - name: Run API migrations
+        uses: bovi-analytics/github-actions/.github/actions/run-containerapp-job@v1
         with:
-          api-image: ${{ needs.build-api-image.outputs.image }}
-          migration-job: bovi-api-migrate-${{ env.PULUMI_STACK }}
-          admin-bootstrap-job: bovi-api-bootstrap-admins-${{ env.PULUMI_STACK }}
+          image: ${{ needs.build-api-image.outputs.image }}
+          job-name: bovi-api-migrate-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Bootstrap API admins
+        uses: bovi-analytics/github-actions/.github/actions/run-containerapp-job@v1
+        with:
+          image: ${{ needs.build-api-image.outputs.image }}
+          job-name: bovi-api-bootstrap-admins-${{ env.PULUMI_STACK }}
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          timeout-seconds: "300"
 
   rollout-api:
     needs: [resolve-deployment, detect-changes, build-api-image, migrate-api]
@@ -333,19 +320,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-python-uv
+      - uses: bovi-analytics/github-actions/.github/actions/setup-python-uv@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - uses: ./.github/actions/azure-login
+      - uses: bovi-analytics/github-actions/.github/actions/azure-login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - uses: ./.github/actions/install-infra-dependencies
+      - uses: bovi-analytics/github-actions/.github/actions/install-uv-project@v1
         with:
-          infra-dir: ${{ env.INFRA_DIR }}
+          work-dir: ${{ env.INFRA_DIR }}
 
       - name: Set default image names
         id: defaults
@@ -354,31 +341,33 @@ jobs:
           echo "dashboard=ghcr.io/${owner}/bovi-dashboard:${{ needs.resolve-deployment.outputs.image-tag }}" >> "$GITHUB_OUTPUT"
 
       - id: current-dashboard-image
-        uses: ./.github/actions/resolve-current-image
+        uses: bovi-analytics/github-actions/.github/actions/resolve-current-image@v1
         with:
           containerapp-name: bovi-dashboard-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           default-image: ${{ steps.defaults.outputs.dashboard }}
 
-      - uses: ./.github/actions/pulumi-up
+      - uses: bovi-analytics/github-actions/.github/actions/pulumi-command@v1
         with:
+          command: up
           stack-name: ${{ env.PULUMI_STACK }}
           work-dir: ${{ env.INFRA_DIR }}
           cloud-url: azblob://pulumi-state
           pulumi-config-passphrase: ${{ secrets.PULUMI_PASSPHRASE }}
           azure-storage-account-state: ${{ secrets.AZURE_STORAGE_ACCOUNT_STATE }}
           azure-storage-key: ${{ secrets.AZURE_STORAGE_KEY }}
-          storage-account-name-icar: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
-          storage-account-key-icar: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
-          storage-account-container-icar: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
-          ghcr-username: ${{ secrets.GHCR_USERNAME }}
-          ghcr-token: ${{ secrets.GHCR_TOKEN }}
-          autoencoder-model-version: ${{ env.AUTOENCODER_MODEL_VERSION }}
-          api-image: ${{ needs.build-api-image.outputs.image }}
-          dashboard-image: ${{ steps.current-dashboard-image.outputs.image }}
+        env:
+          STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
+          STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
+          STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          AUTOENCODER_MODEL_VERSION: ${{ env.AUTOENCODER_MODEL_VERSION }}
+          API_IMAGE: ${{ needs.build-api-image.outputs.image }}
+          DASHBOARD_IMAGE: ${{ steps.current-dashboard-image.outputs.image }}
 
-      - uses: ./.github/actions/check-containerapp-health
+      - uses: bovi-analytics/github-actions/.github/actions/check-containerapp-health@v1
         with:
           containerapp-name: bovi-api-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
@@ -409,19 +398,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-python-uv
+      - uses: bovi-analytics/github-actions/.github/actions/setup-python-uv@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - uses: ./.github/actions/azure-login
+      - uses: bovi-analytics/github-actions/.github/actions/azure-login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - uses: ./.github/actions/install-infra-dependencies
+      - uses: bovi-analytics/github-actions/.github/actions/install-uv-project@v1
         with:
-          infra-dir: ${{ env.INFRA_DIR }}
+          work-dir: ${{ env.INFRA_DIR }}
 
       - name: Set default image names
         id: defaults
@@ -430,31 +419,33 @@ jobs:
           echo "api=ghcr.io/${owner}/bovi-api:${{ needs.resolve-deployment.outputs.image-tag }}" >> "$GITHUB_OUTPUT"
 
       - id: current-api-image
-        uses: ./.github/actions/resolve-current-image
+        uses: bovi-analytics/github-actions/.github/actions/resolve-current-image@v1
         with:
           containerapp-name: bovi-api-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           default-image: ${{ steps.defaults.outputs.api }}
 
-      - uses: ./.github/actions/pulumi-up
+      - uses: bovi-analytics/github-actions/.github/actions/pulumi-command@v1
         with:
+          command: up
           stack-name: ${{ env.PULUMI_STACK }}
           work-dir: ${{ env.INFRA_DIR }}
           cloud-url: azblob://pulumi-state
           pulumi-config-passphrase: ${{ secrets.PULUMI_PASSPHRASE }}
           azure-storage-account-state: ${{ secrets.AZURE_STORAGE_ACCOUNT_STATE }}
           azure-storage-key: ${{ secrets.AZURE_STORAGE_KEY }}
-          storage-account-name-icar: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
-          storage-account-key-icar: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
-          storage-account-container-icar: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
-          ghcr-username: ${{ secrets.GHCR_USERNAME }}
-          ghcr-token: ${{ secrets.GHCR_TOKEN }}
-          autoencoder-model-version: ${{ env.AUTOENCODER_MODEL_VERSION }}
-          api-image: ${{ steps.current-api-image.outputs.image }}
-          dashboard-image: ${{ needs.build-dashboard-image.outputs.image }}
+        env:
+          STORAGE_ACCOUNT_NAME_ICAR: ${{ secrets.STORAGE_ACCOUNT_NAME_ICAR }}
+          STORAGE_ACCOUNT_KEY_ICAR: ${{ secrets.STORAGE_ACCOUNT_KEY_ICAR }}
+          STORAGE_ACCOUNT_CONTAINER_ICAR: ${{ secrets.STORAGE_ACCOUNT_CONTAINER_ICAR }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          AUTOENCODER_MODEL_VERSION: ${{ env.AUTOENCODER_MODEL_VERSION }}
+          API_IMAGE: ${{ steps.current-api-image.outputs.image }}
+          DASHBOARD_IMAGE: ${{ needs.build-dashboard-image.outputs.image }}
 
-      - uses: ./.github/actions/check-containerapp-health
+      - uses: bovi-analytics/github-actions/.github/actions/check-containerapp-health@v1
         with:
           containerapp-name: bovi-dashboard-${{ env.PULUMI_STACK }}
           resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
@@ -485,11 +476,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-python-uv
+      - uses: bovi-analytics/github-actions/.github/actions/setup-python-uv@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - uses: ./.github/actions/azure-login
+      - uses: bovi-analytics/github-actions/.github/actions/azure-login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -544,11 +535,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-python-uv
+      - uses: bovi-analytics/github-actions/.github/actions/setup-python-uv@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - uses: ./.github/actions/azure-login
+      - uses: bovi-analytics/github-actions/.github/actions/azure-login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
