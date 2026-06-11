@@ -25,7 +25,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     formula: "y(t) = a · t^b · exp(-c · t)",
     parameterCount: 3,
     parameters: [],
-    color: "#2563eb",
+    color: "var(--chart-model-wood)",
     description:
       "An incomplete gamma-type function combining a power-law growth term with an exponential decay term.",
   },
@@ -35,7 +35,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     formula: "y(t) = a + b·t + c·exp(k·t)",
     parameterCount: 4,
     parameters: [],
-    color: "#16a34a",
+    color: "var(--chart-model-wilmink)",
     description:
       "A combination of an exponential and a linear component. In contrast to the Fischer model, the additional parameter scaling the exponential term increases flexibility in describing early-lactation dynamics and peak formation.",
   },
@@ -45,7 +45,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     formula: "y(t) = a + b·(t/305) + c·(t/305)² + d·ln(305/t) + k·(ln(305/t))²",
     parameterCount: 5,
     parameters: [],
-    color: "#d97706",
+    color: "var(--chart-model-ali-schaeffer)",
     description:
       "A linear regression model based on quadratic polynomials in standardized time and in the log-transformed inverse time, where the log term increases flexibility in modelling the ascending phase and peak of lactation.",
   },
@@ -55,7 +55,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
     formula: "y(t) = a - b·t - a·exp(-c·t)",
     parameterCount: 3,
     parameters: [],
-    color: "#dc2626",
+    color: "var(--chart-model-fischer)",
     description:
       "A combination of an exponential and a linear component, characterized by an early exponential phase followed by an approximately linear decline.",
   },
@@ -70,7 +70,7 @@ export const MODEL_METADATA: Record<Model, ModelMetadata> = {
       { name: "c (Offset)", description: "Time correction for calving" },
       { name: "d (Decay)", description: "Rate of exponential decline" },
     ],
-    color: "#9333ea",
+    color: "var(--chart-model-milkbot)",
     description:
       "An empirical, mechanistically motivated four-parameter model describing lactation as the development and decay of udder capacity. It consists of a ramp-up phase and exponential decline, with parameters controlling scale, onset, growth rate, and decay.",
   },

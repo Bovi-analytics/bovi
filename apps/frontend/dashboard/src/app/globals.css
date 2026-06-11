@@ -12,7 +12,8 @@
 */
 
 /* Light theme */
-:root {
+:root,
+[data-mantine-color-scheme="light"] {
   --background: 204 15% 97%;
   --foreground: 201 40% 10%;
   --card: 0 0% 100%;
@@ -32,10 +33,26 @@
   --ring: 204 100% 34%;
   --radius: 0.75rem;
   --benchmark-muted-text: hsl(201 18% 45%);
+  --theme-shadow-primary: hsl(var(--primary) / 0.18);
+  --theme-shadow-accent: hsl(var(--accent) / 0.36);
+  --theme-selected-border: hsl(262 83% 58%);
+  --theme-selected-bg: hsl(262 83% 58% / 0.08);
+  --theme-selected-hover-border: hsl(262 83% 58% / 0.7);
+  --theme-selected-hover-bg: hsl(262 83% 58% / 0.05);
+  --theme-active-border: hsl(262 83% 58%);
+  --theme-panel-challenger-bg: hsl(262 83% 58% / 0.08);
+  --theme-panel-benchmark-bg: hsl(var(--primary) / 0.08);
+  --theme-error-text: hsl(var(--destructive));
+  --chart-model-wood: hsl(221 83% 53%);
+  --chart-model-wilmink: hsl(142 72% 36%);
+  --chart-model-ali-schaeffer: hsl(32 95% 44%);
+  --chart-model-fischer: hsl(0 72% 51%);
+  --chart-model-milkbot: hsl(271 81% 56%);
+  --chart-model-autoencoder: hsl(330 81% 60%);
 }
 
 /* Dark theme */
-.dark {
+[data-mantine-color-scheme="dark"] {
   --background: 201 40% 7%;
   --foreground: 204 15% 96%;
   --card: 201 35% 12%;
@@ -56,6 +73,22 @@
   --ring: 197 98% 45%;
   --radius: 0.75rem;
   --benchmark-muted-text: hsl(204 22% 88%);
+  --theme-shadow-primary: hsl(var(--primary) / 0.35);
+  --theme-shadow-accent: hsl(var(--accent) / 0.6);
+  --theme-selected-border: hsl(262 83% 66%);
+  --theme-selected-bg: hsl(262 83% 66% / 0.1);
+  --theme-selected-hover-border: hsl(262 83% 66% / 0.7);
+  --theme-selected-hover-bg: hsl(262 83% 66% / 0.05);
+  --theme-active-border: hsl(262 83% 66%);
+  --theme-panel-challenger-bg: hsl(262 83% 66% / 0.12);
+  --theme-panel-benchmark-bg: hsl(var(--primary) / 0.12);
+  --theme-error-text: hsl(0 84% 70%);
+  --chart-model-wood: hsl(213 94% 68%);
+  --chart-model-wilmink: hsl(142 69% 58%);
+  --chart-model-ali-schaeffer: hsl(38 92% 60%);
+  --chart-model-fischer: hsl(0 84% 65%);
+  --chart-model-milkbot: hsl(271 91% 70%);
+  --chart-model-autoencoder: hsl(330 91% 70%);
 }
 
 html {
@@ -68,16 +101,20 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Mantine dark-mode brand tint                                       */
-/*  Make Mantine surfaces (Paper, Card, Modal, Popover, Tabs, …)       */
-/*  follow the bovi navy palette instead of Mantine's default gray.    */
+/*  Mantine semantic theme bridge                                      */
+/*  Keep Mantine surfaces aligned with Tailwind's CSS token palette.   */
 /* ------------------------------------------------------------------ */
-[data-mantine-color-scheme="dark"] {
+[data-mantine-color-scheme] {
   --mantine-color-body: hsl(var(--background));
   --mantine-color-default: hsl(var(--card));
   --mantine-color-default-hover: hsl(var(--muted));
   --mantine-color-default-border: hsl(var(--border));
   --mantine-color-default-color: hsl(var(--card-foreground));
+  --mantine-color-dimmed: hsl(var(--muted-foreground));
+  --mantine-color-placeholder: hsl(var(--muted-foreground) / 0.7);
+}
+
+[data-mantine-color-scheme="dark"] {
   /* Override the dark scale used by Paper, Card, Modal, Tabs, etc. */
   --mantine-color-dark-9: hsl(201 45% 5%);
   --mantine-color-dark-8: hsl(201 42% 8%);
@@ -85,9 +122,6 @@ body {
   --mantine-color-dark-6: hsl(var(--card));
   --mantine-color-dark-5: hsl(201 30% 18%);
   --mantine-color-dark-4: hsl(var(--border));
-  /* Lighten Mantine's "dimmed" text so c="dimmed" stays readable on navy. */
-  --mantine-color-dimmed: hsl(var(--muted-foreground));
-  --mantine-color-placeholder: hsl(204 15% 65%);
 }
 
 /* ------------------------------------------------------------------ */
@@ -101,21 +135,35 @@ body {
 /*    caption / meta      -> 0.75rem  / 12px                           */
 /* ------------------------------------------------------------------ */
 
-/* Force Paper/Card backgrounds onto the brand navy in dark mode,
-   regardless of which CSS var the component reads from. */
-.dark .mantine-Paper-root,
-[data-mantine-color-scheme="dark"] .mantine-Paper-root {
+/* Force common Mantine surfaces onto semantic theme tokens regardless of
+   which internal CSS var the component reads from. */
+[data-mantine-color-scheme] .mantine-Paper-root {
   --paper-bg: hsl(var(--card));
   --paper-border-color: hsl(var(--border));
   background-color: hsl(var(--card));
   border-color: hsl(var(--border));
 }
 
-.dark .mantine-Card-root,
-[data-mantine-color-scheme="dark"] .mantine-Card-root {
+[data-mantine-color-scheme] .mantine-Card-root {
   --card-bg: hsl(var(--card));
   --card-border-color: hsl(var(--border));
   background-color: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+[data-mantine-color-scheme] .mantine-Menu-dropdown,
+[data-mantine-color-scheme] .mantine-Popover-dropdown {
+  background-color: hsl(var(--card));
+  border-color: hsl(var(--border));
+  color: hsl(var(--card-foreground));
+}
+
+[data-mantine-color-scheme] .mantine-Table-table {
+  color: hsl(var(--foreground));
+}
+
+[data-mantine-color-scheme] .mantine-Table-th,
+[data-mantine-color-scheme] .mantine-Table-td {
   border-color: hsl(var(--border));
 }
 

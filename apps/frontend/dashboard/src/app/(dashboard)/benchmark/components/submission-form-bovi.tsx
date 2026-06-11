@@ -50,7 +50,7 @@ export function SubmissionFormBovi({ challengeId, onSuccess }: Props): ReactElem
   return (
     <Stack gap="md">
       <Group grow align="stretch">
-        <Card withBorder padding="sm" bg="var(--mantine-color-violet-light)">
+        <Card withBorder padding="sm" bg="var(--theme-panel-challenger-bg)">
           <Stack gap={6}>
             <Group gap="xs">
               <Text size="xs" tt="uppercase" fw={700} c="violet">
@@ -70,7 +70,7 @@ export function SubmissionFormBovi({ challengeId, onSuccess }: Props): ReactElem
           </Stack>
         </Card>
 
-        <Card withBorder padding="sm" bg="var(--mantine-color-blue-light)">
+        <Card withBorder padding="sm" bg="var(--theme-panel-benchmark-bg)">
           <Stack gap={6}>
             <Group gap="xs">
               <Text size="xs" tt="uppercase" fw={700} c="blue">

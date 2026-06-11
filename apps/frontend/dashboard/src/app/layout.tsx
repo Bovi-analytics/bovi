@@ -1,7 +1,9 @@
 import type { ReactElement, ReactNode } from "react";
+import { ColorSchemeScript } from "@mantine/core";
 import "./globals.css";
 import { Providers } from "./providers/root-provider";
 import type { AuthRuntimeConfig } from "@/lib/auth/config";
+import { DEFAULT_THEME, THEME_STORAGE_KEY } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +34,10 @@ function getAuthRuntimeConfig(): AuthRuntimeConfig {
 
 export default function RootLayout({ children }: RootLayoutProps): ReactElement {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ColorSchemeScript defaultColorScheme={DEFAULT_THEME} localStorageKey={THEME_STORAGE_KEY} />
+      </head>
       <body>
         <Providers authConfig={getAuthRuntimeConfig()}>{children}</Providers>
       </body>

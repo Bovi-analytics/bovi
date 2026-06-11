@@ -19,7 +19,6 @@ WORKDIR /app
 COPY packages/bovi-core/pyproject.toml ./packages/bovi-core/
 COPY packages/bovi-core/src ./packages/bovi-core/src
 COPY packages/models/lactationcurve/pyproject.toml ./packages/models/lactationcurve/
-COPY packages/models/lactationcurve/README.md ./packages/models/lactationcurve/
 COPY packages/models/lactationcurve/src ./packages/models/lactationcurve/src
 COPY apps/backend/api/pyproject.toml ./apps/backend/api/
 COPY apps/backend/api/src ./apps/backend/api/src
