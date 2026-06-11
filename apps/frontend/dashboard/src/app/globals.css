@@ -39,7 +39,16 @@
   --theme-selected-bg: hsl(262 83% 58% / 0.08);
   --theme-selected-hover-border: hsl(262 83% 58% / 0.7);
   --theme-selected-hover-bg: hsl(262 83% 58% / 0.05);
+  --theme-active-border: hsl(262 83% 58%);
+  --theme-panel-challenger-bg: hsl(262 83% 58% / 0.08);
+  --theme-panel-benchmark-bg: hsl(var(--primary) / 0.08);
   --theme-error-text: hsl(var(--destructive));
+  --chart-model-wood: hsl(221 83% 53%);
+  --chart-model-wilmink: hsl(142 72% 36%);
+  --chart-model-ali-schaeffer: hsl(32 95% 44%);
+  --chart-model-fischer: hsl(0 72% 51%);
+  --chart-model-milkbot: hsl(271 81% 56%);
+  --chart-model-autoencoder: hsl(330 81% 60%);
 }
 
 /* Dark theme */
@@ -70,7 +79,16 @@
   --theme-selected-bg: hsl(262 83% 66% / 0.1);
   --theme-selected-hover-border: hsl(262 83% 66% / 0.7);
   --theme-selected-hover-bg: hsl(262 83% 66% / 0.05);
+  --theme-active-border: hsl(262 83% 66%);
+  --theme-panel-challenger-bg: hsl(262 83% 66% / 0.12);
+  --theme-panel-benchmark-bg: hsl(var(--primary) / 0.12);
   --theme-error-text: hsl(0 84% 70%);
+  --chart-model-wood: hsl(213 94% 68%);
+  --chart-model-wilmink: hsl(142 69% 58%);
+  --chart-model-ali-schaeffer: hsl(38 92% 60%);
+  --chart-model-fischer: hsl(0 84% 65%);
+  --chart-model-milkbot: hsl(271 91% 70%);
+  --chart-model-autoencoder: hsl(330 91% 70%);
 }
 
 html {
