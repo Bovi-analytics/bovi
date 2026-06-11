@@ -244,7 +244,11 @@ export function AuthProviderWrapper({
   if (!isInitialized) return null;
   if (isAuthDisabled(authConfig)) return <DevAuthProvider>{children}</DevAuthProvider>;
   if (initError || !instance) {
-    return <div className="p-6 text-sm text-red-400">Authentication error: {initError}</div>;
+    return (
+      <div className="p-6 text-sm" style={{ color: "var(--theme-error-text)" }}>
+        Authentication error: {initError}
+      </div>
+    );
   }
   return (
     <MsalProvider instance={instance}>
