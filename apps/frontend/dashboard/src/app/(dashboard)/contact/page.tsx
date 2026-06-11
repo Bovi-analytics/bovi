@@ -86,6 +86,9 @@ export default function ContactPage(): ReactElement {
               Bovi acknowledges the support of ICAR, whose contribution helped make this lactation
               curve platform available to the dairy industry and research community.
             </Text>
+            <Text size="xs" c="dimmed">
+              Data uploaded to Bovi is stored and may be used for research purposes.
+            </Text>
           </Stack>
         </Group>
       </Paper>
