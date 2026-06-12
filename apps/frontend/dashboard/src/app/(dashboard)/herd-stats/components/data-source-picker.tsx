@@ -1111,7 +1111,7 @@ export function DataSourcePicker(): ReactElement {
                   radius="md"
                   h={104}
                   style={{
-                    borderColor: isActive ? "var(--mantine-color-violet-6)" : undefined,
+                    borderColor: isActive ? "var(--theme-active-border)" : undefined,
                     borderWidth: isActive ? 2 : 1,
                     cursor: "pointer",
                     transition: "border-color 0.12s",
@@ -1155,7 +1155,7 @@ export function DataSourcePicker(): ReactElement {
                   radius="md"
                   h={104}
                   style={{
-                    borderColor: isActive ? "var(--mantine-color-violet-6)" : undefined,
+                    borderColor: isActive ? "var(--theme-active-border)" : undefined,
                     borderWidth: isActive ? 2 : 1,
                     cursor: "pointer",
                     transition: "border-color 0.12s",

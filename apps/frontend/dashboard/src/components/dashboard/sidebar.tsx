@@ -14,9 +14,12 @@ import {
   Stack,
   Text,
   UnstyledButton,
+  useComputedColorScheme,
+  useMantineColorScheme,
 } from "@mantine/core";
-import { Building2, LogIn, LogOut } from "lucide-react";
+import { Building2, Check, LogIn, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { THEME_OPTIONS, getThemeOption } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { getVisibleNavigationItems } from "./navigation";
 import {
@@ -28,6 +31,10 @@ import {
 export function Sidebar(): ReactElement {
   const pathname = usePathname();
   const { logout, user, selectedOrganizationId, setSelectedOrganizationId } = useAuth();
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
+  const computedColorScheme = useComputedColorScheme("light");
+  const selectedTheme = getThemeOption(colorScheme);
+  const SelectedThemeIcon = selectedTheme.icon;
   const organizationOptions = [
     ...(user?.is_admin ? [{ value: "all", label: "All organizations" }] : []),
     ...(user?.organizations.map((org) => ({ value: String(org.id), label: org.name })) ?? []),
@@ -121,6 +128,30 @@ export function Sidebar(): ReactElement {
                   />
                 )}
               </Stack>
+              <Menu.Divider />
+              <Menu.Label>Theme</Menu.Label>
+              {THEME_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const selected = option.value === colorScheme;
+
+                return (
+                  <Menu.Item
+                    key={option.value}
+                    leftSection={<Icon size={14} />}
+                    rightSection={selected ? <Check size={14} /> : null}
+                    onClick={() => setColorScheme(option.value)}
+                  >
+                    {option.label}
+                  </Menu.Item>
+                );
+              })}
+              <Menu.Item
+                disabled
+                leftSection={<SelectedThemeIcon size={14} />}
+                className="text-muted-foreground"
+              >
+                Active: {computedColorScheme === "dark" ? "Dark" : "Light"}
+              </Menu.Item>
               <Menu.Divider />
               <Menu.Item
                 color="gray"

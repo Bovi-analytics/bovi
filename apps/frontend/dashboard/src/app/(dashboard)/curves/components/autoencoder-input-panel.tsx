@@ -159,8 +159,8 @@ export function AutoencoderInputPanel({
                     className={[
                       "flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left transition-colors",
                       isSelected
-                        ? "border-violet-500 bg-violet-500/10 text-foreground"
-                        : "border-border bg-background/40 text-foreground hover:border-violet-400/70 hover:bg-violet-500/5",
+                        ? "border-[var(--theme-selected-border)] bg-[var(--theme-selected-bg)] text-foreground"
+                        : "border-border bg-background/40 text-foreground hover:border-[var(--theme-selected-hover-border)] hover:bg-[var(--theme-selected-hover-bg)]",
                       option.disabled
                         ? "cursor-not-allowed opacity-50 hover:border-border hover:bg-background/40"
                         : "",

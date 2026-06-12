@@ -15,6 +15,7 @@ class ContainerAppEnvironmentArgs:
     env_name: str
     log_analytics_customer_id: pulumi.Input[str] | None = None
     log_analytics_shared_key: pulumi.Input[str] | None = None
+    workload_profile_name: str = "Consumption"
     tags: ResourceTags | None = None
 
 
@@ -39,6 +40,16 @@ def create_container_app_environment(
                 shared_key=args.log_analytics_shared_key,
             ),
         )
+    workload_profiles = None
+    if args.workload_profile_name != "Consumption":
+        workload_profiles = [
+            app.WorkloadProfileArgs(
+                name=args.workload_profile_name,
+                workload_profile_type=args.workload_profile_name.split("-", maxsplit=1)[0],
+                minimum_count=1,
+                maximum_count=1,
+            )
+        ]
 
     environment = app.ManagedEnvironment(
         name,
@@ -46,6 +57,7 @@ def create_container_app_environment(
         environment_name=args.env_name,
         location=args.location,
         app_logs_configuration=logs_config,
+        workload_profiles=workload_profiles,
         tags=args.tags,
     )
     return ContainerAppEnvironmentResult(

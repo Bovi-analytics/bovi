@@ -39,7 +39,7 @@ import {
   useActiveDatasetLabel,
 } from "@/components/dashboard/active-dataset-panel";
 
-const AUTOENCODER_COLOR = "#ec4899";
+const AUTOENCODER_COLOR = "var(--chart-model-autoencoder)";
 const AUTOENCODER_LABEL = "AI autoencoder";
 const UPLOADED_COW_ID_PREFIX = "uploaded-";
 const DEFAULT_UPLOADED_PARITY = 3;
@@ -601,8 +601,7 @@ export default function CurvesPage(): ReactElement {
                   py={6}
                   radius="sm"
                   style={{
-                    borderColor:
-                      cowSource === opt.value ? "var(--mantine-color-violet-6)" : undefined,
+                    borderColor: cowSource === opt.value ? "var(--theme-active-border)" : undefined,
                     borderWidth: cowSource === opt.value ? 2 : 1,
                     cursor: "pointer",
                   }}
