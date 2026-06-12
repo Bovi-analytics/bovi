@@ -141,6 +141,11 @@ Beltsville, MD 20705-2350
 
 Original code for best predict can be found on [GitHub](https://github.com/wintermind/bestpred)
 
+In [packages\models\lactationcurve\notebooks](https://github.com/Bovi-analytics/bovi/tree/main/packages/models/lactationcurve/notebooks)
+you can find an example notebook that shows how to
+fit your own standard curve and covariance matrix from a reference dataset and how to apply the
+best prediction method to a test dataset.
+
 Author: Meike van Leerdam,
 Date: 24-04-2026
 Last update: 21-May-2026
