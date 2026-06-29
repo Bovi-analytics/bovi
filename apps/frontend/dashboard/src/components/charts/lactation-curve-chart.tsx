@@ -165,8 +165,8 @@ export function LactationCurveChart({
               data={[...convertedObs]}
               dataKey="yield"
               name="Observations"
-              fill="hsl(var(--foreground))"
-              opacity={0.7}
+              fill="var(--chart-observation)"
+              opacity="var(--chart-observation-opacity)"
             />
           )}
 

@@ -49,6 +49,8 @@
   --chart-model-fischer: hsl(0 72% 51%);
   --chart-model-milkbot: hsl(271 81% 56%);
   --chart-model-autoencoder: hsl(330 81% 60%);
+  --chart-observation: hsl(204 82% 34%);
+  --chart-observation-opacity: 0.45;
 }
 
 /* Dark theme */
@@ -89,6 +91,8 @@
   --chart-model-fischer: hsl(0 84% 65%);
   --chart-model-milkbot: hsl(271 91% 70%);
   --chart-model-autoencoder: hsl(330 91% 70%);
+  --chart-observation: hsl(204 82% 34%);
+  --chart-observation-opacity: 0.45;
 }
 
 html {

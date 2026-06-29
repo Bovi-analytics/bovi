@@ -76,13 +76,7 @@ const FLOW: FlowStep[] = [
 
 function HomeContent({ isAuthenticated }: { readonly isAuthenticated: boolean }): ReactElement {
   return (
-    <div className="relative flex min-h-full flex-col items-center py-12">
-      {/* Decorative gradient background */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-primary/15 via-primary/5 to-transparent"
-      />
-
+    <div className="relative -m-6 flex min-h-screen flex-col items-center bg-gradient-to-b from-primary/15 via-primary/5 to-background px-6 py-12">
       <Stack align="center" gap="xl" maw={920} w="100%" style={{ position: "relative" }}>
         {/* Hero */}
         <Stack align="center" gap="md" w="100%">
