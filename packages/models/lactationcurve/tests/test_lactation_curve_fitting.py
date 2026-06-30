@@ -274,6 +274,34 @@ class TestModelFunctions:
         assert len(y) >= 305, f"Should generate at least 305 days of curve, got {len(y)}"
         assert y.dtype == np.float64, f"Output should be float64, got {y.dtype}"
 
+    def test_fit_lactation_curve_truncates_lactation_length(
+        self, sample_lactation_data, monkeypatch
+    ):
+        """Should only pass observations up to the requested lactation length into fitting."""
+        dim, milkrecordings = sample_lactation_data
+        captured = {}
+
+        def mock_get_lc_parameters(dim_arg, milk_arg, model="wood"):
+            captured["dim"] = np.asarray(dim_arg)
+            captured["milk"] = np.asarray(milk_arg)
+            return 30.0, 0.2, 0.003
+
+        monkeypatch.setattr(
+            "lactationcurve.fitting.lactation_curve_fitting.get_lc_parameters",
+            mock_get_lc_parameters,
+        )
+
+        fit_lactation_curve(
+            dim,
+            milkrecordings,
+            model="wood",
+            fitting="frequentist",
+            lactation_length=200,
+        )
+
+        assert captured["dim"].shape == captured["milk"].shape
+        assert np.all(captured["dim"] <= 200)
+
 
 @pytest.mark.fitting
 class TestParameterFitting:
