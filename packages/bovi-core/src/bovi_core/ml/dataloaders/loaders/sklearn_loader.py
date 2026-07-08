@@ -143,33 +143,6 @@ class SklearnDataLoader(AbstractDataLoader):
             rng = np.random.RandomState(self.seed)
             rng.shuffle(self.indices)
 
-    def get_pytorch_loader(self) -> None:
-        """
-        PyTorch not supported by SklearnDataLoader.
-
-        Returns:
-            None.
-        """
-        return None
-
-    def get_tensorflow_dataset(self) -> None:
-        """
-        TensorFlow not supported by SklearnDataLoader.
-
-        Returns:
-            None.
-        """
-        return None
-
-    def get_sklearn_iterator(self) -> Iterator[dict[str, Any]]:
-        """
-        Return simple iterator.
-
-        Returns:
-            Iterator over batches.
-        """
-        return iter(self)
-
     def __iter__(self) -> Iterator[dict[str, Any]]:
         """
         Iterate over batches.

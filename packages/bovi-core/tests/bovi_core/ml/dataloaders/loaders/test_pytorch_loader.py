@@ -271,8 +271,8 @@ class TestPyTorchDataLoader:
         )
         assert loader_no_workers.persistent_workers is False
 
-    def test_loader_get_pytorch_loader(self, image_dataset_large, mock_dataloader_config):
-        """Test get_pytorch_loader returns DataLoader."""
+    def test_loader_iter_returns_batches(self, image_dataset_large, mock_dataloader_config):
+        """Test loader iteration returns batches."""
         loader = PyTorchDataLoader(
             image_dataset_large,
             config=mock_dataloader_config,
@@ -281,33 +281,9 @@ class TestPyTorchDataLoader:
             num_workers=0,
         )
 
-        pytorch_loader = loader.get_pytorch_loader()
-        assert pytorch_loader is not None
-        assert hasattr(pytorch_loader, "__iter__")
-
-    def test_loader_get_tensorflow_dataset(self, image_dataset_large, mock_dataloader_config):
-        """Test get_tensorflow_dataset returns None."""
-        loader = PyTorchDataLoader(
-            image_dataset_large,
-            config=mock_dataloader_config,
-            split="train",
-            model_name="test_model",
-            num_workers=0,
-        )
-
-        assert loader.get_tensorflow_dataset() is None
-
-    def test_loader_get_sklearn_iterator(self, image_dataset_large, mock_dataloader_config):
-        """Test get_sklearn_iterator returns None."""
-        loader = PyTorchDataLoader(
-            image_dataset_large,
-            config=mock_dataloader_config,
-            split="train",
-            model_name="test_model",
-            num_workers=0,
-        )
-
-        assert loader.get_sklearn_iterator() is None
+        batch = next(iter(loader))
+        assert "image" in batch
+        assert "label" in batch
 
     def test_loader_collate_function(self, image_dataset_large, mock_dataloader_config):
         """Test custom collate function handles various types."""
