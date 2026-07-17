@@ -63,6 +63,7 @@ reportUnknownParameterType = "none"
 exclude = [
     ".venv",
     "**/__pycache__",
+    "notebooks",
 ]
 
 [tool.pytest.ini_options]

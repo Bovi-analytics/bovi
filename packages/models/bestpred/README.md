@@ -31,6 +31,35 @@ just lint
 just build
 ```
 
+## Practical notebooks
+
+The numbered notebooks under [`notebooks/`](notebooks/) form an executable
+onboarding path. Start Jupyter from the Bovi repository root so imports resolve
+through the uv workspace:
+
+```bash
+just sync
+uv run jupyter notebook packages/models/bestpred/notebooks
+```
+
+Work through the series in order:
+
+| Notebook | Purpose |
+| --- | --- |
+| [`00_start_here.ipynb`](notebooks/00_start_here.ipynb) | Environment, architecture, implementation status, and reading order |
+| [`01_dataframe_quickstart.ipynb`](notebooks/01_dataframe_quickstart.ipynb) | Load canonical test-day data and use the recommended DataFrame API |
+| [`02_legacy_sources_and_cli.ipynb`](notebooks/02_legacy_sources_and_cli.ipynb) | Inspect sources 10/11/14/15/24, their parsers, and the compatibility CLI |
+| [`03_fdd_adapter.ipynb`](notebooks/03_fdd_adapter.ipynb) | Use real or structural FDD Cow/Herd objects and the temporary lactation DTOs |
+| [`04_lactationcurve_comparison_and_migration.ipynb`](notebooks/04_lactationcurve_comparison_and_migration.ipynb) | Compare with Bovi `lactationcurve` and review the remaining replacement work |
+| [`05_legacy_fortran_oracle.ipynb`](notebooks/05_legacy_fortran_oracle.ipynb) | Run an external Fortran oracle or fall back to the checked-in golden fixture |
+
+The notebooks are repository documentation and are not bundled in the wheel.
+They remain executable without optional integrations. To exercise real FDD
+objects, install the sibling repository with
+`uv pip install -e ../farm-data-definitions`. To run the legacy executable,
+set `BESTPRED_FORTRAN_BINARY=/path/to/bestpred`; the executable is deliberately
+not committed or used by the Python runtime.
+
 ## Python API
 
 The lowest stable computation boundary accepts typed Format-4 records and

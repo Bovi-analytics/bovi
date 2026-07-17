@@ -8,6 +8,9 @@ decisions and Fortran parity remain auditable.
 
 - [`../README.md`](../README.md): installation, APIs, inputs, units, outputs,
   CLI use, and Bovi comparison.
+- [`../notebooks/00_start_here.ipynb`](../notebooks/00_start_here.ipynb): entry
+  point for the numbered, executable onboarding series covering the DataFrame
+  API, legacy sources, FDD, Bovi migration, and the external Fortran oracle.
 - [`reference/port/bovi_fdd_alignment.md`](reference/port/bovi_fdd_alignment.md):
   current FDD boundary and missing domain models.
 - [`reference/port/fortran-quirks.md`](reference/port/fortran-quirks.md): known
