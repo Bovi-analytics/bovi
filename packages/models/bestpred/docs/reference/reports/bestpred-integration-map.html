@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BESTPRED Integratiekaart</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #5d6876;
+      --line: #d8dee8;
+      --blue: #1d5f91;
+      --blue-soft: #e7f1f8;
+      --green: #27745a;
+      --green-soft: #e8f5ef;
+      --amber: #946113;
+      --amber-soft: #fff3d8;
+      --red: #a33a37;
+      --red-soft: #fdebea;
+      --violet: #664f9f;
+      --violet-soft: #f0edf8;
+      --shadow: 0 10px 28px rgba(18, 30, 45, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    header {
+      background: #132234;
+      color: #fff;
+      padding: 32px 28px 26px;
+    }
+
+    header .wrap,
+    main {
+      max-width: 1220px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .lede {
+      color: #cfdae8;
+      max-width: 930px;
+      font-size: 16px;
+    }
+
+    main {
+      padding: 24px;
+    }
+
+    .section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+      padding: 24px;
+    }
+
+    .section > p {
+      color: var(--muted);
+      max-width: 960px;
+      margin-bottom: 18px;
+    }
+
+    .diagram {
+      width: 100%;
+      overflow-x: auto;
+      padding: 4px 0 2px;
+    }
+
+    svg {
+      display: block;
+      min-width: 920px;
+      width: 100%;
+      height: auto;
+    }
+
+    .box {
+      fill: #fff;
+      stroke: #bdc7d5;
+      stroke-width: 1.5;
+      rx: 8;
+    }
+
+    .box.blue {
+      fill: var(--blue-soft);
+      stroke: var(--blue);
+    }
+
+    .box.green {
+      fill: var(--green-soft);
+      stroke: var(--green);
+    }
+
+    .box.amber {
+      fill: var(--amber-soft);
+      stroke: var(--amber);
+    }
+
+    .box.red {
+      fill: var(--red-soft);
+      stroke: var(--red);
+    }
+
+    .box.violet {
+      fill: var(--violet-soft);
+      stroke: var(--violet);
+    }
+
+    .box.gray {
+      fill: #f1f4f8;
+      stroke: #8995a5;
+    }
+
+    .title {
+      font-size: 15px;
+      font-weight: 750;
+      fill: var(--ink);
+    }
+
+    .small {
+      font-size: 12px;
+      fill: var(--muted);
+    }
+
+    .tiny {
+      font-size: 11px;
+      fill: var(--muted);
+    }
+
+    .label {
+      font-size: 12px;
+      fill: #405060;
+      font-weight: 650;
+    }
+
+    .arrow {
+      fill: none;
+      stroke: #657386;
+      stroke-width: 2;
+      marker-end: url(#arrow);
+    }
+
+    .arrow.dashed {
+      stroke-dasharray: 7 6;
+    }
+
+    .arrow.blue {
+      stroke: var(--blue);
+    }
+
+    .arrow.green {
+      stroke: var(--green);
+    }
+
+    .arrow.amber {
+      stroke: var(--amber);
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .legend span {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 10px;
+      color: var(--muted);
+      font-size: 13px;
+      background: #fff;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 99px;
+      margin-right: 6px;
+      vertical-align: -1px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 15px;
+      min-height: 100%;
+    }
+
+    .panel ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+
+    .panel li {
+      margin: 5px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f3f6fa;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #536173;
+      letter-spacing: 0.03em;
+    }
+
+    .tag {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .tag.essential {
+      color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .tag.next {
+      color: var(--amber);
+      background: var(--amber-soft);
+    }
+
+    .tag.later {
+      color: var(--green);
+      background: var(--green-soft);
+    }
+
+    code {
+      background: #eef2f6;
+      border-radius: 5px;
+      padding: 2px 5px;
+      font-size: 0.92em;
+    }
+
+    @media (max-width: 820px) {
+      main {
+        padding: 14px;
+      }
+
+      .section {
+        padding: 18px;
+      }
+
+      .grid,
+      .legend {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>BESTPRED integratiekaart</h1>
+      <p class="lede">
+        Visuele uitleg van de Fortran-oracle, de Python-port, Bovi core en
+        farm-data-definitions. De kernregel: FDD beschrijft data, bestpred-py
+        rekent, Bovi presenteert en integreert.
+      </p>
+    </div>
+  </header>
+
+  <main>
+    <section class="section">
+      <h2>1. De drie systemen en hun verantwoordelijkheid</h2>
+      <p>
+        De huidige situatie is nog niet een nette keten. Fortran is de oracle,
+        bestpred-py is de gecontroleerde port, FDD is de beoogde gedeelde
+        datastructuur en Bovi heeft nu vooral een dataframe/melk-only API.
+      </p>
+      <div class="diagram">
+        <svg viewBox="0 0 1120 430" role="img" aria-label="Systeemoverzicht">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#657386"></path>
+            </marker>
+          </defs>
+
+          <rect class="box red" x="35" y="65" width="235" height="128"></rect>
+          <text class="title" x="55" y="95">Originele Fortran/C BESTPRED</text>
+          <text class="small" x="55" y="122">Authentieke source of truth</text>
+          <text class="small" x="55" y="145">bestpred_main, fmt4, kernel</text>
+          <text class="small" x="55" y="168">aiplage.c, ageadjs.c</text>
+
+          <rect class="box blue" x="335" y="65" width="245" height="128"></rect>
+          <text class="title" x="355" y="95">bestpred-py</text>
+          <text class="small" x="355" y="122">Python-port in deze repo</text>
+          <text class="small" x="355" y="145">Fortran-compatible kernel</text>
+          <text class="small" x="355" y="168">Golden tests tegen current Fortran</text>
+
+          <rect class="box green" x="645" y="65" width="230" height="128"></rect>
+          <text class="title" x="665" y="95">farm-data-definitions</text>
+          <text class="small" x="665" y="122">Gedeelde domeinmodellen</text>
+          <text class="small" x="665" y="145">Cow, Herd, Event bestaan</text>
+          <text class="small" x="665" y="168">Lactation/TestDay ontbreken nog</text>
+
+          <rect class="box amber" x="645" y="250" width="230" height="120"></rect>
+          <text class="title" x="665" y="280">Bovi core / lactationcurve</text>
+          <text class="small" x="665" y="307">Huidig: dataframe API</text>
+          <text class="small" x="665" y="330">Milk-only best predict</text>
+          <text class="small" x="665" y="353">Moet FDD gaan gebruiken</text>
+
+          <rect class="box violet" x="920" y="165" width="165" height="110"></rect>
+          <text class="title" x="940" y="195">Gebruiker/API</text>
+          <text class="small" x="940" y="222">Dataframes, apps,</text>
+          <text class="small" x="940" y="245">notebooks, services</text>
+
+          <path class="arrow red" d="M270 129 H335"></path>
+          <text class="label" x="282" y="116">oracle</text>
+
+          <path class="arrow green" d="M580 129 H645"></path>
+          <text class="label" x="588" y="116">adapter</text>
+
+          <path class="arrow dashed" d="M760 193 V250"></path>
+          <text class="label" x="775" y="225">nog beperkt</text>
+
+          <path class="arrow amber" d="M875 310 C940 310 940 275 920 238"></path>
+          <text class="label" x="908" y="314">publieke UX</text>
+
+          <path class="arrow dashed blue" d="M580 170 C680 230 560 305 645 314"></path>
+          <text class="label" x="492" y="292">later officiele BP engine</text>
+
+          <path class="arrow green" d="M875 125 C950 125 970 150 970 165"></path>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background: var(--red);"></i>Oracle en legacy gedrag</span>
+        <span><i class="dot" style="background: var(--blue);"></i>Python rekenlaag</span>
+        <span><i class="dot" style="background: var(--green);"></i>Canonical data models</span>
+        <span><i class="dot" style="background: var(--amber);"></i>Bovi-facing API</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>2. Hoe de Fortran-flow loopt</h2>
+      <p>
+        Dit is de originele route die we porten. De belangrijkste scheiding is
+        dat parsing en output in de main/fmt4 laag zitten, terwijl de numerieke
+        best-predict algebra in <code>bestpred.f90</code> zit.
+      </p>
+      <div class="diagram">
+        <svg viewBox="0 0 1120 460" role="img" aria-label="Fortran flow">
+          <defs>
+            <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#657386"></path>
+            </marker>
+          </defs>
+
+          <rect class="box gray" x="30" y="50" width="190" height="90"></rect>
+          <text class="title" x="50" y="80">Input sources</text>
+          <text class="small" x="50" y="106">source 10/11/14/15/24</text>
+          <text class="small" x="50" y="128">Format4, PCDART, demo</text>
+
+          <rect class="box red" x="280" y="50" width="205" height="90"></rect>
+          <text class="title" x="300" y="80">bestpred_main.f90</text>
+          <text class="small" x="300" y="106">Leest parameters/files</text>
+          <text class="small" x="300" y="128">Schrijft results_v2.dcr</text>
+
+          <rect class="box red" x="545" y="50" width="205" height="90"></rect>
+          <text class="title" x="565" y="80">bestpred_fmt4.f90</text>
+          <text class="small" x="565" y="106">Parse Format 4</text>
+          <text class="small" x="565" y="128">Berekent agefac</text>
+
+          <rect class="box red" x="815" y="50" width="250" height="90"></rect>
+          <text class="title" x="835" y="80">bestpred.f90</text>
+          <text class="small" x="835" y="106">Curves, covariance, solve</text>
+          <text class="small" x="835" y="128">DCR, reliability, persistency</text>
+
+          <rect class="box amber" x="545" y="220" width="205" height="80"></rect>
+          <text class="title" x="565" y="250">aiplage.c/h</text>
+          <text class="small" x="565" y="276">M/F/P age, season, PDO</text>
+
+          <rect class="box amber" x="815" y="220" width="250" height="80"></rect>
+          <text class="title" x="835" y="250">ageadjs.c + adjust.scs</text>
+          <text class="small" x="835" y="276">SCS age/stage/month factor</text>
+
+          <rect class="box gray" x="815" y="350" width="250" height="72"></rect>
+          <text class="title" x="835" y="380">Output files</text>
+          <text class="small" x="835" y="404">results_v2.dcr, pcdart.bpo</text>
+
+          <path class="arrow" marker-end="url(#arrow2)" d="M220 95 H280"></path>
+          <path class="arrow" marker-end="url(#arrow2)" d="M485 95 H545"></path>
+          <path class="arrow" marker-end="url(#arrow2)" d="M750 95 H815"></path>
+          <path class="arrow amber" marker-end="url(#arrow2)" d="M648 140 V220"></path>
+          <path class="arrow amber" marker-end="url(#arrow2)" d="M750 260 H815"></path>
+          <path class="arrow" marker-end="url(#arrow2)" d="M940 140 V350"></path>
+
+          <text class="label" x="235" y="82">records</text>
+          <text class="label" x="500" y="82">Format4</text>
+          <text class="label" x="770" y="82">kernel call</text>
+          <text class="label" x="665" y="182">C helpers</text>
+        </svg>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>3. Hoe de Python-port nu is opgebouwd</h2>
+      <p>
+        De Python-port bootst de Fortran-output bewust na voor validatie. De
+        nieuwe adapter zet FDD identiteit plus tijdelijke lactatie/testdag DTO's
+        om naar dezelfde <code>Format4Record</code> boundary als de file parsers.
+      </p>
+      <div class="diagram">
+        <svg viewBox="0 0 1120 520" role="img" aria-label="Python port en adapter">
+          <defs>
+            <marker id="arrow3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#657386"></path>
+            </marker>
+          </defs>
+
+          <rect class="box green" x="35" y="45" width="200" height="86"></rect>
+          <text class="title" x="55" y="75">FDD Cow</text>
+          <text class="small" x="55" y="101">breed, birth date, IDs</text>
+
+          <rect class="box green" x="35" y="155" width="200" height="86"></rect>
+          <text class="title" x="55" y="185">FDD Herd</text>
+          <text class="small" x="55" y="211">herd ID, state/location</text>
+
+          <rect class="box violet" x="35" y="265" width="200" height="126"></rect>
+          <text class="title" x="55" y="295">Adapter DTOs</text>
+          <text class="small" x="55" y="321">BestpredLactationInput</text>
+          <text class="small" x="55" y="344">BestpredTestDayInput</text>
+          <text class="small" x="55" y="367">BestpredHerdMeansInput</text>
+
+          <rect class="box blue" x="310" y="145" width="220" height="126"></rect>
+          <text class="title" x="330" y="175">format4_record_from_fdd()</text>
+          <text class="small" x="330" y="202">Resolve breed/state/IDs</text>
+          <text class="small" x="330" y="225">Format dates</text>
+          <text class="small" x="330" y="248">Build test-day segments</text>
+
+          <rect class="box blue" x="605" y="145" width="185" height="126"></rect>
+          <text class="title" x="625" y="175">Format4Record</text>
+          <text class="small" x="625" y="202">cow_id, herd_id</text>
+          <text class="small" x="625" y="225">fresh/birth date</text>
+          <text class="small" x="625" y="248">segments + herd means</text>
+
+          <rect class="box gray" x="605" y="330" width="185" height="96"></rect>
+          <text class="title" x="625" y="360">File parsers</text>
+          <text class="small" x="625" y="386">source10/11/14/15</text>
+          <text class="small" x="625" y="409">Ook naar Format4Record</text>
+
+          <rect class="box blue" x="865" y="95" width="220" height="126"></rect>
+          <text class="title" x="885" y="125">core/kernel.py</text>
+          <text class="small" x="885" y="152">Curves + covariance</text>
+          <text class="small" x="885" y="175">MT M/F/P + ST SCS</text>
+          <text class="small" x="885" y="198">Fortran parity path</text>
+
+          <rect class="box blue" x="865" y="285" width="220" height="118"></rect>
+          <text class="title" x="885" y="315">Outputs vandaag</text>
+          <text class="small" x="885" y="342">DcrResultRow</text>
+          <text class="small" x="885" y="365">results_v2.dcr writer</text>
+          <text class="small" x="885" y="388">pcdart.bpo writer</text>
+
+          <path class="arrow green" marker-end="url(#arrow3)" d="M235 88 C270 88 270 176 310 176"></path>
+          <path class="arrow green" marker-end="url(#arrow3)" d="M235 198 H310"></path>
+          <path class="arrow green" marker-end="url(#arrow3)" d="M235 328 C270 328 270 240 310 240"></path>
+          <path class="arrow blue" marker-end="url(#arrow3)" d="M530 208 H605"></path>
+          <path class="arrow blue" marker-end="url(#arrow3)" d="M790 208 H865"></path>
+          <path class="arrow" marker-end="url(#arrow3)" d="M700 330 V271"></path>
+          <path class="arrow blue" marker-end="url(#arrow3)" d="M975 221 V285"></path>
+        </svg>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>4. Welke schema's missen nog?</h2>
+      <p>
+        Hieronder staat wat er in FDD hoort, wat tijdelijk in bestpred-py zit
+        en wat Bovi later als wrapper kan gebruiken.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Concept</th>
+            <th>Status nu</th>
+            <th>Waar hoort het logisch?</th>
+            <th>Prioriteit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Cow</code>, breed, birth date, IDs</td>
+            <td>Bestaat in FDD en wordt door adapter gebruikt</td>
+            <td>FDD canonical, bestpred-py leest via adapter</td>
+            <td><span class="tag essential">essentieel</span></td>
+          </tr>
+          <tr>
+            <td><code>Herd</code>, locatie, numeric BESTPRED state code</td>
+            <td>FDD heeft Herd, maar BESTPRED state-code is niet expliciet</td>
+            <td>FDD Herd of aparte recording/baseline metadata</td>
+            <td><span class="tag essential">essentieel</span></td>
+          </tr>
+          <tr>
+            <td><code>Lactation</code></td>
+            <td>Ontbreekt in FDD; tijdelijk <code>BestpredLactationInput</code></td>
+            <td>FDD</td>
+            <td><span class="tag essential">essentieel</span></td>
+          </tr>
+          <tr>
+            <td><code>TestDay</code></td>
+            <td>Ontbreekt in FDD; tijdelijk <code>BestpredTestDayInput</code></td>
+            <td>FDD</td>
+            <td><span class="tag essential">essentieel</span></td>
+          </tr>
+          <tr>
+            <td>Herd 305-day production baseline</td>
+            <td>Tijdelijk <code>BestpredHerdMeansInput</code></td>
+            <td>FDD, want dit is data/context, geen algoritme</td>
+            <td><span class="tag essential">essentieel</span></td>
+          </tr>
+          <tr>
+            <td>Recording metadata: supervision, sample/weigh freq, LER</td>
+            <td>Alleen in bestpred-py DTO/Format4 segment</td>
+            <td>FDD TestDay metadata</td>
+            <td><span class="tag essential">essentieel</span></td>
+          </tr>
+          <tr>
+            <td>Prediction output: DCR, reliability, persistency, bumpiness</td>
+            <td>Nu grotendeels compat rows; structured output nog open</td>
+            <td>FDD of Bovi-facing result model, met bestpred-py als rekenbron</td>
+            <td><span class="tag next">volgende stap</span></td>
+          </tr>
+          <tr>
+            <td>Source provenance: PCDART, DHIA, robot, upload</td>
+            <td>Verspreid over source parsers</td>
+            <td>FDD metadata of Bovi ingestion layer</td>
+            <td><span class="tag later">nice to have</span></td>
+          </tr>
+          <tr>
+            <td>Unit/scaling policy: lb/kg, SCS/SCC, percentages</td>
+            <td>Impliciet door legacy formats</td>
+            <td>FDD fields moeten unit-explicit zijn; bestpred-py converteert</td>
+            <td><span class="tag essential">essentieel</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>5. Logisch eindbeeld</h2>
+      <p>
+        Het eindbeeld is niet dat Bovi alle Fortran-details overneemt. Bovi
+        houdt een eenvoudige API; FDD draagt de data-contracten; bestpred-py
+        voert de officiele multi-trait BESTPRED berekening uit.
+      </p>
+      <div class="diagram">
+        <svg viewBox="0 0 1120 520" role="img" aria-label="Doelarchitectuur">
+          <defs>
+            <marker id="arrow4" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#657386"></path>
+            </marker>
+          </defs>
+
+          <rect class="box amber" x="35" y="70" width="220" height="110"></rect>
+          <text class="title" x="55" y="100">Bovi dataframe wrapper</text>
+          <text class="small" x="55" y="127">Backwards compatible</text>
+          <text class="small" x="55" y="150">TestId, DIM, milk yield</text>
+
+          <rect class="box amber" x="35" y="255" width="220" height="110"></rect>
+          <text class="title" x="55" y="285">Bovi typed API</text>
+          <text class="small" x="55" y="312">Apps, notebooks, services</text>
+          <text class="small" x="55" y="335">Bovi-friendly outputs</text>
+
+          <rect class="box green" x="330" y="52" width="250" height="145"></rect>
+          <text class="title" x="350" y="82">farm-data-definitions</text>
+          <text class="small" x="350" y="110">Cow, Herd</text>
+          <text class="small" x="350" y="133">Lactation, TestDay</text>
+          <text class="small" x="350" y="156">HerdProductionBaseline</text>
+          <text class="small" x="350" y="179">LactationPrediction</text>
+
+          <rect class="box blue" x="655" y="52" width="235" height="145"></rect>
+          <text class="title" x="675" y="82">bestpred-py public API</text>
+          <text class="small" x="675" y="110">predict_lactation()</text>
+          <text class="small" x="675" y="133">Typed request/result</text>
+          <text class="small" x="675" y="156">No file-format leakage</text>
+          <text class="small" x="675" y="179">Fortran parity available</text>
+
+          <rect class="box blue" x="655" y="280" width="235" height="110"></rect>
+          <text class="title" x="675" y="310">BESTPRED kernel</text>
+          <text class="small" x="675" y="337">curves, covariance, solve</text>
+          <text class="small" x="675" y="360">DCR/reliability/persistency</text>
+
+          <rect class="box red" x="945" y="162" width="140" height="118"></rect>
+          <text class="title" x="965" y="192">Fortran oracle</text>
+          <text class="small" x="965" y="219">Golden tests</text>
+          <text class="small" x="965" y="242">Compat mode</text>
+          <text class="small" x="965" y="265">Quirks documented</text>
+
+          <path class="arrow amber" marker-end="url(#arrow4)" d="M255 125 H330"></path>
+          <text class="label" x="269" y="112">normalize</text>
+          <path class="arrow amber" marker-end="url(#arrow4)" d="M255 310 C305 310 300 178 330 160"></path>
+          <text class="label" x="270" y="302">typed calls</text>
+          <path class="arrow green" marker-end="url(#arrow4)" d="M580 125 H655"></path>
+          <text class="label" x="591" y="112">request</text>
+          <path class="arrow blue" marker-end="url(#arrow4)" d="M772 197 V280"></path>
+          <text class="label" x="787" y="244">compute</text>
+          <path class="arrow blue" marker-end="url(#arrow4)" d="M655 335 C525 430 230 430 145 365"></path>
+          <text class="label" x="345" y="428">typed result terug naar Bovi</text>
+          <path class="arrow dashed" marker-end="url(#arrow4)" d="M890 125 C940 125 962 155 980 162"></path>
+          <text class="label" x="913" y="108">validation</text>
+        </svg>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>6. Wat is nu logisch om te bouwen?</h2>
+      <div class="grid">
+        <div class="panel">
+          <h3>Nu in bestpred-py</h3>
+          <ul>
+            <li>Publieke <code>predict_lactation()</code> API bovenop <code>Format4Record</code>.</li>
+            <li>Structured outputmodel naast <code>results_v2.dcr</code>.</li>
+            <li>Tests: adapterinput geeft dezelfde output als bestaande fixtures.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Daarna in FDD</h3>
+          <ul>
+            <li><code>Lactation</code>, <code>TestDay</code> en herd baseline modellen ontwerpen.</li>
+            <li>Units/scaling expliciet maken.</li>
+            <li>Recording metadata opnemen zonder Fortran-format details.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Daarna in Bovi</h3>
+          <ul>
+            <li>Dataframe API behouden als wrapper.</li>
+            <li>Intern converteren naar FDD/BESTPRED typed records.</li>
+            <li>Officiele multi-trait BESTPRED via <code>bestpred-py</code> gebruiken.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

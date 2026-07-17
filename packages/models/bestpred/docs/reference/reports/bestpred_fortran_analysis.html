@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BESTPRED Fortran analyse</title>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --ink: #17202a;
+      --muted: #5c6675;
+      --line: #d8dee8;
+      --panel: #ffffff;
+      --blue: #2563eb;
+      --teal: #0f766e;
+      --amber: #b45309;
+      --red: #b91c1c;
+      --green: #15803d;
+      --purple: #7c3aed;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.48;
+    }
+    header {
+      background: #0f172a;
+      color: white;
+      padding: 28px 32px;
+      border-bottom: 4px solid #14b8a6;
+    }
+    header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 44px);
+      letter-spacing: 0;
+    }
+    header p { margin: 0; color: #cbd5e1; max-width: 1100px; }
+    main { max-width: 1280px; margin: 0 auto; padding: 24px; }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      margin: 18px 0;
+    }
+    h2 { margin: 0 0 14px; font-size: 24px; letter-spacing: 0; }
+    h3 { margin: 22px 0 10px; font-size: 18px; letter-spacing: 0; }
+    p { margin: 8px 0 12px; }
+    code {
+      background: #eef2f7;
+      border: 1px solid #dde5ef;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.95em;
+    }
+    .grid { display: grid; gap: 14px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcfe;
+    }
+    .card h3 { margin-top: 0; }
+    .pill {
+      display: inline-block;
+      font-size: 12px;
+      line-height: 1;
+      padding: 5px 8px;
+      border-radius: 999px;
+      color: white;
+      background: var(--blue);
+      margin-right: 6px;
+      white-space: nowrap;
+    }
+    .pill.green { background: var(--green); }
+    .pill.teal { background: var(--teal); }
+    .pill.amber { background: var(--amber); }
+    .pill.red { background: var(--red); }
+    .pill.purple { background: var(--purple); }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+    }
+    th { background: #edf2f8; }
+    .note {
+      border-left: 4px solid var(--teal);
+      background: #ecfeff;
+      padding: 12px 14px;
+      border-radius: 4px;
+    }
+    .warn {
+      border-left: 4px solid var(--amber);
+      background: #fffbeb;
+      padding: 12px 14px;
+      border-radius: 4px;
+    }
+    .risk {
+      border-left: 4px solid var(--red);
+      background: #fef2f2;
+      padding: 12px 14px;
+      border-radius: 4px;
+    }
+    .formula {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 15px;
+      background: #111827;
+      color: #e5e7eb;
+      border-radius: 8px;
+      padding: 14px;
+      overflow-x: auto;
+    }
+    .svg-wrap { overflow-x: auto; padding: 6px 0; }
+    svg { max-width: 100%; height: auto; }
+    .node { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.5; rx: 8; }
+    .node-blue { fill: #eff6ff; stroke: #2563eb; }
+    .node-teal { fill: #ecfeff; stroke: #0f766e; }
+    .node-amber { fill: #fffbeb; stroke: #b45309; }
+    .node-red { fill: #fef2f2; stroke: #b91c1c; }
+    .node-purple { fill: #f5f3ff; stroke: #7c3aed; }
+    .arrow { stroke: #475569; stroke-width: 1.7; fill: none; marker-end: url(#arrow); }
+    .label { font-size: 13px; fill: #17202a; font-weight: 650; }
+    .small { font-size: 11px; fill: #475569; }
+    ul { padding-left: 20px; }
+    li { margin: 5px 0; }
+    @media (max-width: 860px) {
+      main { padding: 12px; }
+      section { padding: 16px; }
+      .grid.two, .grid.three { grid-template-columns: 1fr; }
+      th, td { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>BESTPRED Fortran analyse</h1>
+    <p>Technische kaart van de originele USDA/AIPL BESTPRED repo, naast de Python best-predict implementatie in de sibling repo <code>../bovi</code>. Doel: begrijpen wat de authentieke Fortran doet en welke delen naar Python geporteerd moeten worden.</p>
+  </header>
+  <main>
+    <section>
+      <h2>Executive summary</h2>
+      <div class="grid three">
+        <div class="card">
+          <span class="pill teal">Fortran</span>
+          <h3>Originele productiecode</h3>
+          <p><code>bestpred.f90</code> implementeert de echte BESTPRED methode: single- en multi-trait, melk/vet/eiwit/SCS, 305/365/laclen yields, actual en mature-equivalent, DCR, reliability, persistency en dagcurves.</p>
+        </div>
+        <div class="card">
+          <span class="pill blue">Python</span>
+          <h3>Huidige Bovi subset</h3>
+          <p><code>../bovi/.../best_predict.py</code> is een nette maar veel smallere single-trait 305-dag melkopbrengst-projectie met een vaste standaardcurve en vaste covariantiematrix.</p>
+        </div>
+        <div class="card">
+          <span class="pill amber">Migratie</span>
+          <h3>Goed mogelijk, maar gefaseerd</h3>
+          <p>De lineaire algebra is eenvoudig te porten naar NumPy/SciPy. Het echte werk zit in Fortran-parameterisatie, input-correcties, leeftijd/seizoen/3X correcties, DCR en validatie tegen USDA voorbeeld-output.</p>
+        </div>
+      </div>
+      <p class="note">Belangrijkste conclusie: de Python-code bevat de kernvorm <code>C V_m^-1 t_m</code>, maar niet het officiele BESTPRED-systeem eromheen. Voor verbetering van Bovi is het meest zinvol om eerst een Python "official ingredients" laag te bouwen die de Fortran curves, SD's, covarianties en correcties reproduceert.</p>
+    </section>
+
+    <section>
+      <h2>Wat de PDF zegt</h2>
+      <p>De manual beschrijft BESTPRED als een Fortran 90 programma voor lactatie-yields en persistency op basis van best prediction. De methode komt uit selectie-index algebra: gemeten testdagen worden gebruikt om ontbrekende dagelijkse afwijkingen van een standaardcurve te voorspellen.</p>
+      <div class="formula">
+yi = E(yi) + ti
+
+Waar:
+  E(yi) = verwachte dagproductie voor managementgroep / standaardcurve
+  ti    = individuele afwijking van die verwachting
+
+Best prediction van totale yield:
+  y_hat = sum(mu) + 1' C Vm^-1 tm
+
+Waar:
+  mu = standaard lactatiecurve
+  tm = gemeten afwijkingen op testdagen
+  Vm = variantie/covariantie tussen gemeten testdagen
+  C  = covariantie tussen alle dagen of lactatie-som en gemeten testdagen
+      </div>
+      <p>De manual noemt expliciet dat BESTPRED standalone kan draaien of als subroutine kan worden aangeroepen. De belangrijke subroutine is <code>bestpred()</code>; <code>bestpred_fmt4()</code> bereidt AIPL Format 4 records voor; <code>read_parms()</code> leest <code>bestpred.par</code>.</p>
+    </section>
+
+    <section>
+      <h2>Repositorykaart</h2>
+      <div class="svg-wrap">
+        <svg viewBox="0 0 1180 620" role="img" aria-label="Bestanden en afhankelijkheden in de BESTPRED repo">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#475569"></path>
+            </marker>
+          </defs>
+
+          <rect class="node node-blue" x="30" y="40" width="230" height="78"></rect>
+          <text class="label" x="48" y="68">Best Prediction Manual.pdf</text>
+          <text class="small" x="48" y="92">Theorie, gebruik, subroutines, parameters</text>
+
+          <rect class="node node-amber" x="30" y="165" width="230" height="96"></rect>
+          <text class="label" x="48" y="194">bestpred.par</text>
+          <text class="small" x="48" y="218">Namelist: source, maxlen, laclen,</text>
+          <text class="small" x="48" y="236">mtrait, methods, logging, outputs</text>
+
+          <rect class="node node-teal" x="325" y="60" width="250" height="118"></rect>
+          <text class="label" x="343" y="88">bestpred_main.f90</text>
+          <text class="small" x="343" y="112">Standalone entrypoint</text>
+          <text class="small" x="343" y="130">Leest inputbronnen 10/11/12/14/15/24</text>
+          <text class="small" x="343" y="148">Maakt Format 4 records en roept fmt4 aan</text>
+
+          <rect class="node node-teal" x="325" y="225" width="250" height="116"></rect>
+          <text class="label" x="343" y="253">bestpred_fmt4.f90</text>
+          <text class="small" x="343" y="277">Parse AIPL Format 4 segmenten</text>
+          <text class="small" x="343" y="295">Leeftijd/season/previous DO correcties</text>
+          <text class="small" x="343" y="313">Bouwt arrays: dim, yield, herd305</text>
+
+          <rect class="node node-purple" x="650" y="160" width="260" height="160"></rect>
+          <text class="label" x="668" y="188">bestpred.f90</text>
+          <text class="small" x="668" y="212">Kern: bestpred()</text>
+          <text class="small" x="668" y="230">interpolate(), vary(), covary()</text>
+          <text class="small" x="668" y="248">adjust3X(), ymean(), mult()</text>
+          <text class="small" x="668" y="266">DCR, reliability, persistency</text>
+          <text class="small" x="668" y="284">YLDvec, DAILYbp, DAILYherd</text>
+
+          <rect class="node node-amber" x="650" y="375" width="260" height="118"></rect>
+          <text class="label" x="668" y="403">C helpers</text>
+          <text class="small" x="668" y="427">aiplage.c / aiplage.h</text>
+          <text class="small" x="668" y="445">ageadj*.c / adjscs.c</text>
+          <text class="small" x="668" y="463">Official age/season/PDO factors</text>
+
+          <rect class="node node-blue" x="960" y="70" width="190" height="98"></rect>
+          <text class="label" x="978" y="98">Output files</text>
+          <text class="small" x="978" y="122">results_v2.dcr</text>
+          <text class="small" x="978" y="140">cowdata.*, cowcurve.*</text>
+
+          <rect class="node" x="960" y="230" width="190" height="100"></rect>
+          <text class="label" x="978" y="258">Python plot scripts</text>
+          <text class="small" x="978" y="282">bestpred_curves.py</text>
+          <text class="small" x="978" y="300">standard_curves.py</text>
+
+          <rect class="node node-red" x="30" y="395" width="545" height="98"></rect>
+          <text class="label" x="48" y="423">Input data</text>
+          <text class="small" x="48" y="447">format4.dat, DCRexample.txt, pcdart.bpi, pcdart_files.txt, format4.means</text>
+          <text class="small" x="48" y="465">Format 4 bevat cow id, herd, fresh date, parity, lactation length en max 20 test-day segmenten</text>
+
+          <path class="arrow" d="M260 214 C290 214, 292 119, 325 119"></path>
+          <path class="arrow" d="M145 395 L145 261"></path>
+          <path class="arrow" d="M260 444 C292 444, 292 286, 325 286"></path>
+          <path class="arrow" d="M575 285 C612 285, 612 240, 650 240"></path>
+          <path class="arrow" d="M780 375 L780 320"></path>
+          <path class="arrow" d="M910 240 C940 240, 935 120, 960 120"></path>
+          <path class="arrow" d="M910 258 C940 258, 935 280, 960 280"></path>
+          <path class="arrow" d="M260 80 C295 80, 290 95, 325 95"></path>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <h2>Runtime-flow in gewone taal</h2>
+      <div class="svg-wrap">
+        <svg viewBox="0 0 1180 520" role="img" aria-label="Runtime flow van BESTPRED">
+          <defs>
+            <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#475569"></path>
+            </marker>
+          </defs>
+          <style>.arrow2{stroke:#475569;stroke-width:1.7;fill:none;marker-end:url(#arrow2)}</style>
+
+          <rect class="node node-amber" x="30" y="40" width="170" height="70"></rect>
+          <text class="label" x="48" y="68">1. Parameters</text>
+          <text class="small" x="48" y="90">read_parms()</text>
+
+          <rect class="node node-red" x="250" y="40" width="190" height="70"></rect>
+          <text class="label" x="268" y="68">2. Input records</text>
+          <text class="small" x="268" y="90">Format 4 / DCR / PCDART</text>
+
+          <rect class="node node-teal" x="490" y="40" width="210" height="85"></rect>
+          <text class="label" x="508" y="68">3. Parse + correct</text>
+          <text class="small" x="508" y="90">dim, yield, MRD, status</text>
+          <text class="small" x="508" y="108">agefac, herd305</text>
+
+          <rect class="node node-purple" x="760" y="40" width="230" height="85"></rect>
+          <text class="label" x="778" y="68">4. Official ingredients</text>
+          <text class="small" x="778" y="90">interpolate curves + SD</text>
+          <text class="small" x="778" y="108">vary/covary matrices</text>
+
+          <rect class="node node-purple" x="180" y="205" width="250" height="94"></rect>
+          <text class="label" x="198" y="234">5. Test-day deviations</text>
+          <text class="small" x="198" y="256">dev = observed * 3X - ymean / agefac</text>
+          <text class="small" x="198" y="274">exclude bad/duplicate/missing tests</text>
+
+          <rect class="node node-blue" x="500" y="205" width="250" height="94"></rect>
+          <text class="label" x="518" y="234">6. Best prediction</text>
+          <text class="small" x="518" y="256">invert Vm, multiply C * Vm^-1 * dev</text>
+          <text class="small" x="518" y="274">MT and/or ST per trait</text>
+
+          <rect class="node node-blue" x="820" y="205" width="250" height="94"></rect>
+          <text class="label" x="838" y="234">7. Add herd baseline</text>
+          <text class="small" x="838" y="256">YLDvec = predicted deviation + herd curve</text>
+          <text class="small" x="838" y="274">actual = ME / agefac / 3X</text>
+
+          <rect class="node node-teal" x="350" y="380" width="250" height="80"></rect>
+          <text class="label" x="368" y="408">8. Quality metrics</text>
+          <text class="small" x="368" y="430">DCR, RELyld, RELpers, bumpiness</text>
+
+          <rect class="node node-amber" x="670" y="380" width="250" height="80"></rect>
+          <text class="label" x="688" y="408">9. Outputs</text>
+          <text class="small" x="688" y="430">results, cowdata, cowcurve, plots</text>
+
+          <path class="arrow2" d="M200 75 L250 75"></path>
+          <path class="arrow2" d="M440 75 L490 75"></path>
+          <path class="arrow2" d="M700 82 L760 82"></path>
+          <path class="arrow2" d="M875 125 C875 170, 305 160, 305 205"></path>
+          <path class="arrow2" d="M430 252 L500 252"></path>
+          <path class="arrow2" d="M750 252 L820 252"></path>
+          <path class="arrow2" d="M945 299 C945 355, 475 340, 475 380"></path>
+          <path class="arrow2" d="M600 420 L670 420"></path>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <h2>Bestanden en rollen</h2>
+      <table>
+        <thead><tr><th>Bestand</th><th>Rol</th><th>Wat is belangrijk voor Python-port?</th></tr></thead>
+        <tbody>
+          <tr><td><code>bestpred_main.f90</code></td><td>Standalone programma. Leest <code>bestpred.par</code>, opent inputbronnen, vormt of parseert records, roept <code>bestpred_fmt4()</code> aan.</td><td>Niet alles hoeft naar Python. Wel nuttig als referentie voor input formats en batch-verwerking.</td></tr>
+          <tr><td><code>bestpred_parm.f90</code></td><td>Leest Fortran NAMELIST <code>&amp;bestpred</code> en valideert defaults.</td><td>Maak een Python config dataclass/Pydantic model met dezelfde parameters en defaults.</td></tr>
+          <tr><td><code>bestpred_fmt4.f90</code></td><td>Parseert AIPL Format 4, leest test-day segmenten, bepaalt ras/pariteit/leeftijd/staat, roept C-correcties aan, vult arrays voor <code>bestpred()</code>.</td><td>Port alleen nodig als Bovi Format 4 of PCDART direct wil ondersteunen. Anders input normaliseren naar een intern dataframe/schema.</td></tr>
+          <tr><td><code>bestpred.f90</code></td><td>De kern. Bevat <code>bestpred()</code>, <code>interpolate()</code>, <code>vary()</code>, <code>covary()</code>, <code>adjust3X()</code>, <code>ymean()</code>, matrix routines en output writers.</td><td>Dit is de primaire porting-bron. Begin met pure functions en golden tests.</td></tr>
+          <tr><td><code>aiplage.c</code>, <code>adjscs.c</code>, <code>ageadj*.c</code></td><td>Officiele leeftijd, seizoen, staat/regio en previous-days-open correctiefactoren.</td><td>Kan 1-op-1 naar Python-tabellen/functions of tijdelijk via C/ctypes/f2py gebruikt worden.</td></tr>
+          <tr><td><code>standard_curves.py</code></td><td>Python-script in deze repo voor standaardcurves, bijgewerkt in 2025.</td><td>Nuttig, maar parameters lijken niet exact dezelfde set als in <code>bestpred.f90</code>. Verifieer met golden output voordat dit leidend wordt.</td></tr>
+          <tr><td><code>bestpred_curves.py</code></td><td>Oud Python 2 plot-script voor curve-output.</td><td>Niet nodig voor kernmigratie; kan vervangen worden door moderne visualisatie.</td></tr>
+          <tr><td><code>DCRexample.results.dcr</code></td><td>USDA/AIPL referentie-output.</td><td>Essentieel als golden master voor port-validatie.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Fortran kernlogica</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>1. Officiele curves en SD</h3>
+          <p><code>interpolate()</code> bouwt dagcurves en standaarddeviaties voor 4 traits, 2 pariteitsgroepen, 6 rassen en optioneel regio/seizoen. Voor M/F/P gebruikt het Wood-achtige parameters; voor SCS Morant &amp; Gnanasakthy-achtige parameters.</p>
+        </div>
+        <div class="card">
+          <h3>2. Covariantie tussen testdagen</h3>
+          <p><code>vary()</code> rekent covariantie tussen twee test-day observaties uit. Het combineert trait-correlaties, DIM-afstand, supervision/milking/sample codes, MRD/LER en SD per dag.</p>
+        </div>
+        <div class="card">
+          <h3>3. Covariantie met lactatie-yield</h3>
+          <p><code>covary()</code> cachet covarianties tussen testdagen en totale 305/365/laclen-yield en tussen testdagen en persistency-statistiek.</p>
+        </div>
+        <div class="card">
+          <h3>4. Matrixprojectie</h3>
+          <p>Fortran vult <code>var</code> met Vm, inverteert die met <code>invrt2()</code>, en vermenigvuldigt <code>cov305 * var^-1 * dev</code>. Dit is conceptueel hetzelfde als Python's <code>B_mo @ solve(B_oo, y_obs)</code>.</p>
+        </div>
+        <div class="card">
+          <h3>5. Correcties</h3>
+          <p>Observed yields worden gecorrigeerd voor 3X-milking, age/season/previous-days-open, SCS scale, missing components, duplicate DIM, owner-sampler DCR en lactation length.</p>
+        </div>
+        <div class="card">
+          <h3>6. Outputs</h3>
+          <p><code>YLDvec</code> bevat 16 waarden per ME/actual rij: 305, 365, laclen/maxlen en partial voor M/F/P/S. Daarnaast DCR, REL, PERS, DAILYbp en DAILYherd.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Vergelijking met Bovi Python</h2>
+      <table>
+        <thead><tr><th>Onderdeel</th><th>Fortran BESTPRED</th><th>Bovi Python <code>best_predict.py</code></th><th>Gap</th></tr></thead>
+        <tbody>
+          <tr><td>Traits</td><td>Milk, fat, protein, SCS.</td><td>Alleen melk.</td><td class="risk">Groot als Bovi officiele componenten/SCS wil.</td></tr>
+          <tr><td>Prediction mode</td><td>Single-trait en multi-trait MFP/MFPS.</td><td>Single-trait.</td><td class="warn">Multi-trait ontbreekt.</td></tr>
+          <tr><td>Lactation length</td><td>305, 365, custom <code>laclen</code>, partial/current length.</td><td>Vaste 305-dag grid.</td><td class="warn">Long/partial official outputs ontbreken.</td></tr>
+          <tr><td>Standard curve</td><td>Dynamisch per ras, pariteit, trait, regio, seizoen, methode.</td><td>Een geladen <code>standard_lc_wood.npy</code>.</td><td class="risk">Belangrijkste inhoudelijke verschil.</td></tr>
+          <tr><td>Covariance</td><td><code>vary()</code> + <code>covary()</code> met trait-corr, DIM, MRD, sample/supervision, SD.</td><td>Vaste 305x305 matrix of fit uit data met simpele AR(1).</td><td class="risk">Officiele DCR/covariantie ontbreekt.</td></tr>
+          <tr><td>Age/season/PDO</td><td>C helpers <code>aiplage</code>, <code>adjscs</code>.</td><td>Geen.</td><td class="warn">Nodig voor ME/actual parity-aware outputs.</td></tr>
+          <tr><td>3X milking</td><td><code>adjust3X()</code> met old/new/phased factoren.</td><td>Geen.</td><td class="warn">Nodig voor official parity/milking-frequency gedrag.</td></tr>
+          <tr><td>DCR/reliability</td><td>DCRm/DCRc/DCRs, RELyld, RELpers, bumpiness.</td><td>Geen.</td><td class="warn">Nodig als Bovi confidence/quality wil tonen.</td></tr>
+          <tr><td>Persistency</td><td>Volledig: tipping points, RELpers, standardized persistency.</td><td>Geen.</td><td class="warn">Apart porting-spoor.</td></tr>
+          <tr><td>Input formats</td><td>AIPL Format 4, DCRexample, USDA master, DRMS/PCDART.</td><td>Pandas dataframe met column aliases.</td><td class="note">Python is ergonomischer; Format 4 parser alleen nodig voor compatibiliteit.</td></tr>
+          <tr><td>Tests</td><td>Voorbeeld-output in repo; binary draait hier niet.</td><td>Unit/integration tests, maar niet tegen Fortran golden output.</td><td class="risk">Golden parity-tests ontbreken.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Porting-inschatting</h2>
+      <div class="grid three">
+        <div class="card">
+          <span class="pill green">Laag risico</span>
+          <h3>Matrix BP kernel</h3>
+          <p>Port <code>bestpred()</code> algebra naar NumPy: observed deviations, covariance blocks, Cholesky/solve, add baseline. De Bovi-code doet dit al voor melk/305.</p>
+        </div>
+        <div class="card">
+          <span class="pill amber">Middel</span>
+          <h3>Official ingredients</h3>
+          <p>Port <code>interpolate()</code>, <code>vary()</code>, <code>covary()</code>, <code>adjust3X()</code>. Veel parameters, maar grotendeels deterministische tabellen en formules.</p>
+        </div>
+        <div class="card">
+          <span class="pill red">Hoog</span>
+          <h3>Full equivalence</h3>
+          <p>Exacte byte-for-byte output inclusief Format 4 edge cases, old compiler behavior, C age factors, SCS, DCR en persistency vereist veel golden tests en numerieke tolerantie-keuzes.</p>
+        </div>
+      </div>
+      <p class="note">Mijn inschatting: 70-80% van de waarde voor Bovi zit in het porten van de official ingredients en single-trait milk path. De volledige Fortran surface area porten is mogelijk, maar waarschijnlijk niet nodig als eerste doel.</p>
+    </section>
+
+    <section>
+      <h2>Aanbevolen migratieplan</h2>
+      <table>
+        <thead><tr><th>Fase</th><th>Doel</th><th>Concreet resultaat</th><th>Validatie</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Golden master harness</td><td>Maak Fortran build/run reproduceerbaar op Linux, of compileer opnieuw met gfortran. Leg <code>DCRexample.results.dcr</code> en enkele Format 4 cases vast.</td><td>Python test leest golden output en vergelijkt kernvelden.</td></tr>
+          <tr><td>2</td><td>Pure Python data model</td><td>Dataclasses voor trait, parity, test day, herd averages, config, result vectors.</td><td>Unit tests op parsing/defaults.</td></tr>
+          <tr><td>3</td><td>Official curves</td><td>Port <code>interpolate()</code> parameters naar Python arrays. Genereer <code>dyield</code>, <code>meanyld</code>, <code>sd</code>.</td><td>Vergelijk curvepunten en cumulative sums tegen Fortran debug/known values.</td></tr>
+          <tr><td>4</td><td>Official covariance</td><td>Port <code>vary()</code> en <code>covary()</code>. Ondersteun MRD, supervision, sample/weigh, trait correlations.</td><td>Small matrix tests plus golden DCRexample comparison.</td></tr>
+          <tr><td>5</td><td>Milk 305 official mode</td><td>Vervang/uitbreid Bovi <code>best_predict_method_single_lac</code> met official ingredients.</td><td>Bovi tests + Fortran parity op melk 305.</td></tr>
+          <tr><td>6</td><td>Corrections</td><td>Port <code>adjust3X</code>, <code>aiplage</code>/<code>adjscs</code> of bind tijdelijk aan C.</td><td>ME/actual golden outputs.</td></tr>
+          <tr><td>7</td><td>Full result set</td><td>DCR, reliability, persistency, fat/protein/SCS, 365/laclen/partial.</td><td>Field-by-field tolerantie tegen <code>DCRexample.results.dcr</code>.</td></tr>
+        </tbody>
+      </table>
+      <p class="warn">Niet direct de Fortran-code herschrijven als een grote transliteratie. Beter: maak kleine pure Python modules met dezelfde mathematische contracten en zet daar golden tests omheen. Dan blijft Bovi onderhoudbaar.</p>
+    </section>
+
+    <section>
+      <h2>Wat ik zou veranderen in Bovi</h2>
+      <ul>
+        <li>Hernoem het huidige pad conceptueel naar <code>simple_best_predict</code> of voeg een <code>mode="simple" | "official"</code> toe.</li>
+        <li>Voeg <code>official_bestpred</code> module toe met <code>StandardCurveProvider</code>, <code>CovarianceProvider</code>, <code>BestPredConfig</code> en <code>BestPredResult</code>.</li>
+        <li>Gebruik NumPy/SciPy <code>solve</code>/<code>cho_solve</code>, niet expliciet matrix inverse behalve wanneer je Fortran exact wilt debuggen.</li>
+        <li>Bewaar Fortran parameters als gestructureerde NumPy arrays of JSON/YAML gegenereerd uit een eenmalige extractie, niet als losse magic numbers door de code.</li>
+        <li>Maak golden tests de poortwachter: eerst melk 305, daarna actual/ME, daarna DCR en persistency.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Open technische aandachtspunten</h2>
+      <ul>
+        <li>De meegeleverde <code>bestpred</code> binary is macOS Mach-O en draait niet op deze Linux/WSL omgeving. Voor echte parity-tests moet de Fortran lokaal opnieuw gecompileerd worden.</li>
+        <li><code>standard_curves.py</code> in deze repo is bijgewerkt in 2025 en heeft andere parameterwaarden dan de embedded arrays in <code>bestpred.f90</code>. Niet aannemen dat dit exact de originele official curve is zonder vergelijking.</li>
+        <li>De Fortran maakt veel gebruik van global/save state en eerste-call caching. De Python-port moet dit expliciet maken via cache keys: ras, pariteit, regio, seizoen, maxlen, methods.</li>
+        <li>Fortran behandelt veel input-edits beperkt of impliciet. Bovi moet kiezen: exact Fortran gedrag reproduceren of modernere inputvalidatie doen en afwijkingen documenteren.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

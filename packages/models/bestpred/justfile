@@ -1,0 +1,11 @@
+# bestpred-py
+test:
+    uv run pytest tests/ -v
+
+lint:
+    uv run ruff check .
+    uv run ruff format --check .
+    uv run basedpyright
+
+build:
+    uv build

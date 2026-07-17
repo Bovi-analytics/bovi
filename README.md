@@ -10,6 +10,7 @@ Monorepo for the Bovi dairy analytics platform.
 
 - `packages/bovi-core/` — ML framework: base classes, registries, config, utilities
 - `packages/models/lactationcurve/` — Classical lactation curve fitting (Wood, MilkBot, etc.)
+- `packages/models/bestpred/` — Pure Python USDA BESTPRED implementation and compatibility CLI
 - `packages/models/lactation-autoencoder/` — TensorFlow autoencoder for milk production prediction
 - `packages/models/bovi-yolo/` — YOLO object detection for dairy applications
 - `packages/infrastructure/pulumi/` — Azure infrastructure as code
