@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import {
-  Anchor,
   Alert,
   Button,
   Checkbox,
@@ -62,17 +61,14 @@ export function AuthGuard({ children }: { readonly children: ReactNode }): React
           <ScrollArea h={360} offsetScrollbars type="always">
             <Stack gap="sm" pr="md">
               {TERMS_OF_USE_PARAGRAPHS.map((paragraph) => (
-                <Text key={paragraph} size="sm">
+                <Text key={paragraph} size="sm" ta="justify" lh={1.6}>
                   {paragraph}
                 </Text>
               ))}
             </Stack>
           </ScrollArea>
           <Text size="xs" c="dimmed">
-            Document version {CURRENT_TERMS.version}. Original file:{" "}
-            <Anchor href={CURRENT_TERMS.documentUrl} target="_blank" rel="noreferrer">
-              {CURRENT_TERMS.documentFilename}
-            </Anchor>
+            Document version {CURRENT_TERMS.version}.
           </Text>
           <Checkbox
             checked={acceptedTerms}

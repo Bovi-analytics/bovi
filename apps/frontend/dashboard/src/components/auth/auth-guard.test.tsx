@@ -38,9 +38,6 @@ vi.mock("@mantine/core", () => ({
       {children}
     </button>
   ),
-  Anchor: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
   Alert: ({ children }: { children: React.ReactNode }) => <div role="alert">{children}</div>,
   Checkbox: ({
     checked,
@@ -201,6 +198,8 @@ describe("AuthGuard", () => {
       "Terms of Use and Data Contribution Agreement"
     );
     expect(queryByText("Accept and continue")).not.toBeNull();
+    expect(queryByText("Document version 072326.")).not.toBeNull();
+    expect(container.querySelector("a")).toBeNull();
     expect(container.querySelector("button")?.hasAttribute("disabled")).toBe(true);
     expect(queryByText("Protected dashboard")).toBeNull();
     expect(queryByText("Create your Bovi organization")).toBeNull();
