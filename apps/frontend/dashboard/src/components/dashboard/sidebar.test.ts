@@ -19,6 +19,15 @@ const USER: AuthUser = {
     { id: 10, name: "North Herd", role: "Owner" },
     { id: 11, name: "South Herd", role: "Member" },
   ],
+  terms_acceptance: {
+    accepted: true,
+    terms_key: "terms-of-use-data-contribution",
+    terms_version: "072326",
+    document_sha256: "dba8cbba07f6a413d868bfccc4b671f974b48335cc1b5ca2677a73e1ce758304", // pragma: allowlist secret
+    document_filename: "Terms of Use and Data Contribution Agreement 072326.docx",
+    document_url: "/legal/terms-of-use-data-contribution-agreement-072326.docx",
+    accepted_at: "2026-07-29T12:00:00Z",
+  },
 };
 
 describe("dashboard sidebar identity helpers", () => {

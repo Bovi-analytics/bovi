@@ -17,6 +17,7 @@ from bovi_api.models import (  # noqa: F401 - registers tables
     OrganizationMembership,
     StorageArtifact,
     Submission,
+    TermsAcceptanceAudit,
     UploadedDataset,
     User,
 )

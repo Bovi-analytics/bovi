@@ -29,6 +29,7 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
+  FileCheck2,
   Layers3,
   Search,
   ShieldCheck,
@@ -38,6 +39,7 @@ import {
   adminOverviewOptionsKey,
   downloadSubmissionReport,
   listAdminSubmissionsOverview,
+  listAdminTermsAcceptances,
   listAdminUsers,
   listOrganizations,
   updateAdminUserRole,
@@ -48,6 +50,7 @@ import { CenteredLoader } from "@/components/dashboard/centered-loader";
 import type {
   AdminCategoryBreakdown,
   AdminDataCategory,
+  AdminTermsAcceptance,
   AdminUser,
   AdminOrganizationBreakdown,
   AdminOverviewItem,
@@ -237,6 +240,50 @@ function CategoryTable({ rows }: { readonly rows: AdminCategoryBreakdown[] }): R
   );
 }
 
+function TermsAcceptanceTable({ rows }: { readonly rows: AdminTermsAcceptance[] }): ReactElement {
+  return (
+    <Table striped highlightOnHover fz="sm">
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th>User</Table.Th>
+          <Table.Th>Version</Table.Th>
+          <Table.Th>Accepted</Table.Th>
+          <Table.Th>Document</Table.Th>
+          <Table.Th>SHA-256</Table.Th>
+          <Table.Th>IP</Table.Th>
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {rows.map((row) => (
+          <Table.Tr key={row.id}>
+            <Table.Td>
+              <Stack gap={0}>
+                <Text size="sm">{row.user_name || `User #${row.user_id}`}</Text>
+                <Text size="xs" c="dimmed">
+                  {row.user_email ?? "-"}
+                </Text>
+              </Stack>
+            </Table.Td>
+            <Table.Td>
+              <Badge color="green" variant="light">
+                {row.terms_version}
+              </Badge>
+            </Table.Td>
+            <Table.Td>{formatDate(row.accepted_at)}</Table.Td>
+            <Table.Td>{row.document_filename}</Table.Td>
+            <Table.Td>
+              <Text component="code" size="xs">
+                {row.document_sha256.slice(0, 12)}
+              </Text>
+            </Table.Td>
+            <Table.Td>{row.ip_address ?? "-"}</Table.Td>
+          </Table.Tr>
+        ))}
+      </Table.Tbody>
+    </Table>
+  );
+}
+
 export default function AdminPage(): ReactElement {
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -250,6 +297,7 @@ export default function AdminPage(): ReactElement {
     useState<NonNullable<AdminOverviewOptions["direction"]>>("desc");
   const [selectedItem, setSelectedItem] = useState<AdminOverviewItem | null>(null);
   const [userSearch, setUserSearch] = useState("");
+  const [termsSearch, setTermsSearch] = useState("");
   const [pendingRoleUser, setPendingRoleUser] = useState<{
     user: AdminUser;
     role: "Admin" | "User";
@@ -289,6 +337,11 @@ export default function AdminPage(): ReactElement {
   const usersQuery = useQuery({
     queryKey: ["admin-users", userSearch.trim()],
     queryFn: () => listAdminUsers(userSearch),
+    enabled: Boolean(user?.is_admin),
+  });
+  const termsQuery = useQuery({
+    queryKey: ["admin-terms-acceptances", termsSearch.trim()],
+    queryFn: () => listAdminTermsAcceptances(termsSearch),
     enabled: Boolean(user?.is_admin),
   });
   const updateRoleMutation = useMutation({
@@ -363,6 +416,9 @@ export default function AdminPage(): ReactElement {
           </Tabs.Tab>
           <Tabs.Tab value="access" leftSection={<UsersRound size={14} />}>
             Access
+          </Tabs.Tab>
+          <Tabs.Tab value="terms" leftSection={<FileCheck2 size={14} />}>
+            Terms
           </Tabs.Tab>
         </Tabs.List>
 
@@ -548,6 +604,42 @@ export default function AdminPage(): ReactElement {
                   onRoleChange={openRoleChange}
                   isUpdating={updateRoleMutation.isPending}
                 />
+              )}
+            </Paper>
+          </Stack>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="terms" pt="md">
+          <Stack gap="md">
+            <Paper withBorder radius="sm" p="md">
+              <Group justify="space-between" align="flex-end">
+                <Stack gap={2}>
+                  <Text fw={700} size="sm">
+                    Terms acceptance log
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Audit trail for users who accepted the active Terms of Use document.
+                  </Text>
+                </Stack>
+                <TextInput
+                  label="Search acceptances"
+                  size="xs"
+                  leftSection={<Search size={14} />}
+                  value={termsSearch}
+                  onChange={(event) => setTermsSearch(event.currentTarget.value)}
+                  placeholder="Name, email, version, hash"
+                  w={300}
+                />
+              </Group>
+            </Paper>
+            <Paper withBorder radius="sm" p="md">
+              {termsQuery.isLoading && <Loader />}
+              {termsQuery.error && <Text c="red">Failed to load terms acceptances.</Text>}
+              {termsQuery.data && <TermsAcceptanceTable rows={termsQuery.data} />}
+              {termsQuery.data?.length === 0 && (
+                <Text size="sm" c="dimmed" mt="md">
+                  No terms acceptances match the selected filters.
+                </Text>
               )}
             </Paper>
           </Stack>

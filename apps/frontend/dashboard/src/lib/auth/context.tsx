@@ -16,6 +16,7 @@ import {
   isAzureAdConfigured,
   setAuthRuntimeConfig,
 } from "./config";
+import { CURRENT_TERMS } from "@/data/terms-of-use";
 import {
   getBackendAccessToken,
   initializeAuthService,
@@ -37,6 +38,15 @@ const DEV_USER: AuthUser = {
   roles: ["Admin"],
   is_admin: true,
   organizations: [{ id: 1, name: "Development Organization", role: "Owner" }],
+  terms_acceptance: {
+    accepted: true,
+    terms_key: CURRENT_TERMS.key,
+    terms_version: CURRENT_TERMS.version,
+    document_sha256: CURRENT_TERMS.documentSha256,
+    document_filename: CURRENT_TERMS.documentFilename,
+    document_url: CURRENT_TERMS.documentUrl,
+    accepted_at: new Date(0).toISOString(),
+  },
 };
 const SELECTED_ORG_KEY = "bovi:selected-organization-id";
 

@@ -1,11 +1,23 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Button, Stack, TextInput, Title } from "@mantine/core";
+import {
+  Anchor,
+  Alert,
+  Button,
+  Checkbox,
+  Modal,
+  ScrollArea,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from "@mantine/core";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CenteredLoader } from "@/components/dashboard/centered-loader";
-import { createOrganization } from "@/lib/api-client";
+import { CURRENT_TERMS, TERMS_OF_USE_PARAGRAPHS } from "@/data/terms-of-use";
+import { acceptCurrentTerms, createOrganization } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 
 export function AuthGuard({ children }: { readonly children: ReactNode }): ReactNode {
@@ -13,6 +25,9 @@ export function AuthGuard({ children }: { readonly children: ReactNode }): React
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState("");
   const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [isAcceptingTerms, setIsAcceptingTerms] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
   const suggestedName = "Your Organization";
 
   useEffect(() => {
@@ -28,6 +43,69 @@ export function AuthGuard({ children }: { readonly children: ReactNode }): React
 
   if (isLoading) return <CenteredLoader label="Opening your workspace..." />;
   if (!isAuthenticated) return null;
+  if (user && !user.terms_acceptance.accepted) {
+    return (
+      <Modal
+        opened
+        onClose={() => undefined}
+        closeOnClickOutside={false}
+        closeOnEscape={false}
+        withCloseButton={false}
+        title={CURRENT_TERMS.title}
+        size="xl"
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            You must accept the current Terms of Use and Data Contribution Agreement before using
+            the Bovi dashboard.
+          </Text>
+          <ScrollArea h={360} offsetScrollbars type="always">
+            <Stack gap="sm" pr="md">
+              {TERMS_OF_USE_PARAGRAPHS.map((paragraph) => (
+                <Text key={paragraph} size="sm">
+                  {paragraph}
+                </Text>
+              ))}
+            </Stack>
+          </ScrollArea>
+          <Text size="xs" c="dimmed">
+            Document version {CURRENT_TERMS.version}. Original file:{" "}
+            <Anchor href={CURRENT_TERMS.documentUrl} target="_blank" rel="noreferrer">
+              {CURRENT_TERMS.documentFilename}
+            </Anchor>
+          </Text>
+          <Checkbox
+            checked={acceptedTerms}
+            onChange={(event) => setAcceptedTerms(event.currentTarget.checked)}
+            label="I have read and agree to the Terms of Use and Data Contribution Agreement."
+          />
+          {termsError && (
+            <Alert color="red" variant="light">
+              {termsError}
+            </Alert>
+          )}
+          <Button
+            disabled={!acceptedTerms}
+            loading={isAcceptingTerms}
+            onClick={async () => {
+              setIsAcceptingTerms(true);
+              setTermsError(null);
+              try {
+                await acceptCurrentTerms();
+                window.location.reload();
+              } catch (error) {
+                setTermsError(error instanceof Error ? error.message : String(error));
+              } finally {
+                setIsAcceptingTerms(false);
+              }
+            }}
+          >
+            Accept and continue
+          </Button>
+        </Stack>
+      </Modal>
+    );
+  }
   if (user && user.organizations.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">

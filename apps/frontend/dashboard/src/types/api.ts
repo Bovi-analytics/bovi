@@ -610,3 +610,31 @@ export const AdminUserSchema = z.object({
 export type AdminUser = z.infer<typeof AdminUserSchema>;
 
 export const AdminUserListSchema = z.array(AdminUserSchema);
+
+export const TermsAcceptanceStatusSchema = z.object({
+  accepted: z.boolean(),
+  terms_key: z.string(),
+  terms_version: z.string(),
+  document_sha256: z.string(),
+  document_filename: z.string(),
+  document_url: z.string(),
+  accepted_at: z.string().nullable(),
+});
+export type TermsAcceptanceStatus = z.infer<typeof TermsAcceptanceStatusSchema>;
+
+export const AdminTermsAcceptanceSchema = z.object({
+  id: z.number(),
+  user_id: z.number(),
+  user_email: z.string().nullable(),
+  user_name: z.string().nullable(),
+  terms_key: z.string(),
+  terms_version: z.string(),
+  document_sha256: z.string(),
+  document_filename: z.string(),
+  ip_address: z.string().nullable(),
+  user_agent: z.string().nullable(),
+  accepted_at: z.string().nullable(),
+});
+export type AdminTermsAcceptance = z.infer<typeof AdminTermsAcceptanceSchema>;
+
+export const AdminTermsAcceptanceListSchema = z.array(AdminTermsAcceptanceSchema);

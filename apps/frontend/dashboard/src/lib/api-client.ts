@@ -22,14 +22,17 @@ import {
   SubmissionListSchema,
   SubmissionReadSchema,
   AdminOverviewResponseSchema,
+  AdminTermsAcceptanceListSchema,
   AdminUserListSchema,
   AdminUserSchema,
+  TermsAcceptanceStatusSchema,
   UploadedDatasetDeleteImpactSchema,
   UploadedDatasetDetailSchema,
   UploadedDatasetListSchema,
 } from "@/types/api";
 import type {
   AdminDataCategory,
+  AdminTermsAcceptance,
   AdminUser,
   AdminOverviewResponse,
   AutoencoderPredictRequest,
@@ -65,6 +68,7 @@ import type {
   UploadedDatasetDeleteImpact,
   UploadedDatasetDetail,
   UploadedDatasetRead,
+  TermsAcceptanceStatus,
 } from "@/types/api";
 
 /* ------------------------------------------------------------------ */
@@ -469,6 +473,15 @@ export async function updateAdminUserRole(
 ): Promise<AdminUser> {
   const response = await apiPatch<unknown>(`/admin/users/${userId}/role`, { role });
   return AdminUserSchema.parse(response);
+}
+
+export async function acceptCurrentTerms(): Promise<TermsAcceptanceStatus> {
+  return apiFetch("/auth/terms/accept", TermsAcceptanceStatusSchema, {});
+}
+
+export async function listAdminTermsAcceptances(q?: string): Promise<AdminTermsAcceptance[]> {
+  const params = q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
+  return apiGet(`/admin/terms-acceptances${params}`, AdminTermsAcceptanceListSchema);
 }
 
 /* ------------------------------------------------------------------ */

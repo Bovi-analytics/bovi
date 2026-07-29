@@ -14,10 +14,12 @@ from bovi_api.models import (
     OrganizationInvite,
     OrganizationMembership,
     Submission,
+    TermsAcceptanceAudit,
     UploadedDataset,
     User,
 )
 from bovi_api.routes.organizations import _token_hash, preview_invite
+from bovi_api.terms import CURRENT_TERMS_DOCUMENT_SHA256
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -34,6 +36,96 @@ def test_auth_me_returns_current_user(client):
     assert body["email"] == "user@example.test"
     assert body["is_admin"] is False
     assert body["organizations"] == [{"id": 1, "name": "Test Organization", "role": "Owner"}]
+    assert body["terms_acceptance"] == {
+        "accepted": False,
+        "terms_key": "terms-of-use-data-contribution",
+        "terms_version": "072326",
+        "document_sha256": CURRENT_TERMS_DOCUMENT_SHA256,
+        "document_filename": "Terms of Use and Data Contribution Agreement 072326.docx",
+        "document_url": "/legal/terms-of-use-data-contribution-agreement-072326.docx",
+        "accepted_at": None,
+    }
+
+
+def test_accept_terms_records_current_document_once(client):
+    response = client.post(
+        "/auth/terms/accept",
+        headers={"user-agent": "pytest-browser"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["accepted"] is True
+    assert body["terms_version"] == "072326"
+    assert body["document_sha256"] == CURRENT_TERMS_DOCUMENT_SHA256
+    assert body["accepted_at"] is not None
+
+    second = client.post("/auth/terms/accept")
+    assert second.status_code == 200
+
+    override = client.app.dependency_overrides[get_session]
+
+    async def _audit_rows() -> list[TermsAcceptanceAudit]:
+        async for session in override():
+            return (await session.execute(select(TermsAcceptanceAudit))).scalars().all()
+        return []
+
+    audits = asyncio.run(_audit_rows())
+    assert len(audits) == 1
+    assert audits[0].user_id == 1
+    assert audits[0].terms_key == "terms-of-use-data-contribution"
+    assert audits[0].document_filename == "Terms of Use and Data Contribution Agreement 072326.docx"
+    assert audits[0].user_agent == "pytest-browser"
+
+
+def test_admin_can_list_terms_acceptance_log(client):
+    client.post("/auth/terms/accept", headers={"user-agent": "pytest-browser"})
+
+    async def override_admin():
+        return CurrentUser(
+            id=7,
+            entra_tenant_id="admin-tenant",
+            entra_oid="admin-oid",
+            account_type="entra",
+            email="admin@example.test",
+            name="Admin User",
+            roles=["Admin"],
+            is_admin=True,
+            organizations=[],
+        )
+
+    client.app.dependency_overrides[require_auth] = override_admin
+
+    response = client.get("/admin/terms-acceptances")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["user_id"] == 1
+    assert body[0]["user_email"] == "user@example.test"
+    assert body[0]["terms_version"] == "072326"
+    assert body[0]["user_agent"] == "pytest-browser"
+
+
+def test_terms_acceptance_log_requires_admin(client):
+    async def override_user():
+        return CurrentUser(
+            id=1,
+            entra_tenant_id="test-tenant",
+            entra_oid="test-user-oid",
+            account_type="entra",
+            email="user@example.test",
+            name="Test User",
+            roles=["User"],
+            is_admin=False,
+            organizations=[],
+        )
+
+    client.app.dependency_overrides[require_auth] = override_user
+
+    response = client.get("/admin/terms-acceptances")
+
+    assert response.status_code == 403
 
 
 def test_protected_route_propagates_auth_dependency_failure(client):
