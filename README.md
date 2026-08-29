@@ -4,6 +4,11 @@ Monorepo for the Bovi dairy analytics platform.
 
 **[Documentation lactationcurve package](https://bovi-analytics.github.io/bovi/lactationcurve.html)**
 
+## Handover documentation
+
+For the relationship between this monorepo and the historical Bovi repositories,
+start with the [handover and documentation map](docs/documentation/README.md).
+
 ## Structure
 
 ### Packages (libraries)

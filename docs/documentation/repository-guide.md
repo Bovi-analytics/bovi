@@ -1,138 +1,147 @@
-# Repositorykaart: structuur, doel en overdracht
+# Repository guide: structure, purpose, and handover
 
-## Het model in één oogopslag
+## The model at a glance
 
-De oorspronkelijke documentatie in `bovi-models-template` beschrijft een
-3-lagenmodel: een generieke core, herbruikbare modelvoorbeelden en afzonderlijke
-experimenten. Dat ontwerp is nog steeds een goed denkkader. De actuele
-implementatie heeft de eerste twee lagen echter in de `bovi`-monorepo
-geconsolideerd en voegt een expliciete deploymentlaag toe.
+The original documentation in <code>bovi-models-template</code> describes a
+three-layer model: a generic core, reusable model examples, and separate
+experiments. That design remains a useful way to think about the platform. The
+current implementation has consolidated the first two layers into the
+<code>bovi</code> monorepo and adds an explicit deployment layer.
 
-```text
-Experimenten en leerwerk                         Product en operatie
---------------------------                       --------------------
-template / Douwe / tutorial  ---- inzichten --->  bovi monorepo
-standalone core / curve      ---- migratie --->       |
+~~~text
+Experiments and learning                         Product and operations
+------------------------                         ----------------------
+template / Douwe / tutorial  ---- insights --->  bovi monorepo
+standalone core / curve      ---- migration -->      |
                                                      +-- bovi-core
                                                      +-- model packages
-                                                     +-- centrale API
+                                                     +-- central API
                                                      +-- Azure model apps
                                                      +-- dashboard
-```
+~~~
 
-De handoff-werkregel is daarom eenvoudig: gebruik de siblingrepos om het
-*waarom*, de voorbeelden en de evolutie te begrijpen; gebruik `bovi` om te
-bepalen wat nu gebouwd, getest, uitgerold of aangepast wordt.
+The handover rule is therefore simple: use the sibling repositories to
+understand the *why*, the examples, and the evolution; use <code>bovi</code> to
+determine what is currently built, tested, deployed, or changed.
 
-## 1. `bovi`: de actuele productrepo
+## 1. <code>bovi</code>: the current product repository
 
-`bovi` is de monorepo voor het werkende platform. Hij gebruikt Python 3.12 en
-beheert zijn Python-workspace met `uv`; de root-commando's zijn `just sync`,
-`just test`, `just lint` en de verschillende `just run-*`-commando's.
+<code>bovi</code> is the monorepo for the running platform. It uses Python 3.12
+and manages its Python workspace with <code>uv</code>; the root commands are
+<code>just sync</code>, <code>just test</code>, <code>just lint</code>, and the
+various <code>just run-*</code> commands.
 
-| Onderdeel | Locatie | Verantwoordelijkheid |
+| Component | Location | Responsibility |
 | --- | --- | --- |
-| Framework | `packages/bovi-core/` | Kleine, gedeelde abstractions: config, opslag, basismodellen, registry en utilities. Geen zware model-frameworks in deze laag. |
-| Modelleerpackages | `packages/models/` | `lactation-autoencoder` (TensorFlow), `bovi-yolo` (objectdetectie), `lactationcurve` (klassieke curves/ICAR) en `bestpred` (Python-port). |
-| Centrale API | `apps/backend/api/` | Eén publiek contract, authenticatie, SQLite-persistentie, ingestie en proxy/coördinatie. |
-| Modelapps | `apps/backend/models/` | Afzonderlijk te deployen Azure Function Apps voor de autoencoder en klassieke curves. |
-| Dashboard | `apps/frontend/dashboard/` | Next.js-interface; browsercode gaat via de lokale `/api/bovi`-proxy naar de centrale API. |
-| Infrastructuur | `apps/infrastructure/` en `packages/infrastructure/pulumi/` | Deployment- en cloudconfiguratie. |
+| Framework | <code>packages/bovi-core/</code> | Small shared abstractions: configuration, storage, base models, registry, and utilities. Heavy ML frameworks do not belong in this layer. |
+| Model packages | <code>packages/models/</code> | <code>lactation-autoencoder</code> (TensorFlow), <code>bovi-yolo</code> (object detection), <code>lactationcurve</code> (classical curves/ICAR), and <code>bestpred</code> (Python port). |
+| Central API | <code>apps/backend/api/</code> | One public contract, authentication, SQLite persistence, ingestion, and proxy/orchestration. |
+| Model apps | <code>apps/backend/models/</code> | Independently deployable Azure Function Apps for the autoencoder and classical curves. |
+| Dashboard | <code>apps/frontend/dashboard/</code> | Next.js interface; browser code reaches the central API through the local <code>/api/bovi</code> proxy. |
+| Infrastructure | <code>apps/infrastructure/</code> and <code>packages/infrastructure/pulumi/</code> | Deployment and cloud configuration. |
 
-De operationele datastroom is:
+The operational data flow is:
 
-```text
-Dashboard -> dashboardproxy (/api/bovi) -> centrale API
-          -> SQLite/opslag en interne model Function Apps
-```
+~~~text
+Dashboard -> dashboard proxy (/api/bovi) -> central API
+          -> SQLite/storage and internal model Function Apps
+~~~
 
-De dashboardregel is bewust hard: het dashboard spreekt nooit rechtstreeks
-met een modelapp. De centrale API is de integratiegrens.
+The dashboard boundary is intentional: the dashboard must never call a model
+app directly. The central API is the integration boundary.
 
-### Model-extensies in de monorepo
+### Model extensions in the monorepo
 
-`bovi-core` houdt de plugin-registries generiek. Concrete modelpackages
-publiceren model- en predictor-entry points (`bovi.models` en
-`bovi.predictors`); de registry ontdekt ze lazy via package metadata. Dat is
-de actuele vorm van het oude zelfregistratiepatroon. Een nieuw model hoort dus
-in een eigen modelpackage, registreert via de standaardregistry/entry-point-
-conventie en trekt zijn ML-afhankelijkheden niet de core in.
+<code>bovi-core</code> keeps the plugin registries generic. Concrete model
+packages publish model and predictor entry points (<code>bovi.models</code> and
+<code>bovi.predictors</code>), which the registry discovers lazily through
+package metadata. This is the current form of the older self-registration
+pattern. A new model belongs in its own model package, follows the standard
+registry/entry-point convention, and must not pull ML dependencies into the
+core.
 
-## 2. `bovi-models-template`: de ontwerpbron
+## 2. <code>bovi-models-template</code>: the design source
 
-Dit is de beste plek om de intentie achter de indeling te leren kennen. De
-mensgerichte documentatie staat in `misc/users/`:
+This is the best place to learn the intent behind the structure. The
+human-oriented documentation is in <code>misc/users/</code>:
 
-| Thema | Startdocument |
+| Topic | Starting document |
 | --- | --- |
-| Navigatie | `misc/users/overview.md` |
-| 3-lagenarchitectuur | `architecture/project_overview.md` |
-| Mappen en verantwoordelijkheden | `architecture/project_structure.md` |
-| Registry en uitbreidbaarheid | `architecture/registry_system.md` |
-| Samenwerken | `workflows/collaboration.md`, `team_workflow.md`, `git_workflow.md` |
-| Lactatie-experiment | `experiments/lactation_pipeline.md` |
+| Navigation | <code>misc/users/overview.md</code> |
+| Three-layer architecture | <code>architecture/project_overview.md</code> |
+| Directories and responsibilities | <code>architecture/project_structure.md</code> |
+| Registry and extensibility | <code>architecture/registry_system.md</code> |
+| Collaboration | <code>workflows/collaboration.md</code>, <code>team_workflow.md</code>, <code>git_workflow.md</code> |
+| Lactation experiment | <code>experiments/lactation_pipeline.md</code> |
 
-De template laat een zelfstandig experimentrepo zien met `src/models/`,
-`data/experiments/`, `notebooks/`, `tests/` en `misc/`. Het doel is: start met
-een duidelijke projectstructuur, houd domeinspecifieke modellen en data daar,
-en breng alleen breed herbruikbare infrastructuur naar de core.
+The template shows a standalone experiment repository with
+<code>src/models/</code>, <code>data/experiments/</code>, <code>notebooks/</code>,
+<code>tests/</code>, and <code>misc/</code>. Its purpose is to start from a clear
+project structure, keep domain-specific models and data in that project, and
+move only broadly reusable infrastructure into the core.
 
-**Belangrijke actualiteitsnoot.** De architectuur- en experimentdocumenten
-zijn op 8 mei 2026 bijgewerkt, maar de root-README is van 15 januari 2026 en
-de packageconfiguratie van 17 december 2025. Die configuratie vereist Python
-3.11 en koppelt editable aan de zelfstandige `../bovi-core`. Ook veel
-voorbeelden gaan uit van handmatige imports voor registry-discovery en noemen
-`project_template_v2` of een los `bovi-models`-pakket. Behoud het ontwerp,
-maar volg voor commando's, packagepaden en discovery de monorepo.
+**Important currency note.** The architecture and experiment documents were
+updated on 8 May 2026, while the root README is from 15 January 2026 and the
+package configuration from 17 December 2025. That configuration requires Python
+3.11 and uses an editable link to the standalone
+<code>../bovi-core</code>. Many examples also assume manual imports for registry
+discovery and mention <code>project_template_v2</code> or a separate
+<code>bovi-models</code> package. Preserve the design, but use the monorepo for
+commands, package paths, and discovery.
 
-## 3. `bovi-models-douwe`: het experimentvoorbeeld
+## 3. <code>bovi-models-douwe</code>: the experiment example
 
-Dit repo is een concrete afgeleide van de template. Het documenteert vooral
-hoe een lactatie-autoencoder en YOLO-model in een zelfstandig
-experimentrepo werden georganiseerd:
+This repository is a concrete derivative of the template. It primarily
+documents how a lactation autoencoder and YOLO model were organised in a
+standalone experiment repository:
 
-- `src/models/lactation/` en `src/models/yolo/` bevatten domeinimplementaties;
-- `data/experiments/` bevat configuraties, input en modelversies;
-- `notebooks/experiments/` bevat uitvoerbare verkenningen;
-- `misc/users/` bevat architectuur, pipeline-uitleg en workflows.
+- <code>src/models/lactation/</code> and <code>src/models/yolo/</code> contain
+  domain implementations;
+- <code>data/experiments/</code> contains configurations, input, and model
+  versions;
+- <code>notebooks/experiments/</code> contains executable exploration;
+- <code>misc/users/</code> contains architecture, pipeline explanations, and
+  workflows.
 
-Gebruik het als verhalend en technisch voorbeeld van de vroegere
-lactatiepipeline, niet als deploymentbron. Het project gebruikt nog de
-zelfstandige, editable `../bovi-core` en Python 3.11. De laatste commit en de
-gebruikersdocumentatie zijn van mei 2026, dus de domeinkennis is waardevol,
-maar interfaces kunnen afwijken van `bovi`.
+Use it as a narrative and technical example of the earlier lactation pipeline,
+not as a deployment source. The project still uses the standalone editable
+<code>../bovi-core</code> and Python 3.11. Its latest commit and user
+documentation are from May 2026, so the domain knowledge is valuable, but its
+interfaces may differ from <code>bovi</code>.
 
-## 4. `bovi-models-tutorial`: de onboardingrepo
+## 4. <code>bovi-models-tutorial</code>: the onboarding repository
 
-Deze repo leert de concepten stapsgewijs via notebooks: Python-basics, config,
-registry, databronnen, transforms, dataloaders, modellen, lactatie end-to-end
-en vervolgens Databricks/Unity Catalog. Begin bij de root-README en de
-genummerde notebooks als iemand nieuw is in het framework.
+This repository teaches the concepts step by step through notebooks: Python
+basics, configuration, registry, data sources, transforms, data loaders,
+models, lactation end to end, and then Databricks/Unity Catalog. Start with the
+root README and numbered notebooks when someone is new to the framework.
 
-Het tutorialrepo is al op Python 3.12 en haalt `bovi-core`, `bovi-yolo` en
-`lactation-autoencoder` als subdirectories uit de `bovi`-Git-repository. Dat
-maakt het de beste leerbron van de siblingrepos, maar niet de plek voor
-productcode of releases.
+The tutorial repository already uses Python 3.12 and obtains
+<code>bovi-core</code>, <code>bovi-yolo</code>, and
+<code>lactation-autoencoder</code> as subdirectories from the <code>bovi</code>
+Git repository. This makes it the strongest learning source among the sibling
+repositories, but not the place for product code or releases.
 
-## 5. Standalone voorlopers
+## 5. Standalone predecessors
 
-| Repo | Wat het bewaart | Huidige behandeling |
+| Repository | What it preserves | Current treatment |
 | --- | --- | --- |
-| `bovi-core` | Vroege core met registry, base classes en utilities | Historische voorloper. README en `pyproject.toml` zijn van 8 oktober 2025 en vragen Python 3.11; de actuele core staat in `bovi/packages/bovi-core`. |
-| `lactation_curve_core` | Oorspronkelijke lactationcurve package plus curve-fitting API | Gemigreerde voorloper. De standalone repo heeft in mei 2026 een releasehistorie; de actuele package in `bovi` is `lactationcurve` 1.1.6 en documenteert ook ISLC en BESTPRED-methoden. |
+| <code>bovi-core</code> | Earlier core with registry, base classes, and utilities | Historical predecessor. Its README and <code>pyproject.toml</code> are from 8 October 2025 and require Python 3.11; the current core is in <code>bovi/packages/bovi-core</code>. |
+| <code>lactation_curve_core</code> | Original lactationcurve package and curve-fitting API | Migrated predecessor. The standalone repository has a May 2026 release history; the current <code>lactationcurve</code> package in <code>bovi</code> is version 1.1.6 and also documents ISLC and BESTPRED methods. |
 
-Bewaar deze repos voor herkomst, publicatiegeschiedenis, auteurschap en
-vergelijking. Wijzigingen aan de huidige productfunctionaliteit horen in de
-monorepo tenzij expliciet anders afgesproken.
+Keep these repositories for provenance, publication history, authorship, and
+comparison. Changes to current product functionality belong in the monorepo
+unless explicitly agreed otherwise.
 
-## 6. Een compacte leesroute voor een overdracht
+## 6. A compact reading path for a handover
 
-1. Deze repositorykaart en de root-README van `bovi`.
-2. `bovi-models-template/misc/users/overview.md` en
-   `architecture/project_overview.md` voor het oorspronkelijke ontwerp.
-3. De actuele package/app die bij iemands taak hoort.
-4. Alleen daarna `bovi-models-douwe`, tutorialnotebooks of standalone repos
-   voor een experiment, een ontwerpbeslissing of historische pariteit.
+1. This repository guide and the root README of <code>bovi</code>.
+2. <code>bovi-models-template/misc/users/overview.md</code> and
+   <code>architecture/project_overview.md</code> for the original design.
+3. The current package or app that matches the person's task.
+4. Only then use <code>bovi-models-douwe</code>, tutorial notebooks, or
+   standalone repositories for an experiment, a design decision, or historical
+   parity.
 
-Zo blijft de overdracht leesbaar: één actuele productbron, met oude repos als
-begrijpelijke achtergrond in plaats van concurrerende handleidingen.
+This keeps the handover readable: one current product source, with the older
+repositories as understandable background rather than competing manuals.
