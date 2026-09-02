@@ -25,7 +25,8 @@ Dashboard → Central API → SQLite on Azure Files + proxies to model Function 
 ### Workspace (from repo root)
 ```bash
 just sync                        # Install all workspace dependencies
-just test                        # Run all tests across all packages
+just test                        # Run tests affected by the current Git changes
+just test-all                    # Run the full Python test suite
 just lint                        # Lint and format all code
 just run-api                     # Run central API locally
 just run-dashboard               # Run dashboard locally (bun)
