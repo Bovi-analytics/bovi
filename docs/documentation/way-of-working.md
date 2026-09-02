@@ -7,7 +7,7 @@ are useful background, but changes, CI, deployments, and releases happen here.
 ## The normal path to production
 
 ```mermaid
-flowchart LR
+flowchart TD
     task([Issue or change]) --> branch[Feature branch from dev]
     branch --> local[just sync and just test]
     local --> devPr[Pull request to dev]
