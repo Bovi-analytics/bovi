@@ -95,7 +95,9 @@ cd apps/backend/models/lactation-curves && just test
 - Use `uv` for Python dependency management.S
 - Use `bun` for the dashboard.
 - Import from `bovi_core`, never `src.bovi_core`.
-- Register models with `@ModelRegistry.register("name")`.
+- Register model-family providers with `@ModelProviderRegistry.register("name")` or
+  the equivalent explicit decorator call, and publish them through the
+  `bovi.model_providers` entry-point group.
 - Do not commit model weights.
 - Keep `bovi-core` slim; do not add ML framework dependencies there.
 - Dashboard must talk to the central API only, never directly to model apps.

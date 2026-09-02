@@ -9,26 +9,47 @@ from .dataloaders import (
     TransformRegistry,
     UniversalTransform,
 )
-from .models import Model
+from .models import (
+    ArtifactModelProvider,
+    CheckpointModelProvider,
+    CheckpointReference,
+    CheckpointResolver,
+    Model,
+    ModelArtifactReference,
+    ModelArtifactResolver,
+    ModelConfig,
+    ModelProvider,
+    ResolvedCheckpoint,
+    ResolvedModelArtifact,
+)
 from .predictors import (
     BasePredictionResult,
     CallableModel,
     GenericPredictionResult,
     HumanReadablePredictionResult,
     PredictionInterface,
-    Predictor,
+    PredictorProtocol,
     SamPredictionResult,
     SamuraiPredictionResult,
 )
-from .registry import ModelRegistry, PredictorRegistry, create_model
+from .registry import ModelProviderRegistry, PredictorRegistry
 
 __all__ = [
-    "ModelRegistry",
+    "ModelProviderRegistry",
     "PredictorRegistry",
-    "create_model",
     "Model",
-    "Predictor",
+    "ModelArtifactReference",
+    "ModelArtifactResolver",
+    "ModelConfig",
+    "ModelProvider",
+    "CheckpointModelProvider",
+    "CheckpointReference",
+    "CheckpointResolver",
+    "ArtifactModelProvider",
+    "ResolvedCheckpoint",
+    "ResolvedModelArtifact",
     "PredictionInterface",
+    "PredictorProtocol",
     "CallableModel",
     # Result classes
     "BasePredictionResult",

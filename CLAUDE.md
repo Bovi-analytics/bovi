@@ -55,7 +55,9 @@ External repos (depend on bovi-core via PyPI):
 
 - Python 3.12 only
 - Import from `bovi_core`, never `src.bovi_core` (breaks singletons)
-- Register models with `@ModelRegistry.register("name")`
+- Register model-family providers with `@ModelProviderRegistry.register("name")` or
+  the equivalent explicit decorator call, and publish them through the
+  `bovi.model_providers` entry-point group
 - Model weights stored in Azure Blob Storage, never committed to git
 - Follow PEP8, use ruff for formatting, basedpyright for type checking
 - Use `uv` as Python package manager, `bun` for frontend

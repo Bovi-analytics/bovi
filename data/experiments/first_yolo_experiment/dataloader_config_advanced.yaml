@@ -2,7 +2,7 @@
 # ADVANCED Dataloader Configuration Example
 # ============================================================================
 # This shows a more complete setup with:
-# - Multiple splits (train/val/test)
+# - Multiple splits (train/validation/test)
 # - Data augmentation for training
 # - Different settings per split
 
@@ -58,7 +58,7 @@ models:
       # -----------------------------------------------------------------------
       # VALIDATION SET - no augmentation
       # -----------------------------------------------------------------------
-      val:
+      validation:
         source:
           type: local
           root_dir: "data/images/val"                  # Val subfolder (relative to project root)

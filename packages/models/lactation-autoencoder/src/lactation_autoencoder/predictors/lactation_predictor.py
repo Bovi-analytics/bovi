@@ -13,9 +13,9 @@ import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
 from bovi_core.ml import PredictionInterface, PredictorRegistry
-from bovi_core.ml.predictors.prediction_interface import CallableModel
 from typing_extensions import override
 
+from lactation_autoencoder.models.lactation_model import LactationAutoencoderModel
 from lactation_autoencoder.predictors.results.lactation_prediction_result import (
     LactationPredictionResult,
 )
@@ -39,9 +39,8 @@ class PredictionError(Exception):
 LactationInput = dict[str, object] | list[dict[str, object]]
 
 
-@PredictorRegistry.register("autoencoder")
 class LactationPredictor(
-    PredictionInterface[LactationInput, LactationPredictionResult, CallableModel]
+    PredictionInterface[LactationInput, LactationPredictionResult, LactationAutoencoderModel]
 ):
     """
     Lactation predictor implementing the standard prediction interface.
@@ -57,19 +56,8 @@ class LactationPredictor(
 
     @override
     def initialize(self) -> None:
-        """Initialize lactation predictor."""
-        # Model instance will be set via set_model_instance()
+        """Initialize predictor-specific resources."""
         pass
-
-    @override
-    def set_model_instance(self, model_instance: CallableModel) -> None:
-        """
-        Set the model instance.
-
-        The model_instance should be the LactationAutoencoderModel which implements
-        __call__() for consistent inference across all model types.
-        """
-        super().set_model_instance(model_instance)
 
     @override
     def predict(
@@ -112,9 +100,6 @@ class LactationPredictor(
             >>> result = predictor.predict(input_dict, return_format="rich")
             >>> result.plot_prediction()
         """
-        if self.model_instance is None:
-            raise PredictionError("Model instance not set", "lactation_autoencoder")
-
         # Handle single dict or list of dicts
         is_batch = isinstance(data, list)
         data_list: list[dict[str, object]] = data if is_batch else [data]
@@ -125,7 +110,7 @@ class LactationPredictor(
 
             # Get raw predictions from model (Level 1)
             # Use consistent __call__ interface across all model types
-            raw_predictions = self.model_instance(**model_inputs)
+            raw_predictions = self.model(**model_inputs)
 
             # Return based on format request
             if return_format == "raw":
@@ -217,3 +202,6 @@ class LactationPredictor(
             "input_13": input_13,
             "input_15": input_15,
         }
+
+
+PredictorRegistry.register("autoencoder")(LactationPredictor)

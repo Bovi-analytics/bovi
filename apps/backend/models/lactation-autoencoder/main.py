@@ -9,7 +9,8 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
+from typing import cast
 
 # MLflow emits a UserWarning about `Any` type hints from its OWN internal
 # response schemas during import. There's no way for us to make those hints
@@ -30,7 +31,11 @@ def _showwarning(message, category, filename, lineno, file=None, line=None):
 warnings.showwarning = _showwarning
 
 from bovi_core.config import Config  # noqa: E402
-from bovi_core.ml import ModelRegistry, PredictorRegistry, create_model  # noqa: E402
+from bovi_core.ml import (  # noqa: E402
+    ModelProviderRegistry,
+    PredictorRegistry,
+    ResolvedModelArtifact,
+)
 from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry  # noqa: E402
 from bovi_core.ml.dataloaders.transforms.timeseries import ImputationTransform  # noqa: E402
@@ -39,6 +44,15 @@ from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
 from lactation_autoencoder.dataloaders import LactationDataset  # noqa: E402
+from lactation_autoencoder.models import (  # noqa: E402
+    LactationAutoencoderModel,
+    LactationAutoencoderModelConfig,
+    LactationAutoencoderModelProvider,
+)
+from lactation_autoencoder.predictors import (  # noqa: E402
+    LactationPredictionResult,
+    LactationPredictor,
+)
 from model_assets import ModelAssetError, ensure_model_assets  # noqa: E402
 from schemas import (  # noqa: E402
     AutoencoderBatchRequest,
@@ -121,7 +135,8 @@ class ModelRuntime:
     """Loaded autoencoder runtime objects."""
 
     config: Config
-    model: Any
+    model: LactationAutoencoderModel
+    predictor: LactationPredictor
     transforms: dict[str, object]
 
 
@@ -130,14 +145,14 @@ _model_runtime_lock = threading.Lock()
 
 
 def _ensure_autoencoder_registered() -> None:
-    """Ensure autoencoder model and predictor decorators have populated registries."""
-    model_module = importlib.import_module("lactation_autoencoder.models.lactation_model")
+    """Ensure autoencoder provider and predictor plugins are registered."""
+    provider_module = importlib.import_module("lactation_autoencoder.models.provider")
     predictor_module = importlib.import_module(
         "lactation_autoencoder.predictors.lactation_predictor"
     )
 
-    if not ModelRegistry.is_registered("autoencoder"):
-        importlib.reload(model_module)
+    if not ModelProviderRegistry.is_registered("autoencoder"):
+        importlib.reload(provider_module)
     if not PredictorRegistry.is_registered("autoencoder"):
         importlib.reload(predictor_module)
 
@@ -182,11 +197,34 @@ def _get_model_runtime() -> ModelRuntime:
                     project_file_path=str(asset_paths.project_root / "pyproject.toml"),
                 )
                 _ensure_autoencoder_registered()
-                model = create_model(config, "autoencoder")
-                transforms = TransformRegistry.from_config(
-                    config.experiment.dataloaders.inference.transforms
+                model_config = LactationAutoencoderModelConfig.from_config(config)
+                model_node = config.experiment.models.autoencoder
+                weights_location = getattr(model_node, "default_weights_location", "local")
+                weights_node = getattr(model_node, f"{weights_location}_weights")
+                artifact_path = Path(weights_node.default)
+                artifact = ResolvedModelArtifact[object](
+                    format="tensorflow_saved_model",
+                    source_uri=artifact_path.resolve().as_uri(),
+                    local_path=artifact_path,
                 )
-                _model_runtime = ModelRuntime(config=config, model=model, transforms=transforms)
+                provider = cast(
+                    LactationAutoencoderModelProvider,
+                    ModelProviderRegistry.create("autoencoder"),
+                )
+                model = provider.load_artifact(model_config, artifact)
+                predictor = cast(
+                    LactationPredictor,
+                    PredictorRegistry.create("autoencoder", model=model, config=config),
+                )
+                transforms = TransformRegistry.from_config(
+                    config.experiment.models.autoencoder.dataloaders.inference.transforms
+                )
+                _model_runtime = ModelRuntime(
+                    config=config,
+                    model=model,
+                    predictor=predictor,
+                    transforms=transforms,
+                )
     return _model_runtime
 
 
@@ -251,7 +289,10 @@ def _predict_single(
     dataset = LactationDataset(source=transformed, config=runtime.config)
     features = dataset[0]["features"]
 
-    result = runtime.model.predict(features, return_format="rich")
+    result = cast(
+        LactationPredictionResult,
+        runtime.predictor.predict(features, return_format="rich"),
+    )
 
     return AutoencoderPredictResponse(
         predictions=result.predictions.tolist(),

@@ -296,7 +296,7 @@ class TransformRegistry:
             >>> #   - name: milk_normalization
             >>>
             >>> transforms = TransformRegistry.from_config(
-            ...     config.experiment.dataloaders.train.transforms
+            ...     config.experiment.models.yolo.dataloaders.train.transforms
             ... )
             >>> # Access by name:
             >>> transforms['imputation']

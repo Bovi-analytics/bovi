@@ -12,7 +12,7 @@ from .config import EvaluationConfig
 from .context import EvaluationContext
 from .issues import Issue
 
-ModelT = TypeVar("ModelT", bound=Model[Any])
+ModelT = TypeVar("ModelT", bound=Model[Any, Any])
 ConfigT = TypeVar("ConfigT", bound=EvaluationConfig)
 
 

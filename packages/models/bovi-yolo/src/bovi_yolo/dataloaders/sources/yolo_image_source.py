@@ -34,7 +34,7 @@ class YOLOImageSource:
     def from_config(config: Config, split: str = "train") -> DataSource[bytes]:
         """Create source from experiment config.
 
-        Reads source.type from dataloaders.{split}.source to determine
+        Reads source.type from models.yolo.dataloaders.{split}.source to determine
         whether to use LocalFileSource or BlobImageSource.
 
         Args:
@@ -47,7 +47,7 @@ class YOLOImageSource:
         Raises:
             ValueError: If source type is unsupported.
         """
-        dataloader_cfg = getattr(config.experiment.dataloaders, split)
+        dataloader_cfg = getattr(config.experiment.models.yolo.dataloaders, split)
         source_cfg = dataloader_cfg.source
         source_type = source_cfg.type
 

@@ -11,9 +11,16 @@ Provides:
 - Time-series transforms: Imputation, Normalization, Padding, Windowing
 """
 
-# Import timeseries to trigger registration
-from bovi_core.ml.dataloaders.transforms import timeseries  # noqa: F401
+# Import modules to trigger registration
+from bovi_core.ml.dataloaders.transforms import (
+    tabular,  # noqa: F401
+    timeseries,  # noqa: F401
+)
 from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry
+from bovi_core.ml.dataloaders.transforms.tabular import (
+    NumericClipTransform,
+    NumericScaleTransform,
+)
 from bovi_core.ml.dataloaders.transforms.timeseries import (
     ImputationTransform,
     SequenceNormalizationTransform,
@@ -27,6 +34,9 @@ build_vision_pipeline = TransformRegistry.build_vision_pipeline
 __all__ = [
     "TransformRegistry",
     "build_vision_pipeline",
+    # Tabular transforms
+    "NumericClipTransform",
+    "NumericScaleTransform",
     # Time-series transforms
     "ImputationTransform",
     "SequenceNormalizationTransform",

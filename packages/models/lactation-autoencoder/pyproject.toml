@@ -9,6 +9,7 @@ dependencies = [
     "tensorflow>=2.19.0",
     "numpy>=1.26.0",
     "mlflow[databricks]>=3.1.4",
+    "pydantic>=2.8.0",
 ]
 
 [build-system]
@@ -26,8 +27,8 @@ git_describe_command = "git describe --dirty --tags --long --match 'lactation-au
 [tool.hatch.build.targets.wheel]
 packages = ["src/lactation_autoencoder"]
 
-[project.entry-points."bovi.models"]
-autoencoder = "lactation_autoencoder.models.lactation_model:LactationAutoencoderModel"
+[project.entry-points."bovi.model_providers"]
+autoencoder = "lactation_autoencoder.models.provider:LactationAutoencoderModelProvider"
 
 [project.entry-points."bovi.predictors"]
 autoencoder = "lactation_autoencoder.predictors.lactation_predictor:LactationPredictor"

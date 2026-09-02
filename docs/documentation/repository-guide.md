@@ -53,10 +53,12 @@ app directly. The central API is the integration boundary.
 ### Model extensions in the monorepo
 
 <code>bovi-core</code> keeps the plugin registries generic. Concrete model
-packages publish model and predictor entry points (<code>bovi.models</code> and
-<code>bovi.predictors</code>), which the registry discovers lazily through
-package metadata. This is the current form of the older self-registration
-pattern. A new model belongs in its own model package, follows the standard
+packages publish provider and predictor entry points
+(<code>bovi.model_providers</code> and <code>bovi.predictors</code>), which the
+registries discover lazily through package metadata. A provider creates a fresh
+runtime model or loads one from an already resolved checkpoint or deployment
+artifact. The predictor receives that runtime model through its constructor.
+A new model belongs in its own model package, follows this
 registry/entry-point convention, and must not pull ML dependencies into the
 core.
 

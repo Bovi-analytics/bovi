@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, FiniteFloat, model_validator
 
+from bovi_core.ml.models import CheckpointReference
+
 from .issues import Issue
 
 
@@ -38,19 +40,6 @@ class EpochResult(BaseModel):
         min_length=1,
         description="Model-specific scalar metrics recorded for this epoch.",
     )
-
-
-class CheckpointReference(BaseModel):
-    """Reference to checkpoint data stored outside the training manifest."""
-
-    model_config = ConfigDict(
-        frozen=True,
-        extra="forbid",
-    )
-
-    uri: str = Field(min_length=1)
-    format: str = Field(min_length=1)
-    checksum: str | None = Field(default=None, min_length=1)
 
 
 class TrainingResult(BaseModel):

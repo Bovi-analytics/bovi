@@ -6,14 +6,28 @@ Tests the NumPy-First architecture where:
 """
 
 import numpy as np
+from bovi_core.ml.dataloaders.adapters import FrameworkAdapter
+from bovi_core.ml.dataloaders.datasets.feature_vector_dataset import FeatureVectorDataset
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
 from bovi_core.ml.dataloaders.loaders.sklearn_loader import SklearnDataLoader
+from bovi_core.ml.dataloaders.sources.dict_source import DictSource
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
 from PIL import Image
 
 # Fixtures used from conftest:
 # - image_dataset_large (from loaders/conftest.py)
 # - mock_dataloader_config (from dataloaders/conftest.py)
+
+
+class _FeatureDataset(FeatureVectorDataset):
+    def _get_features(self, raw_data):
+        return {"milk": raw_data["milk"], "days": raw_data["days"]}
+
+    def _get_labels(self, raw_data):
+        return raw_data["target"]
+
+    def _get_metadata(self, raw_data, index):
+        return {"farm_id": raw_data["farm_id"], "index": index}
 
 
 class TestSklearnDataLoader:
@@ -196,3 +210,38 @@ class TestSklearnDataLoader:
         batches = list(loader)
         assert len(batches) == 1
         assert len(batches[0]["label"]) == 1
+
+    def test_nested_feature_mappings_are_collated(self, mock_dataloader_config):
+        source = DictSource(
+            [
+                {"milk": 20.0, "days": 10, "target": 21.0, "farm_id": "farm-a"},
+                {"milk": 30.0, "days": 20, "target": 29.0, "farm_id": "farm-b"},
+            ]
+        )
+        loader = SklearnDataLoader(
+            _FeatureDataset(source),
+            config=mock_dataloader_config,
+            batch_size=2,
+            shuffle=False,
+        )
+
+        batch = next(iter(loader))
+
+        np.testing.assert_array_equal(batch["features"]["milk"], np.array([20.0, 30.0]))
+        np.testing.assert_array_equal(batch["features"]["days"], np.array([10, 20]))
+        np.testing.assert_array_equal(batch["labels"], np.array([21.0, 29.0]))
+        assert batch["metadata"] == [
+            {"farm_id": "farm-a", "index": 0},
+            {"farm_id": "farm-b", "index": 1},
+        ]
+
+    def test_numpy_collate_keeps_unstackable_values_as_lists(self):
+        batch = [
+            {"features": {"sequence": np.array([1.0, 2.0])}, "metadata": {"id": "a"}},
+            {"features": {"sequence": np.array([3.0])}, "metadata": {"id": "b"}},
+        ]
+
+        collated = FrameworkAdapter.numpy_collate(batch)
+
+        assert isinstance(collated["features"]["sequence"], list)
+        assert collated["metadata"] == [{"id": "a"}, {"id": "b"}]

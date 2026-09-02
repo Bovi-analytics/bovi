@@ -10,7 +10,7 @@ from .results import TrainingResult
 
 ConfigT = TypeVar("ConfigT", bound=TrainingConfig)
 # A concrete Bovi Model subtype, not the wrapped native framework model.
-ModelT = TypeVar("ModelT", bound=Model[Any])
+ModelT = TypeVar("ModelT", bound=Model[Any, Any])
 
 
 class Trainer(ABC, Generic[ModelT, ConfigT]):

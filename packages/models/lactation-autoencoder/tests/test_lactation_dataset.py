@@ -2,6 +2,7 @@
 
 import json
 import pickle
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -229,6 +230,22 @@ class TestLactationDatasetBasic:
         assert "herd_id" in metadata
         assert "parity" in metadata
         assert metadata["animal_id"] == "cow_001"
+
+    @patch("mlflow.models.infer_signature")
+    def test_mlflow_signature_uses_injected_predictor(
+        self,
+        infer_signature: MagicMock,
+        dataset: LactationDataset,
+    ) -> None:
+        predictor = MagicMock()
+        predictor.predict.return_value = {"prediction": [0.25]}
+        infer_signature.return_value = MagicMock()
+
+        result = dataset.get_mlflow_signature(predictor=predictor)
+
+        predictor.predict.assert_called_once()
+        assert predictor.predict.call_args.kwargs["return_format"] == "base"
+        assert result is infer_signature.return_value
 
     def test_periodic_records_project_inside_autoencoder_horizon(self):
         """Raw periodic records can include DIM 0 and records after day 304."""

@@ -38,7 +38,7 @@ from lactation_autoencoder.types import LactationItem
 if TYPE_CHECKING:
     import torch
     from bovi_core.config import Config
-    from bovi_core.ml.models import Model
+    from bovi_core.ml.predictors import PredictorProtocol
     from mlflow.models import ModelSignature
 
 
@@ -429,7 +429,7 @@ class LactationDataset(FeatureVectorDataset):
     @override
     def get_mlflow_signature(
         self,
-        model: Model[object] | None = None,
+        predictor: PredictorProtocol | None = None,
         n_samples: int = 5,
         predict_kwargs: dict[str, object] | None = None,
     ) -> ModelSignature:
@@ -440,15 +440,15 @@ class LactationDataset(FeatureVectorDataset):
         expects single dicts (not batched arrays).
 
         Args:
-            model: Optional LactationAutoencoderModel for output inference
+            predictor: Optional predictor for output inference
             n_samples: Number of samples (only 1 is used for lactation)
-            predict_kwargs: Optional kwargs for model.predict()
+            predict_kwargs: Optional kwargs for predictor.predict()
 
         Returns:
             mlflow.models.ModelSignature
 
         Example:
-            >>> signature = dataset.get_mlflow_signature(model=model, n_samples=1)
+            >>> signature = dataset.get_mlflow_signature(predictor=predictor, n_samples=1)
             >>> print(signature.inputs)
         """
         try:
@@ -461,7 +461,7 @@ class LactationDataset(FeatureVectorDataset):
         # Get single unbatched sample (lactation predictor handles single dicts)
         input_example = self.get_input_example(n_samples=1, batch=False)
 
-        if model is None:
+        if predictor is None:
             # Input-only signature
             return infer_signature(input_example, None)
 
@@ -470,7 +470,9 @@ class LactationDataset(FeatureVectorDataset):
             predict_kwargs = predict_kwargs or {}
 
             # Request base format for MLflow signature
-            prediction_result = model.predict(input_example, return_format="base", **predict_kwargs)
+            prediction_result = predictor.predict(
+                input_example, return_format="base", **predict_kwargs
+            )
 
             # Convert to serializable format
             from bovi_core.ml.utils.signature_utils import output_to_serializable

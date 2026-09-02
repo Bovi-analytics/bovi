@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Collection, Mapping
+from numbers import Number
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -17,6 +18,57 @@ SampleDict = dict[str, Any]
 
 class FrameworkAdapter:
     """Static utilities for converting NumPy data to framework-specific formats."""
+
+    @staticmethod
+    def numpy_collate(
+        batch: list[Any],
+        preserve_keys: Collection[str] = ("metadata",),
+    ) -> Any:
+        """Recursively collate samples into NumPy-compatible batches.
+
+        Mappings with the same keys are collated field by field. Numeric scalars
+        become arrays and equally shaped arrays are stacked. Values that cannot
+        be combined safely remain ordered lists. Keys such as ``metadata`` are
+        preserved as per-sample records rather than transposed into columns.
+        """
+        if not batch:
+            return []
+
+        first = batch[0]
+
+        if isinstance(first, Mapping):
+            if not all(isinstance(item, Mapping) for item in batch):
+                return batch
+
+            keys = tuple(first.keys())
+            if any(tuple(item.keys()) != keys for item in batch):
+                return batch
+
+            return {
+                key: (
+                    [item[key] for item in batch]
+                    if key in preserve_keys
+                    else FrameworkAdapter.numpy_collate(
+                        [item[key] for item in batch],
+                        preserve_keys=preserve_keys,
+                    )
+                )
+                for key in keys
+            }
+
+        if first is None or isinstance(first, (str, bytes)):
+            return batch
+
+        if isinstance(first, (Number, np.bool_)):
+            return np.asarray(batch)
+
+        if isinstance(first, np.ndarray) or hasattr(first, "__array__"):
+            try:
+                return np.stack([np.asarray(item) for item in batch])
+            except (TypeError, ValueError):
+                return batch
+
+        return batch
 
     @staticmethod
     def numpy_to_pytorch_collate(

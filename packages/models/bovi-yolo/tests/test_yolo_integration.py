@@ -110,7 +110,7 @@ class TestConfigDrivenPipeline:
         )
 
         transforms = TransformRegistry.from_config(
-            yolo_config.experiment.dataloaders.inference.transforms
+            yolo_config.experiment.models.yolo.dataloaders.inference.transforms
         )
         assert len(transforms) >= 1
         assert "image_validation" in transforms
@@ -123,7 +123,9 @@ class TestConfigDrivenPipeline:
 class TestEndToEndPipeline:
     def test_full_pipeline(self, yolo_config: Config, temp_image_dir: Path) -> None:
         """Test full pipeline: source -> dataset -> model -> predict."""
+        from bovi_core.ml import ResolvedModelArtifact
         from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
         from bovi_yolo.predictors import YOLOPredictor
         from bovi_yolo.predictors.results import YoloPredictionResult
 
@@ -134,14 +136,15 @@ class TestEndToEndPipeline:
         )
         dataset = YOLODataset(source=source)
 
-        # Predictor with real config
-        predictor = YOLOPredictor(config=yolo_config)
-
-        # Load model directly via ultralytics
-        from ultralytics import YOLO  # type: ignore[reportPrivateImportUsage]
-
-        yolo_model = YOLO(str(WEIGHTS_PATH))
-        predictor.set_model_instance(yolo_model)
+        model = YOLOModelProvider().load_artifact(
+            YOLOModelConfig.from_config(yolo_config),
+            ResolvedModelArtifact[object](
+                format="ultralytics-pt",
+                source_uri=WEIGHTS_PATH.resolve().as_uri(),
+                local_path=WEIGHTS_PATH,
+            ),
+        )
+        predictor = YOLOPredictor(model=model, config=yolo_config)
 
         # Predict
         image = dataset[0]["image"]
@@ -152,7 +155,9 @@ class TestEndToEndPipeline:
 
     def test_three_level_returns(self, yolo_config: Config, temp_image_dir: Path) -> None:
         """Test all three return formats work."""
+        from bovi_core.ml import ResolvedModelArtifact
         from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
         from bovi_yolo.predictors import YOLOPredictor
         from bovi_yolo.predictors.results import YoloPredictionResult
 
@@ -163,12 +168,15 @@ class TestEndToEndPipeline:
         dataset = YOLODataset(source=source)
         image = dataset[0]["image"]
 
-        predictor = YOLOPredictor(config=yolo_config)
-
-        from ultralytics import YOLO  # type: ignore[reportPrivateImportUsage]
-
-        yolo_model = YOLO(str(WEIGHTS_PATH))
-        predictor.set_model_instance(yolo_model)
+        model = YOLOModelProvider().load_artifact(
+            YOLOModelConfig.from_config(yolo_config),
+            ResolvedModelArtifact[object](
+                format="ultralytics-pt",
+                source_uri=WEIGHTS_PATH.resolve().as_uri(),
+                local_path=WEIGHTS_PATH,
+            ),
+        )
+        predictor = YOLOPredictor(model=model, config=yolo_config)
 
         raw = predictor.predict(image, return_format="raw")
         assert raw is not None

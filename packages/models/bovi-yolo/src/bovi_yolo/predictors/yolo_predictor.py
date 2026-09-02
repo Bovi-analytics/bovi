@@ -13,9 +13,9 @@ from typing import Any, Literal
 import numpy as np
 import numpy.typing as npt
 from bovi_core.ml import PredictionInterface, PredictorRegistry
-from bovi_core.ml.predictors.prediction_interface import CallableModel
 from typing_extensions import override
 
+from bovi_yolo.models.yolo_model import YOLOModel
 from bovi_yolo.predictors.results.yolo_prediction_result import (
     YoloPredictionResult,
 )
@@ -41,8 +41,7 @@ class PredictionError(Exception):
         self.original_exception = original_exception
 
 
-@PredictorRegistry.register("yolo")
-class YOLOPredictor(PredictionInterface[YOLOInput, YoloPredictionResult, CallableModel]):
+class YOLOPredictor(PredictionInterface[YOLOInput, YoloPredictionResult, YOLOModel]):
     """YOLO predictor implementing the standard prediction interface.
 
     Supports three-level prediction returns:
@@ -56,20 +55,7 @@ class YOLOPredictor(PredictionInterface[YOLOInput, YoloPredictionResult, Callabl
 
     @override
     def initialize(self) -> None:
-        """Initialize YOLO predictor."""
-        # Model instance will be set via set_model_instance()
-
-    @override
-    def set_model_instance(self, model_instance: CallableModel) -> None:
-        """Set the YOLO model instance.
-
-        The model_instance should be the YOLOModel which implements
-        __call__() for consistent inference across all model types.
-
-        Args:
-            model_instance: YOLOModel instance (implements __call__).
-        """
-        super().set_model_instance(model_instance)
+        """Initialize predictor-owned resources."""
 
     @override
     def predict(
@@ -102,12 +88,9 @@ class YOLOPredictor(PredictionInterface[YOLOInput, YoloPredictionResult, Callabl
             >>> result = predictor.predict(image, return_format="rich")
             >>> result.draw_on_image()
         """
-        if self.model_instance is None:
-            raise PredictionError("Model instance not set", "yolo")
-
         try:
             # Get raw YOLO output (Level 1)
-            raw_results = self.model_instance(data, **kwargs)
+            raw_results = self.model(data, **kwargs)
 
             if return_format == "raw":
                 return raw_results
@@ -118,7 +101,7 @@ class YOLOPredictor(PredictionInterface[YOLOInput, YoloPredictionResult, Callabl
             rich_result = YoloPredictionResult.from_raw(
                 raw_results,
                 original_image=original_image,
-                class_names_map=getattr(self.model_instance, "names", None),
+                class_names_map=getattr(self.model.native_model, "names", None),
             )
 
             if return_format == "rich":
@@ -132,3 +115,6 @@ class YOLOPredictor(PredictionInterface[YOLOInput, YoloPredictionResult, Callabl
 
         except Exception as e:
             raise PredictionError(f"YOLO prediction failed: {e!s}", "yolo", e) from e
+
+
+PredictorRegistry.register("yolo")(YOLOPredictor)

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.typing import NDArray
 
+from ..adapters import FrameworkAdapter
 from ..base import AbstractDataLoader, Dataset
 
 # Type alias for index arrays
@@ -165,41 +166,7 @@ class SklearnDataLoader(AbstractDataLoader):
             if not batch_items:
                 continue
 
-            # Get keys from first item
-            keys = batch_items[0].keys()
-
-            collated: dict[str, Any] = {}
-            for key in keys:
-                items = [item[key] for item in batch_items]
-
-                # Handle different types
-                if items[0] is None:
-                    # Keep None as list
-                    collated[key] = items
-                elif isinstance(items[0], (int, float)):
-                    # Numbers -> numpy array
-                    collated[key] = np.array(items)
-                elif isinstance(items[0], str):
-                    # Strings -> list
-                    collated[key] = items
-                elif hasattr(items[0], "shape"):
-                    # Arrays/tensors -> stack
-                    try:
-                        # Try to stack
-                        collated[key] = np.stack(
-                            [
-                                np.array(item) if not isinstance(item, np.ndarray) else item
-                                for item in items
-                            ]
-                        )
-                    except (ValueError, TypeError):
-                        # Can't stack -> keep as list
-                        collated[key] = items
-                else:
-                    # Other types -> list
-                    collated[key] = items
-
-            yield collated
+            yield FrameworkAdapter.numpy_collate(batch_items)
 
     def __len__(self) -> int:
         """Number of batches."""
@@ -230,31 +197,4 @@ class SklearnDataLoader(AbstractDataLoader):
         if not all_items:
             return {}
 
-        # Get keys from first item
-        keys = all_items[0].keys()
-
-        result: dict[str, Any] = {}
-        for key in keys:
-            items = [item[key] for item in all_items]
-
-            # Convert to numpy arrays where possible
-            if items[0] is None:
-                result[key] = items
-            elif isinstance(items[0], (int, float)):
-                result[key] = np.array(items)
-            elif isinstance(items[0], str):
-                result[key] = items
-            elif hasattr(items[0], "shape"):
-                try:
-                    result[key] = np.stack(
-                        [
-                            np.array(item) if not isinstance(item, np.ndarray) else item
-                            for item in items
-                        ]
-                    )
-                except (ValueError, TypeError):
-                    result[key] = items
-            else:
-                result[key] = items
-
-        return result
+        return FrameworkAdapter.numpy_collate(all_items)

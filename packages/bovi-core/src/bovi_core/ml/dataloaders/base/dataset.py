@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from mlflow.models import ModelSignature
 
     from bovi_core.config import Config
-    from bovi_core.ml.models import Model
+    from bovi_core.ml.predictors import PredictorProtocol
 
     from .data_source import DataSource
 
@@ -233,7 +233,7 @@ class Dataset(ABC):
 
     def get_mlflow_signature(
         self,
-        model: Model[object] | None = None,
+        predictor: PredictorProtocol | None = None,
         n_samples: int = 5,
         predict_kwargs: dict[str, Any] | None = None,
     ) -> ModelSignature:
@@ -245,11 +245,11 @@ class Dataset(ABC):
         data samples and optionally from model predictions.
 
         Args:
-            model: Optional Model instance to infer output signature.
+            predictor: Optional predictor used to infer the output signature.
                    If None, only input signature is generated.
             n_samples: Number of samples to use for signature inference.
                        More samples = better type inference.
-            predict_kwargs: Optional kwargs to pass to model.predict().
+            predict_kwargs: Optional kwargs passed to predictor.predict().
 
         Returns:
             mlflow.models.ModelSignature with input (and optionally output) schema.
@@ -261,9 +261,7 @@ class Dataset(ABC):
             # {'image': float32 (required), 'label': long (required)}
 
             >>> # Full signature with predictions
-            >>> from bovi_core.ml import create_model
-            >>> model = create_model(config, "yolo", "best")
-            >>> signature = dataset.get_mlflow_signature(model=model, n_samples=10)
+            >>> signature = dataset.get_mlflow_signature(predictor=predictor, n_samples=10)
             >>> print(signature.inputs)
             >>> print(signature.outputs)
 
@@ -281,7 +279,7 @@ class Dataset(ABC):
         # Get input example
         input_example = self.get_input_example(n_samples=n_samples, batch=True)
 
-        if model is None:
+        if predictor is None:
             # Input-only signature
             logger.info("Generating input-only signature from dataset samples")
             return infer_signature(input_example, None)
@@ -292,10 +290,11 @@ class Dataset(ABC):
             predict_kwargs = predict_kwargs or {}
 
             # Request base format for MLflow signature (Level 2: portable dict)
-            predict_fn = getattr(model, "predict", None)
-            if predict_fn is None:
-                raise ValueError("Model does not have a predict method")
-            prediction_result = predict_fn(input_example, return_format="base", **predict_kwargs)
+            prediction_result = predictor.predict(
+                input_example,
+                return_format="base",
+                **predict_kwargs,
+            )
 
             # Convert to serializable format
             from bovi_core.ml.utils.signature_utils import output_to_serializable

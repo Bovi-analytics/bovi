@@ -223,7 +223,7 @@ class TestGetMLflowSignature:
     )
     def test_input_only_signature(self, mock_dataset):
         """Test generating input-only signature"""
-        signature = mock_dataset.get_mlflow_signature(model=None, n_samples=5)
+        signature = mock_dataset.get_mlflow_signature(predictor=None, n_samples=5)
 
         assert signature is not None
         assert signature.inputs is not None
@@ -233,18 +233,16 @@ class TestGetMLflowSignature:
     @pytest.mark.skipif(
         pytest.importorskip("mlflow", minversion=None) is None, reason="mlflow not installed"
     )
-    def test_signature_with_model(self, mock_dataset):
-        """Test generating signature with model predictions"""
-        # Mock model
-        mock_model = Mock()
-        mock_model.predict.return_value = np.random.rand(5, 10)
+    def test_signature_with_predictor(self, mock_dataset):
+        """Test generating signature with predictor output."""
+        predictor = Mock()
+        predictor.predict.return_value = np.random.rand(5, 10)
 
-        signature = mock_dataset.get_mlflow_signature(model=mock_model, n_samples=5)
+        signature = mock_dataset.get_mlflow_signature(predictor=predictor, n_samples=5)
 
         assert signature is not None
         assert signature.inputs is not None
-        # Model should have been called
-        mock_model.predict.assert_called_once()
+        predictor.predict.assert_called_once()
 
     def test_signature_missing_mlflow(self, mock_dataset):
         """Test error when mlflow not installed"""

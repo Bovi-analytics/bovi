@@ -27,8 +27,8 @@ git_describe_command = "git describe --dirty --tags --long --match 'bovi-yolo-v*
 [tool.hatch.build.targets.wheel]
 packages = ["src/bovi_yolo"]
 
-[project.entry-points."bovi.models"]
-yolo = "bovi_yolo.models.yolo_model:YOLOModel"
+[project.entry-points."bovi.model_providers"]
+yolo = "bovi_yolo.models.yolo_provider:YOLOModelProvider"
 
 [project.entry-points."bovi.predictors"]
 yolo = "bovi_yolo.predictors.yolo_predictor:YOLOPredictor"

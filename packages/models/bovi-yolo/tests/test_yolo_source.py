@@ -83,7 +83,7 @@ class TestYOLOImageSourceFromConfig:
         from bovi_yolo.dataloaders.sources import YOLOImageSource
 
         config = MagicMock()
-        config.experiment.dataloaders.train.source.type = "s3"
+        config.experiment.models.yolo.dataloaders.train.source.type = "s3"
 
         with pytest.raises(ValueError, match="Unsupported source type"):
             YOLOImageSource.from_config(config, split="train")
