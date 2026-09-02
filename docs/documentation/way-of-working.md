@@ -116,9 +116,57 @@ reviewer to catch a wrong manual production selection.
 ## Versions and package publishing
 
 After a successful deployment from `main`, `.github/workflows/bump-version.yml`
-runs automatically. It uses conventional commits and package path filters. It
-creates a release only when semantic-release finds an eligible change since the
-latest tag.
+runs automatically. It releases the exact commit that was just deployed, not
+whatever happens to be at the tip of a branch later. A failed production deploy
+therefore never produces a version tag.
+
+### How semantic-release decides
+
+Each releasable package has its own configuration and tag series. For example,
+`lactationcurve` uses tags such as `lactationcurve-v1.2.0`, while the
+autoencoder uses `lactation-autoencoder-v1.3.0`. The workflow checks the commits
+between the latest tag for that package and the deployed commit.
+
+The configured [conventional monorepo parser][semantic-release-monorepo] then
+applies two filters:
+
+1. **Did the commit change this package?** A commit is relevant only when its
+   changed files match that package's configured directory, such as
+   `packages/models/lactationcurve/`. The commit scope is useful communication,
+   but the configured file path is what routes the change to a package.
+2. **What is the largest release impact?** Of the relevant conventional
+   commits, `fix` and `perf` request a patch, `feat` requests a minor, and a
+   breaking change requests a major release. Types such as `docs`, `test`,
+   `refactor`, `ci`, and `chore` are valid but request no release by default.
+
+The largest relevant impact wins. Several fixes still make one patch release;
+a feature plus fixes makes one minor release; any breaking change makes the
+release major.
+
+| Commit and changed path | Result |
+| --- | --- |
+| `fix(lactationcurve): handle empty groups` in `packages/models/lactationcurve/` | Patch, for example `1.2.0` to `1.2.1` |
+| `feat(lactation-autoencoder): add predictor option` in its package directory | Minor, for example `1.3.0` to `1.4.0` |
+| `feat(lactationcurve)!: change predictor API` in the lactationcurve package | Major; `BREAKING CHANGE:` in the commit body is the alternative notation |
+| `docs: update way of working` | No package release |
+| `feat(bovi-core): add trainer contract` | Functions may deploy, but no package release with the current matrix |
+| `feat(bestpred): add calculation` | No package release with the current matrix |
+
+This is why commit quality matters. Use the consumer impact, not the amount of
+code, to choose `fix`, `feat`, or a breaking change. A vague commit such as
+`update code` cannot request the intended bump. Conversely, adding `feat` does
+not release a package when the commit changed only files outside that package's
+path filter. Follow the [Conventional Commits format][conventional-commits] and
+keep unrelated packages in separate commits where practical.
+
+### What the workflow creates
+
+The workflow first runs semantic-release in no-operation mode. If no eligible
+bump exists, the job succeeds with a “No release triggered” notice; success
+does not always mean that a new version was created. If a bump does exist, it
+builds with the calculated version, tags the deployed commit, and creates the
+GitHub Release. Tags are the immutable version source and must not be moved or
+reused.
 
 Currently automated:
 
@@ -130,7 +178,10 @@ Currently automated:
 Version Bump run may therefore make no new tag, and changes limited to these two
 packages are not automatically published. Add an explicit release policy and
 workflow entry before relying on either package as a versioned external
-dependency.
+dependency. Also note that PyPI publishing is a separate follow-up workflow: it
+publishes only when the Version Bump run produced the `lactationcurve` build
+artifact. The other two automated packages receive GitHub tags/releases but are
+not sent to PyPI.
 
 ## Working with federated-learning contributors
 
@@ -185,3 +236,5 @@ rule here, and only then promote it to `main`.
 
 [github-manual-workflow]: https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow
 [github-roles]: https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/repository-roles-for-an-organization
+[conventional-commits]: https://www.conventionalcommits.org/en/v1.0.0/
+[semantic-release-monorepo]: https://python-semantic-release.readthedocs.io/en/latest/configuration/configuration-guides/monorepos.html
