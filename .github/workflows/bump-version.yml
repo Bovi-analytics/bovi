@@ -2,26 +2,55 @@ name: Version Bump
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - packages/models/lactationcurve/**
-      - packages/models/lactation-autoencoder/**
-      - packages/models/bovi-yolo/**
+  workflow_run:
+    workflows: ["Deploy"]
+    types:
+      - completed
 
 permissions:
   contents: write
 
+concurrency:
+  group: version-bump-main
+  cancel-in-progress: false
+
 jobs:
-  bump:
+  release:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'main') ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: lactationcurve
+            slug: lactationcurve
+            config: packages/models/lactationcurve/pyproject.toml
+            publish: true
+          - package: lactation-autoencoder
+            slug: lactation-autoencoder
+            config: packages/models/lactation-autoencoder/pyproject.toml
+            publish: false
+          - package: bovi-yolo
+            slug: bovi-yolo
+            config: packages/models/bovi-yolo/pyproject.toml
+            publish: false
+    env:
+      RELEASE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout deployed revision
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.RELEASE_SHA }}
           fetch-depth: 0
+          fetch-tags: true
+
+      - name: Prepare release branch context
+        run: |
+          git checkout -B main "$RELEASE_SHA"
+          git branch --set-upstream-to=origin/main main
 
       - name: Install uv
         uses: astral-sh/setup-uv@v8.1.0
@@ -32,56 +61,53 @@ jobs:
       - name: Install semantic-release
         run: uv tool install "python-semantic-release>=10.0.0,<11"
 
-      # ── lactationcurve ───────────────────────────────────────────────────────
-      - name: Determine version bump (lactationcurve)
-        id: check-lactationcurve
+      - name: Determine version bump
+        id: version
+        shell: bash
         run: |
-          OUTPUT=$(semantic-release --config packages/models/lactationcurve/pyproject.toml --noop version --print 2>&1)
-          if echo "$OUTPUT" | grep -q "No release will be made"; then
-            echo "::warning::No release triggered for lactationcurve."
-            echo "  - No commits with feat:/fix: prefixes touching packages/models/lactationcurve/"
-            echo "Full output: $OUTPUT"
+          set -euo pipefail
+          log="$RUNNER_TEMP/semantic-release-${{ matrix.slug }}.log"
+          if ! version="$(semantic-release --config "${{ matrix.config }}" --noop version --print 2>"$log")"; then
+            cat "$log"
+            exit 1
+          fi
+          cat "$log"
+
+          if grep -qi "no release will be made" "$log"; then
+            echo "::notice::No release triggered for ${{ matrix.package }}."
             echo "release=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "release=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-      - name: Bump version, tag, and create GitHub Release (lactationcurve)
-        if: steps.check-lactationcurve.outputs.release == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: semantic-release --config packages/models/lactationcurve/pyproject.toml version --no-changelog --vcs-release --push
-
-      # ── lactation-autoencoder ────────────────────────────────────────────────
-      - name: Determine version bump (lactation-autoencoder)
-        id: check-autoencoder
-        run: |
-          OUTPUT=$(semantic-release --config packages/models/lactation-autoencoder/pyproject.toml --noop version --print 2>&1)
-          if echo "$OUTPUT" | grep -q "No release will be made"; then
-            echo "release=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "release=true" >> "$GITHUB_OUTPUT"
+          version="$(printf '%s\n' "$version" | tail -n 1 | tr -d '\r')"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Semantic Release returned an invalid version: $version"
+            exit 1
           fi
 
-      - name: Bump version and tag (lactation-autoencoder)
-        if: steps.check-autoencoder.outputs.release == 'true'
+          echo "Releasing ${{ matrix.package }} $version from $RELEASE_SHA"
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build versioned package
+        if: steps.version.outputs.release == 'true'
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.version.outputs.value }}
+        run: uv build --package "${{ matrix.package }}" --out-dir "dist/${{ matrix.slug }}"
+
+      - name: Preserve lactationcurve distributions
+        if: steps.version.outputs.release == 'true' && matrix.publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: lactationcurve-dist
+          path: dist/lactationcurve/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Tag deployed revision and create GitHub Release
+        if: steps.version.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: semantic-release --config packages/models/lactation-autoencoder/pyproject.toml version --no-changelog --vcs-release --push
-
-      # ── bovi-yolo ────────────────────────────────────────────────────────────
-      - name: Determine version bump (bovi-yolo)
-        id: check-yolo
-        run: |
-          OUTPUT=$(semantic-release --config packages/models/bovi-yolo/pyproject.toml --noop version --print 2>&1)
-          if echo "$OUTPUT" | grep -q "No release will be made"; then
-            echo "release=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "release=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Bump version and tag (bovi-yolo)
-        if: steps.check-yolo.outputs.release == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: semantic-release --config packages/models/bovi-yolo/pyproject.toml version --no-changelog --vcs-release --push
+        run: >-
+          semantic-release --config "${{ matrix.config }}" version
+          --no-changelog --skip-build --no-commit --tag --vcs-release --push
