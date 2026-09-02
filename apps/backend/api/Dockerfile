@@ -16,6 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Git metadata is intentionally excluded from the Docker build context. Supply a
+# PEP 440 version so hatch-vcs can still build the lactationcurve dependency.
+ARG SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0+docker
+
 COPY packages/bovi-core/pyproject.toml ./packages/bovi-core/
 COPY packages/bovi-core/src ./packages/bovi-core/src
 COPY packages/models/lactationcurve/pyproject.toml ./packages/models/lactationcurve/
@@ -26,6 +30,7 @@ COPY apps/backend/api/src ./apps/backend/api/src
 COPY apps/backend/api/scripts ./apps/backend/api/scripts
 
 RUN --mount=type=cache,target=/root/.cache/uv \
+    SETUPTOOLS_SCM_PRETEND_VERSION="${SETUPTOOLS_SCM_PRETEND_VERSION}" \
     uv pip install --system \
         ./packages/bovi-core \
         ./packages/models/lactationcurve \

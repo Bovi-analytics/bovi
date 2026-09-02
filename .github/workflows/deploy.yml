@@ -162,6 +162,8 @@ jobs:
           context: .
           file: apps/backend/api/Dockerfile
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          build-args: |
+            SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0+g${{ github.sha }}
           extra-tags: |
             ${{ needs.resolve-deployment.outputs.image-tag }}
 
