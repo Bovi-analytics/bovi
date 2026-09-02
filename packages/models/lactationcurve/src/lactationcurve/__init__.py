@@ -1,5 +1,11 @@
-"""
+from importlib.metadata import PackageNotFoundError, version
 
+try:
+    __version__ = version("lactationcurve")
+except PackageNotFoundError:
+    __version__ = "unknown"
+
+__doc__ = f"""
 A package for fitting **dairy animal lactation curves**, evaluating
 **lactation curve characteristics (LCCs)** (time to peak, peak yield,
 cumulative yield, persistency), and computing **305-day milk yield**
@@ -236,6 +242,15 @@ and will create a `TestId` column with all values set to 0.
 
 ---
 
+## Tutorials
+
+Hands-on programming example notebooks are available through
+[GitHub](https://github.com/Bovi-analytics/bovi/tree/main/packages/models/lactationcurve/notebooks).
+The tutorials will guide you through how to work with the package,
+including how to import the package, fit lactation curves,
+calculate 305-day yields, and derive lactation curve characteristics.
+
+---
 ## Citing the lactationcurve package
 
 If you use the `lactationcurve` package in your research, please consider citing it as follows:
@@ -275,12 +290,13 @@ Journal of dairy science, 51-170.*
 
 ## License
 
-[MIT License](https://github.com/Bovi-analytics/lactation_curve_core/blob/master/LICENSE)
-
+[MIT License](https://github.com/Bovi-analytics/bovi/blob/main/LICENSE)
 
 ---
 
-## Version v.1.1.6
+## Current version
+
+{__version__}
 
 """
 
@@ -366,23 +382,3 @@ __all__ = ["fitting", "characteristics", "preprocessing"]
 #     "test_interval_method",
 #     "build_prior",
 # ]
-
-# Expose package version (try metadata, fall back to a sensible dev string)
-try:
-    from importlib.metadata import PackageNotFoundError, version
-except Exception:
-    try:
-        from importlib_metadata import PackageNotFoundError, version  # type: ignore
-    except Exception:
-        version = None
-        PackageNotFoundError = Exception
-
-if version:
-    try:
-        __version__ = version("lactationcurve")
-    except PackageNotFoundError:
-        __version__ = "0+dev"
-else:
-    __version__ = "0+dev"
-
-__all__.append("__version__")
