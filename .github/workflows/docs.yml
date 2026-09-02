@@ -24,7 +24,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && 'main' || '' }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
+          fetch-depth: ${{ github.event_name == 'workflow_run' && 0 || 1 }}
+          fetch-tags: ${{ github.event_name == 'workflow_run' }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v8.1.0

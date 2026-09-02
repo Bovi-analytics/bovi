@@ -1,62 +1,51 @@
 name: Publish (lactationcurve)
 
 on:
-  workflow_dispatch:
   workflow_run:
     workflows: ["Version Bump"]
     types:
       - completed
 
 permissions:
+  actions: read
   contents: read
   id-token: write
 
 jobs:
   publish:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     environment: main
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Check lactationcurve release tag
-        id: release-tag
+      - name: Check for a lactationcurve distribution
+        id: artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          count="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" \
+            --jq '[.artifacts[] | select(.name == "lactationcurve-dist" and .expired == false)] | length')"
+          if [[ "$count" == "1" ]]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "Manual dispatch; publishing lactationcurve from current main."
-            exit 0
+          else
+            echo "::notice::No lactationcurve release artifact was produced; skipping PyPI publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
 
-          RELEASE_SHA="$(git rev-parse HEAD)"
-          TAGS="$(git tag --points-at "$RELEASE_SHA" --list 'lactationcurve-v*')"
-          if [ -n "$TAGS" ]; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "Publishing lactationcurve release tag(s):"
-            echo "$TAGS"
-          else
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No lactationcurve-v* tag points at current main ($RELEASE_SHA); skipping PyPI publish."
-          fi
+      - name: Download versioned distributions
+        if: steps.artifact.outputs.publish == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: lactationcurve-dist
+          path: dist
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
 
       - name: Install uv
-        if: steps.release-tag.outputs.publish == 'true'
+        if: steps.artifact.outputs.publish == 'true'
         uses: astral-sh/setup-uv@v8.1.0
 
-      - name: Set up Python 3.12
-        if: steps.release-tag.outputs.publish == 'true'
-        run: uv python install 3.12
-
-      - name: Build package
-        if: steps.release-tag.outputs.publish == 'true'
-        run: uv build --package lactationcurve
-
       - name: Publish to PyPI
-        if: steps.release-tag.outputs.publish == 'true'
-        run: uv publish dist/*.whl dist/*.tar.gz
+        if: steps.artifact.outputs.publish == 'true'
+        run: uv publish dist/*

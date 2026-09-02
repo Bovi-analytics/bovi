@@ -409,6 +409,7 @@ def fit_lactation_curve(
     custom_priors=None,
     key=None,
     milk_unit="kg",
+    lactation_length=None,
 ) -> np.ndarray:
     """Fit lactation data to a lactation curve model and return predictions.
 
@@ -443,6 +444,8 @@ def fit_lactation_curve(
         milk_unit (Str): Unit of milk yield measurements. Must be either "kg" or "lbs".
             Default is "kg".
             Only used for Bayesian.
+        lactation_length (int): Length of lactation in days used for lactation curve fitting
+            (default 305 days or up to the maximum DIM if > 305).
 
 
     Returns:
@@ -467,6 +470,7 @@ def fit_lactation_curve(
         continent=continent,
         custom_priors=custom_priors,
         milk_unit=milk_unit,
+        lactation_length=lactation_length,
     )
 
     dim = inputs.dim
@@ -478,6 +482,14 @@ def fit_lactation_curve(
     continent = inputs.continent
     custom_priors = inputs.custom_priors
     milk_unit = inputs.milk_unit
+    lactation_length = inputs.lactation_length
+
+    if lactation_length is not None and not (
+        isinstance(lactation_length, str) and lactation_length.lower() == "max"
+    ):
+        mask = dim <= lactation_length
+        dim = dim[mask]
+        milkrecordings = milkrecordings[mask]
 
     if fitting == "frequentist":
         if model == "wood":
