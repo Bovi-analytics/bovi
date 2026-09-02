@@ -7,20 +7,34 @@ Ultralytics handles model-specific preprocessing internally.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
+import albumentations as A
 import cv2
 import numpy as np
 import numpy.typing as npt
-from bovi_core.ml.dataloaders.base.universal_transform import UniversalTransform
 from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry
-from typing_extensions import override
 
 logger = logging.getLogger(__name__)
 
 
+class _YOLOImageTransform(A.ImageOnlyTransform):
+    """Albumentations transform with a clear error for invalid image inputs."""
+
+    def __call__(
+        self,
+        *args: Any,
+        force_apply: bool = False,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        image = kwargs.get("image")
+        if "image" in kwargs and not isinstance(image, np.ndarray):
+            raise TypeError(f"Expected numpy array for 'image', got {type(image).__name__}")
+        return super().__call__(*args, force_apply=force_apply, **kwargs)
+
+
 @TransformRegistry.register("image_resize")
-class ImageResizeTransform(UniversalTransform):
+class ImageResizeTransform(_YOLOImageTransform):
     """Resize images to a target size.
 
     While ultralytics handles its own internal letterboxing/resize,
@@ -39,6 +53,7 @@ class ImageResizeTransform(UniversalTransform):
         self,
         target_size: tuple[int, int] = (640, 640),
         keep_aspect_ratio: bool = True,
+        p: float = 1.0,
     ) -> None:
         """Initialize resize transform.
 
@@ -46,39 +61,32 @@ class ImageResizeTransform(UniversalTransform):
             target_size: Target (width, height).
             keep_aspect_ratio: Whether to pad to maintain aspect ratio.
         """
-        self.target_size = target_size
+        super().__init__(p=p)
+        self.target_size = (int(target_size[0]), int(target_size[1]))
         self.keep_aspect_ratio = keep_aspect_ratio
 
-    @override
-    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Resize image in data dict.
+    def apply(self, img: npt.NDArray[np.uint8], **params: Any) -> npt.NDArray[np.uint8]:
+        """Resize one image while preserving Albumentations pipeline semantics.
 
         Args:
-            data: Dictionary with 'image' key containing numpy array.
+            img: Image as a NumPy array.
+            **params: Parameters supplied by Albumentations.
 
         Returns:
-            Data dict with resized image.
+            Resized image.
 
         Raises:
-            KeyError: If 'image' field is missing.
-            TypeError: If 'image' is not a numpy array.
+            TypeError: If the image is not a NumPy array.
         """
-        if "image" not in data:
-            raise KeyError("'image' field not found in data")
-
-        image = data["image"]
-        if not isinstance(image, np.ndarray):
-            raise TypeError(f"Expected numpy array for 'image', got {type(image).__name__}")
+        del params
+        if not isinstance(img, np.ndarray):
+            raise TypeError(f"Expected numpy array for 'image', got {type(img).__name__}")
 
         target_w, target_h = self.target_size
 
         if self.keep_aspect_ratio:
-            resized = self._resize_with_padding(image, target_w, target_h)
-        else:
-            resized = cv2.resize(image, (target_w, target_h))
-
-        data["image"] = resized
-        return data
+            return self._resize_with_padding(img, target_w, target_h)
+        return cast(npt.NDArray[np.uint8], cv2.resize(img, (target_w, target_h)))
 
     def _resize_with_padding(
         self,
@@ -110,18 +118,13 @@ class ImageResizeTransform(UniversalTransform):
 
         return padded
 
-    @override
-    def get_params(self) -> dict[str, Any]:
-        """Return transform parameters."""
-        return {
-            "name": "image_resize",
-            "target_size": self.target_size,
-            "keep_aspect_ratio": self.keep_aspect_ratio,
-        }
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        """Expose constructor arguments for Albumentations serialization."""
+        return ("target_size", "keep_aspect_ratio")
 
 
 @TransformRegistry.register("image_validation")
-class ImageValidationTransform(UniversalTransform):
+class ImageValidationTransform(_YOLOImageTransform):
     """Validate image format and channels before processing.
 
     Ensures images are RGB, non-empty, and within expected size bounds.
@@ -142,6 +145,7 @@ class ImageValidationTransform(UniversalTransform):
         min_size: int = 32,
         max_size: int = 8192,
         required_channels: int = 3,
+        p: float = 1.0,
     ) -> None:
         """Initialize validation transform.
 
@@ -150,39 +154,36 @@ class ImageValidationTransform(UniversalTransform):
             max_size: Maximum image dimension.
             required_channels: Expected number of channels.
         """
+        super().__init__(p=p)
         self.min_size = min_size
         self.max_size = max_size
         self.required_channels = required_channels
 
-    @override
-    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Validate image in data dict.
+    def apply(self, img: npt.NDArray[np.uint8], **params: Any) -> npt.NDArray[np.uint8]:
+        """Validate one image while preserving Albumentations pipeline semantics.
 
         Args:
-            data: Dictionary with 'image' key containing numpy array.
+            img: Image as a NumPy array.
+            **params: Parameters supplied by Albumentations.
 
         Returns:
-            Validated data dict (unchanged if valid).
+            The unchanged, validated image.
 
         Raises:
-            KeyError: If 'image' field is missing.
-            TypeError: If 'image' is not a numpy array.
+            TypeError: If the image is not a NumPy array.
             ValueError: If image fails validation checks.
         """
-        if "image" not in data:
-            raise KeyError("'image' field not found in data")
+        del params
+        if not isinstance(img, np.ndarray):
+            raise TypeError(f"Expected numpy array, got {type(img).__name__}")
 
-        image = data["image"]
-        if not isinstance(image, np.ndarray):
-            raise TypeError(f"Expected numpy array, got {type(image).__name__}")
-
-        if image.size == 0:
+        if img.size == 0:
             raise ValueError("Image is empty (size=0)")
 
-        if image.ndim != 3:
-            raise ValueError(f"Expected 3D array (H, W, C), got {image.ndim}D")
+        if img.ndim != 3:
+            raise ValueError(f"Expected 3D array (H, W, C), got {img.ndim}D")
 
-        h, w, c = image.shape
+        h, w, c = img.shape
 
         if c != self.required_channels:
             raise ValueError(f"Expected {self.required_channels} channels, got {c}")
@@ -197,14 +198,8 @@ class ImageValidationTransform(UniversalTransform):
                 f"Image too large: ({h}, {w}), maximum is ({self.max_size}, {self.max_size})"
             )
 
-        return data
+        return img
 
-    @override
-    def get_params(self) -> dict[str, Any]:
-        """Return transform parameters."""
-        return {
-            "name": "image_validation",
-            "min_size": self.min_size,
-            "max_size": self.max_size,
-            "required_channels": self.required_channels,
-        }
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        """Expose constructor arguments for Albumentations serialization."""
+        return ("min_size", "max_size", "required_channels")

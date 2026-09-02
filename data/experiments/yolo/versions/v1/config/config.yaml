@@ -61,6 +61,10 @@ models:
 
         transforms:
           - name: image_validation
+          - name: image_resize
+            params:
+              target_size: [640, 640]
+              keep_aspect_ratio: true
 
         framework: pytorch
 
@@ -72,6 +76,10 @@ models:
 
         transforms:
           - name: image_validation
+          - name: image_resize
+            params:
+              target_size: [640, 640]
+              keep_aspect_ratio: true
 
         framework: pytorch
         dataloader:

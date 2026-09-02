@@ -56,44 +56,61 @@ class TestYOLOModelProvider:
         assert model.config is config
 
     @patch("bovi_yolo.models.yolo_provider.YOLO")
-    def test_restore_checkpoint_loads_local_path(self, yolo_cls: MagicMock) -> None:
+    def test_restore_checkpoint_loads_local_path(
+        self,
+        yolo_cls: MagicMock,
+        tmp_path: Path,
+    ) -> None:
         from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
 
+        checkpoint_path = tmp_path / "last.pt"
+        checkpoint_path.touch()
         checkpoint = ResolvedCheckpoint[object](
             format="ultralytics-pt",
-            source_uri="file:///tmp/last.pt",
-            local_path=Path("/tmp/last.pt"),
+            source_uri=checkpoint_path.as_uri(),
+            local_path=checkpoint_path,
         )
         config = YOLOModelConfig(framework="pytorch")
 
         model = YOLOModelProvider().restore_checkpoint(config, checkpoint)
 
-        yolo_cls.assert_called_once_with("/tmp/last.pt", task="detect")
+        yolo_cls.assert_called_once_with(str(checkpoint_path), task="detect")
         assert model.native_model is yolo_cls.return_value
 
     @patch("bovi_yolo.models.yolo_provider.YOLO")
-    def test_load_artifact_loads_local_path(self, yolo_cls: MagicMock) -> None:
+    def test_load_artifact_loads_local_path(
+        self,
+        yolo_cls: MagicMock,
+        tmp_path: Path,
+    ) -> None:
         from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
 
+        artifact_path = tmp_path / "best.pt"
+        artifact_path.touch()
         artifact = ResolvedModelArtifact[object](
             format="ultralytics-pt",
-            source_uri="file:///tmp/best.pt",
-            local_path=Path("/tmp/best.pt"),
+            source_uri=artifact_path.as_uri(),
+            local_path=artifact_path,
         )
         config = YOLOModelConfig(framework="pytorch")
 
         model = YOLOModelProvider().load_artifact(config, artifact)
 
-        yolo_cls.assert_called_once_with("/tmp/best.pt", task="detect")
+        yolo_cls.assert_called_once_with(str(artifact_path), task="detect")
         assert model.native_model is yolo_cls.return_value
 
+    @pytest.mark.parametrize("resource_format", ["ultralytics-pt", "ultralytics-runtime"])
     @patch("bovi_yolo.models.yolo_provider.YOLO")
-    def test_resolved_native_payload_avoids_reloading(self, yolo_cls: MagicMock) -> None:
+    def test_resolved_native_payload_avoids_reloading(
+        self,
+        yolo_cls: MagicMock,
+        resource_format: str,
+    ) -> None:
         from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
 
         native_model = yolo_cls.return_value
         checkpoint = ResolvedCheckpoint[object](
-            format="ultralytics-runtime",
+            format=resource_format,
             source_uri="memory://checkpoint",
             payload=native_model,
         )
@@ -115,6 +132,38 @@ class TestYOLOModelProvider:
         )
 
         with pytest.raises(TypeError, match="callable native model"):
+            YOLOModelProvider().load_artifact(
+                YOLOModelConfig(framework="pytorch"),
+                artifact,
+            )
+
+    def test_missing_resolved_file_raises_without_implicit_download(self) -> None:
+        from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
+
+        artifact = ResolvedModelArtifact[object](
+            format="ultralytics-pt",
+            source_uri="file:///tmp/missing-yolo-weights.pt",
+            local_path=Path("/tmp/missing-yolo-weights.pt"),
+        )
+
+        with pytest.raises(ValueError, match="does not exist"):
+            YOLOModelProvider().load_artifact(
+                YOLOModelConfig(framework="pytorch"),
+                artifact,
+            )
+
+    def test_unsupported_local_file_format_raises(self, tmp_path: Path) -> None:
+        from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
+
+        artifact_path = tmp_path / "model.onnx"
+        artifact_path.touch()
+        artifact = ResolvedModelArtifact[object](
+            format="onnx",
+            source_uri=artifact_path.as_uri(),
+            local_path=artifact_path,
+        )
+
+        with pytest.raises(ValueError, match="Unsupported YOLO file format"):
             YOLOModelProvider().load_artifact(
                 YOLOModelConfig(framework="pytorch"),
                 artifact,

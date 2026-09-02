@@ -75,7 +75,7 @@ class TestTransformPipeline:
         item = dataset[0]
 
         transform = ImageValidationTransform()
-        validated = transform(item)
+        validated = transform(**item)
         assert np.array_equal(validated["image"], item["image"])
 
     def test_resize_on_dataset_output(self, temp_image_dir: Path) -> None:
@@ -91,7 +91,7 @@ class TestTransformPipeline:
         item = dataset[0]
 
         transform = ImageResizeTransform(target_size=(320, 320))
-        resized = transform(item)
+        resized = transform(**item)
         assert resized["image"].shape[:2] == (320, 320)
 
 
@@ -114,6 +114,23 @@ class TestConfigDrivenPipeline:
         )
         assert len(transforms) >= 1
         assert "image_validation" in transforms
+
+    def test_configured_transforms_run_in_vision_pipeline(
+        self,
+        yolo_config: Config,
+        sample_image: np.ndarray,
+    ) -> None:
+        """YOLO transforms compose through the loader's Albumentations contract."""
+        from bovi_core.ml.dataloaders.transforms import build_vision_pipeline
+
+        pipeline = build_vision_pipeline(
+            yolo_config.experiment.models.yolo.dataloaders.inference.transforms
+        )
+
+        result = pipeline(image=sample_image)
+
+        assert result["image"].shape == (640, 640, 3)
+        assert result["image"].dtype == sample_image.dtype
 
 
 @pytest.mark.skipif(
