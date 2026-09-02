@@ -60,6 +60,7 @@ or current dependencies.
 | --- | --- | --- |
 | Monorepo and local work | [root README](../../README.md), [CLAUDE.md](../../CLAUDE.md) | Always |
 | Shared ML framework | <code>packages/bovi-core/</code> and its package configuration | Working on the registry, configuration, storage, or model foundations |
+| Trainer module | [trainer module](trainer-module.md) | Training contracts, configuration, checkpoints, evaluation, logging, or federated boundaries |
 | Classical curves and ICAR | [lactationcurve README](../../packages/models/lactationcurve/README.md) | Curve fitting, LCCs, or 305-day yield |
 | BESTPRED port | [BESTPRED documentation index](../../packages/models/bestpred/docs/README.md) | Fortran parity, FDD, or best prediction |
 | Dashboard | [dashboard README](../../apps/frontend/dashboard/README.md) | Local UI work or API proxy behaviour |
