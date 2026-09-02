@@ -7,14 +7,16 @@ detail.
 
 ## Start here
 
-1. Read the [Repository guide](repository-guide.md) for the relationships,
+1. Read the [Meike handover](meike-handover.md) for the contribution,
+   deployment, release, and ownership workflow.
+2. Read the [Repository guide](repository-guide.md) for the relationships,
    ownership, and current status of every relevant repository.
-2. Open the editable [repository structure diagram](repository-structure.drawio)
+3. Open the editable [repository structure diagram](repository-structure.drawio)
    for the visual overview of those relationships.
-3. Read the root [README](../../README.md) and
+4. Read the root [README](../../README.md) and
    [CLAUDE.md](../../CLAUDE.md) in <code>bovi</code> for the current monorepo,
    local commands, and architecture rules.
-4. Then choose the package or application documentation that matches the task
+5. Then choose the package or application documentation that matches the task
    at hand.
 
 The short version is:
@@ -58,6 +60,7 @@ or current dependencies.
 
 | Topic | Starting point | Use it when |
 | --- | --- | --- |
+| Contribution and operations | [Meike handover](meike-handover.md) | Branches, pull requests, CI, deployment, releases, or ownership |
 | Monorepo and local work | [root README](../../README.md), [CLAUDE.md](../../CLAUDE.md) | Always |
 | Shared ML framework | <code>packages/bovi-core/</code> and its package configuration | Working on the registry, configuration, storage, or model foundations |
 | Classical curves and ICAR | [lactationcurve README](../../packages/models/lactationcurve/README.md) | Curve fitting, LCCs, or 305-day yield |
