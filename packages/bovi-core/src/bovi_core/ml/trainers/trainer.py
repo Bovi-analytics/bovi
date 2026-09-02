@@ -6,12 +6,10 @@ from bovi_core.ml.models.model import Model
 
 from .config import TrainingConfig
 from .context import TrainingContext
-from .evaluation import EvaluationResult
-from .logging import TrainingResultLogger
 from .results import TrainingResult
 
 ConfigT = TypeVar("ConfigT", bound=TrainingConfig)
-# The concrete model, such as a torch model, rather than Bovi's Model wrapper.
+# A concrete Bovi Model subtype, not the wrapped native framework model.
 ModelT = TypeVar("ModelT", bound=Model[Any])
 
 
@@ -22,21 +20,14 @@ class Trainer(ABC, Generic[ModelT, ConfigT]):
         dataloaders: Mapping[str, AbstractDataLoader],
         config: ConfigT,
         context: TrainingContext | None = None,
-        logger: TrainingResultLogger | None = None,
     ) -> None:
         # TODO: Add lifecycle hooks once the concrete trainer contract is settled.
         self.model = model
         self.dataloaders = dataloaders
         self.config = config
         self.context = context
-        self.logger = logger
 
     @abstractmethod
     def train(self) -> TrainingResult:
         """Train the model and return its result."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def evaluate(self, split: str, dataloader: AbstractDataLoader) -> EvaluationResult:
-        """Evaluate the model for one named data split."""
         raise NotImplementedError
