@@ -1,5 +1,11 @@
-"""
+from importlib.metadata import PackageNotFoundError, version
 
+try:
+    __version__ = version("lactationcurve")
+except PackageNotFoundError:
+    __version__ = "unknown"
+
+__doc__ = f"""
 A package for fitting **dairy animal lactation curves**, evaluating
 **lactation curve characteristics (LCCs)** (time to peak, peak yield,
 cumulative yield, persistency), and computing **305-day milk yield**
@@ -284,12 +290,13 @@ Journal of dairy science, 51-170.*
 
 ## License
 
-[MIT License](https://github.com/Bovi-analytics/lactation_curve_core/blob/master/LICENSE)
-
+[MIT License](https://github.com/Bovi-analytics/bovi/blob/main/LICENSE)
 
 ---
 
-## Version v.1.1.6
+## Current version
+
+{__version__}
 
 """
 
@@ -375,23 +382,3 @@ __all__ = ["fitting", "characteristics", "preprocessing"]
 #     "test_interval_method",
 #     "build_prior",
 # ]
-
-# Expose package version (try metadata, fall back to a sensible dev string)
-try:
-    from importlib.metadata import PackageNotFoundError, version
-except Exception:
-    try:
-        from importlib_metadata import PackageNotFoundError, version  # type: ignore
-    except Exception:
-        version = None
-        PackageNotFoundError = Exception
-
-if version:
-    try:
-        __version__ = version("lactationcurve")
-    except PackageNotFoundError:
-        __version__ = "0+dev"
-else:
-    __version__ = "0+dev"
-
-__all__.append("__version__")
