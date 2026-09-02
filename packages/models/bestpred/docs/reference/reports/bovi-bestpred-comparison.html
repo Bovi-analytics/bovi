@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bovi vs BESTPRED Python vergelijking</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #1d2430;
+      --muted: #667085;
+      --line: #d8dee8;
+      --blue: #22577a;
+      --green: #15803d;
+      --red: #b42318;
+      --amber: #b54708;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    main {
+      width: min(1280px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    header {
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 920px;
+    }
+
+    code {
+      padding: 2px 5px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: #f2f4f7;
+      color: #2b3440;
+      font-size: 0.92em;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin: 24px 0;
+    }
+
+    .metric {
+      min-height: 96px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 25px;
+      line-height: 1.1;
+    }
+
+    .panel {
+      margin-top: 18px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .notes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .note {
+      padding: 14px;
+      border-left: 4px solid var(--blue);
+      background: #f8fafc;
+    }
+
+    .note.warning {
+      border-left-color: var(--amber);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #eef2f7;
+      color: #344054;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    td:first-child,
+    td:nth-child(2),
+    th:first-child,
+    th:nth-child(2) {
+      text-align: left;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .positive {
+      color: var(--green);
+      font-weight: 650;
+    }
+
+    .negative {
+      color: var(--red);
+      font-weight: 650;
+    }
+
+    .missing {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .bar-cell {
+      min-width: 180px;
+    }
+
+    .bar {
+      height: 8px;
+      border-radius: 99px;
+      background: #edf1f5;
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--blue);
+    }
+
+    .footer {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        width: min(100vw - 24px, 1280px);
+        padding-top: 20px;
+      }
+
+      .summary,
+      .notes {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Bovi huidige best-predict vs BESTPRED Python-port</h1>
+      <p>
+        Vergelijking op dezelfde source-11 fixture:
+        <code>tests/fixtures/source11_current/DCRexample.txt</code>.
+        BESTPRED gebruikt de Fortran-compatible Python-port. Bovi gebruikt de huidige
+        dataframe API met alleen <code>TestId</code>, <code>DaysInMilk</code> en
+        <code>MilkingYield</code>.
+      </p>
+    </header>
+
+    <section class="summary" aria-label="Samenvatting">
+      <div class="metric"><span>Records totaal</span><strong>43</strong></div>
+      <div class="metric"><span>Vergelijkbare records</span><strong>42</strong></div>
+      <div class="metric"><span>Ontbrekend in Bovi</span><strong>1</strong></div>
+      <div class="metric"><span>Gem. absolute drift</span><strong>1616.44 kg</strong></div>
+      <div class="metric"><span>Max. absolute drift</span><strong>3774.48 kg</strong></div>
+    </section>
+
+    <section class="panel notes">
+      <div class="note">
+        <h2>Wat dit betekent</h2>
+        <p>
+          Dit is geen parity-resultaat. De huidige Bovi-methode is een smallere
+          melk-only dataframe-berekening. De BESTPRED Python-port volgt de originele
+          source-record voorbereiding en Fortran-compatible kernel. De verschillen zijn
+          daarom inhoudelijk groot bij veel records.
+        </p>
+      </div>
+      <div class="note warning">
+        <h2>Belangrijke randcase</h2>
+        <p>
+          Record 25 heeft alleen een testdag op DIM 366. Bovi filtert testdagen boven
+          305 weg en produceert daardoor geen output voor dat <code>TestId</code>.
+          BESTPRED clamp't intern naar de ondersteunde rekenlengte en rapporteert nog
+          wel een resultaat.
+        </p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Volledige vergelijking</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Animal</th>
+              <th>DIM</th>
+              <th>TD</th>
+              <th>BESTPRED kg</th>
+              <th>Bovi kg</th>
+              <th>Delta kg</th>
+              <th>Delta %</th>
+              <th>Abs drift</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="footer">
+        Command: <code>cd python &amp;&amp; uv run bestpred compare-bovi --source 11 --input tests/fixtures/source11_current/DCRexample.txt --par tests/fixtures/source11_current/bestpred.par --limit 100</code>
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const rows = [
+      [1, "HOUSA.EX.COW.0001", 255, 9, 9931.87, 9885.80, 46.07, 0.47],
+      [2, "HOUSA.EX.COW.0002", 300, 10, 8625.88, 9729.76, -1103.88, -11.35],
+      [3, "HOUSA.EX.COW.0003", 285, 10, 12970.15, 9740.19, 3229.95, 33.16],
+      [4, "HOUSA.EX.COW.0004", 285, 10, 11517.98, 9740.19, 1777.78, 18.25],
+      [5, "HOUSA.EX.COW.0005", 285, 10, 12829.66, 9740.19, 3089.47, 31.72],
+      [6, "HOUSA.EX.COW.0006", 285, 10, 11331.60, 9740.19, 1591.40, 16.34],
+      [7, "HOUSA.EX.COW.0007", 285, 10, 12017.61, 9740.19, 2277.42, 23.38],
+      [8, "HOUSA.EX.COW.0008", 285, 10, 10715.76, 9740.19, 975.56, 10.02],
+      [9, "HOUSA.EX.COW.0009", 285, 10, 11975.66, 9740.19, 2235.47, 22.95],
+      [10, "HOUSA.EX.COW.0010", 285, 10, 10634.34, 9740.19, 894.15, 9.18],
+      [11, "HOUSA.EX.COW.0011", 270, 5, 12216.76, 9261.93, 2954.83, 31.90],
+      [12, "HOUSA.EX.COW.0012", 270, 5, 10797.73, 9261.93, 1535.80, 16.58],
+      [13, "HOUSA.EX.COW.0013", 270, 5, 11978.55, 9261.93, 2716.62, 29.33],
+      [14, "HOUSA.EX.COW.0014", 270, 5, 10510.09, 9261.93, 1248.15, 13.48],
+      [15, "HOUSA.EX.COW.0015", 270, 5, 11433.06, 9261.93, 2171.13, 23.44],
+      [16, "HOUSA.EX.COW.0016", 270, 5, 10174.86, 9261.93, 912.92, 9.86],
+      [17, "HOUSA.EX.COW.0017", 270, 5, 11344.23, 9261.93, 2082.30, 22.48],
+      [18, "HOUSA.EX.COW.0018", 270, 5, 10028.32, 9261.93, 766.39, 8.27],
+      [19, "HOUSA.EX.COW.0019", 300, 10, 11557.38, 9737.50, 1819.88, 18.69],
+      [20, "HOUSA.EX.COW.0020", 285, 10, 11752.97, 9839.47, 1913.49, 19.45],
+      [21, "HOUSA.EX.COW.0021", 285, 10, 11748.97, 9830.11, 1918.86, 19.52],
+      [22, "HOUSA.EX.COW.0022", 105, 4, 9632.59, 9595.01, 37.58, 0.39],
+      [23, "HOUSA.EX.COW.0023", 45, 2, 10358.26, 10529.26, -170.99, -1.62],
+      [24, "HOUSA.EX.COW.0024", 15, 1, 10511.55, 10305.90, 205.66, 2.00],
+      [25, "HOUSA.EX.COW.0025", 366, 1, 9070.29, null, null, null],
+      [26, "HOUSA.EX.COW.0026", 285, 10, 9797.11, 9740.19, 56.91, 0.58],
+      [27, "HOUSA.EX.COW.0027", 360, 12, 12802.31, 9672.04, 3130.26, 32.36],
+      [28, "HOUSA.EX.COW.0028", 300, 10, 12778.11, 9672.04, 3106.06, 32.11],
+      [29, "HOUSA.EX.COW.0029", 150, 5, 12987.59, 9213.11, 3774.48, 40.97],
+      [30, "HOUSA.EX.COW.0030", 150, 5, 12987.59, 9213.11, 3774.48, 40.97],
+      [31, "HOUSA.EX.COW.0031", 300, 10, 11964.80, 9672.04, 2292.76, 23.70],
+      [32, "HOUSA.EX.COW.0032", 150, 5, 12614.08, 9213.11, 3400.97, 36.91],
+      [33, "HOUSA.EX.COW.0033", 360, 12, 11991.36, 9672.04, 2319.32, 23.98],
+      [34, "HOUSA.EX.COW.0034", 345, 12, 12352.00, 9740.19, 2611.81, 26.81],
+      [35, "HOUSA.EX.COW.0035", 315, 4, 10802.40, 9639.26, 1163.13, 12.07],
+      [36, "HOUSA.EX.COW.0036", 315, 4, 9408.19, 9639.26, -231.07, -2.40],
+      [37, "HOUSA.EX.COW.0037", 315, 4, 10647.34, 9639.26, 1008.08, 10.46],
+      [38, "HOUSA.EX.COW.0038", 315, 4, 9216.01, 9639.26, -423.26, -4.39],
+      [39, "HOUSA.EX.COW.0039", 315, 4, 10333.51, 9639.26, 694.24, 7.20],
+      [40, "HOUSA.EX.COW.0040", 315, 4, 9054.88, 9639.26, -584.38, -6.06],
+      [41, "HOUSA.EX.COW.0041", 315, 4, 10291.31, 9639.26, 652.05, 6.76],
+      [42, "HOUSA.EX.COW.0042", 315, 4, 8961.94, 9639.26, -677.32, -7.03],
+      [43, "HOUSA.EX.COW.0043", 165, 6, 9045.18, 9359.27, -314.08, -3.36]
+    ];
+
+    const maxAbs = Math.max(...rows.map((row) => Math.abs(row[6] ?? 0)));
+    const tbody = document.getElementById("rows");
+    const format = (value) => value === null ? "geen output" : value.toFixed(2);
+    const deltaClass = (value) => value === null ? "missing" : value >= 0 ? "positive" : "negative";
+
+    for (const row of rows) {
+      const tr = document.createElement("tr");
+      const abs = Math.abs(row[6] ?? 0);
+      const cells = [
+        row[0],
+        row[1],
+        row[2],
+        row[3],
+        format(row[4]),
+        format(row[5]),
+        row[6] === null ? "n/a" : `${row[6] > 0 ? "+" : ""}${row[6].toFixed(2)}`,
+        row[7] === null ? "n/a" : `${row[7] > 0 ? "+" : ""}${row[7].toFixed(2)}%`
+      ];
+
+      cells.forEach((cell, index) => {
+        const td = document.createElement("td");
+        td.textContent = cell;
+        if (index === 6 || index === 7) td.className = deltaClass(row[6]);
+        if (index === 5 && row[5] === null) td.className = "missing";
+        tr.appendChild(td);
+      });
+
+      const barCell = document.createElement("td");
+      barCell.className = "bar-cell";
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      const span = document.createElement("span");
+      span.style.width = `${maxAbs === 0 ? 0 : (abs / maxAbs) * 100}%`;
+      bar.appendChild(span);
+      barCell.appendChild(bar);
+      tr.appendChild(barCell);
+      tbody.appendChild(tr);
+    }
+  </script>
+</body>
+</html>

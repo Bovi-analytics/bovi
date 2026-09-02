@@ -124,32 +124,16 @@ class TestTensorFlowDataLoader:
         )
         assert loader_val.shuffle is False
 
-    def test_loader_get_tensorflow_dataset(self, image_dataset_large, mock_dataloader_config):
-        """Test get_tensorflow_dataset returns Dataset."""
+    def test_loader_iter_returns_batches(self, image_dataset_large, mock_dataloader_config):
+        """Test loader iteration returns batches."""
 
         loader = TensorFlowDataLoader(
             image_dataset_large, config=mock_dataloader_config, split="train"
         )
 
-        tf_dataset = loader.get_tensorflow_dataset()
-        assert tf_dataset is not None
-        assert isinstance(tf_dataset, tf.data.Dataset)
-
-    def test_loader_get_pytorch_loader(self, image_dataset_large, mock_dataloader_config):
-        """Test get_pytorch_loader returns None."""
-        loader = TensorFlowDataLoader(
-            image_dataset_large, config=mock_dataloader_config, split="train"
-        )
-
-        assert loader.get_pytorch_loader() is None
-
-    def test_loader_get_sklearn_iterator(self, image_dataset_large, mock_dataloader_config):
-        """Test get_sklearn_iterator returns None."""
-        loader = TensorFlowDataLoader(
-            image_dataset_large, config=mock_dataloader_config, split="train"
-        )
-
-        assert loader.get_sklearn_iterator() is None
+        batch = next(iter(loader))
+        assert "image" in batch
+        assert "label" in batch
 
     def test_loader_multiple_epochs(self, image_dataset_large, mock_dataloader_config):
         """Test loader can iterate multiple epochs."""

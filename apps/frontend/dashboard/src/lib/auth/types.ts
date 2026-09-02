@@ -4,6 +4,16 @@ export interface AuthOrganization {
   role: "Owner" | "Member" | string;
 }
 
+export interface TermsAcceptanceStatus {
+  accepted: boolean;
+  terms_key: string;
+  terms_version: string;
+  document_sha256: string;
+  document_filename: string;
+  document_url: string;
+  accepted_at: string | null;
+}
+
 export interface AuthUser {
   id: number;
   entra_tenant_id: string;
@@ -14,6 +24,7 @@ export interface AuthUser {
   roles: string[];
   is_admin: boolean;
   organizations: AuthOrganization[];
+  terms_acceptance: TermsAcceptanceStatus;
 }
 
 export interface AuthContextValue {

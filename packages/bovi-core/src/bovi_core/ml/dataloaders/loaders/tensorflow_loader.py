@@ -295,33 +295,6 @@ class TensorFlowDataLoader(AbstractDataLoader):
 
         self._tf_dataset = ds
 
-    def get_pytorch_loader(self) -> None:
-        """
-        PyTorch not supported by TensorFlowDataLoader.
-
-        Returns:
-            None
-        """
-        return None
-
-    def get_tensorflow_dataset(self) -> Any | None:
-        """
-        Return TensorFlow Dataset instance.
-
-        Returns:
-            tf.data.Dataset or None
-        """
-        return self._tf_dataset
-
-    def get_sklearn_iterator(self) -> None:
-        """
-        Simple iterator not needed (use TensorFlow dataset).
-
-        Returns:
-            None
-        """
-        return None
-
     def __iter__(self) -> Iterator[dict[str, Any]]:
         """Iterate over batches."""
         if self._tf_dataset is None:

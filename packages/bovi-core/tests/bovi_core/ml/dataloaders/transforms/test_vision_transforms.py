@@ -363,7 +363,7 @@ class TestCrossFrameworkConsistency:
             transform=transform,
             shuffle=False,
         )
-        pt_batch = next(iter(pt_loader.get_pytorch_loader()))
+        pt_batch = next(iter(pt_loader))
         pt_image = pt_batch["image"]
         if isinstance(pt_image, torch.Tensor):
             pt_image = pt_image.numpy()
@@ -378,9 +378,7 @@ class TestCrossFrameworkConsistency:
             transform=transform,
             shuffle=False,
         )
-        tf_dataset = tf_loader.get_tensorflow_dataset()
-        assert tf_dataset is not None
-        tf_batch = next(iter(tf_dataset))
+        tf_batch = next(iter(tf_loader))
         tf_image = tf_batch["image"].numpy()
 
         # Compare (transpose PyTorch CHW -> HWC for comparison)
@@ -423,7 +421,7 @@ class TestCrossFrameworkConsistency:
             shuffle=False,
             auto_normalize=False,  # Don't double-normalize
         )
-        pt_batch = next(iter(pt_loader.get_pytorch_loader()))
+        pt_batch = next(iter(pt_loader))
         pt_image = pt_batch["image"]
         if isinstance(pt_image, torch.Tensor):
             pt_image = pt_image.numpy()
@@ -438,9 +436,7 @@ class TestCrossFrameworkConsistency:
             transform=transform,
             shuffle=False,
         )
-        tf_dataset = tf_loader.get_tensorflow_dataset()
-        assert tf_dataset is not None
-        tf_batch = next(iter(tf_dataset))
+        tf_batch = next(iter(tf_loader))
         tf_image = tf_batch["image"].numpy()
 
         # Compare

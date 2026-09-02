@@ -214,33 +214,6 @@ class PyTorchDataLoader(AbstractDataLoader):
             collate_fn=collate_fn,
         )
 
-    def get_pytorch_loader(self) -> Any:
-        """
-        Return PyTorch DataLoader instance.
-
-        Returns:
-            torch.utils.data.DataLoader
-        """
-        return self._pytorch_loader
-
-    def get_tensorflow_dataset(self) -> None:
-        """
-        TensorFlow not supported by PyTorchDataLoader.
-
-        Returns:
-            None
-        """
-        return None
-
-    def get_sklearn_iterator(self) -> None:
-        """
-        Simple iterator not needed (use PyTorch loader).
-
-        Returns:
-            None
-        """
-        return None
-
     def __iter__(self) -> Iterator[Any]:
         """Iterate over batches"""
         if self._pytorch_loader is None:

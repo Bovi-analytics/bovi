@@ -253,6 +253,34 @@ class AccessRoleAudit(SQLModel, table=True):
     )
 
 
+class TermsAcceptanceAudit(SQLModel, table=True):
+    """Audit trail proving a user accepted a specific Terms document version."""
+
+    __tablename__: ClassVar[str] = "terms_acceptance_audits"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "terms_key",
+            "terms_version",
+            "document_sha256",
+            name="uq_terms_acceptance_user_document",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    terms_key: str = Field(index=True, max_length=128)
+    terms_version: str = Field(index=True, max_length=64)
+    document_sha256: str = Field(index=True, max_length=64)
+    document_filename: str = Field(max_length=255)
+    ip_address: str | None = Field(default=None, max_length=128)
+    user_agent: str | None = Field(default=None, max_length=1000)
+    accepted_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now()),
+    )
+
+
 class StorageArtifactBase(SQLModel):
     """Metadata for a blob-backed artifact owned by the API."""
 

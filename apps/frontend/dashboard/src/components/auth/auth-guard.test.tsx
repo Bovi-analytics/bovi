@@ -20,18 +20,45 @@ vi.mock("next/navigation", () => ({
 vi.mock("@mantine/core", () => ({
   Button: ({
     children,
+    disabled,
     loading,
     onClick,
   }: {
     children: React.ReactNode;
+    disabled?: boolean;
     loading?: boolean;
     onClick?: () => void;
   }) => (
-    <button aria-busy={loading ? "true" : "false"} onClick={onClick} type="button">
+    <button
+      aria-busy={loading ? "true" : "false"}
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+    >
       {children}
     </button>
   ),
+  Alert: ({ children }: { children: React.ReactNode }) => <div role="alert">{children}</div>,
+  Checkbox: ({
+    checked,
+    label,
+    onChange,
+  }: {
+    checked?: boolean;
+    label?: string;
+    onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  }) => (
+    <label>
+      {label}
+      <input checked={checked} onChange={onChange} type="checkbox" />
+    </label>
+  ),
+  Modal: ({ children, title }: { children: React.ReactNode; title?: string }) => (
+    <section aria-label={title}>{children}</section>
+  ),
+  ScrollArea: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   Stack: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Text: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   TextInput: ({
     label,
     onChange,
@@ -56,6 +83,7 @@ vi.mock("@/components/dashboard/centered-loader", () => ({
 }));
 
 vi.mock("@/lib/api-client", () => ({
+  acceptCurrentTerms: vi.fn(),
   createOrganization: vi.fn(),
 }));
 
@@ -85,6 +113,15 @@ const USER_WITHOUT_ORG: AuthUser = {
   roles: ["User"],
   is_admin: false,
   organizations: [],
+  terms_acceptance: {
+    accepted: true,
+    terms_key: "terms-of-use-data-contribution",
+    terms_version: "072326",
+    document_sha256: "dba8cbba07f6a413d868bfccc4b671f974b48335cc1b5ca2677a73e1ce758304", // pragma: allowlist secret
+    document_filename: "Terms of Use and Data Contribution Agreement 072326.docx",
+    document_url: "/legal/terms-of-use-data-contribution-agreement-072326.docx",
+    accepted_at: "2026-07-29T12:00:00Z",
+  },
 };
 
 const USER_WITH_ORG: AuthUser = {
@@ -133,6 +170,38 @@ describe("AuthGuard", () => {
     );
 
     expect(queryByText("Protected dashboard")).not.toBeNull();
+    expect(queryByText("Create your Bovi organization")).toBeNull();
+  });
+
+  test("blocks authenticated users until they accept the current terms", () => {
+    mockAuthState = {
+      isAuthenticated: true,
+      isLoading: false,
+      setSelectedOrganizationId: vi.fn(),
+      user: {
+        ...USER_WITH_ORG,
+        terms_acceptance: {
+          ...USER_WITH_ORG.terms_acceptance,
+          accepted: false,
+          accepted_at: null,
+        },
+      },
+    };
+
+    const { container, queryByText } = render(
+      <AuthGuard>
+        <div>Protected dashboard</div>
+      </AuthGuard>
+    );
+
+    expect(container.querySelector("section")?.getAttribute("aria-label")).toBe(
+      "Terms of Use and Data Contribution Agreement"
+    );
+    expect(queryByText("Accept and continue")).not.toBeNull();
+    expect(queryByText("Document version 072326.")).not.toBeNull();
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.querySelector("button")?.hasAttribute("disabled")).toBe(true);
+    expect(queryByText("Protected dashboard")).toBeNull();
     expect(queryByText("Create your Bovi organization")).toBeNull();
   });
 });

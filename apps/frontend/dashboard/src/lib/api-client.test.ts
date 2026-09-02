@@ -7,10 +7,12 @@ vi.mock("@/lib/auth/service", () => ({
 
 import { handleUnauthorizedResponse } from "@/lib/auth/service";
 import {
+  acceptCurrentTerms,
   createOrganizationInvite,
   downloadChallengeExport,
   getInvitePreview,
   listAdminSubmissionsOverview,
+  listAdminTermsAcceptances,
   listAdminUsers,
   listChallenges,
   updateAdminUserRole,
@@ -280,6 +282,63 @@ describe("api-client authentication", () => {
         Authorization: "Bearer test-token",
       },
       body: JSON.stringify({ role: "User" }),
+    });
+  });
+
+  it("records current terms acceptance with bearer auth", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        accepted: true,
+        terms_key: "terms-of-use-data-contribution",
+        terms_version: "072326",
+        document_sha256: "dba8cbba07f6a413d868bfccc4b671f974b48335cc1b5ca2677a73e1ce758304", // pragma: allowlist secret
+        document_filename: "Terms of Use and Data Contribution Agreement 072326.docx",
+        document_url: "/legal/terms-of-use-data-contribution-agreement-072326.docx",
+        accepted_at: "2026-07-29T12:00:00Z",
+      })
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(acceptCurrentTerms()).resolves.toMatchObject({ accepted: true });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/bovi/auth/terms/accept", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer test-token",
+      },
+      body: JSON.stringify({}),
+    });
+  });
+
+  it("loads terms acceptance audit rows with search", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json([
+        {
+          id: 1,
+          user_id: 1,
+          user_email: "user@example.test",
+          user_name: "Test User",
+          terms_key: "terms-of-use-data-contribution",
+          terms_version: "072326",
+          document_sha256: "dba8cbba07f6a413d868bfccc4b671f974b48335cc1b5ca2677a73e1ce758304", // pragma: allowlist secret
+          document_filename: "Terms of Use and Data Contribution Agreement 072326.docx",
+          ip_address: "127.0.0.1",
+          user_agent: "vitest",
+          accepted_at: "2026-07-29T12:00:00Z",
+        },
+      ])
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(listAdminTermsAcceptances("user")).resolves.toHaveLength(1);
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/bovi/admin/terms-acceptances?q=user", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer test-token",
+      },
     });
   });
 

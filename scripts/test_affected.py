@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 FAST_TARGETS = [
     "packages/bovi-core/tests",
     "packages/models/lactationcurve/tests",
+    "packages/models/bestpred/tests",
     "apps/backend/api/tests",
     "apps/backend/models/lactation-curves/tests",
     "apps/backend/models/lactation-autoencoder/tests/test_schemas.py",
@@ -118,6 +119,10 @@ def select_tests(paths: set[str]) -> tuple[set[str], bool, bool, list[str]]:
         if path.startswith("packages/models/lactationcurve/"):
             add_target(targets, "packages/models/lactationcurve/tests")
             add_target(targets, "apps/backend/models/lactation-curves/tests")
+            continue
+
+        if path.startswith("packages/models/bestpred/"):
+            add_target(targets, "packages/models/bestpred/tests")
             continue
 
         if path.startswith("packages/models/lactation-autoencoder/"):

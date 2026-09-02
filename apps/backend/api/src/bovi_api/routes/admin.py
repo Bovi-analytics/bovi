@@ -21,6 +21,7 @@ from bovi_api.models import (
     Organization,
     OrganizationMembership,
     Submission,
+    TermsAcceptanceAudit,
     UploadedDataset,
     User,
 )
@@ -152,6 +153,22 @@ class AdminUserRoleUpdate(BaseModel):
     """Request body for changing a global application role."""
 
     role: GlobalRole
+
+
+class AdminTermsAcceptanceRead(BaseModel):
+    """Audit row proving a user accepted a Terms document."""
+
+    id: int
+    user_id: int
+    user_email: str | None
+    user_name: str | None
+    terms_key: str
+    terms_version: str
+    document_sha256: str
+    document_filename: str
+    ip_address: str | None
+    user_agent: str | None
+    accepted_at: datetime | None
 
 
 def _latest(a: datetime | None, b: datetime | None) -> datetime | None:
@@ -492,6 +509,48 @@ async def update_admin_user_role(
     await session.refresh(user)
     memberships = await _memberships_for_admin_user(session, user_id)
     return _admin_user_read(user, memberships)
+
+
+@router.get("/terms-acceptances", response_model=list[AdminTermsAcceptanceRead])
+async def list_terms_acceptances(
+    current_user: Annotated[CurrentUser, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    q: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[AdminTermsAcceptanceRead]:
+    """List Terms acceptance audit rows for compliance review."""
+    _ = current_user
+    query = (
+        select(TermsAcceptanceAudit, User)
+        .join(User, col(TermsAcceptanceAudit.user_id) == col(User.id))
+        .order_by(col(TermsAcceptanceAudit.accepted_at).desc())
+        .limit(limit)
+    )
+    if q:
+        needle = f"%{q.strip()}%"
+        query = query.where(
+            (col(User.email).ilike(needle))
+            | (col(User.name).ilike(needle))
+            | (col(TermsAcceptanceAudit.terms_version).ilike(needle))
+            | (col(TermsAcceptanceAudit.document_sha256).ilike(needle))
+        )
+    rows = await session.execute(query)
+    return [
+        AdminTermsAcceptanceRead(
+            id=audit.id or 0,
+            user_id=audit.user_id,
+            user_email=user.email,
+            user_name=user.name,
+            terms_key=audit.terms_key,
+            terms_version=audit.terms_version,
+            document_sha256=audit.document_sha256,
+            document_filename=audit.document_filename,
+            ip_address=audit.ip_address,
+            user_agent=audit.user_agent,
+            accepted_at=audit.accepted_at,
+        )
+        for audit, user in rows.all()
+    ]
 
 
 async def _memberships_for_admin_user(

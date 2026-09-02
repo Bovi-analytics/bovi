@@ -31,6 +31,7 @@ from bovi_api.models import (
     OrganizationMembership,
     StorageArtifact,
     Submission,
+    TermsAcceptanceAudit,
     UploadedDataset,
     User,
 )
@@ -213,6 +214,7 @@ def client(monkeypatch):
             await conn.run_sync(OrganizationMembership.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(OrganizationInvite.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(AccessRoleAudit.__table__.create)  # type: ignore[union-attr]
+            await conn.run_sync(TermsAcceptanceAudit.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(FittingResult.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(HerdProfile.__table__.create)  # type: ignore[union-attr]
             await conn.run_sync(StorageArtifact.__table__.create)  # type: ignore[union-attr]

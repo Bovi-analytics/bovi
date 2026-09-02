@@ -147,6 +147,17 @@ def test_select_tests_includes_script_tests_for_frontend_runner_changes() -> Non
     assert notes == []
 
 
+def test_select_tests_includes_bestpred_package_tests() -> None:
+    targets, allow_torch, allow_tensorflow, notes = test_affected.select_tests(
+        {"packages/models/bestpred/src/bestpred/api.py"}
+    )
+
+    assert targets == {"packages/models/bestpred/tests"}
+    assert allow_torch is False
+    assert allow_tensorflow is False
+    assert notes == []
+
+
 def test_select_typecheck_files_returns_changed_python_files() -> None:
     files, full_check = typecheck_affected.select_typecheck_files(
         {
