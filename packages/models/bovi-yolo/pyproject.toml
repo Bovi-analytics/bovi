@@ -1,6 +1,6 @@
 [project]
 name = "bovi-yolo"
-version = "1.0.1"
+dynamic = ["version"]
 description = "YOLO object detection model for dairy applications"
 authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
 requires-python = ">= 3.12, < 3.13"
@@ -13,8 +13,16 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+tag-pattern = "^bovi-yolo-v(?P<version>.+)$"
+
+[tool.hatch.version.raw-options]
+search_parent_directories = true
+git_describe_command = "git describe --dirty --tags --long --match 'bovi-yolo-v*'"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bovi_yolo"]
@@ -30,11 +38,13 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.semantic_release]
-version_toml = ["packages/models/bovi-yolo/pyproject.toml:project.version"]
-branch = "main"
 commit_message = "chore(release): {version} [skip ci]"
 commit_parser = "conventional-monorepo"
 tag_format = "bovi-yolo-v{version}"
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
 
 [tool.semantic_release.commit_parser_options]
 path_filters = ["packages/models/bovi-yolo"]
