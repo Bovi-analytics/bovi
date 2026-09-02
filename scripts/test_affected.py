@@ -16,6 +16,7 @@ FAST_TARGETS = [
     "packages/bovi-core/tests",
     "packages/models/lactationcurve/tests",
     "packages/models/bestpred/tests",
+    "packages/models/scikit-sgd/tests",
     "apps/backend/api/tests",
     "apps/backend/models/lactation-curves/tests",
     "apps/backend/models/lactation-autoencoder/tests/test_schemas.py",
@@ -123,6 +124,10 @@ def select_tests(paths: set[str]) -> tuple[set[str], bool, bool, list[str]]:
 
         if path.startswith("packages/models/bestpred/"):
             add_target(targets, "packages/models/bestpred/tests")
+            continue
+
+        if path.startswith("packages/models/scikit-sgd/"):
+            add_target(targets, "packages/models/scikit-sgd/tests")
             continue
 
         if path.startswith("packages/models/lactation-autoencoder/"):

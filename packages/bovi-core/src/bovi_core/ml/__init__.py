@@ -33,6 +33,22 @@ from .predictors import (
     SamuraiPredictionResult,
 )
 from .registry import ModelProviderRegistry, PredictorRegistry
+from .trainers import (
+    EpochResult,
+    EvaluationConfig,
+    EvaluationContext,
+    EvaluationResult,
+    EvaluationStatus,
+    Evaluator,
+    Issue,
+    IssueSeverity,
+    Trainer,
+    TrainingConfig,
+    TrainingContext,
+    TrainingResult,
+    TrainingStatus,
+    TrainingStopReason,
+)
 
 __all__ = [
     "ModelProviderRegistry",
@@ -64,4 +80,19 @@ __all__ = [
     "UniversalTransform",
     "TransformRegistry",
     "FrameworkAdapter",
+    # Training and evaluation
+    "EpochResult",
+    "EvaluationConfig",
+    "EvaluationContext",
+    "EvaluationResult",
+    "EvaluationStatus",
+    "Evaluator",
+    "Issue",
+    "IssueSeverity",
+    "Trainer",
+    "TrainingConfig",
+    "TrainingContext",
+    "TrainingResult",
+    "TrainingStatus",
+    "TrainingStopReason",
 ]

@@ -1,0 +1,8 @@
+[
+  {"sample_id": "val-01", "days_in_milk": 15, "parity": 2, "previous_yield": 27.0, "milk_yield": 30.0},
+  {"sample_id": "val-02", "days_in_milk": 45, "parity": 4, "previous_yield": 38.0, "milk_yield": 39.5},
+  {"sample_id": "val-03", "days_in_milk": 100, "parity": 1, "previous_yield": 29.0, "milk_yield": 28.3},
+  {"sample_id": "val-04", "days_in_milk": 160, "parity": 3, "previous_yield": 35.0, "milk_yield": 33.8},
+  {"sample_id": "val-05", "days_in_milk": 220, "parity": 5, "previous_yield": 39.0, "milk_yield": 37.9},
+  {"sample_id": "val-06", "days_in_milk": 280, "parity": 2, "previous_yield": 30.0, "milk_yield": 27.5}
+]

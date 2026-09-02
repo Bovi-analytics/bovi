@@ -1,0 +1,18 @@
+[
+  {"sample_id": "train-01", "days_in_milk": 10, "parity": 1, "previous_yield": 24.0, "milk_yield": 27.4},
+  {"sample_id": "train-02", "days_in_milk": 20, "parity": 2, "previous_yield": 29.0, "milk_yield": 31.9},
+  {"sample_id": "train-03", "days_in_milk": 35, "parity": 3, "previous_yield": 35.0, "milk_yield": 36.8},
+  {"sample_id": "train-04", "days_in_milk": 50, "parity": 1, "previous_yield": 31.0, "milk_yield": 31.7},
+  {"sample_id": "train-05", "days_in_milk": 65, "parity": 4, "previous_yield": 39.0, "milk_yield": 40.0},
+  {"sample_id": "train-06", "days_in_milk": 80, "parity": 2, "previous_yield": 34.0, "milk_yield": 34.3},
+  {"sample_id": "train-07", "days_in_milk": 95, "parity": 5, "previous_yield": 42.0, "milk_yield": 42.5},
+  {"sample_id": "train-08", "days_in_milk": 110, "parity": 3, "previous_yield": 37.0, "milk_yield": 36.7},
+  {"sample_id": "train-09", "days_in_milk": 130, "parity": 1, "previous_yield": 30.0, "milk_yield": 29.4},
+  {"sample_id": "train-10", "days_in_milk": 150, "parity": 4, "previous_yield": 38.0, "milk_yield": 37.6},
+  {"sample_id": "train-11", "days_in_milk": 170, "parity": 2, "previous_yield": 32.0, "milk_yield": 30.9},
+  {"sample_id": "train-12", "days_in_milk": 190, "parity": 5, "previous_yield": 40.0, "milk_yield": 38.7},
+  {"sample_id": "train-13", "days_in_milk": 210, "parity": 3, "previous_yield": 34.0, "milk_yield": 32.6},
+  {"sample_id": "train-14", "days_in_milk": 235, "parity": 1, "previous_yield": 27.0, "milk_yield": 25.2},
+  {"sample_id": "train-15", "days_in_milk": 260, "parity": 4, "previous_yield": 35.0, "milk_yield": 33.1},
+  {"sample_id": "train-16", "days_in_milk": 290, "parity": 2, "previous_yield": 28.0, "milk_yield": 25.8}
+]

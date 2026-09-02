@@ -21,6 +21,7 @@ bovi-core = { workspace = true }
 lactationcurve = { workspace = true }
 lactation-autoencoder = { workspace = true }
 bovi-yolo = { workspace = true }
+scikit-sgd = { workspace = true }
 bestpred-py = { workspace = true }
 bovi-infrastructure = { workspace = true }
 
@@ -73,6 +74,7 @@ pythonpath = [
     "packages/models/lactationcurve/src",
     "packages/models/bestpred/src",
     "packages/models/lactation-autoencoder/src",
+    "packages/models/scikit-sgd/src",
     "apps/backend/api/src",
     "apps/backend/models/lactation-autoencoder",
     "apps/backend/models/lactation-curves",
@@ -82,6 +84,7 @@ testpaths = [
     "packages/models/lactationcurve/tests",
     "packages/models/bestpred/tests",
     "packages/models/lactation-autoencoder/tests",
+    "packages/models/scikit-sgd/tests",
     "apps/backend/api/tests",
     "apps/backend/models/lactation-autoencoder/tests",
 ]
@@ -110,6 +113,7 @@ markers = [
     "lactationcurve: lactation curve package tests",
     "model_weights: tests that require model weight artifacts",
     "models: model behavior tests",
+    "scikit_sgd: scikit-learn SGD model and trainer tests",
     "multiprocessing: tests that exercise multiprocessing workers",
     "numeric: numerical behavior tests",
     "output_validation: output validation tests",
