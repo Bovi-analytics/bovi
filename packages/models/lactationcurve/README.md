@@ -64,7 +64,6 @@ The package is organized into three main modules:
 Generated API documentation is available at
 [bovi-analytics.github.io/bovi/lactationcurve.html](https://bovi-analytics.github.io/bovi/lactationcurve.html).
 
-
 ## Output Types Summary
 
 | Function | Output |
@@ -111,44 +110,17 @@ lactation and creates a default `TestId`.
 
 If you use the `lactationcurve` package in your research, please consider citing it as follows:
 
-*van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., & Hostens, M. (2026). Bovi-analytics/bovi: v.1.1.1. (v.1.1.6).*
+*van Leerdam, M. B., de Kok, D., Osei-Tete, J. A., & Hostens, M. (2026). Bovi-analytics/bovi: (__Insert your used version number here__).*
 
-*Zenodo. https://doi.org/10.5281/zenodo.18715145*
-
-
-BibTeX:
-
-```bibtex
-@software{van_leerdam_2026_lactationcurve,
-
-  author       = {van Leerdam, Meike Beatrijs and de Kok, D. and Osei-Tete, J. A. and Hostens, M.},
-
-  title        = {Bovi-analytics/lactation\_curve\_core: v.1.1.1},
-
-  version      = {1.1.6},
-
-  year         = {2026},
-
-  publisher    = {Zenodo},
-
-  doi          = {10.5281/zenodo.18715145},
-
-  url          = {https://doi.org/10.5281/zenodo.18715145}
-
-}
-
-```
-
+*Zenodo. https://doi.org/10.5281/zenodo.18715144*
 
 A machine-readable citation is included in `CITATION.cff`.
-
 
 If you also use the Bayesian fitting functionality that relies on the MilkBot API, please also cite the following paper:
 
 *Ehrlich, J.L., 2013. Quantifying inter-group variability in lactation curve shape and magnitude with the MilkBot® lactation model. PeerJ 1, e54.*
 
 *https://doi.org/10.7717/peerj.54*
-
 
 # License
 

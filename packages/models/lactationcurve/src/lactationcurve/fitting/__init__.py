@@ -1,4 +1,6 @@
-"""Fitting lactation curves to data."""
+"""
+Fitting lactation curves to data
+"""
 
 from .lactation_curve_fitting import (
     ali_schaeffer_model,
