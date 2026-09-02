@@ -7,7 +7,7 @@ detail.
 
 ## Start here
 
-1. Read the [Meike handover](meike-handover.md) for the contribution,
+1. Read the [Way of working](way-of-working.md) for the contribution,
    deployment, release, and ownership workflow.
 2. Read the [Repository guide](repository-guide.md) for the relationships,
    ownership, and current status of every relevant repository.
@@ -60,7 +60,7 @@ or current dependencies.
 
 | Topic | Starting point | Use it when |
 | --- | --- | --- |
-| Contribution and operations | [Meike handover](meike-handover.md) | Branches, pull requests, CI, deployment, releases, or ownership |
+| Contribution and operations | [Way of working](way-of-working.md) | Branches, pull requests, CI, deployment, releases, or ownership |
 | Monorepo and local work | [root README](../../README.md), [CLAUDE.md](../../CLAUDE.md) | Always |
 | Shared ML framework | <code>packages/bovi-core/</code> and its package configuration | Working on the registry, configuration, storage, or model foundations |
 | Classical curves and ICAR | [lactationcurve README](../../packages/models/lactationcurve/README.md) | Curve fitting, LCCs, or 305-day yield |

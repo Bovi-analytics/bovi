@@ -1,4 +1,4 @@
-# Meike handover: contributing and releasing Bovi
+# Bovi way of working
 
 This is the short operational guide for the person responsible for Bovi. The
 current `bovi` monorepo is the source of truth. Historical sibling repositories
@@ -134,15 +134,15 @@ dependency.
 
 ## Working with federated-learning contributors
 
-Following [GitHub's repository role guidance][github-roles], give Meike
-**Maintain** access for day-to-day ownership; reserve **Admin** for managing
-access, secrets, branch rules, and environments. Give collaborators who only
-need to read and review **Read** or **Triage** access. Grant **Write** only when
-they need repository branches and are trusted to run Actions: GitHub requires
-Write access for [manual workflow runs][github-manual-workflow], so with the
-current environment settings it also carries meaningful deployment power. Use
-an organisation team when more than one external contributor joins, rather than
-granting unrelated permissions individually.
+Following [GitHub's repository role guidance][github-roles], give the primary
+maintainer **Maintain** access for day-to-day ownership; reserve **Admin** for
+managing access, secrets, branch rules, and environments. Give collaborators
+who only need to read and review **Read** or **Triage** access. Grant **Write**
+only when they need repository branches and are trusted to run Actions: GitHub
+requires Write access for [manual workflow runs][github-manual-workflow], so
+with the current environment settings it also carries meaningful deployment
+power. Use an organisation team when more than one external contributor joins,
+rather than granting unrelated permissions individually.
 
 For work built on `bovi-core`:
 
@@ -152,8 +152,9 @@ For work built on `bovi-core`:
 - put framework-specific implementations in a separate model/package area;
 - import from `bovi_core`, never from `src.bovi_core`;
 - add integration tests when a change crosses package or service boundaries;
-- request review from Meike and at least one domain contributor for shared
-  contracts, even though GitHub does not currently require an approval.
+- request review from the primary maintainer and at least one domain contributor
+  for shared contracts, even though GitHub does not currently require an
+  approval.
 
 Before external teams consume `bovi-core` from PyPI, resolve the missing
 automated `bovi-core` release noted above. Until then, agree on an immutable Git
@@ -170,16 +171,17 @@ tag or commit SHA rather than depending on a moving branch.
   revision. Never rewrite `main` history.
 - **Infrastructure change:** run and review a Pulumi preview. The PR preview
   trigger is currently disabled, so this is a manual responsibility.
-- **Access or secret issue:** Meike coordinates with an organisation admin;
-  secrets must remain in GitHub/Azure, never in repository files or logs.
+- **Access or secret issue:** the primary maintainer coordinates with an
+  organisation admin; secrets must remain in GitHub/Azure, never in repository
+  files or logs.
 
 ## Ownership checklist
 
-Meike should be able to access GitHub Actions, deployments, repository settings,
-Azure resources/logs, Pulumi state and passphrase, GHCR packages, and PyPI trusted
-publishing. Keep at least one backup organisation admin. When changing CI or
-deployment policy, test on `dev`, document the new rule here, and only then
-promote it to `main`.
+The primary maintainer should be able to access GitHub Actions, deployments,
+repository settings, Azure resources/logs, Pulumi state and passphrase, GHCR
+packages, and PyPI trusted publishing. Keep at least one backup organisation
+admin. When changing CI or deployment policy, test on `dev`, document the new
+rule here, and only then promote it to `main`.
 
 [github-manual-workflow]: https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow
 [github-roles]: https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/repository-roles-for-an-organization
