@@ -236,6 +236,17 @@ and will create a `TestId` column with all values set to 0.
 
 ---
 
+## Tutorials
+
+Hands-on programming example notebooks are available through
+[GitHub](https://github.com/Bovi-analytics/bovi/tree/main/packages/models/lactationcurve/notebooks).
+The tutorials will guide you through how to work with the package,
+including how to fit lactation curves,
+calculate 305-day yields, and derive lactation curve characteristics.
+
+
+---
+
 ## Citing the lactationcurve package
 
 If you use the `lactationcurve` package in your research, please consider citing it as follows:
