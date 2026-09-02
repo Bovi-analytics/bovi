@@ -1,6 +1,6 @@
 [project]
 name = "lactationcurve"
-version = "1.1.6"
+dynamic = ["version"]
 license = "MIT"
 description = "Lactation curve fitting and analysis library"
 readme = "README.md"
@@ -31,8 +31,16 @@ dev = [
 Repository = "https://github.com/Bovi-analytics/bovi"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+tag-pattern = "^lactationcurve-v(?P<version>.+)$"
+
+[tool.hatch.version.raw-options]
+search_parent_directories = true
+git_describe_command = "git describe --dirty --tags --long --match 'lactationcurve-v*'"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lactationcurve"]
@@ -67,12 +75,13 @@ markers = [
 ]
 
 [tool.semantic_release]
-version_toml = ["packages/models/lactationcurve/pyproject.toml:project.version"]
-branch = "main"
 commit_message = "chore(release): {version} [skip ci]"
-build_command = "bash packages/models/lactationcurve/scripts/build.sh"
 commit_parser = "conventional-monorepo"
 tag_format = "lactationcurve-v{version}"
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
 
 [tool.semantic_release.commit_parser_options]
 path_filters = ["packages/models/lactationcurve"]

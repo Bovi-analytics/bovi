@@ -1,6 +1,6 @@
 [project]
 name = "lactation-autoencoder"
-version = "1.2.1"
+dynamic = ["version"]
 description = "Lactation autoencoder model — TensorFlow-based milk production time-series prediction"
 authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
 requires-python = ">= 3.12, < 3.13"
@@ -12,8 +12,16 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+tag-pattern = "^lactation-autoencoder-v(?P<version>.+)$"
+
+[tool.hatch.version.raw-options]
+search_parent_directories = true
+git_describe_command = "git describe --dirty --tags --long --match 'lactation-autoencoder-v*'"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lactation_autoencoder"]
@@ -29,11 +37,13 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.semantic_release]
-version_toml = ["packages/models/lactation-autoencoder/pyproject.toml:project.version"]
-branch = "main"
 commit_message = "chore(release): {version} [skip ci]"
 commit_parser = "conventional-monorepo"
 tag_format = "lactation-autoencoder-v{version}"
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
 
 [tool.semantic_release.commit_parser_options]
 path_filters = ["packages/models/lactation-autoencoder"]

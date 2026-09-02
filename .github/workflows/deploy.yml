@@ -18,10 +18,9 @@ on:
       - "packages/bovi-core/src/**"
       - "packages/bovi-core/pyproject.toml"
       - "packages/infrastructure/**"
-      - "packages/models/lactationcurve/src/**"
-      - "packages/models/lactationcurve/pyproject.toml"
-      - "packages/models/lactation-autoencoder/src/**"
-      - "packages/models/lactation-autoencoder/pyproject.toml"
+      - "packages/models/lactationcurve/**"
+      - "packages/models/lactation-autoencoder/**"
+      - "packages/models/bovi-yolo/**"
   workflow_dispatch:
     inputs:
       target:
