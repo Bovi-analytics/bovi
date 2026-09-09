@@ -15,8 +15,8 @@ import numpy.typing as npt
 from bovi_core.ml import PredictionInterface, PredictorRegistry
 from typing_extensions import override
 
-from bovi_yolo.models.yolo_model import YOLOModel
-from bovi_yolo.predictors.results.yolo_prediction_result import (
+from bovi_yolo.models.model import YOLOModel
+from bovi_yolo.predictors.results import (
     YoloPredictionResult,
 )
 

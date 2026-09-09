@@ -40,7 +40,7 @@ models:
       train:
         # Data source (pure JSON loader — enrichment is done by transforms)
         source:
-          type: lactation_pkl
+          type: lactation_json
           json_root_dir: "data/models/lactation_autoencoder/versions/v15/inputs/train/json/"
           file_pattern: "*.json"
 
@@ -78,7 +78,7 @@ models:
 
       validation:
         source:
-          type: lactation_pkl
+          type: lactation_json
           json_root_dir: "data/models/lactation_autoencoder/versions/v15/inputs/val/json/"
 
         transforms:
@@ -103,7 +103,7 @@ models:
 
       inference:
         source:
-          type: lactation_pkl
+          type: lactation_json
           json_root_dir: "data/models/lactation_autoencoder/versions/v15/inputs/inference/json/"
           file_pattern: "*.json"
 

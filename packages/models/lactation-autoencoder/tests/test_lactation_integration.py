@@ -10,9 +10,9 @@ from bovi_core.ml.dataloaders.transforms.timeseries import (
     ImputationTransform,
     SequenceNormalizationTransform,
 )
-from lactation_autoencoder.dataloaders.datasets.lactation_dataset import LactationDataset
-from lactation_autoencoder.dataloaders.sources.lactation_pkl_source import LactationPKLSource
-from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
+from lactation_autoencoder.dataloaders.dataset import LactationDataset
+from lactation_autoencoder.dataloaders.source import LactationJSONSource
+from lactation_autoencoder.dataloaders.transforms import (
     EventTokenizationTransform,
     HerdStatsEnrichmentTransform,
     HerdStatsNormalizationTransform,
@@ -148,8 +148,8 @@ def complete_json_dir(tmp_path):
 
 @pytest.fixture
 def source(complete_json_dir):
-    """Create LactationPKLSource (raw JSON, no enrichment)."""
-    return LactationPKLSource(json_root_dir=complete_json_dir)
+    """Create LactationJSONSource (raw JSON, no enrichment)."""
+    return LactationJSONSource(json_root_dir=complete_json_dir)
 
 
 @pytest.fixture
@@ -382,7 +382,7 @@ class TestLactationDataPipelineEdgeCases:
         with open(json_dir / "animal_001.json", "w") as f:
             json.dump(lactation, f)
 
-        source = LactationPKLSource(json_root_dir=json_dir)
+        source = LactationJSONSource(json_root_dir=json_dir)
         enrich = HerdStatsEnrichmentTransform(herd_stats_dir=complete_herd_stats_dir)
         enriched = TransformedSource(source, [enrich])
         dataset = LactationDataset(enriched)
@@ -445,7 +445,7 @@ class TestLactationDataPipelineMemory:
         enrich = HerdStatsEnrichmentTransform(herd_stats_dir=complete_herd_stats_dir)
 
         # In-memory
-        source_mem = LactationPKLSource(
+        source_mem = LactationJSONSource(
             json_root_dir=complete_json_dir,
             keep_in_memory=True,
         )
@@ -453,7 +453,7 @@ class TestLactationDataPipelineMemory:
         dataset_mem = LactationDataset(enriched_mem)
 
         # Lazy-loading
-        source_lazy = LactationPKLSource(
+        source_lazy = LactationJSONSource(
             json_root_dir=complete_json_dir,
             keep_in_memory=False,
         )

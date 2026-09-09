@@ -8,7 +8,7 @@ from bovi_core.ml import Model
 from typing_extensions import override
 from ultralytics import YOLO  # type: ignore[reportPrivateImportUsage]
 
-from .yolo_config import YOLOModelConfig
+from .config import YOLOModelConfig
 
 
 class YOLOModel(Model[YOLO, YOLOModelConfig]):

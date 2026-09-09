@@ -21,7 +21,7 @@ models:
       train:
         # Data source
         source:
-          type: lactation_pkl
+          type: lactation_json
           json_root_dir: "data/experiments/production/json/"
           herd_stats_dir: "data/experiments/production/pkl/"
           file_pattern: "*.json"
@@ -58,7 +58,7 @@ models:
 
       validation:
         source:
-          type: lactation_pkl
+          type: lactation_json
           json_root_dir: "data/experiments/production/json/"
           herd_stats_dir: "data/experiments/production/pkl/"
 

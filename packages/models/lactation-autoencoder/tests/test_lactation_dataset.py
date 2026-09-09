@@ -7,13 +7,13 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource
-from lactation_autoencoder.dataloaders.datasets.lactation_dataset import (
+from lactation_autoencoder.dataloaders.dataset import (
     LactationDataset,
     periodic_records_in_horizon,
     project_periodic_records_to_daily,
 )
-from lactation_autoencoder.dataloaders.sources.lactation_pkl_source import LactationPKLSource
-from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
+from lactation_autoencoder.dataloaders.source import LactationJSONSource
+from lactation_autoencoder.dataloaders.transforms import (
     HerdStatsEnrichmentTransform,
 )
 
@@ -127,7 +127,7 @@ def json_data_dir(tmp_path):
 @pytest.fixture
 def source(json_data_dir, herd_stats_dir):
     """Create enriched source (raw source + herd stats enrichment transform)."""
-    raw_source = LactationPKLSource(json_root_dir=json_data_dir)
+    raw_source = LactationJSONSource(json_root_dir=json_data_dir)
     enrich = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
     return TransformedSource(raw_source, [enrich])
 
@@ -456,7 +456,7 @@ class TestLactationDatasetBatching:
             with open(json_dir / f"animal_{i:03d}.json", "w") as f:
                 json.dump(lactation, f)
 
-        raw_source = LactationPKLSource(json_root_dir=json_dir)
+        raw_source = LactationJSONSource(json_root_dir=json_dir)
         enrich = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
         source = TransformedSource(raw_source, [enrich])
         dataset = LactationDataset(source)

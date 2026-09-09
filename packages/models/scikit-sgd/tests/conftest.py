@@ -11,7 +11,7 @@ from scikit_sgd import (
     ScikitSGDModel,
     ScikitSGDModelConfig,
     ScikitSGDModelProvider,
-    create_regression_dataloader,
+    create_dataloader,
 )
 
 
@@ -35,7 +35,7 @@ def model(model_config: ScikitSGDModelConfig) -> ScikitSGDModel:
 @pytest.fixture
 def dataloaders(experiment_config: Config, model_config: ScikitSGDModelConfig):
     return {
-        split: create_regression_dataloader(experiment_config, model_config, split)
+        split: create_dataloader(experiment_config, model_config, split)
         for split in ("train", "validation")
     }
 

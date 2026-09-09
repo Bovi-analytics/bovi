@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import logging
 import threading
 import time
@@ -146,15 +145,8 @@ _model_runtime_lock = threading.Lock()
 
 def _ensure_autoencoder_registered() -> None:
     """Ensure autoencoder provider and predictor plugins are registered."""
-    provider_module = importlib.import_module("lactation_autoencoder.models.provider")
-    predictor_module = importlib.import_module(
-        "lactation_autoencoder.predictors.lactation_predictor"
-    )
-
-    if not ModelProviderRegistry.is_registered("autoencoder"):
-        importlib.reload(provider_module)
-    if not PredictorRegistry.is_registered("autoencoder"):
-        importlib.reload(predictor_module)
+    ModelProviderRegistry.get("autoencoder")
+    PredictorRegistry.get("autoencoder")
 
 
 @app.exception_handler(ModelAssetError)

@@ -126,12 +126,12 @@ class LactationDataset(FeatureVectorDataset):
         max_days: Maximum sequence length (default: 304)
 
     Example:
-        from lactation_autoencoder.dataloaders.sources import LactationPKLSource
-        from lactation_autoencoder.dataloaders.datasets import LactationDataset
+        from lactation_autoencoder.dataloaders.source import LactationJSONSource
+        from lactation_autoencoder.dataloaders.dataset import LactationDataset
         from bovi_core.ml.dataloaders.sources import TransformedSource
         from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry
 
-        source = LactationPKLSource(json_root_dir="data/jsons/")
+        source = LactationJSONSource(json_root_dir="data/jsons/")
 
         # Create transforms (enrichment first, then processing)
         transforms = [
@@ -512,7 +512,7 @@ def collate_lactation_batch(batch: list[LactationItem]) -> dict[str, "torch.Tens
 
     Example:
         >>> from torch.utils.data import DataLoader
-        >>> from lactation_autoencoder.dataloaders.datasets import (
+        >>> from lactation_autoencoder.dataloaders.dataset import (
         ...     LactationDataset, collate_lactation_batch
         ... )
         >>>

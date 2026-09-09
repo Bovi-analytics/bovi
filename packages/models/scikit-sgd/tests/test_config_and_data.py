@@ -9,7 +9,7 @@ from scikit_sgd import (
     ScikitSGDEvaluationConfig,
     ScikitSGDModelConfig,
     ScikitSGDTrainingConfig,
-    create_regression_dataloader,
+    create_dataloader,
 )
 
 
@@ -31,7 +31,7 @@ def test_dataloader_applies_transforms_and_collates_nested_features(
     experiment_config: Config,
     model_config: ScikitSGDModelConfig,
 ) -> None:
-    loader = create_regression_dataloader(experiment_config, model_config, "train")
+    loader = create_dataloader(experiment_config, model_config, "train")
 
     batch = next(iter(loader))
 

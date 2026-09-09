@@ -1,6 +1,7 @@
 """YOLO cow detection model module."""
 
 # Import transforms to trigger TransformRegistry registration
+from bovi_yolo.dataloaders import create_dataloader
 from bovi_yolo.dataloaders.transforms import (
     ImageResizeTransform,
     ImageValidationTransform,
@@ -15,6 +16,7 @@ from bovi_yolo.predictors import YoloPredictionResult, YOLOPredictor
 __all__ = [
     "ImageResizeTransform",
     "ImageValidationTransform",
+    "create_dataloader",
     "YOLOModel",
     "YOLOModelConfig",
     "YOLOModelProvider",

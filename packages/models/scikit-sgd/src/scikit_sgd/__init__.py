@@ -3,7 +3,7 @@
 from .dataloaders import (
     RegressionJSONSource,
     ScikitRegressionDataset,
-    create_regression_dataloader,
+    create_dataloader,
 )
 from .models import ScikitSGDModel, ScikitSGDModelConfig, ScikitSGDModelProvider
 from .trainers import (
@@ -16,7 +16,7 @@ from .trainers import (
 __all__ = [
     "RegressionJSONSource",
     "ScikitRegressionDataset",
-    "create_regression_dataloader",
+    "create_dataloader",
     "ScikitSGDEvaluationConfig",
     "ScikitSGDEvaluator",
     "ScikitSGDModel",

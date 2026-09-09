@@ -8,8 +8,8 @@ from typing import cast
 import tensorflow as tf
 from bovi_core.ml import ModelProviderRegistry, ResolvedModelArtifact
 
-from .lactation_model import LactationAutoencoderModel, ServingSignature
-from .model_config import LactationAutoencoderModelConfig
+from .config import LactationAutoencoderModelConfig
+from .model import LactationAutoencoderModel, ServingSignature
 
 TENSORFLOW_SAVED_MODEL_FORMAT = "tensorflow_saved_model"
 

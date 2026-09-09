@@ -1,5 +1,5 @@
 """
-LactationPKLSource: Load lactation data from JSON files.
+LactationJSONSource: Load lactation data from JSON files.
 
 A pure data source that loads lactation records from JSON files.
 Enrichment (herd stats, event tokenization) is handled by transforms.
@@ -18,7 +18,7 @@ from typing_extensions import override
 logger = logging.getLogger(__name__)
 
 
-class LactationPKLSource(DataSource[dict[str, Any]]):
+class LactationJSONSource(DataSource[dict[str, Any]]):
     """
     Load lactation data from JSON files.
 
@@ -58,7 +58,7 @@ class LactationPKLSource(DataSource[dict[str, Any]]):
         self._build_index()
 
         logger.info(
-            f"LactationPKLSource initialized: {len(self)} lactations from "
+            f"LactationJSONSource initialized: {len(self)} lactations from "
             f"{len(set(self.index))} JSON files"
         )
 

@@ -8,7 +8,7 @@ from typing import Any
 import tensorflow as tf
 from bovi_core.ml import Model
 
-from .model_config import LactationAutoencoderModelConfig
+from .config import LactationAutoencoderModelConfig
 
 ServingSignature = Callable[..., object]
 

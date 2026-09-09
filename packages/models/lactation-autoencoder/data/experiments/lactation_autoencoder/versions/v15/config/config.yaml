@@ -39,9 +39,8 @@ models:
       train:
         # Data source
         source:
-          type: lactation_pkl
+          type: lactation_json
           json_root_dir: "data/experiments/lactation_autoencoder/input/train/json/"
-          herd_stats_dir: "data/experiments/lactation_autoencoder/input/train/pkl/"
           file_pattern: "*.json"
 
         # Transform pipeline (order matters!)
@@ -71,9 +70,8 @@ models:
 
       validation:
         source:
-          type: lactation_pkl
+          type: lactation_json
           json_root_dir: "data/experiments/lactation_autoencoder/input/val/json/"
-          herd_stats_dir: "data/experiments/lactation_autoencoder/input/val/pkl/"
 
         transforms:
           - name: imputation
@@ -92,9 +90,8 @@ models:
 
       inference:
         source:
-          type: lactation_pkl
+          type: lactation_json
           json_root_dir: "data/experiments/lactation_autoencoder/input/inference/json/"
-          herd_stats_dir: "data/experiments/lactation_autoencoder/input/inference/pkl/"
           file_pattern: "*.json"
 
         transforms:

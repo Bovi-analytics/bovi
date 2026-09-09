@@ -14,7 +14,7 @@ from .dataset import ScikitRegressionDataset
 from .source import RegressionJSONSource
 
 
-def create_regression_dataloader(
+def create_dataloader(
     config: Config,
     model_config: ScikitSGDModelConfig,
     split: str,

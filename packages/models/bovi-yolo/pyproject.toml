@@ -28,10 +28,10 @@ git_describe_command = "git describe --dirty --tags --long --match 'bovi-yolo-v*
 packages = ["src/bovi_yolo"]
 
 [project.entry-points."bovi.model_providers"]
-yolo = "bovi_yolo.models.yolo_provider:YOLOModelProvider"
+yolo = "bovi_yolo.models.provider:YOLOModelProvider"
 
 [project.entry-points."bovi.predictors"]
-yolo = "bovi_yolo.predictors.yolo_predictor:YOLOPredictor"
+yolo = "bovi_yolo.predictors.predictor:YOLOPredictor"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

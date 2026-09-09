@@ -1,7 +1,7 @@
 """Lactation models."""
 
-from .lactation_model import LactationAutoencoderModel
-from .model_config import LactationAutoencoderModelConfig
+from .config import LactationAutoencoderModelConfig
+from .model import LactationAutoencoderModel
 from .provider import LactationAutoencoderModelProvider
 
 __all__ = [

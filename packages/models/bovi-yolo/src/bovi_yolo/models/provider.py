@@ -13,8 +13,8 @@ from bovi_core.ml import (
 )
 from ultralytics import YOLO  # type: ignore[reportPrivateImportUsage]
 
-from .yolo_config import YOLOModelConfig
-from .yolo_model import YOLOModel
+from .config import YOLOModelConfig
+from .model import YOLOModel
 
 ULTRALYTICS_PT_FORMAT = "ultralytics-pt"
 ULTRALYTICS_RUNTIME_FORMAT = "ultralytics-runtime"

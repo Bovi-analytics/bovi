@@ -27,7 +27,7 @@ def _weights_available() -> bool:
 class TestSourceToDatasetPipeline:
     def test_source_to_dataset(self, temp_image_dir: Path) -> None:
         """Test creating dataset from source."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -44,7 +44,7 @@ class TestSourceToDatasetPipeline:
 
     def test_multiple_splits(self, temp_image_dir: Path) -> None:
         """Test loading from multiple data splits."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         for split, pattern in [
             ("train", "*.jpeg"),
@@ -62,7 +62,7 @@ class TestSourceToDatasetPipeline:
 class TestTransformPipeline:
     def test_validation_on_dataset_output(self, temp_image_dir: Path) -> None:
         """Test ImageValidationTransform works on dataset output."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
         from bovi_yolo.dataloaders.transforms import (
             ImageValidationTransform,
         )
@@ -80,7 +80,7 @@ class TestTransformPipeline:
 
     def test_resize_on_dataset_output(self, temp_image_dir: Path) -> None:
         """Test ImageResizeTransform works on dataset output."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
         from bovi_yolo.dataloaders.transforms import ImageResizeTransform
 
         source = LocalFileSource(
@@ -98,9 +98,9 @@ class TestTransformPipeline:
 class TestConfigDrivenPipeline:
     def test_source_from_config(self, yolo_config: Config) -> None:
         """Test creating source from config."""
-        from bovi_yolo.dataloaders.sources import YOLOImageSource
+        from bovi_yolo.dataloaders import create_source
 
-        source = YOLOImageSource.from_config(yolo_config, split="inference")
+        source = create_source(yolo_config, split="inference")
         assert len(source) >= 1
 
     def test_transforms_from_config(self, yolo_config: Config) -> None:
@@ -141,7 +141,7 @@ class TestEndToEndPipeline:
     def test_full_pipeline(self, yolo_config: Config, temp_image_dir: Path) -> None:
         """Test full pipeline: source -> dataset -> model -> predict."""
         from bovi_core.ml import ResolvedModelArtifact
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
         from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
         from bovi_yolo.predictors import YOLOPredictor
         from bovi_yolo.predictors.results import YoloPredictionResult
@@ -173,7 +173,7 @@ class TestEndToEndPipeline:
     def test_three_level_returns(self, yolo_config: Config, temp_image_dir: Path) -> None:
         """Test all three return formats work."""
         from bovi_core.ml import ResolvedModelArtifact
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
         from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
         from bovi_yolo.predictors import YOLOPredictor
         from bovi_yolo.predictors.results import YoloPredictionResult

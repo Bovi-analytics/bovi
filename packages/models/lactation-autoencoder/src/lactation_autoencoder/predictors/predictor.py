@@ -15,8 +15,8 @@ import tensorflow as tf
 from bovi_core.ml import PredictionInterface, PredictorRegistry
 from typing_extensions import override
 
-from lactation_autoencoder.models.lactation_model import LactationAutoencoderModel
-from lactation_autoencoder.predictors.results.lactation_prediction_result import (
+from lactation_autoencoder.models.model import LactationAutoencoderModel
+from lactation_autoencoder.predictors.results import (
     LactationPredictionResult,
 )
 

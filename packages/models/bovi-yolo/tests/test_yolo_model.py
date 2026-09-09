@@ -37,7 +37,7 @@ def test_model_config_uses_defaults_for_existing_config(yolo_config: object) -> 
 
 
 class TestYOLOModelProvider:
-    @patch("bovi_yolo.models.yolo_provider.YOLO")
+    @patch("bovi_yolo.models.provider.YOLO")
     def test_create_builds_fresh_native_model(self, yolo_cls: MagicMock) -> None:
         from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
 
@@ -55,7 +55,7 @@ class TestYOLOModelProvider:
         assert model.native_model is native_model
         assert model.config is config
 
-    @patch("bovi_yolo.models.yolo_provider.YOLO")
+    @patch("bovi_yolo.models.provider.YOLO")
     def test_restore_checkpoint_loads_local_path(
         self,
         yolo_cls: MagicMock,
@@ -77,7 +77,7 @@ class TestYOLOModelProvider:
         yolo_cls.assert_called_once_with(str(checkpoint_path), task="detect")
         assert model.native_model is yolo_cls.return_value
 
-    @patch("bovi_yolo.models.yolo_provider.YOLO")
+    @patch("bovi_yolo.models.provider.YOLO")
     def test_load_artifact_loads_local_path(
         self,
         yolo_cls: MagicMock,
@@ -100,7 +100,7 @@ class TestYOLOModelProvider:
         assert model.native_model is yolo_cls.return_value
 
     @pytest.mark.parametrize("resource_format", ["ultralytics-pt", "ultralytics-runtime"])
-    @patch("bovi_yolo.models.yolo_provider.YOLO")
+    @patch("bovi_yolo.models.provider.YOLO")
     def test_resolved_native_payload_avoids_reloading(
         self,
         yolo_cls: MagicMock,
