@@ -5,7 +5,6 @@ from .dataloaders import (
     AbstractDataLoader,
     Dataset,
     DataSource,
-    FrameworkAdapter,
     TransformRegistry,
     UniversalTransform,
 )
@@ -79,7 +78,6 @@ __all__ = [
     "AbstractDataLoader",
     "UniversalTransform",
     "TransformRegistry",
-    "FrameworkAdapter",
     # Training and evaluation
     "EpochResult",
     "EvaluationConfig",

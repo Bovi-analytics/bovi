@@ -1,6 +1,8 @@
 """Validate batches and calculate scalar regression metrics."""
 
-from bovi_core.ml.dataloaders.adapters.tabular import pytorch_regression_batch as batch_to_arrays
+from bovi_core.ml.dataloaders.model_inputs.pytorch_regression import (
+    prepare_pytorch_regression_inputs as batch_to_arrays,
+)
 from bovi_core.ml.trainers.monitoring import RegressionMetrics
 
 

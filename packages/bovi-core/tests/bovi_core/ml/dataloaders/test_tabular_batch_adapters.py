@@ -2,12 +2,12 @@
 
 import numpy as np
 import pytest
-from bovi_core.ml.dataloaders.adapters import tabular
+from bovi_core.ml.dataloaders.model_inputs.numpy_regression import prepare_numpy_regression_inputs
 
 
 @pytest.fixture
 def regression_adapter():
-    return tabular.numpy_regression_batch
+    return prepare_numpy_regression_inputs
 
 
 def test_columns_follow_model_feature_order(regression_adapter):
@@ -28,3 +28,11 @@ def test_dense_batches_remain_supported(regression_adapter):
     x, y = regression_adapter({"features": [[1, 2]], "labels": [3]}, ("a", "b"))
     np.testing.assert_array_equal(np.asarray(x), [[1, 2]])
     np.testing.assert_array_equal(np.asarray(y), [3])
+
+
+def test_precision_is_explicit(regression_adapter):
+    batch = {"features": [[1, 2]], "labels": [3]}
+    x, y = regression_adapter(batch, ("a", "b"), dtype=np.float32)
+    assert x.dtype == y.dtype == np.float32
+    with pytest.raises(ValueError, match="floating point"):
+        regression_adapter(batch, ("a", "b"), dtype=np.int64)

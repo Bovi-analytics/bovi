@@ -14,8 +14,10 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.typing import NDArray
 
-from ..adapters import FrameworkAdapter
-from ..base import AbstractDataLoader, Dataset
+from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
+from bovi_core.ml.dataloaders.loaders.base_loader import AbstractDataLoader
+
+from ..batching import collate_numpy_samples
 
 # Type alias for index arrays
 IndexArray = NDArray[np.intp]
@@ -183,7 +185,7 @@ class SklearnDataLoader(AbstractDataLoader):
             if not batch_items:
                 continue
 
-            yield FrameworkAdapter.numpy_collate(batch_items)
+            yield collate_numpy_samples(batch_items)
 
     def __len__(self) -> int:
         """Number of batches."""
@@ -214,4 +216,4 @@ class SklearnDataLoader(AbstractDataLoader):
         if not all_items:
             return {}
 
-        return FrameworkAdapter.numpy_collate(all_items)
+        return collate_numpy_samples(all_items)

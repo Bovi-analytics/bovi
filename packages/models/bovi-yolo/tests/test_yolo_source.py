@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from bovi_core.ml.dataloaders import PyTorchDataLoader
+from bovi_core.ml.dataloaders.datasets import TransformedDataset
 from bovi_core.ml.dataloaders.sources import LocalFileSource
 from bovi_yolo.dataloaders import create_dataloader, create_source
 
@@ -27,7 +28,11 @@ def test_create_dataloader_composes_pipeline(yolo_config: object) -> None:
     batch = next(iter(loader))
 
     assert isinstance(loader, PyTorchDataLoader)
+    assert isinstance(loader.dataset, TransformedDataset)
     assert tuple(batch["image"].shape) == (1, 3, 640, 640)
+    assert batch["image"].is_floating_point()
+    assert batch["image"].min() >= 0
+    assert batch["image"].max() <= 1
 
 
 def test_create_source_rejects_unsupported_type() -> None:

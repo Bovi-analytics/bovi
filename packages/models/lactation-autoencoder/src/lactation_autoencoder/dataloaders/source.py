@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from bovi_core.ml.dataloaders.base.data_source import DataSource
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 from typing_extensions import override
 
 logger = logging.getLogger(__name__)

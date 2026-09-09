@@ -2,8 +2,8 @@
 
 Tests the NumPy-First architecture where:
 - Datasets return raw NumPy arrays (no transforms)
-- Transforms are applied in DataLoaders
-- Albumentations transforms are used directly (no wrappers)
+- Transforms are applied explicitly on TransformedDataset
+- Albumentations fields are selected explicitly by a sample transform
 """
 
 from typing import Any
@@ -15,11 +15,13 @@ import numpy as np
 # - mock_dataloader_config (from dataloaders/conftest.py)
 # - albumentations_resize_transform (from loaders/conftest.py)
 import pytest
-from bovi_core.ml.dataloaders.base import Dataset
+from bovi_core.ml.dataloaders.datasets import TransformedDataset
+from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
 from bovi_core.ml.dataloaders.loaders.tensorflow_loader import TensorFlowDataLoader
 from bovi_core.ml.dataloaders.sources.dict_source import DictSource
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
+from bovi_core.ml.dataloaders.transforms import AlbumentationsTransform, ImagePreprocessing
 from PIL import Image
 
 tf = pytest.importorskip(
@@ -180,10 +182,8 @@ def test_prefetch_setting_reaches_dataset(prefetch, monkeypatch, mock_dataloader
 def test_transformed_image_normalization_option(normalize, mock_dataloader_config):
     samples = _SampleDataset([{"image": np.full((4, 5, 3), 255, dtype=np.uint8)}])
     loader = TensorFlowDataLoader(
-        samples,
+        TransformedDataset(samples, [ImagePreprocessing(normalize=normalize)]),
         config=mock_dataloader_config,
-        transform=lambda **sample: sample,
-        auto_normalize=normalize,
     )
     image = next(iter(loader))["image"]
     assert image.shape == (1, 4, 5, 3)
@@ -256,10 +256,15 @@ class TestTensorFlowDataLoader:
         """Test iterating over loader WITH Albumentations transform."""
 
         loader = TensorFlowDataLoader(
-            image_dataset_large,
+            TransformedDataset(
+                image_dataset_large,
+                [
+                    AlbumentationsTransform(albumentations_resize_transform),
+                    ImagePreprocessing(normalize=True, channels_first=False),
+                ],
+            ),
             config=mock_dataloader_config,
             split="train",
-            transform=albumentations_resize_transform,  # Transform passed to loader!
             batch_size=8,
         )
 
@@ -273,7 +278,7 @@ class TestTensorFlowDataLoader:
 
         # With transform, images should be resized
         assert batch["image"].shape == (8, 32, 32, 3)  # (B, H, W, C) for TF
-        # TensorFlow loader normalizes uint8 to float32
+        # The explicit image preprocessing normalizes uint8 to float32
         assert batch["image"].dtype == tf.float32
 
     def test_loader_shuffle(self, image_dataset_large, mock_dataloader_config):
@@ -334,17 +339,25 @@ class TestTensorFlowDataLoader:
     def test_loader_transform_parameter(
         self, image_dataset_large, mock_dataloader_config, albumentations_resize_transform
     ):
-        """Test that transform is stored as loader attribute."""
+        """Test that preprocessing belongs to the wrapped dataset."""
         loader = TensorFlowDataLoader(
-            image_dataset_large,
+            TransformedDataset(
+                image_dataset_large,
+                [
+                    AlbumentationsTransform(albumentations_resize_transform),
+                    ImagePreprocessing(normalize=True, channels_first=False),
+                ],
+            ),
             config=mock_dataloader_config,
             split="train",
-            transform=albumentations_resize_transform,
             batch_size=4,
         )
 
-        # Transform is stored on the loader, not the dataset
-        assert loader.transform is albumentations_resize_transform
+        # The loader only receives a dataset; preprocessing is explicit on its wrapper.
+        assert isinstance(loader.dataset, TransformedDataset)
+        transform = loader.dataset.transforms[0]
+        assert isinstance(transform, AlbumentationsTransform)
+        assert transform.pipeline is albumentations_resize_transform
 
     def test_loader_element_spec(self, image_dataset_large, mock_dataloader_config):
         """Test element_spec property for shape debugging."""
@@ -363,10 +376,15 @@ class TestTensorFlowDataLoader:
     ):
         """Test that output shapes are correctly inferred (dry run)."""
         loader = TensorFlowDataLoader(
-            image_dataset_large,
+            TransformedDataset(
+                image_dataset_large,
+                [
+                    AlbumentationsTransform(albumentations_resize_transform),
+                    ImagePreprocessing(normalize=True, channels_first=False),
+                ],
+            ),
             config=mock_dataloader_config,
             split="train",
-            transform=albumentations_resize_transform,
             batch_size=4,
         )
 

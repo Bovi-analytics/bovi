@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from bovi_core.config import Config
     from bovi_core.ml.predictors import PredictorProtocol
 
-    from .data_source import DataSource
+    from ..sources.base_source import DataSource
 
 
 class Dataset(ABC):
@@ -107,11 +107,11 @@ class Dataset(ABC):
 
     def _batch_samples(self, samples: list[dict[str, Any]]) -> dict[str, Any]:
         """Use loader collation: nested arrays, with metadata kept per sample."""
-        from bovi_core.ml.dataloaders.adapters import FrameworkAdapter
+        from bovi_core.ml.dataloaders.batching import collate_numpy_samples
 
         if not samples:
             return {}
-        batched = FrameworkAdapter.numpy_collate(samples)
+        batched = collate_numpy_samples(samples)
         if not isinstance(batched, dict):
             raise ValueError("Dataset samples must have matching mapping keys")
         return batched

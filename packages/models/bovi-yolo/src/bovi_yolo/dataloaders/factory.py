@@ -6,6 +6,8 @@ from typing import Any
 
 from bovi_core.config import Config
 from bovi_core.ml.dataloaders import PyTorchDataLoader, build_vision_pipeline
+from bovi_core.ml.dataloaders.datasets import TransformedDataset
+from bovi_core.ml.dataloaders.transforms import AlbumentationsTransform, ImagePreprocessing
 
 from .dataset import YOLODataset
 from .source import create_source
@@ -21,12 +23,18 @@ def create_dataloader(
     source = create_source(config, split)
     dataset = YOLODataset(source=source, config=config)
     transform = build_vision_pipeline(split_config.transforms)
+    prepared_dataset = TransformedDataset(
+        dataset,
+        [
+            AlbumentationsTransform(transform),
+            ImagePreprocessing(normalize=True, channels_first=True),
+        ],
+    )
 
     return PyTorchDataLoader(
-        dataset=dataset,
+        dataset=prepared_dataset,
         config=config,
         split=split,
         model_name="yolo",
-        transform=transform,
         **override_params,
     )

@@ -2,15 +2,17 @@
 
 Tests the NumPy-First architecture where:
 - Datasets return raw NumPy arrays (no transforms)
-- Transforms are applied in DataLoaders via FrameworkAdapter
-- Albumentations transforms are used directly (no wrappers)
+- Sample transforms are explicit on TransformedDataset, before batching
+- Albumentations fields are selected explicitly by a sample transform
 """
 
 import numpy as np
 import pytest
+from bovi_core.ml.dataloaders.datasets import TransformedDataset
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
 from bovi_core.ml.dataloaders.loaders.pytorch_loader import PyTorchDataLoader
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
+from bovi_core.ml.dataloaders.transforms import AlbumentationsTransform, ImagePreprocessing
 from PIL import Image
 
 torch = pytest.importorskip("torch", reason="PyTorch is required for PyTorchDataLoader tests")
@@ -121,26 +123,30 @@ def test_custom_collator_replaces_adapter(dense_samples, mock_dataloader_config)
 
 
 def test_metadata_and_ragged_values_have_explicit_policy():
-    from bovi_core.ml.dataloaders.adapters import FrameworkAdapter
+    from bovi_core.ml.dataloaders.batching import collate_pytorch_samples
 
     samples = [
         {"features": np.arange(2), "metadata": {"index": 0, "opaque": None}},
         {"features": np.arange(3), "metadata": {"index": 1, "opaque": object()}},
     ]
-    batch = FrameworkAdapter.numpy_to_pytorch_collate(samples)
+    batch = collate_pytorch_samples(samples)
     assert isinstance(batch["features"], list)
     assert batch["metadata"][1] is samples[1]["metadata"]
-    columns = FrameworkAdapter.numpy_to_pytorch_collate(samples, preserve_keys=())
+    columns = collate_pytorch_samples(samples, preserve_keys=())
     assert torch.equal(columns["metadata"]["index"], torch.tensor([0, 1]))
 
 
 @pytest.mark.parametrize("vision", [True, False])
 def test_video_conversion_is_explicit(vision):
-    from bovi_core.ml.dataloaders.adapters import FrameworkAdapter
+    from bovi_core.ml.dataloaders.batching import collate_pytorch_samples
 
     frames = np.full((2, 4, 5, 3), 255, dtype=np.uint8)
-    batch = FrameworkAdapter.numpy_to_pytorch_collate(
-        [{"frames": frames}], auto_normalize=vision, auto_transpose=vision
+    batch = collate_pytorch_samples(
+        [
+            ImagePreprocessing(fields=("frames",), normalize=vision, channels_first=vision)(
+                {"frames": frames}
+            )
+        ]
     )
     assert batch["frames"].shape == ((1, 2, 3, 4, 5) if vision else (1, 2, 4, 5, 3))
     assert batch["frames"].dtype == (torch.float32 if vision else torch.uint8)
@@ -227,19 +233,24 @@ class TestPyTorchDataLoader:
         # from (B, H, W, C) uint8 to (B, C, H, W) float32
         assert isinstance(batch["image"], torch.Tensor)
         assert batch["image"].shape[0] == 8  # Batch size
-        assert batch["image"].shape[1] == 3  # Channels (auto-transposed)
-        assert batch["image"].dtype == torch.float32  # Auto-normalized
+        assert batch["image"].shape[-1] == 3  # Layout is unchanged
+        assert batch["image"].dtype == torch.uint8  # Values are unchanged
 
     def test_loader_iteration_with_albumentations_transform(
         self, image_dataset_large, mock_dataloader_config, albumentations_resize_transform
     ):
         """Test iterating over loader WITH Albumentations transform."""
         loader = PyTorchDataLoader(
-            image_dataset_large,
+            TransformedDataset(
+                image_dataset_large,
+                [
+                    AlbumentationsTransform(albumentations_resize_transform),
+                    ImagePreprocessing(normalize=True, channels_first=True),
+                ],
+            ),
             config=mock_dataloader_config,
             split="train",
             model_name="test_model",
-            transform=albumentations_resize_transform,  # Transform passed to loader!
             batch_size=8,
             num_workers=0,
         )
@@ -530,8 +541,8 @@ class TestPyTorchDataLoader:
         assert len(batches) == 1
         assert batches[0]["image"].shape[0] == 1  # Batch size of 1
 
-    def test_loader_auto_transpose_disabled(self, image_dataset_large, mock_dataloader_config):
-        """Test disabling auto-transpose keeps HWC format."""
+    def test_loader_preserves_image_layout(self, image_dataset_large, mock_dataloader_config):
+        """A loader does not choose a model-specific image layout."""
         loader = PyTorchDataLoader(
             image_dataset_large,
             config=mock_dataloader_config,
@@ -539,18 +550,17 @@ class TestPyTorchDataLoader:
             model_name="test_model",
             batch_size=4,
             num_workers=0,
-            auto_transpose=False,
         )
 
         batch = next(iter(loader))
 
-        # Without auto_transpose, images stay in (B, H, W, C) format
+        # Without preprocessing, images stay in (B, H, W, C) format
         assert isinstance(batch["image"], torch.Tensor)
         assert batch["image"].shape[0] == 4  # Batch size
         assert batch["image"].shape[-1] == 3  # Channels last (HWC)
 
-    def test_loader_auto_normalize_disabled(self, image_dataset_large, mock_dataloader_config):
-        """Test disabling auto-normalize keeps uint8."""
+    def test_loader_preserves_image_dtype(self, image_dataset_large, mock_dataloader_config):
+        """A loader does not normalize pixel values."""
         loader = PyTorchDataLoader(
             image_dataset_large,
             config=mock_dataloader_config,
@@ -558,28 +568,35 @@ class TestPyTorchDataLoader:
             model_name="test_model",
             batch_size=4,
             num_workers=0,
-            auto_normalize=False,
         )
 
         batch = next(iter(loader))
 
-        # Without auto_normalize, images stay as uint8
+        # Without preprocessing, images stay as uint8
         assert isinstance(batch["image"], torch.Tensor)
         assert batch["image"].dtype == torch.uint8
 
     def test_loader_transform_parameter(
         self, image_dataset_large, mock_dataloader_config, albumentations_resize_transform
     ):
-        """Test that transform is stored as loader attribute."""
+        """Test that preprocessing belongs to the wrapped dataset."""
         loader = PyTorchDataLoader(
-            image_dataset_large,
+            TransformedDataset(
+                image_dataset_large,
+                [
+                    AlbumentationsTransform(albumentations_resize_transform),
+                    ImagePreprocessing(normalize=True, channels_first=True),
+                ],
+            ),
             config=mock_dataloader_config,
             split="train",
             model_name="test_model",
-            transform=albumentations_resize_transform,
             batch_size=4,
             num_workers=0,
         )
 
-        # Transform is stored on the loader, not the dataset
-        assert loader.transform is albumentations_resize_transform
+        # The loader only receives a dataset; preprocessing is explicit on its wrapper.
+        assert isinstance(loader.dataset, TransformedDataset)
+        transform = loader.dataset.transforms[0]
+        assert isinstance(transform, AlbumentationsTransform)
+        assert transform.pipeline is albumentations_resize_transform

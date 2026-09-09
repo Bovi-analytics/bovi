@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, FiniteFloat, model_validator
 
-from bovi_core.ml.dataloaders.base import AbstractDataLoader
+from bovi_core.ml.dataloaders.loaders.base_loader import AbstractDataLoader
 from bovi_core.ml.models.model import Model
 
 from .config import EvaluationConfig

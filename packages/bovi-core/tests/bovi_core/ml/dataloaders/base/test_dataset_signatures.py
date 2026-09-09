@@ -14,7 +14,8 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 from bovi_core.ml.dataloaders import ImageDataset
-from bovi_core.ml.dataloaders.base import Dataset, DataSource
+from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 
 class MockImageSource(DataSource[bytes]):

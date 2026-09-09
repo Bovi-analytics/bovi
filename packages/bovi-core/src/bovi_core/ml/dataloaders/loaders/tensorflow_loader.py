@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import logging
 import math
-from collections.abc import Callable, Collection, Iterator, Mapping
+from collections.abc import Collection, Iterator, Mapping
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from ..base import AbstractDataLoader, Dataset
+from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
+from bovi_core.ml.dataloaders.loaders.base_loader import AbstractDataLoader
 
 if TYPE_CHECKING:
     from bovi_core.config import Config
@@ -23,82 +24,22 @@ logger = logging.getLogger(__name__)
 
 
 class TensorFlowDataLoader(AbstractDataLoader):
-    """
-    TensorFlow DataLoader wrapper.
+    """Build native tf.data batches from framework-neutral dataset samples.
 
-    Wraps tf.data.Dataset with optimized defaults for training and inference.
-    Transforms are applied with explicit shape setting to prevent graph errors.
+    Use TransformedDataset for decoded-sample preprocessing. No image
+    normalization or layout conversion is performed by this loader.
 
-    Key features:
-    - Automatic prefetching with AUTOTUNE
-    - Parallel data loading with num_parallel_calls=AUTOTUNE
-    - Transform support with explicit shape inference
-    - Configurable batch size and shuffle
+    output_signature can specify nested per-sample TensorSpecs. Without it,
+    one sample is read to infer shapes and dtypes; random transforms therefore
+    need a suitable explicit signature when their output shapes can vary.
+    drop_keys explicitly omits top-level fields such as opaque metadata.
+    cache stores prepared samples, so random transforms are not rerun each
+    epoch when caching is enabled.
 
-    Args:
-        dataset: Dataset to load from (returns raw NumPy)
-        config: Config instance
-        split: Dataset split ("train", "val", "test")
-        model_name: Model name for config lookup
-        transform: Optional Albumentations transform to apply per-sample
-        batch_size: Batch size (overrides config)
-        shuffle: Whether to shuffle (overrides config default)
-        buffer_size: Shuffle buffer size (default: 1000)
-        prefetch_buffer_size: Number of batches to prefetch (default: AUTOTUNE)
-        cache: Whether to cache dataset in memory (default: False)
-        output_signature: Optional nested per-sample TensorSpec structure. Use
-            variable dimensions for variable shapes (each batch must still be dense).
-        drop_keys: Top-level fields explicitly omitted before conversion. By
-            default metadata is batched recursively and must be tensor-compatible;
-            None and arbitrary Python objects raise a field-specific TypeError.
-        auto_normalize: Normalize transformed uint8 images (default: True).
-            Untransformed images retain their dtype, as in the existing API.
-        seed: Optional shuffle seed for reproducible iteration sequences.
-        reshuffle_each_iteration: Use a new shuffle each iteration (default: True).
-            False replays the same order. set_epoch pins an explicit zero-based
-            epoch and requires seed when shuffling. This controls sample order,
-            not randomness inside Python transforms. Keep TensorFlow's global
-            seed unchanged when comparing runs.
-
-    Example:
-        ```python
-        import albumentations as A
-        from bovi_core.ml.dataloaders import (
-            ImageDataset,
-            LocalFileSource,
-            TensorFlowDataLoader,
-        )
-
-        # Create dataset (no transforms!)
-        source = LocalFileSource("data/images", file_pattern="*.jpg")
-        dataset = ImageDataset(source)  # Returns raw NumPy (H, W, C), uint8
-
-        # Create transform
-        transform = A.Compose([
-            A.Resize(224, 224),
-            A.HorizontalFlip(p=0.5),
-            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-
-        # Create loader WITH transform
-        loader = TensorFlowDataLoader(
-            dataset,
-            config=config,
-            split="train",
-            transform=transform,
-            batch_size=32,
-        )
-
-        # Iterate - images are float32 with explicit shapes
-        for batch in loader:
-            images = batch["image"]  # (32, 224, 224, 3) float32
-            labels = batch["label"]
-            # ... training code
-        ```
+    seed and set_epoch control shuffle order, not transform RNGs.
     """
 
     # Type annotations for instance attributes
-    transform: Callable[..., dict[str, Any]] | None
     _output_shapes: dict[str, tuple[int | None, ...]]
     batch_size: int
     shuffle: bool
@@ -113,7 +54,6 @@ class TensorFlowDataLoader(AbstractDataLoader):
         config: Config,
         split: str = "train",
         model_name: str | None = None,
-        transform: Callable[..., dict[str, Any]] | None = None,
         batch_size: int | None = None,
         shuffle: bool | None = None,
         buffer_size: int = 1000,
@@ -121,7 +61,6 @@ class TensorFlowDataLoader(AbstractDataLoader):
         cache: bool = False,
         output_signature: Any | None = None,
         drop_keys: Collection[str] = (),
-        auto_normalize: bool = True,
         seed: int | None = None,
         reshuffle_each_iteration: bool = True,
     ) -> None:
@@ -135,10 +74,8 @@ class TensorFlowDataLoader(AbstractDataLoader):
                 "Install with: pip install tensorflow"
             ) from err
 
-        self.transform = transform
         self.output_signature = output_signature
         self.drop_keys = tuple(drop_keys)
-        self.auto_normalize = auto_normalize
         self.seed = seed
         self.reshuffle_each_iteration = reshuffle_each_iteration
         self._epoch: int | None = None
@@ -201,17 +138,11 @@ class TensorFlowDataLoader(AbstractDataLoader):
             f"TensorFlowDataLoader ({split}): "
             f"batch_size={self.batch_size}, "
             f"shuffle={self.shuffle}, "
-            f"transform={transform is not None}, "
             f"cache={self.cache}"
         )
 
     def _infer_output_shapes(self) -> None:
-        """
-        Dry run to infer output shapes after transforms.
-
-        CRITICAL: This prevents the "Broken Shape" problem where TF loses
-        dimension info after tf.numpy_function.
-        """
+        """Read one dataset sample to infer the generator output signature."""
         if len(self.dataset) == 0:
             return
 
@@ -232,15 +163,10 @@ class TensorFlowDataLoader(AbstractDataLoader):
         logger.debug(f"Inferred output shapes: {self._output_shapes}")
 
     def _prepare_sample(self, sample: dict[str, Any]) -> dict[str, Any]:
-        """Apply vision processing and validate nested tensor-compatible leaves."""
+        """Omit configured fields and convert nested tensor-compatible leaves."""
         import tensorflow as tf
 
         sample = {key: value for key, value in sample.items() if key not in self.drop_keys}
-        if self.transform is not None and isinstance(sample.get("image"), np.ndarray):
-            image = self.transform(image=sample["image"])["image"]
-            if self.auto_normalize and isinstance(image, np.ndarray) and image.dtype == np.uint8:
-                image = image.astype(np.float32) / 255.0
-            sample["image"] = image
 
         def convert(value: Any, path: str) -> Any:
             if isinstance(value, Mapping):

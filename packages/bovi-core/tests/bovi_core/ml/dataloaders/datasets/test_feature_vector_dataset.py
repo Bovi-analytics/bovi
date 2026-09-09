@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Union
 
 import numpy as np
 import pytest
-from bovi_core.ml.dataloaders.base.data_source import DataSource
 from bovi_core.ml.dataloaders.datasets.feature_vector_dataset import FeatureVectorDataset
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 
 class MockDataSource(DataSource):

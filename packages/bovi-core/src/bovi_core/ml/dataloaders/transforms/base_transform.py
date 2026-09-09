@@ -1,4 +1,4 @@
-"""Universal transform base class for tabular/time-series data."""
+"""Universal transform base class for framework-neutral sample data."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 class UniversalTransform(ABC):
     """
-    Base class for tabular/time-series transforms.
+    Base class for framework-neutral sample transforms.
 
     NumPy-only: no framework-specific methods needed.
     Subclasses only need to implement __call__ and get_params.

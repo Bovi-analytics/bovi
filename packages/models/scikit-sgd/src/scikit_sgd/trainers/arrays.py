@@ -5,7 +5,9 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 from bovi_core.ml import AbstractDataLoader
-from bovi_core.ml.dataloaders.adapters.tabular import numpy_regression_batch as batch_to_arrays
+from bovi_core.ml.dataloaders.model_inputs.numpy_regression import (
+    prepare_numpy_regression_inputs as batch_to_arrays,
+)
 from bovi_core.ml.trainers.monitoring import RegressionMetrics
 
 from scikit_sgd.models import ScikitSGDModel

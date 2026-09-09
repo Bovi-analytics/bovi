@@ -14,8 +14,8 @@ detail.
 3. Read the root [README](../../README.md) and
    [CLAUDE.md](../../CLAUDE.md) in <code>bovi</code> for the current monorepo,
    local commands, and architecture rules.
-4. Then choose the package or application documentation that matches the task
-   at hand.
+4. Read the [Bovi Core package guide](bovi-core-package.md) for the shared ML
+   concepts, then choose the relevant model or application documentation.
 
 The short version is:
 
@@ -36,10 +36,10 @@ bovi-models-tutorial, standalone bovi-core, and lactation_curve_core.
 
 ## Sources and reliability
 
-The dates below are the latest substantive changes to the relevant documentation
-or repository, checked on 28 August 2026. A recent date does not guarantee that
-every implementation detail is still correct; the monorepo and its
-<code>pyproject.toml</code> files are authoritative for current behaviour.
+The monorepo source and its <code>pyproject.toml</code> files are authoritative
+for current behaviour. The sibling reading guides describe the current concepts,
+but their historical runtime code is not thereby migrated. Follow each example's
+environment instructions rather than installing an older sibling core by accident.
 
 | Source | Role in the handover | Treat as |
 | --- | --- | --- |
@@ -59,8 +59,9 @@ or current dependencies.
 | Topic | Starting point | Use it when |
 | --- | --- | --- |
 | Monorepo and local work | [root README](../../README.md), [CLAUDE.md](../../CLAUDE.md) | Always |
-| Shared ML framework | <code>packages/bovi-core/</code> and its package configuration | Working on the registry, configuration, storage, or model foundations |
+| Shared ML framework | [Bovi Core package guide](bovi-core-package.md) | Working on the registry, configuration, storage, or model foundations |
 | Trainer module | [trainer module](trainer-module.md) | Training contracts, configuration, checkpoints, evaluation, logging, or federated boundaries |
+| Notebook execution | [notebook verification](notebook-validation.md) | Checked local lessons, retained teaching content and untested cloud prerequisites |
 | Classical curves and ICAR | [lactationcurve README](../../packages/models/lactationcurve/README.md) | Curve fitting, LCCs, or 305-day yield |
 | BESTPRED port | [BESTPRED documentation index](../../packages/models/bestpred/docs/README.md) | Fortran parity, FDD, or best prediction |
 | Dashboard | [dashboard README](../../apps/frontend/dashboard/README.md) | Local UI work or API proxy behaviour |
@@ -69,8 +70,8 @@ or current dependencies.
 
 ## Maintenance agreement
 
-- Keep this directory at overview level; do not duplicate package APIs or
-  implementation details.
+- Keep overview guides readable and link detailed contracts to their owning
+  guide; do not duplicate the same explanation across multiple documents.
 - Document a structural change in the current package or app first, then update
   the repository guide when the relationship between repositories changes.
 - Explicitly label older material as *historical* or *template*. Do not remove

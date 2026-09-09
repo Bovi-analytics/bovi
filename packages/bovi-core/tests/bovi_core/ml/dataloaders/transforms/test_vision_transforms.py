@@ -6,6 +6,8 @@ as replacements for the old vision.py wrapper classes.
 
 import numpy as np
 import pytest
+from bovi_core.ml.dataloaders.datasets import TransformedDataset
+from bovi_core.ml.dataloaders.transforms import AlbumentationsTransform, ImagePreprocessing
 
 A = pytest.importorskip(
     "albumentations", reason="Albumentations is required for vision transform tests"
@@ -355,12 +357,17 @@ class TestCrossFrameworkConsistency:
 
         # Get first sample from PyTorch loader
         pt_loader = PyTorchDataLoader(
-            dataset,
+            TransformedDataset(
+                dataset,
+                [
+                    AlbumentationsTransform(transform),
+                    ImagePreprocessing(normalize=True, channels_first=True),
+                ],
+            ),
             config=mock_dataloader_config,
             model_name="test_model",
             split="train",
             batch_size=1,
-            transform=transform,
             shuffle=False,
         )
         pt_batch = next(iter(pt_loader))
@@ -370,12 +377,13 @@ class TestCrossFrameworkConsistency:
 
         # Get first sample from TensorFlow loader
         tf_loader = TensorFlowDataLoader(
-            dataset,
+            TransformedDataset(
+                dataset, [AlbumentationsTransform(transform), ImagePreprocessing(normalize=True)]
+            ),
             config=mock_dataloader_config,
             model_name="test_model",
             split="train",
             batch_size=1,
-            transform=transform,
             shuffle=False,
         )
         tf_batch = next(iter(tf_loader))
@@ -412,14 +420,18 @@ class TestCrossFrameworkConsistency:
 
         # PyTorch loader
         pt_loader = PyTorchDataLoader(
-            dataset,
+            TransformedDataset(
+                dataset,
+                [
+                    AlbumentationsTransform(transform),
+                    ImagePreprocessing(normalize=True, channels_first=True),
+                ],
+            ),
             config=mock_dataloader_config,
             model_name="test_model",
             split="train",
             batch_size=1,
-            transform=transform,
             shuffle=False,
-            auto_normalize=False,  # Don't double-normalize
         )
         pt_batch = next(iter(pt_loader))
         pt_image = pt_batch["image"]
@@ -428,12 +440,13 @@ class TestCrossFrameworkConsistency:
 
         # TensorFlow loader
         tf_loader = TensorFlowDataLoader(
-            dataset,
+            TransformedDataset(
+                dataset, [AlbumentationsTransform(transform), ImagePreprocessing(normalize=True)]
+            ),
             config=mock_dataloader_config,
             model_name="test_model",
             split="train",
             batch_size=1,
-            transform=transform,
             shuffle=False,
         )
         tf_batch = next(iter(tf_loader))

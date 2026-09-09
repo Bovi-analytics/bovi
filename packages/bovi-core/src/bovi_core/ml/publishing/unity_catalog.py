@@ -14,7 +14,7 @@ from .signatures import get_serving_input_example
 
 if TYPE_CHECKING:
     from bovi_core.config import Config
-    from bovi_core.ml.dataloaders.base import Dataset
+    from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
     from bovi_core.ml.models import Model
     from bovi_core.ml.predictors import PredictorProtocol
 

@@ -37,8 +37,6 @@ def create_dataloader(
         model_name="pytorch_linear",
         num_workers=0,
         pin_memory=False,
-        auto_transpose=False,
-        auto_normalize=False,
         batch_size=settings.dataloader.batch_size,
         shuffle=settings.dataloader.shuffle,
         seed=settings.dataloader.seed,

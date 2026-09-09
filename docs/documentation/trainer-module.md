@@ -18,11 +18,11 @@ and future federated-learning clients.
 
 The V1 design provides:
 
-- typed, immutable model, training, and evaluation configuration;
+- typed, frozen model, training, and evaluation configuration;
 - dependency-injected models and dataloaders;
 - one framework-neutral trainer contract;
 - one framework-neutral evaluator contract;
-- immutable manifests for training and evaluation outcomes;
+- structured records for training and evaluation outcomes;
 - local checkpoint references for best and last model state;
 - general execution contexts with optional federated specialisation;
 - structured warnings and errors;
@@ -32,6 +32,13 @@ The V1 design provides:
 It does not impose a universal training loop. Optional core execution helpers
 remove repeated bookkeeping from epoch-based trainers without owning their
 native optimization steps.
+
+## From data to model inputs
+
+The [Bovi Core package guide](bovi-core-package.md#3-follow-one-item-through-the-data-pipeline)
+explains sources, datasets, explicit transforms, native loaders, batching and
+model-input preparation. Read that overview first; this document focuses on
+training behavior and lifecycle contracts.
 
 ## Core philosophy
 
@@ -160,7 +167,11 @@ optional reference to the originating training run.
 Federated subclasses add farm, experiment, round, attempt, and global model
 version metadata. Non-federated users are not forced to provide those fields.
 
-### Results are immutable manifests, not heavyweight models
+### Results are frozen records, not heavyweight models
+
+Pydantic prevents field reassignment, but nested metric dictionaries can still
+change. Persisted local manifests are immutable; that is a separate guarantee
+from the in-memory result object. The logger snapshots its inputs before writing.
 
 `TrainingResult` records the outcome of one attempt:
 
@@ -457,7 +468,7 @@ different result with the same run ID. Identical retries are idempotent. Failed
 writes return structured destination issues; they do not alter training status.
 Pass explicitly selected JSON-safe config values, never the whole Bovi config
 or secrets. Checkpoints remain references, not embedded payloads. See
-[local logging](../local-training-logging.md) for usage and operational limits.
+[local result persistence](#local-result-persistence) below for usage and operational limits.
 
 This is end-of-attempt persistence, not a complete crash-recovery service. A
 process killed before logging can leave valid checkpoint bundles without a
@@ -466,23 +477,74 @@ discovering the latest recoverable checkpoint after a crash, and rebuilding a
 run automatically in a new process remain separate orchestration work. Epoch
 checkpoint integrity alone does not provide those guarantees.
 
+### Local result persistence
+
+Call the local logger from the orchestrator or notebook after training. It does
+not run inside a trainer and never changes the returned `TrainingResult`.
+
+```python
+from bovi_core.ml.trainers import LocalTrainingResultLogger
+
+logger = LocalTrainingResultLogger(
+    metadata={"dataset": {"name": "train", "records": len(train_loader.dataset)}},
+    config_snapshot={
+        "model": model_config.model_dump(mode="json"),
+        "training": training_config.model_dump(mode="json"),
+    },
+)
+log_outcome = await logger.log(context, result)
+log_outcome.model_dump(mode="json")
+```
+
+Supply only explicitly selected JSON-compatible settings and metadata. Never pass
+the whole `Config`, secrets, clients, or credentials. The constructor copies the
+snapshots; subsequent mutations of the original mappings do not alter the log.
+Non-JSON values and nonfinite numbers produce a structured failed logging outcome.
+
+Each manifest is stored at
+`context.output_dir/training-results/<context.run_id>.json`. Its versioned JSON
+contains `context`, `result`, `metadata`, and `config_snapshot`. Federated context
+fields are retained. Checkpoint references are recorded, but native artifacts
+are not read, copied, validated, or exported. Keep those artifacts separately.
+
+Run IDs must match between context and result. Reusing an output directory with
+different run IDs keeps separate manifests. An identical retry succeeds without
+replacing the existing file. Changed context, result, or snapshots for an existing
+run ID fail with `logging.local_collision`; this is an immutable final-result log,
+not an append-only epoch stream. Corrupt existing files are not overwritten.
+
+Context and result are deep-copied when the `log()` coroutine begins executing,
+before its first await. Later mutations to nested metrics cannot change that
+attempt's manifest. Creating a coroutine without awaiting or scheduling it does
+not capture a snapshot. Snapshot preparation errors are returned as structured
+failures, including invalid constructor mappings that cannot be copied.
+JSON serialization and file operations run in `asyncio.to_thread`. Every call makes one
+logging attempt, with errors reported through `ResultLogOutcome`,
+`LogDestinationResult`, and `LogIssue(write_attempt=1)`. Inspect the outcome
+separately from training success. Cancellation propagates normally; cancellation
+of the awaiting coroutine does not stop an already-running filesystem thread.
+
+Publication uses a flushed/fsynced temporary file and an atomic, non-overwriting
+hard link in the same directory. Concurrent identical writers are safe. This
+requires a trusted local filesystem with hard-link support; unsupported filesystems
+return a failed logging outcome. After publication and temporary-file cleanup,
+the manifest's directory and all ancestors up to the filesystem root are fsynced
+in child-to-parent order on POSIX, including on identical retries. This covers
+newly created output-directory ancestors and concurrent first writers.
+A directory sync failure
+returns failure even though the complete manifest may already be present; an
+identical retry can complete the sync. Other platforms do not provide this
+directory durability step. The logger does not provide cloud synchronization or automatic retries. Temporary
+files are removed on normal success/failure, but process termination can leave
+hidden `.manifest-*` files. Azure/BlobStore and MLflow adapters are future work.
+
 ## Shared data building blocks
 
-All three reference packages reuse core `JSONRecordsSource` and
-`TabularDataset`. Their package-level source/dataset names remain descriptive
-aliases; factories compose source, transforms, dataset, and a native loader.
-`JSONRecordsSource` reads a complete JSON array into memory and then provides
-indexed record access through `DictSource`. It is not a streaming reader for
-large datasets. File sources whose items are bytes remain separate from record
-sources whose items are dictionaries.
-Feature order is selected explicitly from the model config by core scalar
-regression batch adapters, rather than relying on dictionary insertion order.
-
-Core owns generic data mechanics, not domain-specific sample interpretation:
-YOLO and lactation datasets retain their specialized behavior. Dataset input
-examples use the same recursive NumPy collation as loaders. Optional MLflow
-signature inference lives in publishing helpers; training datasets do not need
-MLflow to load samples.
+The reference packages reuse core sources, scalar-regression datasets, transforms
+and model-input preparation. Their factories compose these building blocks;
+YOLO and lactation datasets retain domain-specific interpretation. See the
+[package guide](bovi-core-package.md#3-follow-one-item-through-the-data-pipeline)
+for the data contracts and their limits.
 
 Seeded loaders expose `set_epoch()` to replay an epoch's sample order. The
 shared loop pins each epoch so extra metric passes do not advance the next
@@ -544,8 +606,9 @@ records, and provide separate evaluators, Pydantic configs, YAML, notebooks,
 best/last checkpoints, and explicit restoration through model providers.
 They use the core `PyTorchDataLoader` and `TensorFlowDataLoader`, respectively,
 and retain native tensors through the training boundary. Datasets remain
-framework-neutral. The PyTorch CPU example uses zero workers and explicitly
-disables vision conversion; the TensorFlow example prefetches one batch.
+framework-neutral. The PyTorch CPU example uses zero workers and no vision
+transforms; vision preprocessing only runs when explicitly supplied through
+dataset transforms. The TensorFlow example prefetches one batch.
 Neither package adds framework dependencies to Bovi Core.
 
 Core collation supports nested dense numeric features and NumPy scalar labels.
@@ -554,9 +617,9 @@ TensorFlow metadata must be tensor-compatible, or callers explicitly omit it
 using `drop_keys`. Custom Torch collators and TensorFlow output signatures can
 express additional supported batch layouts.
 
-`TransformRegistry.from_config()` now returns an ordered list, not a mapping:
-repeated transform types remain separate pipeline steps. Consumers iterate the
-list directly instead of calling `.values()` or indexing by transform name.
+`TransformRegistry.from_config()` returns an ordered list, so repeated transform
+types remain separate pipeline steps. The factories pass that list to the
+source or dataset wrapper that applies it.
 
 The examples deliberately use SGD without momentum or a schedule. Tests compare
 continuous training with two attempts separated by a checkpoint restore.

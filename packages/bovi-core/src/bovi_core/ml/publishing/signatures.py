@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from mlflow.models import ModelSignature
 
-    from bovi_core.ml.dataloaders.base import Dataset
+    from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
     from bovi_core.ml.predictors import PredictorProtocol
 
 logger = logging.getLogger(__name__)

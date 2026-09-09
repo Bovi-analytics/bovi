@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Iterator, Optional
 if TYPE_CHECKING:
     from bovi_core.config import Config
 
-    from .dataset import Dataset
+    from ..datasets.base_dataset import Dataset
 
 
 class AbstractDataLoader(ABC):

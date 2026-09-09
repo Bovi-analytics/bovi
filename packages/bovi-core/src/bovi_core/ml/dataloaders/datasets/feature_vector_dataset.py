@@ -13,17 +13,18 @@ This structure makes it crystal clear:
 - "labels" = What the model should predict
 - "metadata" = Additional info (indices, ids, etc)
 
-Note: Transforms are NOT applied in datasets - they are applied in DataLoaders
-or manually in preprocessing. Datasets always return raw NumPy data.
+Record transforms can wrap the source with TransformedSource. Sample transforms
+can wrap the dataset with TransformedDataset. This base class only loads records
+and assembles framework-neutral samples; loaders handle batching/conversion.
 """
 
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from ..base.data_source import DataSource
+    from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
-from ..base.dataset import Dataset
+from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
 
 
 class FeatureVectorDataset(Dataset):
@@ -39,8 +40,8 @@ class FeatureVectorDataset(Dataset):
     - _get_features(raw_data): Define what constitutes features
     - _get_labels(raw_data): Define what constitutes labels/target
 
-    Note: Transforms are NOT applied here. Use UniversalTransform in
-    preprocessing or in DataLoaders.
+    Transforms are not applied by this class. Use TransformedSource before
+    feature extraction or TransformedDataset to process the assembled sample.
 
     Example:
         class AgeWeightDataset(FeatureVectorDataset):

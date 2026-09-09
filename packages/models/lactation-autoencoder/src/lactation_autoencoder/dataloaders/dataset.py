@@ -29,8 +29,8 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import numpy.typing as npt
-from bovi_core.ml.dataloaders.base import DataSource
 from bovi_core.ml.dataloaders.datasets import FeatureVectorDataset
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 from typing_extensions import override
 
 from lactation_autoencoder.types import LactationItem

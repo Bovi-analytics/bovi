@@ -3,14 +3,23 @@ DataLoader system for bovi-core.
 
 NumPy-First Architecture:
 - Datasets return raw NumPy arrays/dicts
-- Transforms are applied in DataLoaders via FrameworkAdapter
+- Sample transforms are explicit on TransformedDataset, before batching
 - Vision transforms use Albumentations directly
 - Tabular transforms use UniversalTransform base class
 """
 
-from .adapters import FrameworkAdapter
-from .base import AbstractDataLoader, Dataset, DataSource, UniversalTransform
-from .datasets import FeatureVectorDataset, ImageDataset, TabularDataset, VideoDataset
+from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
+from bovi_core.ml.dataloaders.loaders.base_loader import AbstractDataLoader
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
+from bovi_core.ml.dataloaders.transforms.base_transform import UniversalTransform
+
+from .datasets import (
+    FeatureVectorDataset,
+    ImageDataset,
+    TabularDataset,
+    TransformedDataset,
+    VideoDataset,
+)
 from .loaders import PyTorchDataLoader, SklearnDataLoader, TensorFlowDataLoader
 from .sources import BlobImageSource, JSONRecordsSource, LocalFileSource, TransformedSource
 from .transforms import TransformRegistry, build_vision_pipeline
@@ -21,13 +30,12 @@ __all__ = [
     "Dataset",
     "AbstractDataLoader",
     "UniversalTransform",
-    # Adapters
-    "FrameworkAdapter",
     # Datasets
     "ImageDataset",
     "VideoDataset",
     "FeatureVectorDataset",
     "TabularDataset",
+    "TransformedDataset",
     # Loaders
     "PyTorchDataLoader",
     "TensorFlowDataLoader",

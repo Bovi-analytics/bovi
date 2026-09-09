@@ -7,7 +7,7 @@ Tests the NumPy-First architecture where:
 
 import numpy as np
 import pytest
-from bovi_core.ml.dataloaders.adapters import FrameworkAdapter
+from bovi_core.ml.dataloaders.batching import collate_numpy_samples
 from bovi_core.ml.dataloaders.datasets.feature_vector_dataset import FeatureVectorDataset
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
 from bovi_core.ml.dataloaders.loaders.sklearn_loader import SklearnDataLoader
@@ -38,7 +38,7 @@ def test_dense_batch_contract(dense_samples, mock_dataloader_config):
 
 
 def test_numpy_collation_ignores_mapping_insertion_order():
-    batch = FrameworkAdapter.numpy_collate([{"x": 1, "y": 2}, {"y": 4, "x": 3}])
+    batch = collate_numpy_samples([{"x": 1, "y": 2}, {"y": 4, "x": 3}])
     np.testing.assert_array_equal(batch["x"], [1, 3])
 
 
@@ -298,7 +298,7 @@ class TestSklearnDataLoader:
             {"features": {"sequence": np.array([3.0])}, "metadata": {"id": "b"}},
         ]
 
-        collated = FrameworkAdapter.numpy_collate(batch)
+        collated = collate_numpy_samples(batch)
 
         assert isinstance(collated["features"]["sequence"], list)
         assert collated["metadata"] == [{"id": "a"}, {"id": "b"}]
