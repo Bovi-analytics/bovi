@@ -326,3 +326,91 @@ class TestFeatureVectorDatasetMetadata:
 
         assert item["metadata"]["id"] == "sample_7"
         assert item["metadata"]["index"] == 7
+
+
+def test_input_example_matches_numpy_loader_nested_batch(simple_dataset, mock_dataloader_config):
+    from bovi_core.ml.dataloaders import SklearnDataLoader
+
+    loader = SklearnDataLoader(
+        simple_dataset, mock_dataloader_config, model_name="test_model", batch_size=3, shuffle=False
+    )
+    batch = next(iter(loader))
+    example = simple_dataset.get_input_example(n_samples=3)
+
+    assert set(example) == set(batch)
+    for name in batch["features"]:
+        np.testing.assert_array_equal(example["features"][name], batch["features"][name])
+    np.testing.assert_array_equal(example["labels"], batch["labels"])
+    assert example["metadata"] == batch["metadata"]
+
+
+def test_tabular_dataset_selects_named_features_and_source_metadata(mock_data_source):
+    from bovi_core.ml.dataloaders.datasets import TabularDataset
+
+    dataset = TabularDataset(mock_data_source, ("squared", "value"), "value")
+    assert isinstance(dataset, FeatureVectorDataset)
+    assert len(dataset) == 10
+    sample = dataset[3]
+    assert list(sample["features"]) == ["squared", "value"]
+    assert sample["features"] == {"squared": 9.0, "value": 3.0}
+    assert sample["labels"] == 3.0
+    assert sample["metadata"] == {"id": "sample_3", "index": 3}
+    assert dataset[-1]["metadata"]["index"] == 9
+
+
+@pytest.mark.parametrize(
+    "features, target, message",
+    [
+        (("missing",), "value", "Missing configured feature"),
+        (("value",), "missing", "Missing configured target"),
+    ],
+)
+def test_tabular_dataset_rejects_missing_fields(mock_data_source, features, target, message):
+    from bovi_core.ml.dataloaders.datasets import TabularDataset
+
+    with pytest.raises(ValueError, match=message):
+        TabularDataset(mock_data_source, features, target)[0]
+
+
+@pytest.mark.parametrize("features", [(), ("",), ("value", "value")])
+def test_tabular_dataset_rejects_invalid_feature_names(mock_data_source, features):
+    from bovi_core.ml.dataloaders.datasets import TabularDataset
+
+    with pytest.raises(ValueError, match="feature_names"):
+        TabularDataset(mock_data_source, features)
+
+
+def test_tabular_dataset_supports_unlabelled_records(mock_data_source):
+    from bovi_core.ml.dataloaders.datasets import TabularDataset
+
+    sample = TabularDataset(mock_data_source, ("value",), target_name=None)[0]
+    assert sample["labels"] is None
+
+
+@pytest.mark.parametrize("index", [-4, -3, 2, 10])
+def test_tabular_dataset_rejects_out_of_range_indices_without_wrapping(index):
+    from bovi_core.ml.dataloaders.datasets import TabularDataset
+    from bovi_core.ml.dataloaders.sources import DictSource
+
+    dataset = TabularDataset(DictSource([{"x": 1}, {"x": 2}]), ("x",), target_name=None)
+    with pytest.raises(IndexError, match="out of range"):
+        dataset[index]
+
+
+def test_tabular_dataset_preserves_valid_negative_indices():
+    from bovi_core.ml.dataloaders.datasets import TabularDataset
+    from bovi_core.ml.dataloaders.sources import DictSource
+
+    dataset = TabularDataset(DictSource([{"x": 1}, {"x": 2}]), ("x",), target_name=None)
+    assert dataset[-2] == dataset[0]
+    assert dataset[-1] == dataset[1]
+
+
+@pytest.mark.parametrize("index", [-1, 0])
+def test_empty_tabular_dataset_rejects_all_indices(index):
+    from bovi_core.ml.dataloaders.datasets import TabularDataset
+    from bovi_core.ml.dataloaders.sources import DictSource
+
+    dataset = TabularDataset(DictSource([]), ("x",), target_name=None)
+    with pytest.raises(IndexError, match="out of range"):
+        dataset[index]

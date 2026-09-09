@@ -17,6 +17,136 @@ torch = pytest.importorskip("torch", reason="PyTorch is required for PyTorchData
 
 pytestmark = [pytest.mark.core, pytest.mark.torch]
 
+
+@pytest.mark.parametrize("workers", [0, 1])
+def test_seeded_epoch_stream_and_metrics_replay(workers, shuffle_samples, mock_dataloader_config):
+    loaders = [
+        PyTorchDataLoader(
+            shuffle_samples,
+            mock_dataloader_config,
+            batch_size=7,
+            seed=42,
+            num_workers=workers,
+            persistent_workers=workers > 0,
+        )
+        for _ in range(2)
+    ]
+
+    def order(loader):
+        return torch.cat([batch["features"] for batch in loader]).tolist()
+
+    streams = [[order(loader) for _ in range(3)] for loader in loaders]
+    assert streams[0] == streams[1]
+    assert streams[0][0] != streams[0][1]
+    for loader in loaders:
+        loader.set_epoch(5)
+    expected = order(loaders[0])
+    assert order(loaders[0]) == order(loaders[1]) == expected
+    loaders[0].set_epoch(6)
+    assert order(loaders[0]) != expected
+    loaders[0].set_epoch(5)
+    assert order(loaders[0]) == expected
+
+
+def test_generator_policy_and_unseeded_epoch_error(shuffle_samples, mock_dataloader_config):
+    generator = torch.Generator().manual_seed(7)
+    loader = PyTorchDataLoader(
+        shuffle_samples, mock_dataloader_config, generator=generator, num_workers=0
+    )
+    assert loader.generator is generator
+    loader.set_epoch(2)
+    with pytest.raises(ValueError, match="not both"):
+        PyTorchDataLoader(shuffle_samples, mock_dataloader_config, seed=7, generator=generator)
+    unseeded = PyTorchDataLoader(shuffle_samples, mock_dataloader_config, num_workers=0)
+    with pytest.raises(ValueError, match="requires seed"):
+        unseeded.set_epoch(0)
+
+
+def test_evaluation_iteration_is_stable(shuffle_samples, mock_dataloader_config):
+    loader = PyTorchDataLoader(
+        shuffle_samples, mock_dataloader_config, split="validation", num_workers=0, seed=42
+    )
+    for _ in range(2):
+        assert torch.cat([batch["features"] for batch in loader]).tolist() == list(range(32))
+
+
+@pytest.mark.parametrize("epoch", [-1, 1.5, True])
+def test_invalid_epoch_rejected(epoch, shuffle_samples, mock_dataloader_config):
+    loader = PyTorchDataLoader(shuffle_samples, mock_dataloader_config, seed=42, num_workers=0)
+    with pytest.raises(ValueError, match="nonnegative integer"):
+        loader.set_epoch(epoch)
+
+
+def test_worker_hook_is_forwarded(shuffle_samples, mock_dataloader_config):
+    def initialize(worker_id):
+        pass
+
+    loader = PyTorchDataLoader(
+        shuffle_samples, mock_dataloader_config, seed=42, num_workers=0, worker_init_fn=initialize
+    )
+    assert loader._pytorch_loader is not None
+    assert loader._pytorch_loader.worker_init_fn is initialize
+
+
+def test_dense_batch_contract(dense_samples, mock_dataloader_config):
+    loader = PyTorchDataLoader(
+        dense_samples, config=mock_dataloader_config, batch_size=2, shuffle=False, num_workers=0
+    )
+    for _ in range(2):
+        batches = list(loader)
+        assert len(batches) == len(loader) == 2
+        batch = batches[0]
+        np.testing.assert_array_equal(batch["features"]["nested"]["vector"], [[0, 1], [1, 2]])
+        assert batch["features"]["nested"]["vector"].dtype == torch.float64
+        np.testing.assert_array_equal(batch["features"]["sequence"], [[0, 2], [1, 3]])
+        assert batch["features"]["pixels"].shape == (2, 2, 2, 3)
+        assert batch["features"]["pixels"].dtype == torch.uint8
+        assert batch["features"]["enabled"].dtype == torch.bool
+        assert batch["labels"].dtype == torch.float32
+        np.testing.assert_array_equal(batch["labels"], [0.5, 1.5])
+        assert batches[-1]["labels"].shape == (1,)
+        assert batch["metadata"] == [sample["metadata"] for sample in dense_samples[:2]]
+
+
+def test_custom_collator_replaces_adapter(dense_samples, mock_dataloader_config):
+    loader = PyTorchDataLoader(
+        dense_samples,
+        config=mock_dataloader_config,
+        batch_size=2,
+        shuffle=False,
+        num_workers=0,
+        collate_fn=lambda batch: batch,
+    )
+    assert next(iter(loader)) == dense_samples[:2]
+
+
+def test_metadata_and_ragged_values_have_explicit_policy():
+    from bovi_core.ml.dataloaders.adapters import FrameworkAdapter
+
+    samples = [
+        {"features": np.arange(2), "metadata": {"index": 0, "opaque": None}},
+        {"features": np.arange(3), "metadata": {"index": 1, "opaque": object()}},
+    ]
+    batch = FrameworkAdapter.numpy_to_pytorch_collate(samples)
+    assert isinstance(batch["features"], list)
+    assert batch["metadata"][1] is samples[1]["metadata"]
+    columns = FrameworkAdapter.numpy_to_pytorch_collate(samples, preserve_keys=())
+    assert torch.equal(columns["metadata"]["index"], torch.tensor([0, 1]))
+
+
+@pytest.mark.parametrize("vision", [True, False])
+def test_video_conversion_is_explicit(vision):
+    from bovi_core.ml.dataloaders.adapters import FrameworkAdapter
+
+    frames = np.full((2, 4, 5, 3), 255, dtype=np.uint8)
+    batch = FrameworkAdapter.numpy_to_pytorch_collate(
+        [{"frames": frames}], auto_normalize=vision, auto_transpose=vision
+    )
+    assert batch["frames"].shape == ((1, 2, 3, 4, 5) if vision else (1, 2, 4, 5, 3))
+    assert batch["frames"].dtype == (torch.float32 if vision else torch.uint8)
+    assert batch["frames"].flatten()[0].item() == (1 if vision else 255)
+
+
 # Fixtures used from conftest:
 # - image_dataset_large (from loaders/conftest.py)
 # - mock_dataloader_config (from dataloaders/conftest.py)

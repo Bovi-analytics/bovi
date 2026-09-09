@@ -392,39 +392,9 @@ class LactationDataset(FeatureVectorDataset):
             n_samples=n_samples, batch=batch, indices=indices
         )
 
-        # Parent returns: {'features': {...}, 'labels': ..., 'metadata': ...}
-        # We need to extract just the features dict for the predictor
-
-        if batch:
-            # Parent batched the features dict into a list
-            # We need to reconstruct batched arrays
-            features = parent_example.get("features") if isinstance(parent_example, dict) else None
-            if isinstance(parent_example, dict) and isinstance(features, list):
-                # Batch the feature dicts ourselves
-                feature_dicts = cast(list[dict[str, object]], parent_example["features"])
-
-                # Stack each feature across samples
-                batched_features: dict[str, object] = {}
-                for key in feature_dicts[0].keys():
-                    values = [f[key] for f in feature_dicts]
-                    arrays = cast(list[npt.NDArray[np.generic]], values)
-                    batched_features[key] = np.stack(arrays, axis=0)
-
-                return batched_features
-            elif isinstance(parent_example, dict) and "features" in parent_example:
-                # Already a dict (single sample case)
-                return cast(dict[str, object], parent_example["features"])
-            else:
-                return parent_example
-        else:
-            # Unbatched - return features dict from single sample
-            if isinstance(parent_example, dict) and "features" in parent_example:
-                return cast(dict[str, object], parent_example["features"])
-            elif isinstance(parent_example, list) and parent_example:
-                # List of samples - extract features from first
-                return cast(dict[str, object], parent_example[0]["features"])
-            else:
-                return parent_example
+        if isinstance(parent_example, dict):
+            return cast(dict[str, object], parent_example["features"])
+        return [cast(dict[str, object], sample["features"]) for sample in parent_example]
 
     @override
     def get_mlflow_signature(
@@ -451,42 +421,11 @@ class LactationDataset(FeatureVectorDataset):
             >>> signature = dataset.get_mlflow_signature(predictor=predictor, n_samples=1)
             >>> print(signature.inputs)
         """
-        try:
-            from mlflow.models import infer_signature
-        except ImportError:
-            raise ImportError(
-                "mlflow is required for signature generation. Install with: pip install mlflow"
-            )
+        from bovi_core.ml.publishing.signatures import infer_dataset_signature
 
-        # Get single unbatched sample (lactation predictor handles single dicts)
-        input_example = self.get_input_example(n_samples=1, batch=False)
-
-        if predictor is None:
-            # Input-only signature
-            return infer_signature(input_example, None)
-
-        # Get predictions to infer output schema
-        try:
-            predict_kwargs = predict_kwargs or {}
-
-            # Request base format for MLflow signature
-            prediction_result = predictor.predict(
-                input_example, return_format="base", **predict_kwargs
-            )
-
-            # Convert to serializable format
-            from bovi_core.ml.utils.signature_utils import output_to_serializable
-
-            predictions = output_to_serializable(prediction_result)
-
-            return infer_signature(input_example, predictions)
-
-        except Exception as e:
-            # Fall back to input-only signature
-            import logging
-
-            logging.warning(f"Signature generation failed: {e}. Using input-only signature.")
-            return infer_signature(input_example, None)
+        return infer_dataset_signature(
+            self, predictor=predictor, n_samples=1, predict_kwargs=predict_kwargs, batch=False
+        )
 
 
 def collate_lactation_batch(batch: list[LactationItem]) -> dict[str, "torch.Tensor"]:

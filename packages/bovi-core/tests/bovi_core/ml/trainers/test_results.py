@@ -62,6 +62,29 @@ def test_issue_defaults_to_aware_timestamp_and_serializable_details() -> None:
     assert '"severity":"warning"' in issue.model_dump_json()
 
 
+@pytest.mark.parametrize("exception", [RuntimeError(), RuntimeError("   "), ValueError("bad data")])
+def test_issue_from_exception_always_has_a_serializable_message(exception: Exception) -> None:
+    issue = Issue.from_exception(exception, code="training.failed", trace_id="trace-123")
+    assert issue.message == (str(exception).strip() or type(exception).__name__)
+    assert issue.exception_type == type(exception).__name__
+    assert issue.details == {"trace_id": "trace-123"}
+    assert issue.severity is IssueSeverity.ERROR
+    assert Issue.model_validate_json(issue.model_dump_json()) == issue
+
+
+def test_issue_from_exception_handles_broken_exception_formatting() -> None:
+    class BrokenError(Exception):
+        def __str__(self) -> str:
+            raise RuntimeError("formatting failed")
+
+    issue = Issue.from_exception(
+        BrokenError(), code="training.failed", severity=IssueSeverity.WARNING
+    )
+    assert issue.message == "BrokenError"
+    assert issue.details == {}
+    assert issue.severity is IssueSeverity.WARNING
+
+
 def make_training_result(**overrides: object) -> TrainingResult:
     started_at = datetime(2026, 9, 2, 12, tzinfo=UTC)
     values: dict[str, object] = {
@@ -90,7 +113,24 @@ def test_training_result_records_complete_epoch_history() -> None:
     assert [epoch.epoch for epoch in result.epochs] == [1, 2]
     assert result.best_epoch == 2
     assert result.best_checkpoint is not None
+    assert result.num_examples is None
+    assert result.num_examples_processed is None
     assert result.model_dump(mode="json")["status"] == "completed"
+
+
+@pytest.mark.parametrize(("records", "processed"), [(0, 0), (10, 23), (10, 4), (None, 4)])
+def test_training_result_sample_counts_roundtrip(records, processed):
+    result = make_training_result(num_examples=records, num_examples_processed=processed)
+    restored = TrainingResult.model_validate_json(result.model_dump_json())
+    assert restored.num_examples == records
+    assert restored.num_examples_processed == processed
+
+
+@pytest.mark.parametrize("field", ["num_examples", "num_examples_processed"])
+@pytest.mark.parametrize("value", [-1, 1.5, True, "3"])
+def test_training_result_rejects_invalid_sample_counts(field, value):
+    with pytest.raises(ValidationError):
+        make_training_result(**{field: value})
 
 
 @pytest.mark.parametrize(

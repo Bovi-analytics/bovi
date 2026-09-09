@@ -93,8 +93,11 @@ class FeatureVectorDataset(Dataset):
             - "metadata": Additional info (optional)
         """
         # Normalize negative indices
+        length = len(self.source)
         if index < 0:
-            index = len(self.source) + index
+            index = length + index
+        if index < 0 or index >= length:
+            raise IndexError(f"Index out of range for dataset of length {length}")
 
         # Load raw data from source
         raw_data = self.source.load_item(index)

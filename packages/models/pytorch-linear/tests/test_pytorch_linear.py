@@ -1,12 +1,10 @@
 """pytorch-linear CPU integration: config, data, training, checkpoints and evaluation."""
 
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from uuid import uuid4
 
 import numpy as np
 import pytest
-from bovi_core.config import Config
 from bovi_core.ml import (
     EvaluationContext,
     ModelProviderRegistry,
@@ -14,36 +12,16 @@ from bovi_core.ml import (
     ResolvedModelArtifact,
     TrainingContext,
 )
+from bovi_core.ml.models.checkpoints import LocalCheckpointResolver
 from pytorch_linear import (
     PyTorchLinearEvaluationConfig,
     PyTorchLinearEvaluator,
-    PyTorchLinearModelConfig,
     PyTorchLinearModelProvider,
     PyTorchLinearTrainer,
     PyTorchLinearTrainingConfig,
-    create_dataloader,
 )
 
 pytestmark = pytest.mark.torch
-
-
-@pytest.fixture
-def pipeline():
-    Config.reset()
-    root = Path(__file__).resolve().parents[1]
-    config = Config(
-        experiment_name="pytorch_linear",
-        project_file_path=str(root / "pyproject.toml"),
-        config_file_path=str(
-            root / "data/experiments/pytorch_linear/versions/v1/config/config.yaml"
-        ),
-    )
-    model_config = PyTorchLinearModelConfig.from_config(config)
-    loaders = {
-        split: create_dataloader(config, model_config, split) for split in ("train", "validation")
-    }
-    yield config, model_config, loaders
-    Config.reset()
 
 
 def test_training_evaluation_and_resume(pipeline, tmp_path):
@@ -61,10 +39,9 @@ def test_training_evaluation_and_resume(pipeline, tmp_path):
     assert result.epochs[-1].metrics["train_mse"] < result.epochs[0].metrics["train_mse"] / 100
     assert result.best_checkpoint is not None
     assert result.last_checkpoint is not None
-    path = run.output_dir / "checkpoints" / "last.pt"
-    resource = ResolvedCheckpoint(
-        format=result.last_checkpoint.format, source_uri=result.last_checkpoint.uri, local_path=path
-    )
+    resource = LocalCheckpointResolver().resolve(result.last_checkpoint)
+    assert resource.local_path is not None
+    path = resource.local_path
     restored = provider.restore_checkpoint(definition, resource)
     np.testing.assert_allclose(restored([[0.5]]), model([[0.5]]), atol=1e-6)
     loaded = provider.load_artifact(
@@ -121,11 +98,7 @@ def test_split_run_matches_continuous_training(pipeline, tmp_path):
     assert result.last_checkpoint is not None
     resumed = provider.restore_checkpoint(
         definition,
-        ResolvedCheckpoint(
-            format=result.last_checkpoint.format,
-            source_uri=result.last_checkpoint.uri,
-            local_path=tmp_path / "checkpoints" / "last.pt",
-        ),
+        LocalCheckpointResolver().resolve(result.last_checkpoint),
     )
     assert (
         PyTorchLinearTrainer(resumed, loaders, PyTorchLinearTrainingConfig(epochs=5)).train().status
@@ -172,3 +145,43 @@ def test_bad_resource_and_config(pipeline, tmp_path):
         )
     with pytest.raises(ValueError):
         PyTorchLinearTrainingConfig(epochs=0)
+
+
+def test_native_loader_and_validation_keep_torch_tensors(pipeline):
+    import torch
+    from bovi_core.ml.dataloaders import PyTorchDataLoader
+    from pytorch_linear.trainers.arrays import batch_to_arrays
+
+    _, definition, loaders = pipeline
+    assert isinstance(loaders["train"], PyTorchDataLoader)
+    batch = next(iter(loaders["train"]))
+    assert all(isinstance(column, torch.Tensor) for column in batch["features"].values())
+    assert isinstance(batch["labels"], torch.Tensor)
+    x, y = batch_to_arrays(batch, definition.feature_names)
+    assert isinstance(x, torch.Tensor)
+    torch.testing.assert_close(
+        x[:, 0], batch["features"][definition.feature_names[0]].to(torch.float32)
+    )
+    assert isinstance(y, torch.Tensor)
+    torch.testing.assert_close(y, batch["labels"].to(torch.float32))
+
+
+def test_evaluator_reports_an_exception_without_a_message(pipeline, monkeypatch, tmp_path):
+    import pytorch_linear.trainers.evaluator as evaluator_module
+
+    def fail(*args):
+        raise RuntimeError()
+
+    monkeypatch.setattr(evaluator_module, "measure", fail)
+    _, definition, loaders = pipeline
+    result = PyTorchLinearEvaluator(
+        PyTorchLinearModelProvider().create(definition), PyTorchLinearEvaluationConfig()
+    ).evaluate(
+        loaders["validation"],
+        EvaluationContext(
+            evaluation_id=uuid4(), output_dir=tmp_path, split="validation", model_version="test"
+        ),
+    )
+    assert result.status == "failed"
+    assert result.issues[0].message == "RuntimeError"
+    assert result.issues[0].exception_type == "RuntimeError"

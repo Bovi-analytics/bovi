@@ -10,9 +10,9 @@ NumPy-First Architecture:
 
 from .adapters import FrameworkAdapter
 from .base import AbstractDataLoader, Dataset, DataSource, UniversalTransform
-from .datasets import FeatureVectorDataset, ImageDataset, VideoDataset
+from .datasets import FeatureVectorDataset, ImageDataset, TabularDataset, VideoDataset
 from .loaders import PyTorchDataLoader, SklearnDataLoader, TensorFlowDataLoader
-from .sources import BlobImageSource, LocalFileSource, TransformedSource
+from .sources import BlobImageSource, JSONRecordsSource, LocalFileSource, TransformedSource
 from .transforms import TransformRegistry, build_vision_pipeline
 
 __all__ = [
@@ -27,12 +27,14 @@ __all__ = [
     "ImageDataset",
     "VideoDataset",
     "FeatureVectorDataset",
+    "TabularDataset",
     # Loaders
     "PyTorchDataLoader",
     "TensorFlowDataLoader",
     "SklearnDataLoader",
     # Sources
     "LocalFileSource",
+    "JSONRecordsSource",
     "BlobImageSource",
     "TransformedSource",
     # Transforms

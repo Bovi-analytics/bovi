@@ -18,7 +18,7 @@ class ModelArtifactReference(BaseModel):
 
 
 class CheckpointReference(BaseModel):
-    """Portable reference to resumable training state in external storage."""
+    """Portable checkpoint reference; recovery guarantees are format-specific."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 

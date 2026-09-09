@@ -41,7 +41,7 @@ class FrameworkAdapter:
                 return batch
 
             keys = tuple(first.keys())
-            if any(tuple(item.keys()) != keys for item in batch):
+            if any(item.keys() != first.keys() for item in batch):
                 return batch
 
             return {
@@ -62,9 +62,12 @@ class FrameworkAdapter:
         if isinstance(first, (Number, np.bool_)):
             return np.asarray(batch)
 
-        if isinstance(first, np.ndarray) or hasattr(first, "__array__"):
+        if isinstance(first, (np.ndarray, list, tuple)) or hasattr(first, "__array__"):
             try:
-                return np.stack([np.asarray(item) for item in batch])
+                arrays = [np.asarray(item) for item in batch]
+                if any(array.dtype.kind not in "biufc" for array in arrays):
+                    return batch
+                return np.stack(arrays)
             except (TypeError, ValueError):
                 return batch
 
@@ -76,6 +79,8 @@ class FrameworkAdapter:
         transform: Callable[..., dict[str, Any]] | None = None,
         auto_transpose: bool = True,
         auto_normalize: bool = True,
+        preserve_keys: Collection[str] = ("metadata",),
+        image_keys: Collection[str] = ("image", "frames"),
     ) -> SampleDict:
         """
         Custom collate_fn for PyTorch DataLoader.
@@ -85,6 +90,9 @@ class FrameworkAdapter:
             transform: Optional Albumentations transform to apply per-sample
             auto_transpose: If True, convert HWC→CHW for 3D image arrays
             auto_normalize: If True, convert uint8→float32/255.0
+            preserve_keys: Keep these fields as ordered per-sample records.
+            image_keys: Top-level fields eligible for vision conversion. Other
+                dense numeric fields retain their shape and dtype.
 
         Returns:
             Dict of batched PyTorch tensors
@@ -113,45 +121,34 @@ class FrameworkAdapter:
                 transformed_batch.append(item)
             batch = transformed_batch
 
-        keys = batch[0].keys()
-        collated: SampleDict = {}
+        collated = FrameworkAdapter.numpy_collate(batch, preserve_keys=preserve_keys)
+        if not isinstance(collated, dict):
+            raise ValueError("PyTorch samples must have matching mapping keys")
 
-        for key in keys:
-            items = [item[key] for item in batch]
-            first = items[0]
+        for key in image_keys:
+            arr = collated.get(key)
+            if key in preserve_keys or not isinstance(arr, np.ndarray):
+                continue
+            if auto_normalize and arr.dtype == np.uint8:
+                arr = arr.astype(np.float32) / 255.0
+            if auto_transpose and arr.ndim == 4 and arr.shape[-1] in (1, 3, 4):
+                arr = np.transpose(arr, (0, 3, 1, 2))
+            if auto_transpose and arr.ndim == 5 and arr.shape[-1] in (1, 3, 4):
+                arr = np.transpose(arr, (0, 1, 4, 2, 3))
+            collated[key] = arr
 
-            if first is None:
-                collated[key] = items
+        def tensorize(value: Any) -> Any:
+            if isinstance(value, dict):
+                return {
+                    key: item if key in preserve_keys else tensorize(item)
+                    for key, item in value.items()
+                }
+            if isinstance(value, np.ndarray) and value.dtype.kind in "biufc":
+                return torch.as_tensor(value)
+            # Ragged values and opaque records remain ordered Python lists.
+            return value
 
-            elif isinstance(first, (str, dict)):
-                # Metadata - keep as list
-                collated[key] = items
-
-            elif isinstance(first, np.ndarray):
-                arr: NDArray[Any] = np.stack(items)
-
-                # Auto-normalize uint8 images
-                if auto_normalize and arr.dtype == np.uint8:
-                    arr = arr.astype(np.float32) / 255.0
-
-                # Auto-transpose HWC → CHW for images
-                # Shape: (B, H, W, C) where C in [1, 3, 4]
-                if auto_transpose and arr.ndim == 4 and arr.shape[-1] in [1, 3, 4]:
-                    arr = np.transpose(arr, (0, 3, 1, 2))  # BHWC → BCHW
-
-                # Video: (B, T, H, W, C) → (B, T, C, H, W)
-                if auto_transpose and arr.ndim == 5 and arr.shape[-1] in [1, 3, 4]:
-                    arr = np.transpose(arr, (0, 1, 4, 2, 3))  # BTHWC → BTCHW
-
-                collated[key] = torch.as_tensor(arr)
-
-            elif isinstance(first, (int, float)):
-                collated[key] = torch.as_tensor(np.array(items))
-
-            else:
-                collated[key] = items
-
-        return collated
+        return tensorize(collated)
 
     @staticmethod
     def numpy_to_tensorflow_op(

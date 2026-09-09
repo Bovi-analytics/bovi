@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any, Mapping, Protocol, Sequence
 from bovi_core.ml.models.resources import ResolvedModelArtifact
 from bovi_core.ml.utils.signature_utils import output_to_serializable
 
+from .signatures import get_serving_input_example
+
 if TYPE_CHECKING:
     from bovi_core.config import Config
     from bovi_core.ml.dataloaders.base import Dataset
@@ -220,7 +222,7 @@ class UnityCatalogPublisher:
         if input_example is None:
             if dataset is None:
                 raise ValueError("dataset or input_example is required for publishing")
-            input_example = dataset.get_input_example(n_samples=n_samples, batch=True)
+            input_example = get_serving_input_example(dataset, n_samples=n_samples)
 
         if signature is None:
             predictions = predictor.predict(input_example, return_format="base")

@@ -6,6 +6,7 @@ Tests the NumPy-First architecture where:
 """
 
 import numpy as np
+import pytest
 from bovi_core.ml.dataloaders.adapters import FrameworkAdapter
 from bovi_core.ml.dataloaders.datasets.feature_vector_dataset import FeatureVectorDataset
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
@@ -19,6 +20,28 @@ from PIL import Image
 # - mock_dataloader_config (from dataloaders/conftest.py)
 
 
+def test_dense_batch_contract(dense_samples, mock_dataloader_config):
+    loader = SklearnDataLoader(
+        dense_samples, config=mock_dataloader_config, batch_size=2, shuffle=False
+    )
+    for _ in range(2):
+        batches = list(loader)
+        assert len(batches) == len(loader) == 2
+        batch = batches[0]
+        np.testing.assert_array_equal(batch["features"]["nested"]["vector"], [[0, 1], [1, 2]])
+        np.testing.assert_array_equal(batch["features"]["sequence"], [[0, 2], [1, 3]])
+        assert batch["features"]["pixels"].shape == (2, 2, 2, 3)
+        assert batch["features"]["pixels"].dtype == np.uint8
+        assert batch["labels"].dtype == np.float32
+        assert batches[-1]["labels"].shape == (1,)
+        assert batch["metadata"] == [sample["metadata"] for sample in dense_samples[:2]]
+
+
+def test_numpy_collation_ignores_mapping_insertion_order():
+    batch = FrameworkAdapter.numpy_collate([{"x": 1, "y": 2}, {"y": 4, "x": 3}])
+    np.testing.assert_array_equal(batch["x"], [1, 3])
+
+
 class _FeatureDataset(FeatureVectorDataset):
     def _get_features(self, raw_data):
         return {"milk": raw_data["milk"], "days": raw_data["days"]}
@@ -28,6 +51,38 @@ class _FeatureDataset(FeatureVectorDataset):
 
     def _get_metadata(self, raw_data, index):
         return {"farm_id": raw_data["farm_id"], "index": index}
+
+
+def test_seeded_epoch_stream_and_metrics_replay(shuffle_samples, mock_dataloader_config):
+    loaders = [
+        SklearnDataLoader(shuffle_samples, mock_dataloader_config, batch_size=7, seed=42)
+        for _ in range(2)
+    ]
+
+    def order(loader):
+        return np.concatenate([batch["features"] for batch in loader]).tolist()
+
+    streams = [[order(loader) for _ in range(3)] for loader in loaders]
+    assert streams[0] == streams[1]
+    assert streams[0][0] != streams[0][1]
+    loader = loaders[0]
+    loader.set_epoch(1)
+    assert order(loader) == order(loader) == streams[0][1]
+    loader.set_epoch(2)
+    assert order(loader) == streams[0][2]
+
+
+def test_evaluation_iteration_is_stable(shuffle_samples, mock_dataloader_config):
+    loader = SklearnDataLoader(shuffle_samples, mock_dataloader_config, split="validation")
+    for _ in range(2):
+        assert np.concatenate([batch["features"] for batch in loader]).tolist() == list(range(32))
+
+
+@pytest.mark.parametrize("epoch", [-1, 1.5, True])
+def test_invalid_epoch_rejected(epoch, shuffle_samples, mock_dataloader_config):
+    loader = SklearnDataLoader(shuffle_samples, mock_dataloader_config)
+    with pytest.raises(ValueError, match="nonnegative integer"):
+        loader.set_epoch(epoch)
 
 
 class TestSklearnDataLoader:
@@ -130,10 +185,12 @@ class TestSklearnDataLoader:
         # First epoch
         epoch1_batches = list(loader)
         assert len(epoch1_batches) == 5
+        first_order = loader.indices.copy()
 
         # Second epoch
         epoch2_batches = list(loader)
         assert len(epoch2_batches) == 5
+        assert not np.array_equal(first_order, loader.indices)
 
     def test_loader_get_all_data(self, image_dataset_large, mock_dataloader_config):
         """Test get_all_data method."""

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import math
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Collection, Iterator, Mapping
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -46,6 +46,19 @@ class TensorFlowDataLoader(AbstractDataLoader):
         buffer_size: Shuffle buffer size (default: 1000)
         prefetch_buffer_size: Number of batches to prefetch (default: AUTOTUNE)
         cache: Whether to cache dataset in memory (default: False)
+        output_signature: Optional nested per-sample TensorSpec structure. Use
+            variable dimensions for variable shapes (each batch must still be dense).
+        drop_keys: Top-level fields explicitly omitted before conversion. By
+            default metadata is batched recursively and must be tensor-compatible;
+            None and arbitrary Python objects raise a field-specific TypeError.
+        auto_normalize: Normalize transformed uint8 images (default: True).
+            Untransformed images retain their dtype, as in the existing API.
+        seed: Optional shuffle seed for reproducible iteration sequences.
+        reshuffle_each_iteration: Use a new shuffle each iteration (default: True).
+            False replays the same order. set_epoch pins an explicit zero-based
+            epoch and requires seed when shuffling. This controls sample order,
+            not randomness inside Python transforms. Keep TensorFlow's global
+            seed unchanged when comparing runs.
 
     Example:
         ```python
@@ -106,6 +119,11 @@ class TensorFlowDataLoader(AbstractDataLoader):
         buffer_size: int = 1000,
         prefetch_buffer_size: int | None = None,
         cache: bool = False,
+        output_signature: Any | None = None,
+        drop_keys: Collection[str] = (),
+        auto_normalize: bool = True,
+        seed: int | None = None,
+        reshuffle_each_iteration: bool = True,
     ) -> None:
         super().__init__(dataset, config, split, model_name)
 
@@ -118,6 +136,13 @@ class TensorFlowDataLoader(AbstractDataLoader):
             ) from err
 
         self.transform = transform
+        self.output_signature = output_signature
+        self.drop_keys = tuple(drop_keys)
+        self.auto_normalize = auto_normalize
+        self.seed = seed
+        self.reshuffle_each_iteration = reshuffle_each_iteration
+        self._epoch: int | None = None
+        self._tf_source: Any | None = None
         self._output_shapes = {}
 
         # Get config for this split (if available)
@@ -165,7 +190,8 @@ class TensorFlowDataLoader(AbstractDataLoader):
         self.cache = cache
 
         # Perform dry run to infer output shapes after transform
-        self._infer_output_shapes()
+        if self.output_signature is None:
+            self._infer_output_shapes()
 
         # Create TensorFlow Dataset
         self._tf_dataset = None
@@ -189,20 +215,12 @@ class TensorFlowDataLoader(AbstractDataLoader):
         if len(self.dataset) == 0:
             return
 
-        # Get a sample
-        sample = self.dataset[0]
+        import tensorflow as tf
 
-        # Apply transform if provided
-        if self.transform is not None and "image" in sample:
-            image = sample["image"]
-            if isinstance(image, np.ndarray):
-                transformed = self.transform(image=image)
-                transformed_image = transformed["image"]
-                # Normalize uint8 to float32
-                if isinstance(transformed_image, np.ndarray):
-                    if transformed_image.dtype == np.uint8:
-                        transformed_image = transformed_image.astype(np.float32) / 255.0
-                    sample = {**sample, "image": transformed_image}
+        sample = self._prepare_sample(self.dataset[0])
+        self.output_signature = tf.nest.map_structure(
+            lambda value: tf.TensorSpec(shape=value.shape, dtype=value.dtype), sample
+        )
 
         # Record shapes
         for key, value in sample.items():
@@ -213,87 +231,80 @@ class TensorFlowDataLoader(AbstractDataLoader):
 
         logger.debug(f"Inferred output shapes: {self._output_shapes}")
 
+    def _prepare_sample(self, sample: dict[str, Any]) -> dict[str, Any]:
+        """Apply vision processing and validate nested tensor-compatible leaves."""
+        import tensorflow as tf
+
+        sample = {key: value for key, value in sample.items() if key not in self.drop_keys}
+        if self.transform is not None and isinstance(sample.get("image"), np.ndarray):
+            image = self.transform(image=sample["image"])["image"]
+            if self.auto_normalize and isinstance(image, np.ndarray) and image.dtype == np.uint8:
+                image = image.astype(np.float32) / 255.0
+            sample["image"] = image
+
+        def convert(value: Any, path: str) -> Any:
+            if isinstance(value, Mapping):
+                return {key: convert(item, f"{path}.{key}") for key, item in value.items()}
+            try:
+                array = np.asarray(value)
+                if array.dtype.kind not in "biufcSU":
+                    raise TypeError("expected numeric, boolean, or string data")
+                return tf.convert_to_tensor(array)
+            except (TypeError, ValueError) as err:
+                raise TypeError(
+                    f"TensorFlow sample field {path!r} is not tensor-compatible; "
+                    "convert it in the dataset or omit its top-level field with drop_keys"
+                ) from err
+
+        return {key: convert(value, key) for key, value in sample.items()}
+
     def _generator(self) -> Iterator[dict[str, Any]]:
         """Generator function for tf.data.Dataset."""
         for i in range(len(self.dataset)):
-            sample: dict[str, Any] = self.dataset[i]
-
-            # Apply transform if provided
-            if self.transform is not None and "image" in sample:
-                image = sample["image"]
-                if isinstance(image, np.ndarray):
-                    transformed = self.transform(image=image)
-                    transformed_image = transformed["image"]
-                    # Normalize uint8 to float32
-                    if isinstance(transformed_image, np.ndarray):
-                        if transformed_image.dtype == np.uint8:
-                            transformed_image = transformed_image.astype(np.float32) / 255.0
-                        sample = {**sample, "image": transformed_image}
-
-            yield sample
+            yield self._prepare_sample(self.dataset[i])
 
     def _create_tensorflow_dataset(self) -> None:
         """Create the underlying TensorFlow Dataset."""
         import tensorflow as tf
 
-        # Infer output signature from shapes
-        if len(self.dataset) > 0:
-            sample: dict[str, Any] = self.dataset[0]
-
-            # Apply transform for signature inference
-            if self.transform is not None and "image" in sample:
-                image = sample["image"]
-                if isinstance(image, np.ndarray):
-                    transformed = self.transform(image=image)
-                    transformed_image = transformed["image"]
-                    if isinstance(transformed_image, np.ndarray):
-                        if transformed_image.dtype == np.uint8:
-                            transformed_image = transformed_image.astype(np.float32) / 255.0
-                        sample = {**sample, "image": transformed_image}
-
-            output_signature: dict[str, tf.TensorSpec] = {}
-
-            for key, value in sample.items():
-                if isinstance(value, np.ndarray):
-                    # Use inferred shape if available
-                    shape = self._output_shapes.get(key, value.shape)
-                    dtype = (
-                        tf.float32
-                        if value.dtype in [np.float32, np.float64]
-                        else tf.dtypes.as_dtype(value.dtype)
-                    )
-                    output_signature[key] = tf.TensorSpec(shape=shape or (), dtype=dtype)
-                elif isinstance(value, (int, np.integer)):
-                    output_signature[key] = tf.TensorSpec(shape=(), dtype=tf.int64)
-                elif isinstance(value, (float, np.floating)):
-                    output_signature[key] = tf.TensorSpec(shape=(), dtype=tf.float32)
-                elif isinstance(value, str):
-                    output_signature[key] = tf.TensorSpec(shape=(), dtype=tf.string)
-                elif value is None:
-                    # Skip None values
-                    continue
-                else:
-                    output_signature[key] = tf.TensorSpec(shape=(), dtype=tf.string)
-
-            # Create dataset from generator
-            ds = tf.data.Dataset.from_generator(self._generator, output_signature=output_signature)
-        else:
-            # Empty dataset - create empty dataset with range(0)
-            ds = tf.data.Dataset.range(0)
-
-        # Apply transformations with AUTOTUNE for parallelization
-        if self.cache:
-            ds = ds.cache()
+        if self._tf_source is None:
+            if self.output_signature is not None:
+                ds = tf.data.Dataset.from_generator(
+                    self._generator, output_signature=self.output_signature
+                )
+            else:
+                ds = tf.data.Dataset.range(0)
+            if self.cache:
+                ds = ds.cache()
+            self._tf_source = ds
+        ds = self._tf_source
 
         if self.shuffle:
-            ds = ds.shuffle(buffer_size=self.buffer_size)
+            seed = self.seed
+            if seed is not None and self._epoch is not None:
+                seed = (seed + self._epoch) % (2**31 - 1)
+            ds = ds.shuffle(
+                buffer_size=self.buffer_size,
+                seed=seed,
+                reshuffle_each_iteration=(
+                    self.reshuffle_each_iteration if self._epoch is None else False
+                ),
+            )
 
         ds = ds.batch(self.batch_size)
 
-        # CRITICAL: Use AUTOTUNE for parallel prefetching
-        ds = ds.prefetch(buffer_size=tf.data.AUTOTUNE)
+        ds = ds.prefetch(buffer_size=self.prefetch_buffer_size)
 
         self._tf_dataset = ds
+
+    def set_epoch(self, epoch: int) -> None:
+        """Pin sample order for training and metrics passes, retaining cached samples."""
+        if type(epoch) is not int or epoch < 0:
+            raise ValueError("epoch must be a nonnegative integer")
+        if self.shuffle and self.seed is None:
+            raise ValueError("set_epoch requires seed when shuffling")
+        self._epoch = epoch
+        self._create_tensorflow_dataset()
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
         """Iterate over batches."""

@@ -43,3 +43,21 @@ def test_dataloader_applies_transforms_and_collates_nested_features(
         assert isinstance(values, np.ndarray)
         assert values.shape == (4,)
         assert np.all((0.0 <= values) & (values <= 1.0))
+
+
+def test_dataloader_preserves_repeated_numeric_scale(
+    experiment_config: Config,
+    model_config: ScikitSGDModelConfig,
+) -> None:
+    settings = experiment_config.experiment.models.scikit_sgd.dataloaders.validation
+    baseline = next(iter(create_dataloader(experiment_config, model_config, "validation")))
+    settings.transforms.append(
+        {"name": "numeric_scale", "params": {"factors": {"previous_yield": 2}}}
+    )
+
+    batch = next(iter(create_dataloader(experiment_config, model_config, "validation")))
+
+    np.testing.assert_allclose(
+        batch["features"]["previous_yield"], baseline["features"]["previous_yield"] / 2
+    )
+    np.testing.assert_array_equal(batch["labels"], baseline["labels"])

@@ -24,7 +24,7 @@ class TransformedSource(DataSource[dict[str, Any]]):
         >>> transforms = TransformRegistry.from_config(
         ...     config.experiment.models.yolo.dataloaders.train.transforms
         ... )
-        >>> transformed_source = TransformedSource(source, list(transforms.values()))
+        >>> transformed_source = TransformedSource(source, transforms)
         >>> dataset = MyDataset(source=transformed_source, config=config)
 
     """

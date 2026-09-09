@@ -20,6 +20,7 @@ class PyTorchLinearModelProvider:
     def restore_checkpoint(
         self, config: PyTorchLinearModelConfig, checkpoint: ResolvedCheckpoint[object]
     ) -> PyTorchLinearModel:
+        """Restart from weights; optimizer, scheduler, RNG and epoch state are not restored."""
         return self._load(config, checkpoint)
 
     def load_artifact(
@@ -31,6 +32,8 @@ class PyTorchLinearModelProvider:
         if resource.format != FORMAT or resource.local_path is None:
             raise ValueError("Expected a local pytorch-linear-state checkpoint")
         payload = torch.load(resource.local_path, map_location="cpu", weights_only=True)
+        if not isinstance(payload, dict) or not {"feature_names", "state_dict"} <= payload.keys():
+            raise ValueError("Invalid pytorch-linear-state payload")
         if tuple(payload["feature_names"]) != config.feature_names:
             raise ValueError("Checkpoint feature order differs from model config")
         model = self.create(config)

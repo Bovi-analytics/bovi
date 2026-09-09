@@ -108,12 +108,14 @@ class TestConfigDrivenPipeline:
         from bovi_core.ml.dataloaders.transforms.registry import (
             TransformRegistry,
         )
+        from bovi_yolo.dataloaders.transforms import ImageValidationTransform
 
         transforms = TransformRegistry.from_config(
             yolo_config.experiment.models.yolo.dataloaders.inference.transforms
         )
         assert len(transforms) >= 1
-        assert "image_validation" in transforms
+        assert isinstance(transforms, list)
+        assert isinstance(transforms[0], ImageValidationTransform)
 
     def test_configured_transforms_run_in_vision_pipeline(
         self,
