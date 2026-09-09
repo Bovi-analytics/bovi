@@ -22,6 +22,8 @@ lactationcurve = { workspace = true }
 lactation-autoencoder = { workspace = true }
 bovi-yolo = { workspace = true }
 scikit-sgd = { workspace = true }
+pytorch-linear = { workspace = true }
+tensorflow-linear = { workspace = true }
 bestpred-py = { workspace = true }
 bovi-infrastructure = { workspace = true }
 
@@ -85,6 +87,8 @@ testpaths = [
     "packages/models/bestpred/tests",
     "packages/models/lactation-autoencoder/tests",
     "packages/models/scikit-sgd/tests",
+    "packages/models/pytorch-linear/tests",
+    "packages/models/tensorflow-linear/tests",
     "apps/backend/api/tests",
     "apps/backend/models/lactation-autoencoder/tests",
 ]

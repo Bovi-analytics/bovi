@@ -46,6 +46,17 @@ def _args(**overrides: bool) -> argparse.Namespace:
     return argparse.Namespace(**defaults)
 
 
+def test_linear_packages_select_their_framework_tests() -> None:
+    for package, framework in (
+        ("pytorch-linear", "torch"),
+        ("tensorflow-linear", "tensorflow"),
+    ):
+        targets, _, _, _ = test_affected.select_tests({f"packages/models/{package}/src/trainer.py"})
+        assert targets == {f"packages/models/{package}/tests"}
+        command = test_affected.build_pytest_commands(targets, _args())[0]
+        assert f"not {framework}" not in command[-1]
+
+
 def test_build_pytest_commands_groups_targets_with_same_marker_expression() -> None:
     commands = test_affected.build_pytest_commands(
         {

@@ -446,6 +446,26 @@ The committed notebook is already executed and demonstrates a fresh run,
 epoch history, best and last checkpoint output, separate evaluation, and a
 resumed attempt.
 
+## PyTorch and TensorFlow reference implementations
+
+Two additional CPU examples exercise the same contracts:
+
+- `packages/models/pytorch-linear`: one `torch.nn.Linear` layer with SGD.
+- `packages/models/tensorflow-linear`: one Keras Dense layer with SGD and GradientTape.
+
+Both learn `y = 2x + 1` from eight JSON records, validate on four held-out
+records, and provide separate evaluators, Pydantic configs, YAML, notebooks,
+best/last checkpoints, and explicit restoration through model providers.
+They use the shared NumPy batcher and convert at the native training boundary.
+Neither package adds framework dependencies to Bovi Core.
+
+The examples deliberately use SGD without momentum or a schedule. Tests compare
+continuous training with two attempts separated by a checkpoint restore.
+Epoch numbering restarts per attempt; early-stopping and shuffle history are
+not restored. TensorFlow checkpoints include a feature-order JSON sidecar
+that must travel with the Keras file. Each attempt should use its own output
+directory. See the package READMEs for runnable commands.
+
 ## Federated-learning boundary
 
 V1 assumes synchronous rounds. Every selected farm in a round receives the
@@ -504,7 +524,7 @@ The following are intentionally outside the current implementation:
 
 - trainer and evaluator registries;
 - a provider compatibility matrix for model, loader, and config combinations;
-- framework-specific YOLO, PyTorch, TensorFlow, and Keras trainers;
+- production YOLO and lactation-autoencoder trainers;
 - callback protocols for schedulers, telemetry, and validation hooks;
 - cooperative cancellation beyond deadline checks;
 - a dry-run or one-epoch preflight mode;

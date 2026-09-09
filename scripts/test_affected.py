@@ -130,6 +130,16 @@ def select_tests(paths: set[str]) -> tuple[set[str], bool, bool, list[str]]:
             add_target(targets, "packages/models/scikit-sgd/tests")
             continue
 
+        if path.startswith("packages/models/pytorch-linear/"):
+            allow_torch = True
+            add_target(targets, "packages/models/pytorch-linear/tests")
+            continue
+
+        if path.startswith("packages/models/tensorflow-linear/"):
+            allow_tensorflow = True
+            add_target(targets, "packages/models/tensorflow-linear/tests")
+            continue
+
         if path.startswith("packages/models/lactation-autoencoder/"):
             allow_tensorflow = True
             add_target(targets, "packages/models/lactation-autoencoder/tests")

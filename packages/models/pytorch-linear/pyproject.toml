@@ -1,0 +1,17 @@
+[project]
+name = "pytorch-linear"
+version = "0.1.0"
+authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
+description = "Tiny CPU pytorch training example for Bovi Core"
+requires-python = ">=3.12,<3.13"
+dependencies = ["bovi-core", "numpy>=2.4.0", "torch>=2.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pytorch_linear"]
+
+[project.entry-points."bovi.model_providers"]
+pytorch_linear = "pytorch_linear.models.provider:PyTorchLinearModelProvider"
