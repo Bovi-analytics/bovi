@@ -10,11 +10,11 @@ from bovi_core.config import Config
 from bovi_core.ml import (
     EvaluationContext,
     EvaluationStatus,
-    ResolvedCheckpoint,
     TrainingContext,
     TrainingStatus,
     TrainingStopReason,
 )
+from bovi_core.ml.models.checkpoints import LocalCheckpointResolver
 from scikit_sgd import (
     ScikitSGDEvaluationConfig,
     ScikitSGDEvaluator,
@@ -46,8 +46,12 @@ def test_trainer_returns_epoch_history_and_checkpoint_references(
     assert result.best_epoch is not None
     assert result.last_checkpoint is not None
     assert result.best_checkpoint is not None
-    assert (output_dir / "checkpoints" / "last.joblib").is_file()
-    assert (output_dir / "checkpoints" / "best.joblib").is_file()
+    last_path = LocalCheckpointResolver().resolve(result.last_checkpoint).local_path
+    best_path = LocalCheckpointResolver().resolve(result.best_checkpoint).local_path
+    assert last_path is not None
+    assert best_path is not None
+    assert last_path.is_file()
+    assert best_path.is_file()
 
 
 def test_expired_deadline_cancels_before_first_epoch(
@@ -115,14 +119,9 @@ def test_checkpoint_can_be_restored_for_a_new_attempt(
     ).train()
     assert first_result.last_checkpoint is not None
 
-    checkpoint_path = output_dir / "first" / "checkpoints" / "last.joblib"
     restored = ScikitSGDModelProvider().restore_checkpoint(
         model_config,
-        ResolvedCheckpoint[object](
-            format=first_result.last_checkpoint.format,
-            source_uri=first_result.last_checkpoint.uri,
-            local_path=checkpoint_path,
-        ),
+        LocalCheckpointResolver().resolve(first_result.last_checkpoint),
     )
     second_result = ScikitSGDTrainer(
         restored,
@@ -174,3 +173,25 @@ def test_evaluator_returns_configured_metrics(
     assert evaluation.num_examples == 6
     assert set(evaluation.metrics) == {"mse", "mae", "r2"}
     assert evaluation.metrics["r2"] > 0.5
+
+
+def test_evaluator_reports_an_exception_without_a_message(
+    experiment_config, model, dataloaders, output_dir, monkeypatch
+):
+    import scikit_sgd.trainers.evaluator as evaluator_module
+
+    def fail(*args):
+        raise RuntimeError()
+
+    monkeypatch.setattr(evaluator_module, "collect_predictions", fail)
+    result = ScikitSGDEvaluator(
+        model, ScikitSGDEvaluationConfig.from_config(experiment_config)
+    ).evaluate(
+        dataloaders["validation"],
+        EvaluationContext(
+            evaluation_id=uuid4(), output_dir=output_dir, split="validation", model_version="test"
+        ),
+    )
+    assert result.status is EvaluationStatus.FAILED
+    assert result.issues[0].message == "RuntimeError"
+    assert result.issues[0].exception_type == "RuntimeError"

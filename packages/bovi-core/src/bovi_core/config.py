@@ -1,9 +1,10 @@
 import functools
 import inspect
 import os
+from datetime import date, datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
 import yaml
 from azure.storage.blob import BlobServiceClient
@@ -129,6 +130,50 @@ class ConfigNode:
             error_msg += "This node has no attributes."
 
         raise AttributeError(error_msg)
+
+
+def config_node_to_data(node: ConfigNode | dict[str, object]) -> dict[str, object]:
+    """Copy a selected config section into plain data for schema validation.
+
+    Recursively visits ConfigNodes, dictionaries, lists and tuples, without
+    invoking properties or secret resolution. Private node bookkeeping is
+    excluded; secret sections, cycles, runtime objects and the Config singleton
+    are rejected. Select the intended subconfig before calling this helper.
+    """
+    active: set[int] = set()
+
+    def extract(value: object) -> object:
+        if value is None or type(value) in (str, int, float, bool, bytes, date, datetime):
+            return value
+        if isinstance(value, Path):
+            return value
+        if not isinstance(value, (ConfigNode, dict, list, tuple)):
+            raise ValueError("Configuration data cannot contain runtime objects")
+        if id(value) in active:
+            raise ValueError("Configuration data cannot contain cycles")
+        identity = id(value)
+        active.add(identity)
+        try:
+            if isinstance(value, ConfigNode):
+                attributes = vars(value)
+                if attributes.get("_is_secrets") or attributes.get("_secret_keys"):
+                    raise ValueError("Configuration data cannot contain secrets")
+                value = {key: item for key, item in attributes.items() if not key.startswith("_")}
+            if isinstance(value, dict):
+                if any(not isinstance(key, str) for key in value):
+                    raise ValueError("Configuration data requires string keys")
+                if "secrets" in value:
+                    raise ValueError("Configuration data cannot contain secrets")
+                return {key: extract(item) for key, item in value.items()}
+            items = [extract(item) for item in value]
+            return tuple(items) if isinstance(value, tuple) else items
+        finally:
+            # A ConfigNode is replaced by a temporary dictionary above.
+            active.remove(identity)
+
+    if not isinstance(node, (ConfigNode, dict)):
+        raise ValueError("Select a ConfigNode or dictionary, not the whole Config")
+    return cast(dict[str, object], extract(node))
 
 
 class Config:

@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 import tensorflow as tf
-from bovi_core.config import Config
+from bovi_core.config import Config, ConfigNode
 from bovi_core.ml import ModelProviderRegistry, ResolvedModelArtifact
 from lactation_autoencoder.models import (
     LactationAutoencoderModel,
@@ -53,17 +53,21 @@ def test_model_wraps_native_model_and_serving_signature() -> None:
 def test_model_config_reads_existing_architecture_shape() -> None:
     config = MagicMock()
     config.experiment.models.autoencoder.framework = "tensorflow"
-    config.experiment.models.autoencoder.architecture.__dict__ = {
-        "input_dim": 304,
-        "latent_dim": 64,
-        "num_events": 15,
-        "num_herd_stats": 10,
-    }
+    config.experiment.models.autoencoder.architecture = ConfigNode(
+        {
+            "input_dim": 304,
+            "latent_dim": 64,
+            "num_events": 15,
+            "num_herd_stats": 10,
+        }
+    )
 
     parsed = LactationAutoencoderModelConfig.from_config(cast(Config, config))
 
     assert parsed.input_dim == 304
     assert parsed.latent_dim == 64
+    assert parsed.num_events == 15
+    assert parsed.num_herd_stats == 10
     assert parsed.signature_name == "serving_default"
 
 

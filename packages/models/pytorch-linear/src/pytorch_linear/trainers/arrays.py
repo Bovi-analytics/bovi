@@ -1,26 +1,14 @@
 """Validate batches and calculate scalar regression metrics."""
 
-import numpy as np
-
-
-def batch_to_arrays(batch, num_features: int):
-    x = np.asarray(batch["features"], dtype=np.float32)
-    y = np.asarray(batch["labels"], dtype=np.float32).reshape(-1)
-    if x.ndim != 2 or x.shape != (len(y), num_features):
-        raise ValueError("Feature and label shapes do not match the model")
-    if not len(y) or not np.isfinite(x).all() or not np.isfinite(y).all():
-        raise ValueError("Batches must contain finite, nonempty regression data")
-    return x, y
+from bovi_core.ml.dataloaders.model_inputs.pytorch_regression import (
+    prepare_pytorch_regression_inputs as batch_to_arrays,
+)
+from bovi_core.ml.trainers.monitoring import RegressionMetrics
 
 
 def measure(model, loader):
-    expected, predicted = [], []
+    metrics = RegressionMetrics()
     for batch in loader:
-        x, y = batch_to_arrays(batch, len(model.config.feature_names))
-        expected.append(y)
-        predicted.append(model(x))
-    if not expected:
-        raise ValueError("Cannot evaluate an empty dataloader")
-    y = np.concatenate(expected)
-    errors = np.concatenate(predicted) - y
-    return len(y), {"mse": float(np.mean(errors**2)), "mae": float(np.mean(np.abs(errors)))}
+        x, y = batch_to_arrays(batch, model.config.feature_names)
+        metrics.update(y.detach().cpu().numpy(), model(x))
+    return metrics.result()

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Generic, Mapping, TypeVar
 
-from bovi_core.ml.dataloaders.base import AbstractDataLoader
+from bovi_core.ml.dataloaders.loaders.base_loader import AbstractDataLoader
 from bovi_core.ml.models.model import Model
 
 from .config import TrainingConfig

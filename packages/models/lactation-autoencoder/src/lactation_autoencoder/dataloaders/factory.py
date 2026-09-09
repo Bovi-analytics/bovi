@@ -37,7 +37,7 @@ def create_dataloader(
         keep_in_memory=bool(model_config.dataset.keep_in_memory),
     )
     transforms = TransformRegistry.from_config(split_config.transforms)
-    transformed_source = TransformedSource(source, list(transforms.values()))
+    transformed_source = TransformedSource(source, transforms)
     dataset = LactationDataset(
         source=transformed_source,
         config=config,

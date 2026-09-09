@@ -2,7 +2,7 @@
 
 Tests the NumPy-First architecture where:
 - Datasets return raw NumPy arrays (no transforms)
-- Transforms are applied in DataLoaders via FrameworkAdapter
+- Sample transforms are explicit on TransformedDataset, before batching
 """
 
 import numpy as np

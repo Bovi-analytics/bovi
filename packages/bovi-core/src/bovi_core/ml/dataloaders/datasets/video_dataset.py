@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from ..base import Dataset, DataSource
+from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 if TYPE_CHECKING:
     from bovi_core.config import Config

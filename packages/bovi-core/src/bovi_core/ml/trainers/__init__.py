@@ -15,6 +15,7 @@ from .evaluation import (
     Evaluator,
 )
 from .issues import Issue, IssueSeverity
+from .local_logging import LocalTrainingResultLogger
 from .logging import (
     LogDestinationResult,
     LogDestinationStatus,
@@ -43,6 +44,7 @@ __all__ = [
     "FederatedTrainingContext",
     "Issue",
     "IssueSeverity",
+    "LocalTrainingResultLogger",
     "LogDestinationResult",
     "LogDestinationStatus",
     "LogIssue",

@@ -5,9 +5,8 @@ Azure Blob Storage data source.
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Union
 
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 from bovi_core.utils import blob_utils
-
-from ..base import DataSource
 
 if TYPE_CHECKING:
     from bovi_core.config import Config

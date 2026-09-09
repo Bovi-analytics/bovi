@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from bovi_core.ml.dataloaders.base.data_source import DataSource
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 
 class TransformedSource(DataSource[dict[str, Any]]):
@@ -24,7 +24,7 @@ class TransformedSource(DataSource[dict[str, Any]]):
         >>> transforms = TransformRegistry.from_config(
         ...     config.experiment.models.yolo.dataloaders.train.transforms
         ... )
-        >>> transformed_source = TransformedSource(source, list(transforms.values()))
+        >>> transformed_source = TransformedSource(source, transforms)
         >>> dataset = MyDataset(source=transformed_source, config=config)
 
     """

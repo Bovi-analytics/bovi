@@ -30,6 +30,11 @@ class ScikitSGDModelProvider:
         config: ScikitSGDModelConfig,
         checkpoint: ResolvedCheckpoint[object],
     ) -> ScikitSGDModel:
+        """Restore estimator state for a new attempt, not exact training resume.
+
+        Native estimator counters survive, but loader/RNG/run state is not restored.
+        Only trusted joblib resources may be loaded.
+        """
         return self._load_resolved(
             config, checkpoint.format, checkpoint.local_path, checkpoint.payload
         )
@@ -59,6 +64,11 @@ class ScikitSGDModelProvider:
             if local_path is None or not local_path.is_file():
                 raise ValueError(f"Resolved scikit SGD file does not exist: {local_path}")
             estimator = joblib.load(local_path)
+
+        if isinstance(estimator, dict) and "estimator" in estimator:
+            if tuple(estimator.get("feature_names", ())) != config.feature_names:
+                raise ValueError("Checkpoint feature order differs from model config")
+            estimator = estimator["estimator"]
 
         if not isinstance(estimator, SGDRegressor):
             raise TypeError("Scikit SGD resource must contain an SGDRegressor")

@@ -9,7 +9,7 @@ from bovi_core.ml.dataloaders.sources import BlobImageSource, LocalFileSource
 
 if TYPE_CHECKING:
     from bovi_core.config import Config
-    from bovi_core.ml.dataloaders.base import DataSource
+    from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 
 def create_source(config: Config, split: str) -> DataSource[bytes]:

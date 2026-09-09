@@ -14,8 +14,10 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.typing import NDArray
 
-from ..adapters import FrameworkAdapter
-from ..base import AbstractDataLoader, Dataset
+from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
+from bovi_core.ml.dataloaders.loaders.base_loader import AbstractDataLoader
+
+from ..batching import collate_numpy_samples
 
 # Type alias for index arrays
 IndexArray = NDArray[np.intp]
@@ -46,6 +48,11 @@ class SklearnDataLoader(AbstractDataLoader):
         batch_size: Batch size (overrides config).
         shuffle: Whether to shuffle (overrides config default).
         seed: Random seed for shuffling (default: 42).
+
+    Iterations advance a reproducible sequence of shuffle orders. Call
+    ``set_epoch(epoch)`` to pin a zero-based epoch instead: repeated iterations
+    then replay its order, so train-metrics passes do not advance training RNG.
+    This controls sample order, not randomness inside dataset transforms.
 
     Example:
         ```python
@@ -128,6 +135,8 @@ class SklearnDataLoader(AbstractDataLoader):
             resolved_shuffle = split == "train"
         self.shuffle = resolved_shuffle
         self.seed = seed
+        self._epoch = 0
+        self._explicit_epoch = False
 
         # Create index order
         self._reset_indices()
@@ -141,8 +150,15 @@ class SklearnDataLoader(AbstractDataLoader):
         self.indices = np.arange(len(self.dataset))
 
         if self.shuffle:
-            rng = np.random.RandomState(self.seed)
+            rng = np.random.RandomState((self.seed + self._epoch) % (2**32))
             rng.shuffle(self.indices)
+
+    def set_epoch(self, epoch: int) -> None:
+        """Pin a zero-based shuffle epoch until the next explicit call."""
+        if type(epoch) is not int or epoch < 0:
+            raise ValueError("epoch must be a nonnegative integer")
+        self._epoch = epoch
+        self._explicit_epoch = True
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
         """
@@ -153,11 +169,14 @@ class SklearnDataLoader(AbstractDataLoader):
         """
         # Reset indices for new epoch
         self._reset_indices()
+        indices = self.indices
+        if not self._explicit_epoch:
+            self._epoch += 1
 
         # Iterate in batches
         for start_idx in range(0, len(self.dataset), self.batch_size):
             end_idx = min(start_idx + self.batch_size, len(self.dataset))
-            batch_indices = self.indices[start_idx:end_idx]
+            batch_indices = indices[start_idx:end_idx]
 
             # Load batch
             batch_items = [self.dataset[int(idx)] for idx in batch_indices]
@@ -166,7 +185,7 @@ class SklearnDataLoader(AbstractDataLoader):
             if not batch_items:
                 continue
 
-            yield FrameworkAdapter.numpy_collate(batch_items)
+            yield collate_numpy_samples(batch_items)
 
     def __len__(self) -> int:
         """Number of batches."""
@@ -197,4 +216,4 @@ class SklearnDataLoader(AbstractDataLoader):
         if not all_items:
             return {}
 
-        return FrameworkAdapter.numpy_collate(all_items)
+        return collate_numpy_samples(all_items)

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
-from ..base import DataSource
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@
 Tests the NumPy-First architecture where:
 - Datasets return raw NumPy arrays (no transforms)
 - Videos are resized DURING decode to prevent RAM explosion
-- Transforms are applied in DataLoaders via FrameworkAdapter
+- Sample transforms are explicit on TransformedDataset, before batching
 """
 
 from unittest.mock import patch
