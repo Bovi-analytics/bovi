@@ -47,6 +47,7 @@ import {
 } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 import { CenteredLoader } from "@/components/dashboard/centered-loader";
+import { AdminIssueList } from "./admin-issue-list";
 import type {
   AdminCategoryBreakdown,
   AdminDataCategory,
@@ -186,7 +187,7 @@ function CompanyTable({
           <Table.Th>Total</Table.Th>
           {!dense && <Table.Th>Submissions</Table.Th>}
           {!dense && <Table.Th>Uploads</Table.Th>}
-          <Table.Th>Problems</Table.Th>
+          <Table.Th>Needs attention</Table.Th>
           <Table.Th>Latest</Table.Th>
         </Table.Tr>
       </Table.Thead>
@@ -218,7 +219,7 @@ function CategoryTable({ rows }: { readonly rows: AdminCategoryBreakdown[] }): R
         <Table.Tr>
           <Table.Th>Resource</Table.Th>
           <Table.Th>Count</Table.Th>
-          <Table.Th>Problems</Table.Th>
+          <Table.Th>Needs attention</Table.Th>
           <Table.Th>Latest</Table.Th>
         </Table.Tr>
       </Table.Thead>
@@ -429,7 +430,11 @@ export default function AdminPage(): ReactElement {
                 <KpiTile label="Total items" value={home.kpis.total_items} />
                 <KpiTile label="Companies" value={home.kpis.organizations} />
                 <KpiTile label="Users" value={home.kpis.users} />
-                <KpiTile label="Problem signals" value={home.kpis.failed_items} tone="warning" />
+                <KpiTile
+                  label="Items needing attention"
+                  value={home.kpis.failed_items}
+                  tone="warning"
+                />
               </SimpleGrid>
               <SimpleGrid cols={{ base: 1, lg: 2 }}>
                 <Paper withBorder radius="sm" p="md">
@@ -646,7 +651,7 @@ export default function AdminPage(): ReactElement {
         </Tabs.Panel>
       </Tabs>
 
-      <Modal opened={detailsOpen} onClose={detailsHandlers.close} title="Submission metadata">
+      <Modal opened={detailsOpen} onClose={detailsHandlers.close} title="Resource details">
         {selectedItem && (
           <Stack gap="xs">
             <Text size="sm">
@@ -673,6 +678,7 @@ export default function AdminPage(): ReactElement {
             <Text size="sm">
               <strong>Status:</strong> {selectedItem.status}
             </Text>
+            <AdminIssueList issues={selectedItem.issues} />
           </Stack>
         )}
       </Modal>
@@ -958,10 +964,15 @@ function ActivityTable({
                               {formatMetric(item)}
                             </Text>
                             <Text size="xs" c="dimmed">
-                              Failed {item.failed_count} | Status {item.status}
+                              Issues {item.failed_count} | Status {item.status}
                             </Text>
                           </Stack>
                         </SimpleGrid>
+                        {item.issues.length > 0 && (
+                          <Box mt="sm">
+                            <AdminIssueList issues={item.issues} />
+                          </Box>
+                        )}
                       </Box>
                     </Table.Td>
                   </Table.Tr>

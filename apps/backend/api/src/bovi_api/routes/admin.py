@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
@@ -44,6 +44,7 @@ AdminCategoryFilter = Literal[
 AdminOverviewSort = Literal["created_at", "organization", "user", "category", "status"]
 SortDirection = Literal["asc", "desc"]
 GlobalRole = Literal["Admin", "User"]
+AdminIssueSeverity = Literal["info", "warning", "error"]
 
 CATEGORY_LABELS: dict[AdminDataCategory, str] = {
     "benchmark_submission": "Benchmark submissions",
@@ -51,6 +52,16 @@ CATEGORY_LABELS: dict[AdminDataCategory, str] = {
     "herd_dataset_upload": "Herd dataset uploads",
     "herd_profile": "Herd profiles",
 }
+
+
+class AdminOverviewIssue(BaseModel):
+    """Human-readable explanation of a quality issue in an admin feed item."""
+
+    severity: AdminIssueSeverity
+    title: str
+    message: str
+    affected_count: int | None = None
+    sample_ids: list[str] = Field(default_factory=list)
 
 
 class AdminOverviewItem(BaseModel):
@@ -75,6 +86,7 @@ class AdminOverviewItem(BaseModel):
     row_count: int | None = None
     cow_count: int | None = None
     failed_count: int = 0
+    issues: list[AdminOverviewIssue] = Field(default_factory=list)
     primary_metric_label: str | None = None
     primary_metric_value: float | None = None
 
@@ -271,6 +283,52 @@ def _category_count_attr(category: AdminDataCategory) -> str:
     }[category]
 
 
+def _stored_warning_issues(warnings: list | None, title: str) -> list[AdminOverviewIssue]:
+    return [
+        AdminOverviewIssue(severity="warning", title=title, message=str(message))
+        for message in warnings or []
+        if str(message).strip()
+    ]
+
+
+def _submission_issues(submission: Submission) -> list[AdminOverviewIssue]:
+    if submission.failed_count <= 0:
+        return []
+
+    sample_ids = [str(cow_id) for cow_id in submission.failed_cow_ids[:10]]
+    count = submission.failed_count
+    cow_label = "cow" if count == 1 else "cows"
+    if submission.submission_type == "own_method":
+        return [
+            AdminOverviewIssue(
+                severity="warning",
+                title="Invalid result rows excluded",
+                message=(
+                    f"{count} {cow_label} had a missing or unparseable lactation yield and "
+                    "was excluded from the benchmark statistics."
+                    if count == 1
+                    else f"{count} {cow_label} had missing or unparseable lactation yields and "
+                    "were excluded from the benchmark statistics."
+                ),
+                affected_count=count,
+                sample_ids=sample_ids,
+            )
+        ]
+
+    return [
+        AdminOverviewIssue(
+            severity="warning",
+            title="Model predictions missing",
+            message=(
+                f"The challenger model did not return a prediction for {count} {cow_label}; "
+                "those cows were excluded from the benchmark statistics."
+            ),
+            affected_count=count,
+            sample_ids=sample_ids,
+        )
+    ]
+
+
 async def _admin_count(session: AsyncSession) -> int:
     result = await session.execute(
         select(func.count()).select_from(User).where(User.role == APP_ROLE_ADMIN)
@@ -313,6 +371,7 @@ async def _fetch_items(session: AsyncSession) -> list[AdminOverviewItem]:
     )
     for submission, organization, user in submission_rows.all():
         metric_label, metric_value = _metric_from_stats(submission.stats)
+        issues = _submission_issues(submission)
         title = (
             submission.organization
             or submission.calculation_method
@@ -333,13 +392,18 @@ async def _fetch_items(session: AsyncSession) -> list[AdminOverviewItem]:
                 user_name=user.name if user else None,
                 title=title,
                 created_at=submission.created_at,
-                status=submission.ingest_status,
+                status=(
+                    "warning"
+                    if issues and submission.ingest_status in {"ready", "completed"}
+                    else submission.ingest_status
+                ),
                 source=submission.calculation_method or "benchmark",
                 submission_type=submission.submission_type,
                 benchmark_model=submission.benchmark_model,
                 row_count=submission.row_count,
                 cow_count=submission.submitted_yield_count,
                 failed_count=submission.failed_count,
+                issues=issues,
                 primary_metric_label=metric_label,
                 primary_metric_value=metric_value,
             )
@@ -351,6 +415,7 @@ async def _fetch_items(session: AsyncSession) -> list[AdminOverviewItem]:
         .join(User, col(Challenge.user_id) == col(User.id), isouter=True)
     )
     for challenge, organization, user in challenge_rows.all():
+        issues = _stored_warning_issues(challenge.ingest_warnings, "Challenge data warning")
         items.append(
             AdminOverviewItem(
                 item_type="benchmark_challenge",
@@ -368,7 +433,8 @@ async def _fetch_items(session: AsyncSession) -> list[AdminOverviewItem]:
                 source=challenge.source or challenge.dataset,
                 row_count=challenge.row_count,
                 cow_count=challenge.cow_count,
-                failed_count=0,
+                failed_count=len(issues),
+                issues=issues,
             )
         )
 
@@ -382,6 +448,7 @@ async def _fetch_items(session: AsyncSession) -> list[AdminOverviewItem]:
         .join(User, col(UploadedDataset.user_id) == col(User.id), isouter=True)
     )
     for dataset, organization, user in dataset_rows.all():
+        issues = _stored_warning_issues(dataset.warnings, "Upload data warning")
         items.append(
             AdminOverviewItem(
                 item_type="herd_dataset_upload",
@@ -398,7 +465,8 @@ async def _fetch_items(session: AsyncSession) -> list[AdminOverviewItem]:
                 source=dataset.format_detected,
                 row_count=dataset.row_count,
                 cow_count=dataset.cow_count,
-                failed_count=len(dataset.warnings),
+                failed_count=len(issues),
+                issues=issues,
             )
         )
 
