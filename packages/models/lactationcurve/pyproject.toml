@@ -2,7 +2,7 @@
 name = "lactationcurve"
 dynamic = ["version"]
 license = "AGPL-3.0-or-later"
-license-files = ["LICENSE"]
+license-files = ["PACKAGE_LICENSE"]
 description = "Lactation curve fitting and analysis library"
 readme = "README.md"
 requires-python = ">= 3.12, < 3.13"
@@ -20,12 +20,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
-    "pytest>=8.0.0",
-    "ruff>=0.1.0",
-    "python-dotenv>=1.0.0",
-    "pdoc>=16.0.0",
-]
+dev = ["pytest>=8.0.0", "ruff>=0.1.0", "python-dotenv>=1.0.0", "pdoc>=16.0.0"]
 
 [project.urls]
 Repository = "https://github.com/Bovi-analytics/bovi"

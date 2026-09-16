@@ -1,6 +1,7 @@
 [project]
 name = "bovi-core"
 version = "0.1.0"
+license = "AGPL-3.0-or-later"
 description = "Core infrastructure for Bovi ML framework — plugin registry, base classes, and common utilities"
 authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
 requires-python = ">= 3.12, < 3.13"
