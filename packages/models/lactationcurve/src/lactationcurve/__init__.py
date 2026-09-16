@@ -290,7 +290,7 @@ Journal of dairy science, 51-170.*
 
 ## License
 
-[MIT License](https://github.com/Bovi-analytics/bovi/blob/main/LICENSE)
+[GNU AGPLv3 License](https://github.com/Bovi-analytics/bovi/blob/main/LICENSE)
 
 ---
 
