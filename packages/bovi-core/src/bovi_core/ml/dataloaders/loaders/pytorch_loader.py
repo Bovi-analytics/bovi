@@ -15,8 +15,6 @@ from ..batching import collate_pytorch_samples
 if TYPE_CHECKING:
     from torch import Generator
 
-    from bovi_core.config import Config
-
 logger = logging.getLogger(__name__)
 
 
@@ -37,12 +35,11 @@ class PyTorchDataLoader(AbstractDataLoader):
     def __init__(
         self,
         dataset: Dataset,
-        config: Config,
+        *,
         split: str = "train",
-        model_name: str | None = None,
-        batch_size: int | None = None,
+        batch_size: int = 32,
         shuffle: bool | None = None,
-        num_workers: int | None = None,
+        num_workers: int = 4,
         pin_memory: bool | None = None,
         drop_last: bool = False,
         persistent_workers: bool | None = None,
@@ -53,7 +50,7 @@ class PyTorchDataLoader(AbstractDataLoader):
         generator: Generator | None = None,
         worker_init_fn: Callable[[int], None] | None = None,
     ):
-        super().__init__(dataset, config, split, model_name)
+        super().__init__(dataset, split=split)
 
         self.preserve_keys = tuple(preserve_keys)
         self.collate_fn = collate_fn
@@ -64,47 +61,14 @@ class PyTorchDataLoader(AbstractDataLoader):
         self.worker_init_fn = worker_init_fn
         self._epoch: int | None = None
 
-        # Get config for this split (if available)
-        split_config = None
-        dataloader_config = None
-        if model_name and hasattr(config.experiment, "models"):
-            model_config = getattr(config.experiment.models, model_name, None)
-            if model_config and hasattr(model_config, "dataloaders"):
-                split_config = getattr(model_config.dataloaders, split, None)
-                # Get nested dataloader config if it exists
-                if split_config and hasattr(split_config, "dataloader"):
-                    dataloader_config = split_config.dataloader
-
-        # Determine parameters with fallback to config
-        self.batch_size = batch_size or (
-            dataloader_config.batch_size
-            if dataloader_config and hasattr(dataloader_config, "batch_size")
-            else split_config.batch_size
-            if split_config and hasattr(split_config, "batch_size")
-            else 32
-        )
+        self.batch_size = batch_size
 
         # Default shuffle: True for train, False for val/test
         if shuffle is None:
-            if dataloader_config and hasattr(dataloader_config, "shuffle"):
-                shuffle = dataloader_config.shuffle
-            elif split_config and hasattr(split_config, "shuffle"):
-                shuffle = split_config.shuffle
-            else:
-                shuffle = split == "train"
+            shuffle = split == "train"
         self.shuffle = shuffle
 
-        # Default num_workers
-        resolved_num_workers: int
-        if num_workers is not None:
-            resolved_num_workers = num_workers
-        elif dataloader_config and hasattr(dataloader_config, "num_workers"):
-            resolved_num_workers = int(dataloader_config.num_workers)
-        elif split_config and hasattr(split_config, "num_workers"):
-            resolved_num_workers = int(split_config.num_workers)
-        else:
-            resolved_num_workers = 4
-        self.num_workers: int = resolved_num_workers
+        self.num_workers = num_workers
 
         # Auto-detect pin_memory (True if CUDA available)
         if pin_memory is None:

@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 from bovi_core.config import Config
-from tensorflow_linear import TensorFlowLinearModelConfig, create_dataloader
+from tensorflow_linear import (
+    TensorFlowLinearDataLoaderConfig,
+    TensorFlowLinearModelConfig,
+    create_dataloader,
+)
 
 
 @pytest.fixture
@@ -20,7 +24,10 @@ def pipeline():
     )
     model_config = TensorFlowLinearModelConfig.from_config(config)
     loaders = {
-        split: create_dataloader(config, model_config, split) for split in ("train", "validation")
+        split: create_dataloader(
+            TensorFlowLinearDataLoaderConfig.from_config(config, split), model_config
+        )
+        for split in ("train", "validation")
     }
     yield config, model_config, loaders
     Config.reset()

@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from bovi_core.config import Config
 from scikit_sgd import (
+    ScikitSGDDataLoaderConfig,
     ScikitSGDEvaluationConfig,
     ScikitSGDModelConfig,
     ScikitSGDTrainingConfig,
@@ -31,7 +32,8 @@ def test_dataloader_applies_transforms_and_collates_nested_features(
     experiment_config: Config,
     model_config: ScikitSGDModelConfig,
 ) -> None:
-    loader = create_dataloader(experiment_config, model_config, "train")
+    data_config = ScikitSGDDataLoaderConfig.from_config(experiment_config, "train")
+    loader = create_dataloader(data_config, model_config)
 
     batch = next(iter(loader))
 
@@ -50,12 +52,14 @@ def test_dataloader_preserves_repeated_numeric_scale(
     model_config: ScikitSGDModelConfig,
 ) -> None:
     settings = experiment_config.experiment.models.scikit_sgd.dataloaders.validation
-    baseline = next(iter(create_dataloader(experiment_config, model_config, "validation")))
+    baseline_config = ScikitSGDDataLoaderConfig.from_config(experiment_config, "validation")
+    baseline = next(iter(create_dataloader(baseline_config, model_config)))
     settings.transforms.append(
         {"name": "numeric_scale", "params": {"factors": {"previous_yield": 2}}}
     )
 
-    batch = next(iter(create_dataloader(experiment_config, model_config, "validation")))
+    changed_config = ScikitSGDDataLoaderConfig.from_config(experiment_config, "validation")
+    batch = next(iter(create_dataloader(changed_config, model_config)))
 
     np.testing.assert_allclose(
         batch["features"]["previous_yield"], baseline["features"]["previous_yield"] / 2

@@ -328,12 +328,10 @@ class TestFeatureVectorDatasetMetadata:
         assert item["metadata"]["index"] == 7
 
 
-def test_input_example_matches_numpy_loader_nested_batch(simple_dataset, mock_dataloader_config):
+def test_input_example_matches_numpy_loader_nested_batch(simple_dataset):
     from bovi_core.ml.dataloaders import SklearnDataLoader
 
-    loader = SklearnDataLoader(
-        simple_dataset, mock_dataloader_config, model_name="test_model", batch_size=3, shuffle=False
-    )
+    loader = SklearnDataLoader(simple_dataset, batch_size=3, shuffle=False)
     batch = next(iter(loader))
     example = simple_dataset.get_input_example(n_samples=3)
 

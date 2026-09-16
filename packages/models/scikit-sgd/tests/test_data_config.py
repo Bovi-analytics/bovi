@@ -2,22 +2,25 @@
 
 import pytest
 from pydantic import ValidationError
-from scikit_sgd import create_dataloader
+from scikit_sgd import ScikitSGDDataLoaderConfig
+from scikit_sgd.dataloaders.config import (
+    JSONRecordsSourceConfig,
+    ScikitLoaderSettings,
+    TabularDatasetConfig,
+)
 
 
 @pytest.mark.parametrize(
     ("section", "location"),
     [
         ("dataset", ("dataset", "typo")),
-        ("source", ("split", "source", "typo")),
-        ("dataloader", ("split", "dataloader", "typo")),
-        ("split", ("split", "typo")),
+        ("source", ("source", "typo")),
+        ("dataloader", ("dataloader", "typo")),
+        ("split", ("typo",)),
     ],
 )
-def test_factory_rejects_unknown_data_keys(
-    experiment_config, model_config, monkeypatch, section, location
-):
-    config, definition = experiment_config, model_config
+def test_config_rejects_unknown_data_keys(experiment_config, monkeypatch, section, location):
+    config = experiment_config
     node = config.experiment.models.scikit_sgd
     split = node.dataloaders.train
     target = (
@@ -28,8 +31,20 @@ def test_factory_rejects_unknown_data_keys(
     monkeypatch.setattr(target, "typo", 1, raising=False)
 
     with pytest.raises(ValidationError) as error:
-        create_dataloader(config, definition, "train")
+        ScikitSGDDataLoaderConfig.from_config(config, "train")
 
     assert (location, "extra_forbidden") in [
         (issue["loc"], issue["type"]) for issue in error.value.errors()
     ]
+
+
+def test_dataloader_config_supports_direct_construction(tmp_path):
+    config = ScikitSGDDataLoaderConfig(
+        split="calibration",
+        dataset=TabularDatasetConfig(target_name="yield"),
+        source=JSONRecordsSourceConfig(type="json_records", path=tmp_path / "records.json"),
+        dataloader=ScikitLoaderSettings(batch_size=8, shuffle=False, seed=7),
+    )
+
+    assert config.split == "calibration"
+    assert config.dataloader.batch_size == 8

@@ -10,7 +10,7 @@ uv run pytest --import-mode=importlib packages/models/pytorch-linear/tests -q
 uv run jupyter nbconvert --to notebook --execute --inplace packages/models/pytorch-linear/notebooks/experiments/pytorch_linear/pytorch_linear_training.ipynb
 ```
 
-The package follows `dataloaders/{source,dataset,factory}.py`, `models/{config,model,provider}.py`, and `trainers/{config,trainer,evaluator,arrays}.py`. It reuses the core NumPy batcher, then converts batches at the native training boundary. Model providers register through `bovi.model_providers`.
+The package follows `dataloaders/{config,source,dataset,factory}.py`, `models/{config,model,provider}.py`, and `trainers/{config,trainer,evaluator,arrays}.py`. It reuses the core NumPy batcher, then converts batches at the native training boundary. Model providers register through `bovi.model_providers`.
 
 Configs can be constructed directly or through `from_config(Config(...))`. YAML uses `models.pytorch_linear.{architecture,dataset,dataloaders,training,evaluation}`. Training returns every completed epoch's train/validation MSE and MAE, best/last checkpoint references, and structured failures. Deadlines are checked between batches. Early stopping monitors validation MSE, falling back to training MSE. Without a context, no files are written.
 

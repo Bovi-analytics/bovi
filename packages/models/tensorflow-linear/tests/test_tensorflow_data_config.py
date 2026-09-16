@@ -2,7 +2,12 @@
 
 import pytest
 from pydantic import ValidationError
-from tensorflow_linear import create_dataloader
+from tensorflow_linear import TensorFlowLinearDataLoaderConfig
+from tensorflow_linear.dataloaders.config import (
+    JSONRecordsSourceConfig,
+    TabularDatasetConfig,
+    TensorFlowLoaderSettings,
+)
 
 pytestmark = pytest.mark.tensorflow
 
@@ -11,13 +16,13 @@ pytestmark = pytest.mark.tensorflow
     ("section", "location"),
     [
         ("dataset", ("dataset", "typo")),
-        ("source", ("split", "source", "typo")),
-        ("dataloader", ("split", "dataloader", "typo")),
-        ("split", ("split", "typo")),
+        ("source", ("source", "typo")),
+        ("dataloader", ("dataloader", "typo")),
+        ("split", ("typo",)),
     ],
 )
-def test_factory_rejects_unknown_data_keys(pipeline, monkeypatch, section, location):
-    config, definition, _ = pipeline
+def test_config_rejects_unknown_data_keys(pipeline, monkeypatch, section, location):
+    config, _, _ = pipeline
     node = config.experiment.models.tensorflow_linear
     split = node.dataloaders.train
     target = (
@@ -28,8 +33,21 @@ def test_factory_rejects_unknown_data_keys(pipeline, monkeypatch, section, locat
     monkeypatch.setattr(target, "typo", 1, raising=False)
 
     with pytest.raises(ValidationError) as error:
-        create_dataloader(config, definition, "train")
+        TensorFlowLinearDataLoaderConfig.from_config(config, "train")
 
     assert (location, "extra_forbidden") in [
         (issue["loc"], issue["type"]) for issue in error.value.errors()
     ]
+
+
+def test_dataloader_config_supports_direct_construction(tmp_path):
+    config = TensorFlowLinearDataLoaderConfig(
+        split="calibration",
+        dataset=TabularDatasetConfig(target_name="y"),
+        source=JSONRecordsSourceConfig(type="json_records", path=tmp_path / "records.json"),
+        dataloader=TensorFlowLoaderSettings(batch_size=8, shuffle=False, seed=None),
+    )
+
+    assert config.split == "calibration"
+    assert config.dataloader.buffer_size == 1000
+    assert config.dataloader.prefetch_buffer_size == 1

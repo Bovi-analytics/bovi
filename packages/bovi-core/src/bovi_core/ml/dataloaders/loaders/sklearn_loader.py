@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -21,9 +21,6 @@ from ..batching import collate_numpy_samples
 
 # Type alias for index arrays
 IndexArray = NDArray[np.intp]
-
-if TYPE_CHECKING:
-    from bovi_core.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +40,9 @@ class SklearnDataLoader(AbstractDataLoader):
 
     Args:
         dataset: Dataset to load from.
-        config: Config instance.
         split: Dataset split ("train", "val", "test").
-        batch_size: Batch size (overrides config).
-        shuffle: Whether to shuffle (overrides config default).
+        batch_size: Batch size.
+        shuffle: Whether to shuffle. Defaults to true only for the train split.
         seed: Random seed for shuffling (default: 42).
 
     Iterations advance a reproducible sequence of shuffle orders. Call
@@ -69,7 +65,6 @@ class SklearnDataLoader(AbstractDataLoader):
         # Create loader
         loader = SklearnDataLoader(
             dataset,
-            config=config,
             split="train",
             batch_size=32
         )
@@ -91,49 +86,17 @@ class SklearnDataLoader(AbstractDataLoader):
     def __init__(
         self,
         dataset: Dataset,
-        config: Config,
+        *,
         split: str = "train",
-        model_name: str | None = None,
-        batch_size: int | None = None,
+        batch_size: int = 32,
         shuffle: bool | None = None,
         seed: int = 42,
     ) -> None:
-        super().__init__(dataset, config, split, model_name)
-
-        # Get config for this split (if available)
-        split_config = None
-        dataloader_config = None
-        if model_name and hasattr(config.experiment, "models"):
-            model_config = getattr(config.experiment.models, model_name, None)
-            if model_config and hasattr(model_config, "dataloaders"):
-                split_config = getattr(model_config.dataloaders, split, None)
-                # Get nested dataloader config if it exists
-                if split_config and hasattr(split_config, "dataloader"):
-                    dataloader_config = split_config.dataloader
-
-        # Determine parameters with fallback to config
-        resolved_batch_size: int
-        if batch_size is not None:
-            resolved_batch_size = batch_size
-        elif dataloader_config and hasattr(dataloader_config, "batch_size"):
-            resolved_batch_size = int(dataloader_config.batch_size)
-        elif split_config and hasattr(split_config, "batch_size"):
-            resolved_batch_size = int(split_config.batch_size)
-        else:
-            resolved_batch_size = 32
-        self.batch_size = resolved_batch_size
+        super().__init__(dataset, split=split)
+        self.batch_size = batch_size
 
         # Default shuffle: True for train, False for val/test
-        resolved_shuffle: bool
-        if shuffle is not None:
-            resolved_shuffle = shuffle
-        elif dataloader_config and hasattr(dataloader_config, "shuffle"):
-            resolved_shuffle = bool(dataloader_config.shuffle)
-        elif split_config and hasattr(split_config, "shuffle"):
-            resolved_shuffle = bool(split_config.shuffle)
-        else:
-            resolved_shuffle = split == "train"
-        self.shuffle = resolved_shuffle
+        self.shuffle = split == "train" if shuffle is None else shuffle
         self.seed = seed
         self._epoch = 0
         self._explicit_epoch = False

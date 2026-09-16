@@ -13,6 +13,7 @@ from bovi_core.ml.dataloaders.loaders.base_loader import AbstractDataLoader
 from bovi_core.ml.dataloaders.sources.base_source import DataSource
 from bovi_core.ml.dataloaders.transforms.base_transform import UniversalTransform
 
+from .config import DataLoaderConfig, LoaderSettings
 from .datasets import (
     FeatureVectorDataset,
     ImageDataset,
@@ -20,6 +21,7 @@ from .datasets import (
     TransformedDataset,
     VideoDataset,
 )
+from .factory import DataLoaderFactory
 from .loaders import PyTorchDataLoader, SklearnDataLoader, TensorFlowDataLoader
 from .sources import BlobImageSource, JSONRecordsSource, LocalFileSource, TransformedSource
 from .transforms import TransformRegistry, build_vision_pipeline
@@ -30,6 +32,9 @@ __all__ = [
     "Dataset",
     "AbstractDataLoader",
     "UniversalTransform",
+    "DataLoaderConfig",
+    "LoaderSettings",
+    "DataLoaderFactory",
     # Datasets
     "ImageDataset",
     "VideoDataset",

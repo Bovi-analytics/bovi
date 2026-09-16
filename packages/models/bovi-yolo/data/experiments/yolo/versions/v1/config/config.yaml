@@ -51,8 +51,6 @@ models:
               max_size: 8192
               required_channels: 3
 
-        framework: pytorch
-
       validation:
         source:
           type: local
@@ -65,8 +63,6 @@ models:
             params:
               target_size: [640, 640]
               keep_aspect_ratio: true
-
-        framework: pytorch
 
       inference:
         source:
@@ -81,7 +77,6 @@ models:
               target_size: [640, 640]
               keep_aspect_ratio: true
 
-        framework: pytorch
         dataloader:
           batch_size: 1
           shuffle: false

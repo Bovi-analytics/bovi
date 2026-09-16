@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 from bovi_core.config import Config
-from pytorch_linear import PyTorchLinearModelConfig, create_dataloader
+from pytorch_linear import (
+    PyTorchLinearDataLoaderConfig,
+    PyTorchLinearModelConfig,
+    create_dataloader,
+)
 
 
 @pytest.fixture
@@ -20,7 +24,10 @@ def pipeline():
     )
     model_config = PyTorchLinearModelConfig.from_config(config)
     loaders = {
-        split: create_dataloader(config, model_config, split) for split in ("train", "validation")
+        split: create_dataloader(
+            PyTorchLinearDataLoaderConfig.from_config(config, split), model_config
+        )
+        for split in ("train", "validation")
     }
     yield config, model_config, loaders
     Config.reset()

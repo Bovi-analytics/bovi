@@ -343,7 +343,7 @@ class TestCrossFrameworkConsistency:
 
     pytestmark = [pytest.mark.slow, pytest.mark.torch, pytest.mark.tensorflow]
 
-    def test_resize_same_output_pytorch_tensorflow(self, image_source, mock_dataloader_config):
+    def test_resize_same_output_pytorch_tensorflow(self, image_source):
         """Same resize transform produces same results across frameworks."""
         import torch
         from bovi_core.ml.dataloaders.datasets import ImageDataset
@@ -364,8 +364,6 @@ class TestCrossFrameworkConsistency:
                     ImagePreprocessing(normalize=True, channels_first=True),
                 ],
             ),
-            config=mock_dataloader_config,
-            model_name="test_model",
             split="train",
             batch_size=1,
             shuffle=False,
@@ -380,8 +378,6 @@ class TestCrossFrameworkConsistency:
             TransformedDataset(
                 dataset, [AlbumentationsTransform(transform), ImagePreprocessing(normalize=True)]
             ),
-            config=mock_dataloader_config,
-            model_name="test_model",
             split="train",
             batch_size=1,
             shuffle=False,
@@ -401,7 +397,7 @@ class TestCrossFrameworkConsistency:
         # Values should be very close (may differ slightly due to float conversion)
         np.testing.assert_allclose(pt_image_hwc, tf_image_hwc, rtol=1e-4, atol=1e-4)
 
-    def test_normalize_same_output_pytorch_tensorflow(self, image_source, mock_dataloader_config):
+    def test_normalize_same_output_pytorch_tensorflow(self, image_source):
         """Normalize transform produces consistent results across frameworks."""
         import torch
         from bovi_core.ml.dataloaders.datasets import ImageDataset
@@ -427,8 +423,6 @@ class TestCrossFrameworkConsistency:
                     ImagePreprocessing(normalize=True, channels_first=True),
                 ],
             ),
-            config=mock_dataloader_config,
-            model_name="test_model",
             split="train",
             batch_size=1,
             shuffle=False,
@@ -443,8 +437,6 @@ class TestCrossFrameworkConsistency:
             TransformedDataset(
                 dataset, [AlbumentationsTransform(transform), ImagePreprocessing(normalize=True)]
             ),
-            config=mock_dataloader_config,
-            model_name="test_model",
             split="train",
             batch_size=1,
             shuffle=False,

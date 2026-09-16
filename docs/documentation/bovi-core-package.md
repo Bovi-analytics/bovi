@@ -89,6 +89,8 @@ bovi_core/
   ml/
     registry.py
     dataloaders/
+      config.py
+      factory.py
       sources/
       datasets/
       transforms/
@@ -224,7 +226,7 @@ names, H and W are height and width, and C is the color-channel axis.
 Both options default off, and floating-point images are not scaled again.
 
 An augmentation library can be used just as explicitly. Given an existing image
-dataset, Bovi config and Albumentations pipeline, we could compose:
+dataset and Albumentations pipeline, we could compose:
 
 ```python
 from bovi_core.ml.dataloaders.datasets import TransformedDataset
@@ -241,7 +243,14 @@ prepared = TransformedDataset(
         ImagePreprocessing(normalize=True, channels_first=True),
     ],
 )
-loader = PyTorchDataLoader(prepared, config=config, num_workers=0)
+loader = PyTorchDataLoader(
+    prepared,
+    split="train",
+    batch_size=16,
+    shuffle=True,
+    seed=42,
+    num_workers=0,
+)
 ```
 
 The order says: augment decoded pixels first, then prepare their numeric range
@@ -276,6 +285,11 @@ way of iterating and batching. PyTorch supports native worker processes and
 tensor batches. TensorFlow uses `tf.data` generation, batching and prefetching:
 preparing later batches while the current one is being processed.
 
+Runtime loaders receive only explicit values such as `split`, `batch_size`,
+`shuffle`, worker settings and the dataset itself. They do not inspect the
+global `Config`, resolve YAML paths or receive a `model_name`. This keeps an
+already-built loader independent from how its settings were supplied.
+
 These implementations do not need to perform identical internal steps to share
 the same role. TensorFlow already has its own batching machinery, for example.
 Its batches must have representable tensor types, so opaque metadata may need
@@ -308,8 +322,19 @@ reuse for scalar regression, not a universal input format for images or LLMs.
 ### A factory connects these objects
 
 The model package's `dataloaders/factory.py` is where this composition usually
-comes together. It reads the selected settings, constructs the source, applies
-the requested transforms, creates the dataset and returns a loader.
+comes together. A normal function with the following shape constructs the
+source, applies transforms, creates the dataset and returns a loader:
+
+```python
+def create_dataloader(data_config, model_config) -> AbstractDataLoader:
+    ...
+```
+
+Its concrete annotations use that package's `DataLoaderConfig` and
+`ModelConfig` subclasses. The function structurally implements Bovi Core's
+`DataLoaderFactory` callable protocol: inheritance or a factory class is not
+required. `data_config` owns the settings for one split; `model_config` supplies
+stable model requirements such as feature names or input dimensions.
 
 Calling this a factory simply means it constructs an object for the caller.
 It is not another processing layer. Most of its work should be connecting
@@ -322,8 +347,8 @@ Now that the pipeline is concrete, configuration becomes easier to understand:
 it records the choices needed to build that pipeline and run an experiment.
 
 There are two useful levels. The existing `Config` object reads project TOML,
-experiment YAML and environment-related settings. A typed Pydantic config then
-selects and validates the settings needed by one component.
+experiment YAML and environment-related settings. Typed, immutable Pydantic
+configs then select and validate only the settings needed by one component.
 
 For example, the model config describes the architecture and feature names.
 The training config describes how to train it. The evaluation config describes
@@ -347,15 +372,23 @@ models:
     evaluation: ...
 ```
 
-Here `dataset` contains shared dataset settings, while each loader split has
-its own source, transforms and batching settings. `architecture` belongs to
-the model definition, not the training attempt.
+Here `dataset` contains model-package-specific settings shared by the splits.
+Every entry under `dataloaders` becomes a separate immutable
+`DataLoaderConfig` instance. Its concrete package subclass owns its typed
+`dataset`, `source`, `transforms` and loader settings; core does not prescribe
+one universal schema for images, tabular records and time series. Split names
+are not limited to `train` and `validation`.
 
-A concrete config's `from_config(config)` method reads its section from this
-structure. Alternatively, you can construct that same typed config directly
-with keyword arguments. Both routes produce an object with the attributes the
-consumer needs. That makes YAML a convenient way to describe an experiment,
-rather than a file every training function must understand.
+`framework` appears only at model level. A split describes data construction,
+not which framework owns the model. `architecture` likewise belongs to the
+model definition, not the training attempt.
+
+A concrete data config's `from_config(config, split)` method optionally adapts
+this YAML structure. It combines
+`models.<model_key>.dataset` with
+`models.<model_key>.dataloaders.<split>` and validates the result as one split
+config. Alternatively, construct the exact same object directly with keyword
+arguments. YAML is therefore an input adapter, not a runtime dependency.
 
 You will see `model_key: ClassVar[str]` on concrete config classes. This tells
 `from_config()` which model section to select. It belongs to the class, while
@@ -368,10 +401,29 @@ configuration node into ordinary data. Only selected settings should enter a
 typed config or log snapshot. The entire `Config` object also relates to paths,
 clients and secrets, which are not suitable training-result metadata.
 
-The distinction is implemented most clearly in the model and training APIs.
-Native loaders and predictors still use the broader legacy `Config` object.
-So direct typed construction is available, but the complete package is not yet
-independent of legacy configuration.
+The resulting construction flow is:
+
+```mermaid
+flowchart LR
+    C[Config or direct kwargs] --> MC[Typed ModelConfig]
+    C --> DC[Typed DataLoaderConfig per split]
+    MC --> F[Package create_dataloader]
+    DC --> F
+    F --> S[Source]
+    S --> T[Transforms]
+    T --> D[Dataset]
+    D --> L[Runtime loader]
+    L --> TR[Trainer]
+    MC --> MP[Model provider]
+    MP --> M[Bovi Model]
+    M --> TR
+```
+
+Only the optional adapter sees the broad `Config`. Factories and runtime
+loaders consume typed objects and explicit values. The current YOLO factory
+supports a local source. A future remote source should receive its blob client,
+credentials abstraction or resolver explicitly; it must not smuggle the global
+`Config` into the runtime pipeline.
 
 When composing several runs, pass configuration explicitly. No-argument
 `Config()` can reuse earlier singleton state, which is convenient in a notebook

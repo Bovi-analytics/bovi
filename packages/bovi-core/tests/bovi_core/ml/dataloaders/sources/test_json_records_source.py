@@ -42,9 +42,7 @@ def test_json_records_source_empty_missing_and_invalid_json(tmp_path):
     assert JSONRecordsSource(path).get_keys() == []
 
 
-def test_json_transforms_tabular_dataset_and_loader_share_examples(
-    tmp_path, mock_dataloader_config
-):
+def test_json_transforms_tabular_dataset_and_loader_share_examples(tmp_path):
     path = tmp_path / "records.json"
     path.write_text(json.dumps([{"x": 8, "y": 3}, {"x": 16, "y": 5}]), encoding="utf-8")
     raw = JSONRecordsSource(path)
@@ -55,9 +53,7 @@ def test_json_transforms_tabular_dataset_and_loader_share_examples(
         ]
     )
     dataset = TabularDataset(TransformedSource(raw, transforms), ("x",), "y")
-    loader = SklearnDataLoader(
-        dataset, mock_dataloader_config, model_name="test_model", batch_size=2, shuffle=False
-    )
+    loader = SklearnDataLoader(dataset, batch_size=2, shuffle=False)
     batch = next(iter(loader))
     example = dataset.get_input_example(n_samples=2)
     assert isinstance(example, dict)

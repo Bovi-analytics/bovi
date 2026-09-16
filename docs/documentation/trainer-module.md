@@ -54,6 +54,7 @@ A concrete package owns:
 
 - its native framework dependency;
 - its concrete `Model` wrapper and `ModelConfig`;
+- its concrete split-level `DataLoaderConfig` and data-pipeline factory;
 - model construction and restoration providers;
 - its concrete `TrainingConfig` and `Trainer`;
 - its concrete `EvaluationConfig` and `Evaluator`;
@@ -118,6 +119,21 @@ section from the existing Bovi YAML configuration:
 ```python
 training_config = ScikitSGDTrainingConfig.from_config(bovi_config)
 ```
+
+Data configuration follows the same optional-adapter pattern, with one frozen
+object per split:
+
+```python
+train_data = ScikitSGDDataLoaderConfig.from_config(bovi_config, "train")
+validation_data = ScikitSGDDataLoaderConfig.from_config(
+    bovi_config, "validation"
+)
+```
+
+The adapter combines `models.<model_key>.dataset` with
+`models.<model_key>.dataloaders.<split>`. Concrete model packages define the
+typed dataset, source, transform and loader settings because those shapes vary
+by domain. `framework` stays at model level and is not repeated per split.
 
 The YAML layer is therefore an adapter into the typed runtime object. Trainers
 only know their Pydantic config attributes and never know YAML paths or
@@ -198,9 +214,13 @@ scalar metrics, issues, and references to non-scalar evaluation artifacts.
 ```mermaid
 flowchart TB
     O[Orchestrator]
-    C[Typed config]
+    C[Project Config or direct kwargs]
+    MC[Typed ModelConfig]
+    DC[Typed DataLoaderConfig per split]
+    RC[Typed training or evaluation config]
     X[Execution context]
-    D[Data sources and datasets]
+    F[Package create_dataloader function]
+    D[Source, transforms and dataset]
     L[Abstract dataloaders]
     P[Model provider]
     M[Bovi Model wrapper]
@@ -212,19 +232,25 @@ flowchart TB
     EX[Exporter service]
 
     O --> C
+    C --> MC
+    C --> DC
+    C --> RC
     O --> X
-    O --> D
+    MC --> F
+    DC --> F
+    F --> D
     D --> L
     O --> P
+    MC --> P
     P --> M
     O --> T
-    C --> T
+    RC --> T
     X --> T
     L --> T
     M --> T
     T --> R
     O --> E
-    C --> E
+    RC --> E
     L --> E
     M --> E
     E --> ER
@@ -235,7 +261,8 @@ flowchart TB
 ```
 
 Solid arrows show runtime dependency or ownership flow. The trainer does not
-own the orchestrator, logger, or exporter.
+own the orchestrator, logger, exporter or configuration adapter. Directly
+constructed typed configs can replace `Project Config` at the first boundary.
 
 ## Repository layout
 
@@ -243,6 +270,13 @@ own the orchestrator, logger, or exporter.
 packages/
 |-- bovi-core/
 |   `-- src/bovi_core/ml/
+|       |-- dataloaders/
+|       |   |-- config.py          # immutable per-split base config
+|       |   |-- factory.py         # structural callable protocol
+|       |   |-- sources/
+|       |   |-- datasets/
+|       |   |-- transforms/
+|       |   `-- loaders/           # explicit runtime loader values
 |       |-- models/
 |       |   |-- config.py          # ModelConfig
 |       |   |-- model.py           # Model[NativeModelT, ModelConfigT]
@@ -268,7 +302,11 @@ packages/
         |-- notebooks/experiments/scikit_sgd/
         |   `-- scikit_sgd_training.ipynb
         |-- src/scikit_sgd/
-        |   |-- dataloaders/       # JSON source, dataset, pipeline factory
+        |   |-- dataloaders/
+        |   |   |-- config.py      # typed source/dataset/transform/loader settings
+        |   |   |-- source.py
+        |   |   |-- dataset.py
+        |   |   `-- factory.py     # create_dataloader(data_config, model_config)
         |   |-- models/            # model, config, provider
         |   `-- trainers/          # configs, trainer, evaluator
         `-- tests/
@@ -541,10 +579,22 @@ hidden `.manifest-*` files. Azure/BlobStore and MLflow adapters are future work.
 ## Shared data building blocks
 
 The reference packages reuse core sources, scalar-regression datasets, transforms
-and model-input preparation. Their factories compose these building blocks;
-YOLO and lactation datasets retain domain-specific interpretation. See the
+and model-input preparation. Each split has one immutable `DataLoaderConfig`.
+Its model-package-specific subclass owns the typed source, dataset, transform
+and loader settings. Their factories compose these building blocks; YOLO and
+lactation datasets retain domain-specific interpretation. See the
 [package guide](bovi-core-package.md#3-follow-one-item-through-the-data-pipeline)
 for the data contracts and their limits.
+
+Factories are ordinary
+`create_dataloader(data_config, model_config)` functions. Their annotations
+structurally satisfy the core callable protocol, so no factory base class is
+needed. Runtime loaders receive the assembled dataset and explicit batching
+values only; they never receive global `Config` or `model_name` values.
+
+The current YOLO pipeline supports a local source. Remote data support should
+later inject a client or resolver explicitly at the orchestration boundary,
+rather than making a loader or factory read credentials from global config.
 
 Seeded loaders expose `set_epoch()` to replay an epoch's sample order. The
 shared loop pins each epoch so extra metric passes do not advance the next
@@ -562,6 +612,9 @@ Its pipeline is:
 
 ```text
 config.yaml
+    -> ScikitSGDModelConfig
+    -> ScikitSGDDataLoaderConfig.from_config(..., split)
+    -> create_dataloader(data_config, model_config)
     -> RegressionJSONSource
     -> NumericClipTransform
     -> NumericScaleTransform
@@ -662,19 +715,23 @@ Use the following sequence:
 2. Wrap the instantiated native model in `Model[NativeModelT, ModelConfigT]`.
 3. Implement only the provider capabilities the model supports: fresh create,
    checkpoint restore, and/or artifact load.
-4. Define a frozen concrete `TrainingConfig` containing runtime controls.
-5. Implement `Trainer[ConcreteModel, ConcreteTrainingConfig]` in the model
+4. Define a frozen concrete `DataLoaderConfig` for one split, including the
+   package-specific source, dataset, transform and loader settings.
+5. Implement a normal `create_dataloader(data_config, model_config)` function;
+   matching the callable protocol is structural and requires no inheritance.
+6. Define a frozen concrete `TrainingConfig` containing runtime controls.
+7. Implement `Trainer[ConcreteModel, ConcreteTrainingConfig]` in the model
    package.
-6. Reuse core sources, datasets, native loaders, and batch adapters where their
+8. Reuse core sources, datasets, native loaders, and batch adapters where their
    contracts fit; implement only model-specific conversion in the package.
-7. Record scalar metrics as `EpochResult` values after every completed epoch.
-8. Store heavyweight checkpoint data externally and return references.
-9. Define a separate `EvaluationConfig` and `Evaluator` when evaluation is
+9. Record scalar metrics as `EpochResult` values after every completed epoch.
+10. Store heavyweight checkpoint data externally and return references.
+11. Define a separate `EvaluationConfig` and `Evaluator` when evaluation is
    supported.
-10. Add a tiny CPU-capable integration fixture where practical.
-11. Test config parsing, data conversion, model construction, success, failure
+12. Add a tiny CPU-capable integration fixture where practical.
+13. Test config parsing, data conversion, model construction, success, failure
     or cancellation, checkpoint restore, and evaluation.
-12. Add and execute a notebook that uses the public package API.
+14. Add and execute a notebook that uses the public package API.
 
 Do not add a framework dependency to `bovi-core`, make a trainer read YAML
 directly, hide downloads inside a model, return native weights inside
@@ -686,7 +743,6 @@ The following are intentionally outside the current implementation:
 
 - trainer and evaluator registries;
 - a provider compatibility matrix for model, loader, and config combinations;
-- decoupling legacy loader constructors from the global Config via optional adapters;
 - a separate streaming source/dataset path without mandatory indexed access;
 - production YOLO and lactation-autoencoder trainers;
 - callback protocols for schedulers, telemetry, and validation hooks;

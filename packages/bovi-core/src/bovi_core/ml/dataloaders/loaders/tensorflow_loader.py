@@ -10,15 +10,12 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Collection, Iterator, Mapping
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 
 from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
 from bovi_core.ml.dataloaders.loaders.base_loader import AbstractDataLoader
-
-if TYPE_CHECKING:
-    from bovi_core.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +48,9 @@ class TensorFlowDataLoader(AbstractDataLoader):
     def __init__(
         self,
         dataset: Dataset,
-        config: Config,
+        *,
         split: str = "train",
-        model_name: str | None = None,
-        batch_size: int | None = None,
+        batch_size: int = 32,
         shuffle: bool | None = None,
         buffer_size: int = 1000,
         prefetch_buffer_size: int | None = None,
@@ -64,7 +60,7 @@ class TensorFlowDataLoader(AbstractDataLoader):
         seed: int | None = None,
         reshuffle_each_iteration: bool = True,
     ) -> None:
-        super().__init__(dataset, config, split, model_name)
+        super().__init__(dataset, split=split)
 
         try:
             import tensorflow as tf
@@ -82,40 +78,10 @@ class TensorFlowDataLoader(AbstractDataLoader):
         self._tf_source: Any | None = None
         self._output_shapes = {}
 
-        # Get config for this split (if available)
-        split_config = None
-        dataloader_config = None
-        if model_name and hasattr(config.experiment, "models"):
-            model_config = getattr(config.experiment.models, model_name, None)
-            if model_config and hasattr(model_config, "dataloaders"):
-                split_config = getattr(model_config.dataloaders, split, None)
-                # Get nested dataloader config if it exists
-                if split_config and hasattr(split_config, "dataloader"):
-                    dataloader_config = split_config.dataloader
-
-        # Determine parameters with fallback to config
-        resolved_batch_size: int
-        if batch_size is not None:
-            resolved_batch_size = batch_size
-        elif dataloader_config and hasattr(dataloader_config, "batch_size"):
-            resolved_batch_size = int(dataloader_config.batch_size)
-        elif split_config and hasattr(split_config, "batch_size"):
-            resolved_batch_size = int(split_config.batch_size)
-        else:
-            resolved_batch_size = 32
-        self.batch_size = resolved_batch_size
+        self.batch_size = batch_size
 
         # Default shuffle: True for train, False for val/test
-        resolved_shuffle: bool
-        if shuffle is not None:
-            resolved_shuffle = shuffle
-        elif dataloader_config and hasattr(dataloader_config, "shuffle"):
-            resolved_shuffle = bool(dataloader_config.shuffle)
-        elif split_config and hasattr(split_config, "shuffle"):
-            resolved_shuffle = bool(split_config.shuffle)
-        else:
-            resolved_shuffle = split == "train"
-        self.shuffle = resolved_shuffle
+        self.shuffle = split == "train" if shuffle is None else shuffle
         self.buffer_size = buffer_size
 
         # Auto-tune prefetch

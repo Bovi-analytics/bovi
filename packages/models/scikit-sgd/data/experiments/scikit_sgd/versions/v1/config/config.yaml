@@ -34,7 +34,6 @@ models:
                 days_in_milk: 305
                 parity: 5
                 previous_yield: 60
-        framework: sklearn
         dataloader:
           batch_size: 4
           shuffle: true
@@ -56,7 +55,6 @@ models:
                 days_in_milk: 305
                 parity: 5
                 previous_yield: 60
-        framework: sklearn
         dataloader:
           batch_size: 3
           shuffle: false
