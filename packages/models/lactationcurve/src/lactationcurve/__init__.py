@@ -63,7 +63,7 @@ using the **ICAR guideline**.
   calculations (from the package) and observed daily milk yields.
 
   We encourage everyone to use, test, and contribute to the package,
-  which is available under the MIT license. We welcome feedback and
+  which is available under the AGPL-3.0-or-later license. We welcome feedback and
   suggestions for improvement, and we are committed to maintaining and
   updating the package to ensure it remains a valuable resource
   for the dairy industry and research community.
