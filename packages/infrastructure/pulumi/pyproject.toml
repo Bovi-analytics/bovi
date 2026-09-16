@@ -1,13 +1,11 @@
 [project]
 name = "bovi-infrastructure"
 version = "0.1.0"
+license = "AGPL-3.0-or-later"
 description = "Reusable Pulumi resource factory functions for the Bovi Azure platform"
 authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
 requires-python = ">= 3.12, < 3.13"
-dependencies = [
-    "pulumi>=3.0.0",
-    "pulumi-azure-native>=2.0.0",
-]
+dependencies = ["pulumi>=3.0.0", "pulumi-azure-native>=2.0.0"]
 
 [build-system]
 requires = ["hatchling"]
