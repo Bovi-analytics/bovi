@@ -335,7 +335,8 @@ def _build_icar_preset(client: BlobServiceClient, container: str) -> bytes:
         return str(v).strip()
 
     actual_yields: dict[str, float] = {
-        _norm_id(row[aly_id]): round(float(row[aly_val]), 2) for _, row in aly_df.iterrows()
+        _norm_id(cow_id): round(float(aly), 2)
+        for cow_id, aly in zip(aly_df[aly_id].to_numpy(), aly_df[aly_val].to_numpy(), strict=False)
     }
 
     # Keep only cows that have an ALY
