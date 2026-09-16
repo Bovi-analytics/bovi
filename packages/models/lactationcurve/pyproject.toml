@@ -1,12 +1,12 @@
 [project]
 name = "lactationcurve"
 dynamic = ["version"]
-license = "MIT"
+license = "GNU AGPLv3"
 description = "Lactation curve fitting and analysis library"
 readme = "README.md"
 requires-python = ">= 3.12, < 3.13"
 classifiers = [
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU AGPLv3 License",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
 ]
