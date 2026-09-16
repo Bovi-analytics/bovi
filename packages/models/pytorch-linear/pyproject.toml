@@ -15,3 +15,6 @@ packages = ["src/pytorch_linear"]
 
 [project.entry-points."bovi.model_providers"]
 pytorch_linear = "pytorch_linear.models.provider:PyTorchLinearModelProvider"
+
+[project.entry-points."bovi.dataloader_factories"]
+pytorch_linear = "pytorch_linear.dataloaders.factory:create_dataloader"

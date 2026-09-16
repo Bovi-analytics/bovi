@@ -336,6 +336,21 @@ Its concrete annotations use that package's `DataLoaderConfig` and
 required. `data_config` owns the settings for one split; `model_config` supplies
 stable model requirements such as feature names or input dimensions.
 
+Installed model packages publish that function through the
+`bovi.dataloader_factories` entry-point group. Callers that do not want a
+package-specific import use the thin core dispatcher:
+
+```python
+from bovi_core.ml import create_dataloader
+
+loader = create_dataloader("scikit_sgd", data_config, model_config)
+```
+
+`DataLoaderFactoryRegistry` resolves the key and invokes the package function.
+It does not inspect or modify either config and contains no model-specific
+pipeline logic. Directly calling the package factory remains useful in package
+tests and explicit composition code.
+
 Calling this a factory simply means it constructs an object for the caller.
 It is not another processing layer. Most of its work should be connecting
 reusable core objects; domain-specific interpretation stays in the source,
@@ -407,8 +422,9 @@ The resulting construction flow is:
 flowchart LR
     C[Config or direct kwargs] --> MC[Typed ModelConfig]
     C --> DC[Typed DataLoaderConfig per split]
-    MC --> F[Package create_dataloader]
-    DC --> F
+    MC --> R[Factory registry]
+    DC --> R
+    R --> F[Package create_dataloader]
     F --> S[Source]
     S --> T[Transforms]
     T --> D[Dataset]
@@ -664,6 +680,19 @@ The decorator performs registration when the module is imported; the entry point
 provides the discovery route that makes that import possible on demand.
 
 Predictors use their own registry and the `bovi.predictors` entry-point group.
+Data pipeline factories use `DataLoaderFactoryRegistry` and the
+`bovi.dataloader_factories` group. Their entry points target functions rather
+than classes:
+
+```toml
+[project.entry-points."bovi.dataloader_factories"]
+scikit_sgd = "scikit_sgd.dataloaders.factory:create_dataloader"
+```
+
+The core `create_dataloader(model_key, data_config, model_config)` function only
+performs lookup and delegation. Source, transform, dataset and native-loader
+construction remain in the model package.
+
 Transforms have a registry too, but custom transform modules currently need to
 be imported explicitly. Provider discovery does not also discover transforms.
 

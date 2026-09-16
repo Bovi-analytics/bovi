@@ -1,8 +1,9 @@
 """Reject misspelled selected data settings at the example factory boundary."""
 
 import pytest
+from bovi_core.ml import DataLoaderFactoryRegistry
 from pydantic import ValidationError
-from tensorflow_linear import TensorFlowLinearDataLoaderConfig
+from tensorflow_linear import TensorFlowLinearDataLoaderConfig, create_dataloader
 from tensorflow_linear.dataloaders.config import (
     JSONRecordsSourceConfig,
     TabularDatasetConfig,
@@ -10,6 +11,12 @@ from tensorflow_linear.dataloaders.config import (
 )
 
 pytestmark = pytest.mark.tensorflow
+
+
+def test_dataloader_factory_is_discovered_from_package_entry_point():
+    DataLoaderFactoryRegistry.clear()
+
+    assert DataLoaderFactoryRegistry.get("tensorflow_linear") is create_dataloader
 
 
 @pytest.mark.parametrize(

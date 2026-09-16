@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 from bovi_core.config import Config
+from bovi_core.ml import DataLoaderFactoryRegistry
+from bovi_core.ml import create_dataloader as dispatch_dataloader
 from bovi_core.ml.dataloaders import PyTorchDataLoader
 from bovi_core.ml.dataloaders.datasets import TransformedDataset
 from bovi_core.ml.dataloaders.sources import LocalFileSource
@@ -20,6 +22,12 @@ from bovi_yolo.models import YOLOModelConfig
 from pydantic import ValidationError
 
 
+def test_dataloader_factory_is_discovered_from_package_entry_point() -> None:
+    DataLoaderFactoryRegistry.clear()
+
+    assert DataLoaderFactoryRegistry.get("yolo") is create_dataloader
+
+
 def test_create_source_from_config(yolo_config: Config) -> None:
     data_config = YOLODataLoaderConfig.from_config(yolo_config, split="inference")
     source = create_source(data_config.source)
@@ -31,7 +39,8 @@ def test_create_source_from_config(yolo_config: Config) -> None:
 def test_create_dataloader_composes_pipeline(yolo_config: Config) -> None:
     data_config = YOLODataLoaderConfig.from_config(yolo_config, split="inference")
     model_config = YOLOModelConfig.from_config(yolo_config)
-    loader = create_dataloader(
+    loader = dispatch_dataloader(
+        "yolo",
         data_config,
         model_config,
     )

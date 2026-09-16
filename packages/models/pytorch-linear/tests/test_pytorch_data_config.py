@@ -1,8 +1,9 @@
 """Reject misspelled selected data settings at the example factory boundary."""
 
 import pytest
+from bovi_core.ml import DataLoaderFactoryRegistry
 from pydantic import ValidationError
-from pytorch_linear import PyTorchLinearDataLoaderConfig
+from pytorch_linear import PyTorchLinearDataLoaderConfig, create_dataloader
 from pytorch_linear.dataloaders.config import (
     JSONRecordsSourceConfig,
     PyTorchLoaderSettings,
@@ -10,6 +11,12 @@ from pytorch_linear.dataloaders.config import (
 )
 
 pytestmark = pytest.mark.torch
+
+
+def test_dataloader_factory_is_discovered_from_package_entry_point():
+    DataLoaderFactoryRegistry.clear()
+
+    assert DataLoaderFactoryRegistry.get("pytorch_linear") is create_dataloader
 
 
 @pytest.mark.parametrize(

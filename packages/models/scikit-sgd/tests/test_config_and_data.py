@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from bovi_core.config import Config
+from bovi_core.ml import DataLoaderFactoryRegistry
 from scikit_sgd import (
     ScikitSGDDataLoaderConfig,
     ScikitSGDEvaluationConfig,
@@ -12,6 +13,12 @@ from scikit_sgd import (
     ScikitSGDTrainingConfig,
     create_dataloader,
 )
+
+
+def test_dataloader_factory_is_discovered_from_package_entry_point():
+    DataLoaderFactoryRegistry.clear()
+
+    assert DataLoaderFactoryRegistry.get("scikit_sgd") is create_dataloader
 
 
 def test_typed_configs_are_built_from_the_model_node(experiment_config: Config) -> None:

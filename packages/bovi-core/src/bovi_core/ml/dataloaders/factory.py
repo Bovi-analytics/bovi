@@ -22,3 +22,20 @@ class DataLoaderFactory(Protocol[DataLoaderConfigT, ModelConfigT]):
         data_config: DataLoaderConfigT,
         model_config: ModelConfigT,
     ) -> AbstractDataLoader: ...
+
+
+def create_dataloader(
+    model_key: str,
+    data_config: DataLoaderConfig,
+    model_config: ModelConfig,
+) -> AbstractDataLoader:
+    """Discover the model package's factory and delegate construction to it."""
+    from bovi_core.ml.registry import DataLoaderFactoryRegistry
+
+    loader = DataLoaderFactoryRegistry.create(model_key, data_config, model_config)
+    if not isinstance(loader, AbstractDataLoader):
+        raise TypeError(
+            f"Dataloader factory '{model_key}' returned {type(loader).__name__}; "
+            "expected AbstractDataLoader"
+        )
+    return loader

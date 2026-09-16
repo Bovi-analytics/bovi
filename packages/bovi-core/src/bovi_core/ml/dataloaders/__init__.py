@@ -21,7 +21,7 @@ from .datasets import (
     TransformedDataset,
     VideoDataset,
 )
-from .factory import DataLoaderFactory
+from .factory import DataLoaderFactory, create_dataloader
 from .loaders import PyTorchDataLoader, SklearnDataLoader, TensorFlowDataLoader
 from .sources import BlobImageSource, JSONRecordsSource, LocalFileSource, TransformedSource
 from .transforms import TransformRegistry, build_vision_pipeline
@@ -35,6 +35,7 @@ __all__ = [
     "DataLoaderConfig",
     "LoaderSettings",
     "DataLoaderFactory",
+    "create_dataloader",
     # Datasets
     "ImageDataset",
     "VideoDataset",

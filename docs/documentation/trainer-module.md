@@ -219,6 +219,7 @@ flowchart TB
     DC[Typed DataLoaderConfig per split]
     RC[Typed training or evaluation config]
     X[Execution context]
+    DR[DataLoaderFactoryRegistry]
     F[Package create_dataloader function]
     D[Source, transforms and dataset]
     L[Abstract dataloaders]
@@ -236,8 +237,9 @@ flowchart TB
     C --> DC
     C --> RC
     O --> X
-    MC --> F
-    DC --> F
+    MC --> DR
+    DC --> DR
+    DR --> F
     F --> D
     D --> L
     O --> P
@@ -592,6 +594,13 @@ structurally satisfy the core callable protocol, so no factory base class is
 needed. Runtime loaders receive the assembled dataset and explicit batching
 values only; they never receive global `Config` or `model_name` values.
 
+Each model package publishes its function through
+`bovi.dataloader_factories`. The optional core convenience call
+`create_dataloader(model_key, data_config, model_config)` asks
+`DataLoaderFactoryRegistry` for that function and delegates unchanged. Core
+therefore owns discovery, while the model package continues to own every
+pipeline construction decision.
+
 The current YOLO pipeline supports a local source. Remote data support should
 later inject a client or resolver explicitly at the orchestration boundary,
 rather than making a loader or factory read credentials from global config.
@@ -614,7 +623,9 @@ Its pipeline is:
 config.yaml
     -> ScikitSGDModelConfig
     -> ScikitSGDDataLoaderConfig.from_config(..., split)
-    -> create_dataloader(data_config, model_config)
+    -> core create_dataloader("scikit_sgd", data_config, model_config)
+    -> DataLoaderFactoryRegistry
+    -> package create_dataloader(data_config, model_config)
     -> RegressionJSONSource
     -> NumericClipTransform
     -> NumericScaleTransform
@@ -719,19 +730,20 @@ Use the following sequence:
    package-specific source, dataset, transform and loader settings.
 5. Implement a normal `create_dataloader(data_config, model_config)` function;
    matching the callable protocol is structural and requires no inheritance.
-6. Define a frozen concrete `TrainingConfig` containing runtime controls.
-7. Implement `Trainer[ConcreteModel, ConcreteTrainingConfig]` in the model
+6. Publish it in the package's `bovi.dataloader_factories` entry-point group.
+7. Define a frozen concrete `TrainingConfig` containing runtime controls.
+8. Implement `Trainer[ConcreteModel, ConcreteTrainingConfig]` in the model
    package.
-8. Reuse core sources, datasets, native loaders, and batch adapters where their
+9. Reuse core sources, datasets, native loaders, and batch adapters where their
    contracts fit; implement only model-specific conversion in the package.
-9. Record scalar metrics as `EpochResult` values after every completed epoch.
-10. Store heavyweight checkpoint data externally and return references.
-11. Define a separate `EvaluationConfig` and `Evaluator` when evaluation is
+10. Record scalar metrics as `EpochResult` values after every completed epoch.
+11. Store heavyweight checkpoint data externally and return references.
+12. Define a separate `EvaluationConfig` and `Evaluator` when evaluation is
    supported.
-12. Add a tiny CPU-capable integration fixture where practical.
-13. Test config parsing, data conversion, model construction, success, failure
+13. Add a tiny CPU-capable integration fixture where practical.
+14. Test config parsing, data conversion, model construction, success, failure
     or cancellation, checkpoint restore, and evaluation.
-14. Add and execute a notebook that uses the public package API.
+15. Add and execute a notebook that uses the public package API.
 
 Do not add a framework dependency to `bovi-core`, make a trainer read YAML
 directly, hide downloads inside a model, return native weights inside
