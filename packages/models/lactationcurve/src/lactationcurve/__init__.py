@@ -63,7 +63,7 @@ using the **ICAR guideline**.
   calculations (from the package) and observed daily milk yields.
 
   We encourage everyone to use, test, and contribute to the package,
-  which is available under the MIT license. We welcome feedback and
+  which is available under the AGPL-3.0-or-later license. We welcome feedback and
   suggestions for improvement, and we are committed to maintaining and
   updating the package to ensure it remains a valuable resource
   for the dairy industry and research community.
@@ -245,7 +245,7 @@ and will create a `TestId` column with all values set to 0.
 ## Tutorials
 
 Hands-on programming example notebooks are available through
-[GitHub](https://github.com/Bovi-analytics/bovi/tree/main/packages/models/lactationcurve/notebooks).
+*[GitHub tutorials and example notebooks](https://github.com/Bovi-analytics/bovi/tree/main/packages/models/lactationcurve/notebooks)*.
 The tutorials will guide you through how to work with the package,
 including how to import the package, fit lactation curves,
 calculate 305-day yields, and derive lactation curve characteristics.
@@ -290,7 +290,7 @@ Journal of dairy science, 51-170.*
 
 ## License
 
-[MIT License](https://github.com/Bovi-analytics/bovi/blob/main/LICENSE)
+[GNU AGPLv3 License](https://github.com/Bovi-analytics/bovi/blob/main/LICENSE)
 
 ---
 
