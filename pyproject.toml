@@ -1,10 +1,14 @@
 [project]
 name = "bovi"
 version = "0.1.0"
+license = "GNU AGPLv3"
 description = "Bovi platform — ML framework, public models, APIs, and infrastructure for dairy analytics"
-authors = [{ name = "Douwe de Kok", email = "douwedekok@gmail.com" }]
+authors = [
+    { name = "Douwe de Kok", email = "douwedekok@gmail.com" },
+    { name = "Meike van Leerdam", email = "mbv32@cornell.edu"}]
 requires-python = ">= 3.12, < 3.13"
 dependencies = []
+readme = "README.md"
 
 [tool.uv.workspace]
 members = [
