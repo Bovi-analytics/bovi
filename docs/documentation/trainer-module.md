@@ -389,16 +389,11 @@ whose framework already owns its loop can implement `train()` directly.
 improvements that reset early-stopping patience. Its metric name and min/max
 direction are not tied to a particular model family.
 
-The two production model packages exercise both integration styles:
-
-- `lactation-autoencoder` uses the Core epoch lifecycle around native Keras
-  gradient steps. It reports reconstruction MSE, MAE and RMSE and stores
-  weights-only TensorFlow checkpoints.
-- `bovi-yolo` delegates the complete detection loop to Ultralytics and converts
-  its epoch CSV, validation metrics and `best.pt`/`last.pt` files into Bovi
-  results and checkpoint references. Its existing Bovi dataloader remains an
-  inference pipeline; labelled detection data is supplied through the native
-  Ultralytics dataset manifest.
+The `bovi-yolo` production model package delegates the complete detection loop
+to Ultralytics and converts its epoch CSV, validation metrics and
+`best.pt`/`last.pt` files into Bovi results and checkpoint references. Its
+existing Bovi dataloader remains an inference pipeline; labelled detection data
+is supplied through the native Ultralytics dataset manifest.
 
 Deadlines are cooperative checks between batches and phases. They cannot
 interrupt a blocked native operation. `num_examples` is the training dataset

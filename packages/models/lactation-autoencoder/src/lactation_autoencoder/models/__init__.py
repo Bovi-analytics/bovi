@@ -2,11 +2,10 @@
 
 from .config import LactationAutoencoderModelConfig
 from .model import LactationAutoencoderModel
-from .provider import LACTATION_WEIGHTS_FORMAT, LactationAutoencoderModelProvider
+from .provider import LactationAutoencoderModelProvider
 
 __all__ = [
     "LactationAutoencoderModel",
     "LactationAutoencoderModelConfig",
     "LactationAutoencoderModelProvider",
-    "LACTATION_WEIGHTS_FORMAT",
 ]

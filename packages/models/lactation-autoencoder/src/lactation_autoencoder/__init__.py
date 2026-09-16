@@ -21,12 +21,6 @@ if TYPE_CHECKING:
         LactationAutoencoderModelProvider,
     )
     from lactation_autoencoder.predictors import LactationPredictionResult, LactationPredictor
-    from lactation_autoencoder.trainers import (
-        LactationAutoencoderEvaluationConfig,
-        LactationAutoencoderEvaluator,
-        LactationAutoencoderTrainer,
-        LactationAutoencoderTrainingConfig,
-    )
 
 __all__ = [
     "EventTokenizationTransform",
@@ -40,10 +34,6 @@ __all__ = [
     "LactationAutoencoderModelProvider",
     "LactationPredictor",
     "LactationPredictionResult",
-    "LactationAutoencoderTrainingConfig",
-    "LactationAutoencoderEvaluationConfig",
-    "LactationAutoencoderTrainer",
-    "LactationAutoencoderEvaluator",
 ]
 
 
@@ -70,24 +60,5 @@ def __getattr__(name: str) -> Any:
         return {
             "LactationPredictor": LactationPredictor,
             "LactationPredictionResult": LactationPredictionResult,
-        }[name]
-    if name in {
-        "LactationAutoencoderTrainingConfig",
-        "LactationAutoencoderEvaluationConfig",
-        "LactationAutoencoderTrainer",
-        "LactationAutoencoderEvaluator",
-    }:
-        from lactation_autoencoder.trainers import (
-            LactationAutoencoderEvaluationConfig,
-            LactationAutoencoderEvaluator,
-            LactationAutoencoderTrainer,
-            LactationAutoencoderTrainingConfig,
-        )
-
-        return {
-            "LactationAutoencoderTrainingConfig": LactationAutoencoderTrainingConfig,
-            "LactationAutoencoderEvaluationConfig": LactationAutoencoderEvaluationConfig,
-            "LactationAutoencoderTrainer": LactationAutoencoderTrainer,
-            "LactationAutoencoderEvaluator": LactationAutoencoderEvaluator,
         }[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

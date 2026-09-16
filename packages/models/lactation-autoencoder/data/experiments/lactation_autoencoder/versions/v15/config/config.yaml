@@ -102,17 +102,13 @@ models:
           batch_size: 1
           shuffle: false
 
+    # Training settings (for reference)
     training:
       epochs: 50
       early_stopping_patience: 10
       learning_rate: 0.001
       loss: "mse"
       optimizer: "adam"
-      min_delta: 0.0
-      target_mse: null
-
-    evaluation:
-      metrics: [mse, mae, rmse]
 
 # Unity Catalog (for future)
 unity_catalog:
