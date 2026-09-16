@@ -28,3 +28,10 @@ class LactationAutoencoderModel(Model[tf.Module, LactationAutoencoderModelConfig
     def __call__(self, *args: object, **kwargs: object) -> Any:
         """Invoke the configured TensorFlow serving signature."""
         return self.serving_signature(*args, **kwargs)
+
+    @property
+    def trainable_model(self) -> tf.keras.Model:
+        """Return the native Keras model or reject inference-only artifacts."""
+        if not isinstance(self.native_model, tf.keras.Model):
+            raise TypeError("This lactation model was loaded as an inference-only SavedModel")
+        return self.native_model
