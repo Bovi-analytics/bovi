@@ -124,4 +124,4 @@ If you also use the Bayesian fitting functionality that relies on the MilkBot AP
 
 # License
 
-[GNU AGPLv3 License](https://github.com/Bovi-analytics/bovi/blob/master/LICENSE)
+[GNU AGPLv3 License](https://github.com/Bovi-analytics/bovi/blob/main/LICENSE)
