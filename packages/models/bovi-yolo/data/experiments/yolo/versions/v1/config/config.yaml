@@ -1,7 +1,7 @@
 # YOLO Cow Detection Configuration
 experiment_name: yolo
 experiment_version: 1
-description: "YOLO cow detection - inference pipeline"
+description: "YOLO cow detection - training, evaluation, and inference pipeline"
 verbose: 1
 
 # --------------------------------------------------------------------------
@@ -33,6 +33,38 @@ models:
       conf: 0.25
       iou: 0.45
       imgsz: 640
+
+    # Native Ultralytics owns detection labels, augmentation, batching and loss.
+    # This is deliberately separate from the inference-oriented Bovi dataloaders.
+    training:
+      dataset_yaml_path: "data/experiments/yolo/versions/v1/config/dataset.yaml"
+      epochs: 1
+      image_size: 64
+      batch_size: 1
+      device: cpu
+      workers: 0
+      patience: 10
+      optimizer: auto
+      initial_learning_rate: 0.01
+      seed: 0
+      deterministic: true
+      reuse_model_weights: true
+      resume: false
+      plots: false
+      verbose: false
+
+    evaluation:
+      dataset_yaml_path: "data/experiments/yolo/versions/v1/config/dataset.yaml"
+      split: val
+      image_size: 64
+      batch_size: 1
+      device: cpu
+      workers: 0
+      confidence_threshold: 0.001
+      iou_threshold: 0.7
+      metrics: [precision, recall, map50, map50_95]
+      plots: false
+      verbose: false
 
     dataset:
       return_metadata: true

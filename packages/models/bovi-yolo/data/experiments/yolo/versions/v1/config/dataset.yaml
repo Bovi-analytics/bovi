@@ -1,0 +1,9 @@
+# Small demonstration annotations for exercising the native training lifecycle.
+# Production runs should point this manifest at their versioned labelled dataset.
+# With no explicit `path`, Ultralytics resolves these from this YAML's directory.
+train: ../../../input/train/images
+val: ../../../input/val/images
+test: ../../../input/test/images
+
+names:
+  0: cow

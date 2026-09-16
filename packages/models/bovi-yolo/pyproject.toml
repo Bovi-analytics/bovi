@@ -39,6 +39,7 @@ yolo = "bovi_yolo.predictors.predictor:YOLOPredictor"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = ["integration: native framework integration tests"]
 
 [tool.semantic_release]
 commit_message = "chore(release): {version} [skip ci]"
