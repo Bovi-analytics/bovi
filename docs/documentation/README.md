@@ -16,8 +16,8 @@ detail.
 4. Read the root [README](../../README.md) and
    [CLAUDE.md](../../CLAUDE.md) in <code>bovi</code> for the current monorepo,
    local commands, and architecture rules.
-5. Then choose the package or application documentation that matches the task
-   at hand.
+5. Read the [Bovi Core package guide](bovi-core-package.md) for the shared ML
+   concepts, then choose the relevant model or application documentation.
 
 The short version is:
 

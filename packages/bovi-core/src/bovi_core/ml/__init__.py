@@ -3,11 +3,13 @@
 # DataLoader system
 from .dataloaders import (
     AbstractDataLoader,
+    DataLoaderConfig,
+    DataLoaderFactory,
     Dataset,
     DataSource,
-    FrameworkAdapter,
     TransformRegistry,
     UniversalTransform,
+    create_dataloader,
 )
 from .models import (
     ArtifactModelProvider,
@@ -32,7 +34,7 @@ from .predictors import (
     SamPredictionResult,
     SamuraiPredictionResult,
 )
-from .registry import ModelProviderRegistry, PredictorRegistry
+from .registry import DataLoaderFactoryRegistry, ModelProviderRegistry, PredictorRegistry
 from .trainers import (
     EpochResult,
     EvaluationConfig,
@@ -53,6 +55,7 @@ from .trainers import (
 __all__ = [
     "ModelProviderRegistry",
     "PredictorRegistry",
+    "DataLoaderFactoryRegistry",
     "Model",
     "ModelArtifactReference",
     "ModelArtifactResolver",
@@ -77,9 +80,11 @@ __all__ = [
     "DataSource",
     "Dataset",
     "AbstractDataLoader",
+    "DataLoaderConfig",
+    "DataLoaderFactory",
+    "create_dataloader",
     "UniversalTransform",
     "TransformRegistry",
-    "FrameworkAdapter",
     # Training and evaluation
     "EpochResult",
     "EvaluationConfig",

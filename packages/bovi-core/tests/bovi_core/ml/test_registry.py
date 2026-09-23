@@ -1,18 +1,24 @@
-"""Tests for model-provider and predictor plugin discovery."""
+"""Tests for model-provider, predictor, and dataloader-factory discovery."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
-from bovi_core.ml import ModelProviderRegistry, PredictorRegistry
+from bovi_core.ml import (
+    DataLoaderFactoryRegistry,
+    ModelProviderRegistry,
+    PredictorRegistry,
+)
 
 
 @pytest.fixture(autouse=True)
 def clear_registries():
     ModelProviderRegistry.clear()
     PredictorRegistry.clear()
+    DataLoaderFactoryRegistry.clear()
     yield
     ModelProviderRegistry.clear()
     PredictorRegistry.clear()
+    DataLoaderFactoryRegistry.clear()
 
 
 def test_provider_registry_registers_and_constructs_provider():
@@ -90,3 +96,48 @@ def test_list_available_does_not_load_plugins(mock_entry_points):
         "available": "example.providers:ExampleProvider"
     }
     entry_point.load.assert_not_called()
+
+
+def test_dataloader_factory_registry_registers_and_dispatches_function():
+    data_config = object()
+    model_config = object()
+    expected_loader = object()
+
+    @DataLoaderFactoryRegistry.register("example")
+    def create_loader(received_data_config, received_model_config):
+        assert received_data_config is data_config
+        assert received_model_config is model_config
+        return expected_loader
+
+    assert DataLoaderFactoryRegistry.create("example", data_config, model_config) is expected_loader
+    assert DataLoaderFactoryRegistry.list_factories() == {
+        "example": f"{create_loader.__module__}.{create_loader.__name__}"
+    }
+
+
+@patch("bovi_core.ml.registry.entry_points")
+def test_dataloader_factory_is_discovered_lazily(mock_entry_points):
+    entry_point = MagicMock()
+    entry_point.name = "discovered"
+    entry_point.value = "example.dataloaders:create_dataloader"
+
+    def create_loader(data_config, model_config):
+        return data_config, model_config
+
+    entry_point.load.return_value = create_loader
+    mock_entry_points.return_value = [entry_point]
+
+    assert DataLoaderFactoryRegistry.get("discovered") is create_loader
+    entry_point.load.assert_called_once_with()
+
+
+@patch("bovi_core.ml.registry.entry_points")
+def test_dataloader_registry_rejects_non_callable_entry_point(mock_entry_points):
+    entry_point = MagicMock()
+    entry_point.name = "invalid"
+    entry_point.value = "example.dataloaders:not_a_factory"
+    entry_point.load.return_value = object()
+    mock_entry_points.return_value = [entry_point]
+
+    with pytest.raises(ValueError, match="bovi.dataloader_factories"):
+        DataLoaderFactoryRegistry.get("invalid")

@@ -1,4 +1,4 @@
-from .dataloaders import create_dataloader
+from .dataloaders import PyTorchLinearDataLoaderConfig, create_dataloader
 from .models import PyTorchLinearModel, PyTorchLinearModelConfig, PyTorchLinearModelProvider
 from .trainers import (
     PyTorchLinearEvaluationConfig,
@@ -9,6 +9,7 @@ from .trainers import (
 
 __all__ = [
     "PyTorchLinearModel",
+    "PyTorchLinearDataLoaderConfig",
     "PyTorchLinearModelConfig",
     "PyTorchLinearModelProvider",
     "PyTorchLinearTrainer",

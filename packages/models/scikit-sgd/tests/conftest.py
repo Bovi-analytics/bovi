@@ -7,11 +7,12 @@ from pathlib import Path
 
 import pytest
 from bovi_core.config import Config
+from bovi_core.ml import create_dataloader
 from scikit_sgd import (
+    ScikitSGDDataLoaderConfig,
     ScikitSGDModel,
     ScikitSGDModelConfig,
     ScikitSGDModelProvider,
-    create_dataloader,
 )
 
 
@@ -35,7 +36,11 @@ def model(model_config: ScikitSGDModelConfig) -> ScikitSGDModel:
 @pytest.fixture
 def dataloaders(experiment_config: Config, model_config: ScikitSGDModelConfig):
     return {
-        split: create_dataloader(experiment_config, model_config, split)
+        split: create_dataloader(
+            "scikit_sgd",
+            ScikitSGDDataLoaderConfig.from_config(experiment_config, split),
+            model_config,
+        )
         for split in ("train", "validation")
     }
 

@@ -14,7 +14,7 @@ from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
-from bovi_core.ml.dataloaders.base.universal_transform import UniversalTransform
+from bovi_core.ml.dataloaders.transforms.base_transform import UniversalTransform
 from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry
 from typing_extensions import override
 

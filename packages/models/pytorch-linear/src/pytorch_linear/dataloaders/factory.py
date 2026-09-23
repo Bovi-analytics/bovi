@@ -1,30 +1,35 @@
-"""Build the model-specific data pipeline from the existing Bovi YAML."""
+"""Build the PyTorch linear pipeline from typed split configuration."""
 
-from pathlib import Path
-
-from bovi_core.config import Config
-from bovi_core.ml.dataloaders import SklearnDataLoader, TransformRegistry
+from bovi_core.ml.dataloaders import PyTorchDataLoader, TransformRegistry
 from bovi_core.ml.dataloaders.sources import TransformedSource
 
 from ..models.config import PyTorchLinearModelConfig
+from .config import PyTorchLinearDataLoaderConfig
 from .dataset import LinearDataset
 from .source import LinearJSONSource
 
 
 def create_dataloader(
-    config: Config, model_config: PyTorchLinearModelConfig, split: str
-) -> SklearnDataLoader:
-    node = getattr(config.experiment.models, "pytorch_linear")
-    settings = getattr(node.dataloaders, split)
-    if settings.source.type != "json_records":
-        raise ValueError("Only json_records sources are supported")
-    path = Path(settings.source.path)
-    if not path.is_absolute():
-        path = Path(config.project.project_root) / path
+    data_config: PyTorchLinearDataLoaderConfig,
+    model_config: PyTorchLinearModelConfig,
+) -> PyTorchDataLoader:
     source = TransformedSource(
-        LinearJSONSource(path),
-        list(TransformRegistry.from_config(getattr(settings, "transforms", [])).values()),
+        LinearJSONSource(data_config.source.path),
+        TransformRegistry.from_config(
+            [transform.model_dump() for transform in data_config.transforms]
+        ),
     )
-    dataset = LinearDataset(source, model_config.feature_names, node.dataset.target_name)
-    # The shared NumPy batcher keeps data preparation independent of the training framework.
-    return SklearnDataLoader(dataset, config, split, model_name="pytorch_linear")
+    dataset = LinearDataset(source, model_config.feature_names, data_config.dataset.target_name)
+    settings = data_config.dataloader
+    return PyTorchDataLoader(
+        dataset=dataset,
+        split=data_config.split,
+        batch_size=settings.batch_size,
+        shuffle=settings.shuffle,
+        seed=settings.seed,
+        num_workers=settings.num_workers,
+        pin_memory=settings.pin_memory,
+        drop_last=settings.drop_last,
+        persistent_workers=settings.persistent_workers,
+        prefetch_factor=settings.prefetch_factor,
+    )

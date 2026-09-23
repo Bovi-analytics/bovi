@@ -98,9 +98,10 @@ class TestTransformPipeline:
 class TestConfigDrivenPipeline:
     def test_source_from_config(self, yolo_config: Config) -> None:
         """Test creating source from config."""
-        from bovi_yolo.dataloaders import create_source
+        from bovi_yolo.dataloaders import YOLODataLoaderConfig, create_source
 
-        source = create_source(yolo_config, split="inference")
+        data_config = YOLODataLoaderConfig.from_config(yolo_config, split="inference")
+        source = create_source(data_config.source)
         assert len(source) >= 1
 
     def test_transforms_from_config(self, yolo_config: Config) -> None:
@@ -108,12 +109,14 @@ class TestConfigDrivenPipeline:
         from bovi_core.ml.dataloaders.transforms.registry import (
             TransformRegistry,
         )
+        from bovi_yolo.dataloaders.transforms import ImageValidationTransform
 
         transforms = TransformRegistry.from_config(
             yolo_config.experiment.models.yolo.dataloaders.inference.transforms
         )
         assert len(transforms) >= 1
-        assert "image_validation" in transforms
+        assert isinstance(transforms, list)
+        assert isinstance(transforms[0], ImageValidationTransform)
 
     def test_configured_transforms_run_in_vision_pipeline(
         self,

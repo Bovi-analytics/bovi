@@ -3,7 +3,10 @@
 from typing import TYPE_CHECKING, Any
 
 # Import transforms to trigger TransformRegistry registration
-from lactation_autoencoder.dataloaders import create_dataloader
+from lactation_autoencoder.dataloaders import (
+    LactationAutoencoderDataLoaderConfig,
+    create_dataloader,
+)
 from lactation_autoencoder.dataloaders.transforms import (
     EventTokenizationTransform,
     HerdStatsEnrichmentTransform,
@@ -25,6 +28,7 @@ __all__ = [
     "MilkNormalizationTransform",
     "HerdStatsNormalizationTransform",
     "create_dataloader",
+    "LactationAutoencoderDataLoaderConfig",
     "LactationAutoencoderModel",
     "LactationAutoencoderModelConfig",
     "LactationAutoencoderModelProvider",

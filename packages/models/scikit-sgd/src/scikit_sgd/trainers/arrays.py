@@ -2,40 +2,23 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any
-
 import numpy as np
 import numpy.typing as npt
 from bovi_core.ml import AbstractDataLoader
+from bovi_core.ml.dataloaders.model_inputs.numpy_regression import (
+    prepare_numpy_regression_inputs as batch_to_arrays,
+)
+from bovi_core.ml.trainers.monitoring import RegressionMetrics
 
 from scikit_sgd.models import ScikitSGDModel
 
 
-def batch_to_arrays(
-    batch: Mapping[str, Any],
-    feature_names: tuple[str, ...],
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    features = batch.get("features")
-    if not isinstance(features, Mapping):
-        raise TypeError("Scikit SGD batches require a 'features' mapping")
-
-    try:
-        columns = [
-            np.asarray(features[name], dtype=np.float64).reshape(-1) for name in feature_names
-        ]
-    except KeyError as exc:
-        raise ValueError(f"Batch is missing configured feature: {exc.args[0]}") from exc
-
-    labels = batch.get("labels")
-    if labels is None:
-        raise ValueError("Scikit SGD batches require labels")
-
-    x = np.column_stack(columns)
-    y = np.asarray(labels, dtype=np.float64).reshape(-1)
-    if x.shape[0] != y.shape[0]:
-        raise ValueError("Feature and label batch sizes do not match")
-    return x, y
+def measure(model, loader):
+    metrics = RegressionMetrics()
+    for batch in loader:
+        x, y = batch_to_arrays(batch, model.config.feature_names)
+        metrics.update(y, model(x))
+    return metrics.result()
 
 
 def collect_predictions(

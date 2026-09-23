@@ -59,14 +59,10 @@ models:
             params:
               max_milk: 80.0
 
-        # Framework and loader settings
-        framework: tensorflow
+        # Loader settings
         dataloader:
           batch_size: 32
           shuffle: true
-          num_workers: 4
-          prefetch_factor: 2
-          drop_last: false
 
       validation:
         source:
@@ -82,11 +78,9 @@ models:
             params:
               max_milk: 80.0
 
-        framework: tensorflow
         dataloader:
           batch_size: 32
           shuffle: false
-          num_workers: 2
 
       inference:
         source:
@@ -104,11 +98,9 @@ models:
             params:
               max_milk: 80.0
 
-        framework: tensorflow
         dataloader:
           batch_size: 1
           shuffle: false
-          num_workers: 0
 
     # Training settings (for reference)
     training:

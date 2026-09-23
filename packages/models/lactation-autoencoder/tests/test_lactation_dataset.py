@@ -138,6 +138,23 @@ def dataset(source):
     return LactationDataset(source, max_days=304)
 
 
+def test_input_examples_preserve_all_lactation_samples(dataset):
+    record = dataset.source.load_item(0)
+    multiple = LactationDataset(DictSource([record, record]), max_days=304)
+    example = multiple.get_input_example(n_samples=2)
+    samples = multiple.get_input_example(n_samples=2, batch=False)
+
+    assert isinstance(example, dict)
+    assert isinstance(samples, list)
+    assert len(samples) == 2
+    assert set(example) == set(multiple[0]["features"])
+    for name, values in example.items():
+        assert isinstance(values, np.ndarray)
+        assert values.shape[0] == 2
+        np.testing.assert_array_equal(values[0], samples[0][name])
+        np.testing.assert_array_equal(values[1], samples[1][name])
+
+
 class TestLactationDatasetBasic:
     """Test basic LactationDataset functionality."""
 

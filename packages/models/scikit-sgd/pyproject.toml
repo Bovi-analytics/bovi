@@ -21,6 +21,9 @@ packages = ["src/scikit_sgd"]
 [project.entry-points."bovi.model_providers"]
 scikit_sgd = "scikit_sgd.models.provider:ScikitSGDModelProvider"
 
+[project.entry-points."bovi.dataloader_factories"]
+scikit_sgd = "scikit_sgd.dataloaders.factory:create_dataloader"
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]

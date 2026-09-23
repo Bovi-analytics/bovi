@@ -1,7 +1,7 @@
 # Bovi Core trainer module
 
 This document describes the trainer architecture implemented in Bovi Core and
-the `scikit-sgd` reference package. It records both the current contracts and
+the `scikit-sgd`, `pytorch-linear`, and `tensorflow-linear` reference packages. It records both the current contracts and
 the reasoning behind their boundaries.
 
 The trainer module is deliberately small. Bovi Core defines framework-neutral
@@ -18,18 +18,27 @@ and future federated-learning clients.
 
 The V1 design provides:
 
-- typed, immutable model, training, and evaluation configuration;
+- typed, frozen model, training, and evaluation configuration;
 - dependency-injected models and dataloaders;
 - one framework-neutral trainer contract;
 - one framework-neutral evaluator contract;
-- immutable manifests for training and evaluation outcomes;
+- structured records for training and evaluation outcomes;
 - local checkpoint references for best and last model state;
 - general execution contexts with optional federated specialisation;
 - structured warnings and errors;
-- an asynchronous result-logging contract;
-- a complete CPU-only `scikit-sgd` reference implementation.
+- an asynchronous result-logging contract and atomic local JSON logger;
+- three complete CPU-only reference implementations.
 
-It does not attempt to provide a universal training loop in Bovi Core.
+It does not impose a universal training loop. Optional core execution helpers
+remove repeated bookkeeping from epoch-based trainers without owning their
+native optimization steps.
+
+## From data to model inputs
+
+The [Bovi Core package guide](bovi-core-package.md#3-follow-one-item-through-the-data-pipeline)
+explains sources, datasets, explicit transforms, native loaders, batching and
+model-input preparation. Read that overview first; this document focuses on
+training behavior and lifecycle contracts.
 
 ## Core philosophy
 
@@ -45,10 +54,11 @@ A concrete package owns:
 
 - its native framework dependency;
 - its concrete `Model` wrapper and `ModelConfig`;
+- its concrete split-level `DataLoaderConfig` and data-pipeline factory;
 - model construction and restoration providers;
 - its concrete `TrainingConfig` and `Trainer`;
 - its concrete `EvaluationConfig` and `Evaluator`;
-- conversion from generic dataloader batches to native model inputs;
+- model-specific input requirements, reusing core batch conversion when appropriate;
 - framework-specific checkpoint serialization.
 
 This keeps framework boilerplate close to the framework that requires it and
@@ -110,9 +120,29 @@ section from the existing Bovi YAML configuration:
 training_config = ScikitSGDTrainingConfig.from_config(bovi_config)
 ```
 
+Data configuration follows the same optional-adapter pattern, with one frozen
+object per split:
+
+```python
+train_data = ScikitSGDDataLoaderConfig.from_config(bovi_config, "train")
+validation_data = ScikitSGDDataLoaderConfig.from_config(
+    bovi_config, "validation"
+)
+```
+
+The adapter combines `models.<model_key>.dataset` with
+`models.<model_key>.dataloaders.<split>`. Concrete model packages define the
+typed dataset, source, transform and loader settings because those shapes vary
+by domain. `framework` stays at model level and is not repeated per split.
+
 The YAML layer is therefore an adapter into the typed runtime object. Trainers
 only know their Pydantic config attributes and never know YAML paths or
 `ConfigNode` internals.
+
+Selected YAML nodes are recursively converted with `config_node_to_data()`
+before Pydantic validation. Unknown fields, including nested fields, are
+therefore rejected just as they are for direct dictionary input. The adapter
+does not resolve secrets or serialize clients or the entire `Config` object.
 
 The `model_key` is a `ClassVar`, not an instance field. It tells
 `from_config()` which model node to select, but it is not part of every
@@ -153,7 +183,11 @@ optional reference to the originating training run.
 Federated subclasses add farm, experiment, round, attempt, and global model
 version metadata. Non-federated users are not forced to provide those fields.
 
-### Results are immutable manifests, not heavyweight models
+### Results are frozen records, not heavyweight models
+
+Pydantic prevents field reassignment, but nested metric dictionaries can still
+change. Persisted local manifests are immutable; that is a separate guarantee
+from the in-memory result object. The logger snapshots its inputs before writing.
 
 `TrainingResult` records the outcome of one attempt:
 
@@ -163,6 +197,7 @@ version metadata. Non-federated users are not forced to provide those fields.
 - all per-epoch scalar metrics;
 - structured issues;
 - best epoch;
+- optional dataset size and actual training sample exposures;
 - optional best and last checkpoint references.
 
 The trained model remains available through `trainer.model`. The result does
@@ -179,9 +214,14 @@ scalar metrics, issues, and references to non-scalar evaluation artifacts.
 ```mermaid
 flowchart TB
     O[Orchestrator]
-    C[Typed config]
+    C[Project Config or direct kwargs]
+    MC[Typed ModelConfig]
+    DC[Typed DataLoaderConfig per split]
+    RC[Typed training or evaluation config]
     X[Execution context]
-    D[Data sources and datasets]
+    DR[DataLoaderFactoryRegistry]
+    F[Package create_dataloader function]
+    D[Source, transforms and dataset]
     L[Abstract dataloaders]
     P[Model provider]
     M[Bovi Model wrapper]
@@ -193,19 +233,26 @@ flowchart TB
     EX[Exporter service]
 
     O --> C
+    C --> MC
+    C --> DC
+    C --> RC
     O --> X
-    O --> D
+    MC --> DR
+    DC --> DR
+    DR --> F
+    F --> D
     D --> L
     O --> P
+    MC --> P
     P --> M
     O --> T
-    C --> T
+    RC --> T
     X --> T
     L --> T
     M --> T
     T --> R
     O --> E
-    C --> E
+    RC --> E
     L --> E
     M --> E
     E --> ER
@@ -216,7 +263,8 @@ flowchart TB
 ```
 
 Solid arrows show runtime dependency or ownership flow. The trainer does not
-own the orchestrator, logger, or exporter.
+own the orchestrator, logger, exporter or configuration adapter. Directly
+constructed typed configs can replace `Project Config` at the first boundary.
 
 ## Repository layout
 
@@ -224,10 +272,18 @@ own the orchestrator, logger, or exporter.
 packages/
 |-- bovi-core/
 |   `-- src/bovi_core/ml/
+|       |-- dataloaders/
+|       |   |-- config.py          # immutable per-split base config
+|       |   |-- factory.py         # structural callable protocol
+|       |   |-- sources/
+|       |   |-- datasets/
+|       |   |-- transforms/
+|       |   `-- loaders/           # explicit runtime loader values
 |       |-- models/
 |       |   |-- config.py          # ModelConfig
 |       |   |-- model.py           # Model[NativeModelT, ModelConfigT]
 |       |   |-- provider.py        # create, checkpoint, artifact protocols
+|       |   |-- checkpoints.py     # atomic local bundles and resolver
 |       |   `-- resources.py       # portable and resolved references
 |       `-- trainers/
 |           |-- config.py          # TrainingConfig and EvaluationConfig
@@ -236,7 +292,10 @@ packages/
 |           |-- results.py         # TrainingResult and EpochResult
 |           |-- evaluation.py      # Evaluator and EvaluationResult
 |           |-- issues.py          # structured diagnostics
-|           `-- logging.py         # asynchronous logging contract
+|           |-- lifecycle.py       # optional epoch/evaluation bookkeeping
+|           |-- monitoring.py      # metric monitoring and regression totals
+|           |-- logging.py         # asynchronous logging contract
+|           `-- local_logging.py   # atomic local JSON manifests
 `-- models/
     `-- scikit-sgd/
         |-- data/experiments/scikit_sgd/
@@ -245,7 +304,11 @@ packages/
         |-- notebooks/experiments/scikit_sgd/
         |   `-- scikit_sgd_training.ipynb
         |-- src/scikit_sgd/
-        |   |-- dataloaders/       # JSON source, dataset, pipeline factory
+        |   |-- dataloaders/
+        |   |   |-- config.py      # typed source/dataset/transform/loader settings
+        |   |   |-- source.py
+        |   |   |-- dataset.py
+        |   |   `-- factory.py     # create_dataloader(data_config, model_config)
         |   |-- models/            # model, config, provider
         |   `-- trainers/          # configs, trainer, evaluator
         `-- tests/
@@ -319,6 +382,26 @@ early stopping happen inside the concrete trainer based on its immutable
 runtime config. The orchestrator decides whether another attempt or federated
 round should start.
 
+The reference packages reuse `run_epochs()` and `run_evaluation()` from core.
+They supply native update, measurement, and serialization callbacks. A trainer
+whose framework already owns its loop can implement `train()` directly.
+`MetricMonitor` tracks the actual best score independently from the significant
+improvements that reset early-stopping patience. Its metric name and min/max
+direction are not tied to a particular model family.
+
+The `bovi-yolo` production model package delegates the complete detection loop
+to Ultralytics and converts its epoch CSV, validation metrics and
+`best.pt`/`last.pt` files into Bovi results and checkpoint references. Its
+existing Bovi dataloader remains an inference pipeline; labelled detection data
+is supplied through the native Ultralytics dataset manifest.
+
+Deadlines are cooperative checks between batches and phases. They cannot
+interrupt a blocked native operation. `num_examples` is the training dataset
+size when known; `num_examples_processed` counts samples in successful update
+steps, including a partially completed epoch, but excludes metric passes.
+Neither is automatically a federated aggregation weight: that policy belongs
+to orchestration.
+
 ## Status and stop-reason semantics
 
 Status and stop reason are separate because they answer different questions.
@@ -338,31 +421,50 @@ An issue contains severity, occurrence time, stable code, message, optional
 exception type, and structured details. Warnings, errors, and critical errors
 share this schema.
 
+Concrete trainers and evaluators use `Issue.from_exception()`. Empty or broken
+exception messages fall back to the exception type. An optional trace ID can
+refer to local diagnostic logs without embedding stack frames in remote results.
+
 ## Checkpoints and resume
 
-V1 checkpoints are local files referenced by URI. The scikit trainer writes:
+Checkpoints are immutable local bundles referenced by directory URI. Each save
+gets a unique version directory; for example, the scikit trainer writes:
 
 ```text
-<context.output_dir>/checkpoints/best.joblib
-<context.output_dir>/checkpoints/last.joblib
+<context.output_dir>/checkpoints/last-<unique-id>/manifest.json
+<context.output_dir>/checkpoints/last-<unique-id>/model.joblib
 ```
 
 The distinction is important:
 
-- `last` is the exact state after the most recently completed epoch and is the
-  normal resume point;
-- `best` is the state with the best monitored validation MSE and is useful for
-  evaluation or promotion.
+- `last` references the most recently saved completed epoch. On cancellation
+  or a checkpoint write failure, the in-memory model may be newer than this
+  durable state;
+- `best` references the raw best monitored score, even if its improvement was
+  smaller than `min_delta`. The latter controls patience, not checkpoint selection.
+
+`LocalCheckpointStore` writes a private bundle before publishing it. A manifest
+records the entrypoint, file checksums and recovery scope. The TensorFlow
+feature-order sidecar is included in the same bundle as the Keras file.
+Reusing an output directory cannot overwrite a previous checkpoint reference.
+Checksums detect corruption; they do not establish trust in a native payload.
 
 Resume is explicit:
 
 1. The orchestrator selects a `CheckpointReference`.
-2. A storage adapter resolves it to `ResolvedCheckpoint`.
+2. `LocalCheckpointResolver` verifies its manifest and payloads and returns a
+   `ResolvedCheckpoint` pointing at the native entrypoint.
 3. The model provider restores a new runtime model.
 4. The orchestrator creates a new `TrainingContext` whose
    `resumed_from_run_id` points to the previous attempt.
 5. A new trainer instance or invocation starts with epoch one for that new
    attempt.
+
+The current reference models support weights-only restart, not a general exact
+training resume. Early-stopping history, loader/RNG state and arbitrary optimizer
+state are not reconstructed. Exact resume requires a separate supported
+training-state capability. The simple SGD examples test equivalence only within
+their stateless, deterministic setup.
 
 Checkpoint paths are farm-local knowledge. A federated master only needs a
 remote retrieval reference when it actually intends to fetch that checkpoint.
@@ -405,6 +507,116 @@ and decides whether or when to retry the destination.
 
 No concrete MLflow logger is part of V1 yet.
 
+`LocalTrainingResultLogger` writes context, result, optional config snapshots,
+and metadata to `<output_dir>/training-results/<run_id>.json`. Writes publish
+complete JSON atomically, run off the event loop, and never overwrite a
+different result with the same run ID. Identical retries are idempotent. Failed
+writes return structured destination issues; they do not alter training status.
+Pass explicitly selected JSON-safe config values, never the whole Bovi config
+or secrets. Checkpoints remain references, not embedded payloads. See
+[local result persistence](#local-result-persistence) below for usage and operational limits.
+
+This is end-of-attempt persistence, not a complete crash-recovery service. A
+process killed before logging can leave valid checkpoint bundles without a
+final result manifest. Persisting the effective config/context before training,
+discovering the latest recoverable checkpoint after a crash, and rebuilding a
+run automatically in a new process remain separate orchestration work. Epoch
+checkpoint integrity alone does not provide those guarantees.
+
+### Local result persistence
+
+Call the local logger from the orchestrator or notebook after training. It does
+not run inside a trainer and never changes the returned `TrainingResult`.
+
+```python
+from bovi_core.ml.trainers import LocalTrainingResultLogger
+
+logger = LocalTrainingResultLogger(
+    metadata={"dataset": {"name": "train", "records": len(train_loader.dataset)}},
+    config_snapshot={
+        "model": model_config.model_dump(mode="json"),
+        "training": training_config.model_dump(mode="json"),
+    },
+)
+log_outcome = await logger.log(context, result)
+log_outcome.model_dump(mode="json")
+```
+
+Supply only explicitly selected JSON-compatible settings and metadata. Never pass
+the whole `Config`, secrets, clients, or credentials. The constructor copies the
+snapshots; subsequent mutations of the original mappings do not alter the log.
+Non-JSON values and nonfinite numbers produce a structured failed logging outcome.
+
+Each manifest is stored at
+`context.output_dir/training-results/<context.run_id>.json`. Its versioned JSON
+contains `context`, `result`, `metadata`, and `config_snapshot`. Federated context
+fields are retained. Checkpoint references are recorded, but native artifacts
+are not read, copied, validated, or exported. Keep those artifacts separately.
+
+Run IDs must match between context and result. Reusing an output directory with
+different run IDs keeps separate manifests. An identical retry succeeds without
+replacing the existing file. Changed context, result, or snapshots for an existing
+run ID fail with `logging.local_collision`; this is an immutable final-result log,
+not an append-only epoch stream. Corrupt existing files are not overwritten.
+
+Context and result are deep-copied when the `log()` coroutine begins executing,
+before its first await. Later mutations to nested metrics cannot change that
+attempt's manifest. Creating a coroutine without awaiting or scheduling it does
+not capture a snapshot. Snapshot preparation errors are returned as structured
+failures, including invalid constructor mappings that cannot be copied.
+JSON serialization and file operations run in `asyncio.to_thread`. Every call makes one
+logging attempt, with errors reported through `ResultLogOutcome`,
+`LogDestinationResult`, and `LogIssue(write_attempt=1)`. Inspect the outcome
+separately from training success. Cancellation propagates normally; cancellation
+of the awaiting coroutine does not stop an already-running filesystem thread.
+
+Publication uses a flushed/fsynced temporary file and an atomic, non-overwriting
+hard link in the same directory. Concurrent identical writers are safe. This
+requires a trusted local filesystem with hard-link support; unsupported filesystems
+return a failed logging outcome. After publication and temporary-file cleanup,
+the manifest's directory and all ancestors up to the filesystem root are fsynced
+in child-to-parent order on POSIX, including on identical retries. This covers
+newly created output-directory ancestors and concurrent first writers.
+A directory sync failure
+returns failure even though the complete manifest may already be present; an
+identical retry can complete the sync. Other platforms do not provide this
+directory durability step. The logger does not provide cloud synchronization or automatic retries. Temporary
+files are removed on normal success/failure, but process termination can leave
+hidden `.manifest-*` files. Azure/BlobStore and MLflow adapters are future work.
+
+## Shared data building blocks
+
+The reference packages reuse core sources, scalar-regression datasets, transforms
+and model-input preparation. Each split has one immutable `DataLoaderConfig`.
+Its model-package-specific subclass owns the typed source, dataset, transform
+and loader settings. Their factories compose these building blocks; YOLO and
+lactation datasets retain domain-specific interpretation. See the
+[package guide](bovi-core-package.md#3-follow-one-item-through-the-data-pipeline)
+for the data contracts and their limits.
+
+Factories are ordinary
+`create_dataloader(data_config, model_config)` functions. Their annotations
+structurally satisfy the core callable protocol, so no factory base class is
+needed. Runtime loaders receive the assembled dataset and explicit batching
+values only; they never receive global `Config` or `model_name` values.
+
+Each model package publishes its function through
+`bovi.dataloader_factories`. The optional core convenience call
+`create_dataloader(model_key, data_config, model_config)` asks
+`DataLoaderFactoryRegistry` for that function and delegates unchanged. Core
+therefore owns discovery, while the model package continues to own every
+pipeline construction decision.
+
+The current YOLO pipeline supports a local source. Remote data support should
+later inject a client or resolver explicitly at the orchestration boundary,
+rather than making a loader or factory read credentials from global config.
+
+Seeded loaders expose `set_epoch()` to replay an epoch's sample order. The
+shared loop pins each epoch so extra metric passes do not advance the next
+training shuffle. This controls order, not exact stochastic transform or
+persistent-worker state restoration. Unseeded runs make no reproducibility
+promise, and checkpoint restart does not restore loader state.
+
 ## Scikit SGD reference implementation
 
 The reference package uses `SGDRegressor` because `partial_fit()` makes epochs
@@ -415,6 +627,11 @@ Its pipeline is:
 
 ```text
 config.yaml
+    -> ScikitSGDModelConfig
+    -> ScikitSGDDataLoaderConfig.from_config(..., split)
+    -> core create_dataloader("scikit_sgd", data_config, model_config)
+    -> DataLoaderFactoryRegistry
+    -> package create_dataloader(data_config, model_config)
     -> RegressionJSONSource
     -> NumericClipTransform
     -> NumericScaleTransform
@@ -442,9 +659,10 @@ uv run jupyter nbconvert \
   --ExecutePreprocessor.timeout=300
 ```
 
-The committed notebook is already executed and demonstrates a fresh run,
-epoch history, best and last checkpoint output, separate evaluation, and a
-resumed attempt.
+The notebook demonstrates a fresh run, epoch history, best and last checkpoint
+output, separate evaluation, local result logging, and a resumed attempt.
+Notebook execution is verified separately; committed outputs are cleared to
+avoid retaining machine-local paths and generated run identifiers.
 
 ## PyTorch and TensorFlow reference implementations
 
@@ -456,15 +674,29 @@ Two additional CPU examples exercise the same contracts:
 Both learn `y = 2x + 1` from eight JSON records, validate on four held-out
 records, and provide separate evaluators, Pydantic configs, YAML, notebooks,
 best/last checkpoints, and explicit restoration through model providers.
-They use the shared NumPy batcher and convert at the native training boundary.
+They use the core `PyTorchDataLoader` and `TensorFlowDataLoader`, respectively,
+and retain native tensors through the training boundary. Datasets remain
+framework-neutral. The PyTorch CPU example uses zero workers and no vision
+transforms; vision preprocessing only runs when explicitly supplied through
+dataset transforms. The TensorFlow example prefetches one batch.
 Neither package adds framework dependencies to Bovi Core.
+
+Core collation supports nested dense numeric features and NumPy scalar labels.
+NumPy and PyTorch preserve opaque metadata as per-sample records by default.
+TensorFlow metadata must be tensor-compatible, or callers explicitly omit it
+using `drop_keys`. Custom Torch collators and TensorFlow output signatures can
+express additional supported batch layouts.
+
+`TransformRegistry.from_config()` returns an ordered list, so repeated transform
+types remain separate pipeline steps. The factories pass that list to the
+source or dataset wrapper that applies it.
 
 The examples deliberately use SGD without momentum or a schedule. Tests compare
 continuous training with two attempts separated by a checkpoint restore.
 Epoch numbering restarts per attempt; early-stopping and shuffle history are
-not restored. TensorFlow checkpoints include a feature-order JSON sidecar
-that must travel with the Keras file. Each attempt should use its own output
-directory. See the package READMEs for runnable commands.
+not restored. All files required to restore a checkpoint travel together in its
+bundle. Each attempt should still use its own output directory for clear run
+ownership. See the package READMEs for runnable commands.
 
 ## Federated-learning boundary
 
@@ -500,19 +732,24 @@ Use the following sequence:
 2. Wrap the instantiated native model in `Model[NativeModelT, ModelConfigT]`.
 3. Implement only the provider capabilities the model supports: fresh create,
    checkpoint restore, and/or artifact load.
-4. Define a frozen concrete `TrainingConfig` containing runtime controls.
-5. Implement `Trainer[ConcreteModel, ConcreteTrainingConfig]` in the model
+4. Define a frozen concrete `DataLoaderConfig` for one split, including the
+   package-specific source, dataset, transform and loader settings.
+5. Implement a normal `create_dataloader(data_config, model_config)` function;
+   matching the callable protocol is structural and requires no inheritance.
+6. Publish it in the package's `bovi.dataloader_factories` entry-point group.
+7. Define a frozen concrete `TrainingConfig` containing runtime controls.
+8. Implement `Trainer[ConcreteModel, ConcreteTrainingConfig]` in the model
    package.
-6. Convert generic dataloader batches to native framework inputs inside that
-   package, not in Bovi Core.
-7. Record scalar metrics as `EpochResult` values after every completed epoch.
-8. Store heavyweight checkpoint data externally and return references.
-9. Define a separate `EvaluationConfig` and `Evaluator` when evaluation is
+9. Reuse core sources, datasets, native loaders, and batch adapters where their
+   contracts fit; implement only model-specific conversion in the package.
+10. Record scalar metrics as `EpochResult` values after every completed epoch.
+11. Store heavyweight checkpoint data externally and return references.
+12. Define a separate `EvaluationConfig` and `Evaluator` when evaluation is
    supported.
-10. Add a tiny CPU-capable integration fixture where practical.
-11. Test config parsing, data conversion, model construction, success, failure
+13. Add a tiny CPU-capable integration fixture where practical.
+14. Test config parsing, data conversion, model construction, success, failure
     or cancellation, checkpoint restore, and evaluation.
-12. Add and execute a notebook that uses the public package API.
+15. Add and execute a notebook that uses the public package API.
 
 Do not add a framework dependency to `bovi-core`, make a trainer read YAML
 directly, hide downloads inside a model, return native weights inside
@@ -524,14 +761,17 @@ The following are intentionally outside the current implementation:
 
 - trainer and evaluator registries;
 - a provider compatibility matrix for model, loader, and config combinations;
+- a separate streaming source/dataset path without mandatory indexed access;
 - production YOLO and lactation-autoencoder trainers;
 - callback protocols for schedulers, telemetry, and validation hooks;
 - cooperative cancellation beyond deadline checks;
 - a dry-run or one-epoch preflight mode;
-- concrete local and MLflow result loggers;
+- pre-run manifests, crash discovery, and automated cross-process recovery;
+- a concrete MLflow result logger;
 - exporter implementations and promotion policy;
+- checkpoint compatibility with serving wrappers and publishing (pending design review);
 - dataset and transform fingerprints;
-- checksums generated for checkpoints;
+- exact training-state resume beyond the reference models' weights-only restart;
 - a federated model-state adapter;
 - asynchronous federated aggregation and stale-update policy;
 - deployment metadata requirements.

@@ -7,6 +7,28 @@ import pytest
 from bovi_core.ml.dataloaders.sources.local_source import LocalFileSource
 from PIL import Image
 
+
+@pytest.fixture(
+    params=[
+        ({"features": {"a": [1]}, "labels": [2]}, ("missing",)),
+        ({"features": {"a": [1]}, "labels": None}, ("a",)),
+        ({"features": {"a": [1]}, "labels": [2]}, ("a", "a")),
+        ({"features": {"a": [1]}, "labels": [2]}, ()),
+        ({"features": {"a": []}, "labels": []}, ("a",)),
+        ({"features": {"a": [1, 2]}, "labels": [2]}, ("a",)),
+        ({"features": {"a": [1, 2]}, "labels": [[2, 3]]}, ("a",)),
+        ({"features": {"a": [1]}, "labels": 2}, ("a",)),
+        ({"features": {"a": [1, 2]}, "labels": [[[2]], [[3]]]}, ("a",)),
+        ({"features": {"a": [[1, 2]]}, "labels": [2]}, ("a",)),
+        ({"features": {"a": [float("nan")]}, "labels": [2]}, ("a",)),
+        ({"features": {"a": [1]}, "labels": [float("inf")]}, ("a",)),
+    ]
+)
+def invalid_regression_batch(request):
+    """Shared invalid scalar-regression inputs for all native adapters."""
+    return request.param
+
+
 # --- Config Mock (used by all loaders) ---
 
 

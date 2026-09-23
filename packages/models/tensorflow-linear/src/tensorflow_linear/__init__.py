@@ -1,4 +1,4 @@
-from .dataloaders import create_dataloader
+from .dataloaders import TensorFlowLinearDataLoaderConfig, create_dataloader
 from .models import (
     TensorFlowLinearModel,
     TensorFlowLinearModelConfig,
@@ -13,6 +13,7 @@ from .trainers import (
 
 __all__ = [
     "TensorFlowLinearModel",
+    "TensorFlowLinearDataLoaderConfig",
     "TensorFlowLinearModelConfig",
     "TensorFlowLinearModelProvider",
     "TensorFlowLinearTrainer",

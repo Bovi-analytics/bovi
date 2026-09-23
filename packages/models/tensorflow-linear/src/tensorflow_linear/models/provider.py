@@ -26,6 +26,7 @@ class TensorFlowLinearModelProvider:
     def restore_checkpoint(
         self, config: TensorFlowLinearModelConfig, checkpoint: ResolvedCheckpoint[object]
     ) -> TensorFlowLinearModel:
+        """Restart from weights with a fresh optimizer; not exact training resume."""
         return self._load(config, checkpoint)
 
     def load_artifact(
@@ -40,9 +41,10 @@ class TensorFlowLinearModelProvider:
         if tuple(names) != config.feature_names:
             raise ValueError("Checkpoint feature order differs from model config")
         with tf.device("/CPU:0"):
-            native = tf.keras.models.load_model(resource.local_path, safe_mode=True)
+            native = tf.keras.models.load_model(resource.local_path, safe_mode=True, compile=False)
         if not isinstance(native, tf.keras.Sequential):
             raise TypeError("Expected a Sequential linear model")
+        native.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=0.1), loss="mse")
         return TensorFlowLinearModel(native_model=native, config=config)
 
 

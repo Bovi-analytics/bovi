@@ -238,14 +238,22 @@ async def _ensure_local_user(
     memberships = await _memberships_for_user(user.id, session)
     is_admin = user.role == APP_ROLE_ADMIN
     if is_admin:
+        direct_memberships = {
+            organization.id: membership for organization, membership in memberships
+        }
         all_organizations = await session.execute(
             select(Organization).order_by(col(Organization.name))
         )
         memberships = [
             (
                 organization,
-                OrganizationMembership(
-                    user_id=user.id, organization_id=organization.id or 0, role=APP_ROLE_ADMIN
+                direct_memberships.get(
+                    organization.id,
+                    OrganizationMembership(
+                        user_id=user.id,
+                        organization_id=organization.id or 0,
+                        role=APP_ROLE_ADMIN,
+                    ),
                 ),
             )
             for organization in all_organizations.scalars().all()

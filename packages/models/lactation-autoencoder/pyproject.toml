@@ -30,6 +30,9 @@ packages = ["src/lactation_autoencoder"]
 [project.entry-points."bovi.model_providers"]
 autoencoder = "lactation_autoencoder.models.provider:LactationAutoencoderModelProvider"
 
+[project.entry-points."bovi.dataloader_factories"]
+autoencoder = "lactation_autoencoder.dataloaders.factory:create_dataloader"
+
 [project.entry-points."bovi.predictors"]
 autoencoder = "lactation_autoencoder.predictors.predictor:LactationPredictor"
 

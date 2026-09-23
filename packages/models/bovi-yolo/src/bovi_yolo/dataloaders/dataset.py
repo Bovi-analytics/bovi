@@ -16,7 +16,7 @@ from typing_extensions import override
 
 if TYPE_CHECKING:
     from bovi_core.config import Config
-    from bovi_core.ml.dataloaders.base import DataSource
+    from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 logger = logging.getLogger(__name__)
 

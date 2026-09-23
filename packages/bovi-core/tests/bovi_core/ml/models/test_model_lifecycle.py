@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
-from bovi_core.config import Config
+from bovi_core.config import Config, ConfigNode
 from bovi_core.ml.models import (
     Model,
     ModelArtifactReference,
@@ -44,7 +44,7 @@ def test_model_config_reads_framework_and_architecture_from_model_node():
                 models=SimpleNamespace(
                     example=SimpleNamespace(
                         framework="example",
-                        architecture=SimpleNamespace(width=3),
+                        architecture=ConfigNode({"width": 3}),
                     )
                 )
             )

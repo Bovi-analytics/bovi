@@ -1,16 +1,12 @@
 """Independent evaluation, including models restored without a training result."""
 
-from datetime import UTC, datetime
-
 from bovi_core.ml import (
     AbstractDataLoader,
     EvaluationContext,
     EvaluationResult,
-    EvaluationStatus,
     Evaluator,
-    Issue,
-    IssueSeverity,
 )
+from bovi_core.ml.trainers.lifecycle import run_evaluation
 
 from ..models import TensorFlowLinearModel
 from .arrays import measure
@@ -21,38 +17,13 @@ class TensorFlowLinearEvaluator(Evaluator[TensorFlowLinearModel, TensorFlowLinea
     def evaluate(
         self, dataloader: AbstractDataLoader, context: EvaluationContext
     ) -> EvaluationResult:
-        started = datetime.now(UTC)
-        if context.deadline is not None and started >= context.deadline:
-            return EvaluationResult(
-                evaluation_id=context.evaluation_id,
-                status=EvaluationStatus.CANCELLED,
-                started_at=started,
-                completed_at=datetime.now(UTC),
-                num_examples=0,
-            )
-        try:
-            count, metrics = measure(self.model, dataloader)
-            return EvaluationResult(
-                evaluation_id=context.evaluation_id,
-                status=EvaluationStatus.COMPLETED,
-                started_at=started,
-                completed_at=datetime.now(UTC),
-                num_examples=count,
-                metrics={name: metrics[name] for name in self.config.metrics},
-            )
-        except Exception as exc:
-            return EvaluationResult(
-                evaluation_id=context.evaluation_id,
-                status=EvaluationStatus.FAILED,
-                started_at=started,
-                completed_at=datetime.now(UTC),
-                num_examples=0,
-                issues=(
-                    Issue(
-                        severity=IssueSeverity.ERROR,
-                        code="tensorflow_linear_evaluation_failed",
-                        message=str(exc),
-                        exception_type=type(exc).__name__,
-                    ),
-                ),
-            )
+        def selected_metrics(batches):
+            count, metrics = measure(self.model, batches)
+            return count, {name: metrics[name] for name in self.config.metrics}
+
+        return run_evaluation(
+            context=context,
+            dataloader=dataloader,
+            measure=selected_metrics,
+            error_code="tensorflow_linear_evaluation_failed",
+        )

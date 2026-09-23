@@ -136,7 +136,7 @@ class ModelRuntime:
     config: Config
     model: LactationAutoencoderModel
     predictor: LactationPredictor
-    transforms: dict[str, object]
+    transforms: list[object]
 
 
 _model_runtime: ModelRuntime | None = None
@@ -222,7 +222,7 @@ def _get_model_runtime() -> ModelRuntime:
 
 def _build_transforms(
     imputation_method: str,
-    transforms: dict[str, object],
+    transforms: list[object],
 ) -> list[object]:
     """Build transform list, swapping imputation method if needed.
 
@@ -235,11 +235,11 @@ def _build_transforms(
     """
     default_method = "forward_fill"
     if imputation_method == default_method:
-        return list(transforms.values())
+        return list(transforms)
 
     # Swap the imputation transform with one using the requested method
     swapped: list[object] = []
-    for transform in transforms.values():
+    for transform in transforms:
         if isinstance(transform, ImputationTransform):
             swapped.append(
                 ImputationTransform(

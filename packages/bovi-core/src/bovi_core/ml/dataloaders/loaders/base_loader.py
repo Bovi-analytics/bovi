@@ -3,12 +3,10 @@ Abstract DataLoader interface.
 """
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Iterator
 
 if TYPE_CHECKING:
-    from bovi_core.config import Config
-
-    from .dataset import Dataset
+    from ..datasets.base_dataset import Dataset
 
 
 class AbstractDataLoader(ABC):
@@ -23,14 +21,11 @@ class AbstractDataLoader(ABC):
     def __init__(
         self,
         dataset: "Dataset",
-        config: "Config",
+        *,
         split: str = "train",
-        model_name: Optional[str] = None,
-    ):
+    ) -> None:
         self.dataset = dataset
-        self.config = config
         self.split = split
-        self.model_name = model_name
 
     @abstractmethod
     def __iter__(self) -> Iterator[Any]:

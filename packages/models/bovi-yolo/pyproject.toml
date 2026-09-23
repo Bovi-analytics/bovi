@@ -30,12 +30,16 @@ packages = ["src/bovi_yolo"]
 [project.entry-points."bovi.model_providers"]
 yolo = "bovi_yolo.models.provider:YOLOModelProvider"
 
+[project.entry-points."bovi.dataloader_factories"]
+yolo = "bovi_yolo.dataloaders.factory:create_dataloader"
+
 [project.entry-points."bovi.predictors"]
 yolo = "bovi_yolo.predictors.predictor:YOLOPredictor"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = ["integration: native framework integration tests"]
 
 [tool.semantic_release]
 commit_message = "chore(release): {version} [skip ci]"

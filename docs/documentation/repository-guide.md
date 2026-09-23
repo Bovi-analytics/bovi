@@ -82,14 +82,11 @@ The template shows a standalone experiment repository with
 project structure, keep domain-specific models and data in that project, and
 move only broadly reusable infrastructure into the core.
 
-**Important currency note.** The architecture and experiment documents were
-updated on 8 May 2026, while the root README is from 15 January 2026 and the
-package configuration from 17 December 2025. That configuration requires Python
-3.11 and uses an editable link to the standalone
-<code>../bovi-core</code>. Many examples also assume manual imports for registry
-discovery and mention <code>project_template_v2</code> or a separate
-<code>bovi-models</code> package. Preserve the design, but use the monorepo for
-commands, package paths, and discovery.
+The template's human guides explain the current provider, configuration and
+data-pipeline boundaries. Its standalone source and package configuration remain
+historical, including the editable dependency on <code>../bovi-core</code>.
+Use the selected current monorepo environment for the updated examples; the
+guide update does not make a standalone installation equivalent to that environment.
 
 ## 3. <code>bovi-models-douwe</code>: the experiment example
 
@@ -105,11 +102,10 @@ standalone experiment repository:
 - <code>misc/users/</code> contains architecture, pipeline explanations, and
   workflows.
 
-Use it as a narrative and technical example of the earlier lactation pipeline,
-not as a deployment source. The project still uses the standalone editable
-<code>../bovi-core</code> and Python 3.11. Its latest commit and user
-documentation are from May 2026, so the domain knowledge is valuable, but its
-interfaces may differ from <code>bovi</code>.
+The human guides connect this domain narrative to the current monorepo APIs.
+The sibling's implementation remains a historical example, not a deployment
+source: its package metadata still selects the standalone core. The notebook
+instructions identify the current environment and any model/data prerequisites.
 
 ## 4. <code>bovi-models-tutorial</code>: the onboarding repository
 
@@ -121,14 +117,19 @@ root README and numbered notebooks when someone is new to the framework.
 The tutorial repository already uses Python 3.12 and obtains
 <code>bovi-core</code>, <code>bovi-yolo</code>, and
 <code>lactation-autoencoder</code> as subdirectories from the <code>bovi</code>
-Git repository. This makes it the strongest learning source among the sibling
-repositories, but not the place for product code or releases.
+Git repository. The core lessons teach provider discovery, injected model
+construction and explicit data transforms. Use a selected current monorepo
+environment for these lessons: the tutorial's dependency declarations do not
+pin the local framework changes described here. Cloud and artifact-dependent
+lessons have additional prerequisites and should not be treated as CPU smoke tests.
+The [Bovi Core package guide](bovi-core-package.md) provides the continuous reading
+route alongside the notebooks.
 
 ## 5. Standalone predecessors
 
 | Repository | What it preserves | Current treatment |
 | --- | --- | --- |
-| <code>bovi-core</code> | Earlier core with registry, base classes, and utilities | Historical predecessor. Its README and <code>pyproject.toml</code> are from 8 October 2025 and require Python 3.11; the current core is in <code>bovi/packages/bovi-core</code>. |
+| <code>bovi-core</code> | Earlier core with registry, base classes, and utilities | Historical source; its updated human documentation directs current examples to the monorepo. The standalone implementation and dependency metadata are not migrated. |
 | <code>lactation_curve_core</code> | Original lactationcurve package and curve-fitting API | Migrated predecessor. The standalone repository has a May 2026 release history; the current <code>lactationcurve</code> package in <code>bovi</code> is version 1.1.6 and also documents ISLC and BESTPRED methods. |
 
 Keep these repositories for provenance, publication history, authorship, and
@@ -140,7 +141,8 @@ unless explicitly agreed otherwise.
 1. This repository guide and the root README of <code>bovi</code>.
 2. <code>bovi-models-template/misc/users/overview.md</code> and
    <code>architecture/project_overview.md</code> for the original design.
-3. The current package or app that matches the person's task.
+3. The [Bovi Core package guide](bovi-core-package.md), then the current model
+   package or app that matches the person's task.
 4. Only then use <code>bovi-models-douwe</code>, tutorial notebooks, or
    standalone repositories for an experiment, a design decision, or historical
    parity.

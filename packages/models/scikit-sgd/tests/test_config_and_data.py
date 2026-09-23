@@ -5,12 +5,20 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from bovi_core.config import Config
+from bovi_core.ml import DataLoaderFactoryRegistry
 from scikit_sgd import (
+    ScikitSGDDataLoaderConfig,
     ScikitSGDEvaluationConfig,
     ScikitSGDModelConfig,
     ScikitSGDTrainingConfig,
     create_dataloader,
 )
+
+
+def test_dataloader_factory_is_discovered_from_package_entry_point():
+    DataLoaderFactoryRegistry.clear()
+
+    assert DataLoaderFactoryRegistry.get("scikit_sgd") is create_dataloader
 
 
 def test_typed_configs_are_built_from_the_model_node(experiment_config: Config) -> None:
@@ -31,7 +39,8 @@ def test_dataloader_applies_transforms_and_collates_nested_features(
     experiment_config: Config,
     model_config: ScikitSGDModelConfig,
 ) -> None:
-    loader = create_dataloader(experiment_config, model_config, "train")
+    data_config = ScikitSGDDataLoaderConfig.from_config(experiment_config, "train")
+    loader = create_dataloader(data_config, model_config)
 
     batch = next(iter(loader))
 
@@ -43,3 +52,23 @@ def test_dataloader_applies_transforms_and_collates_nested_features(
         assert isinstance(values, np.ndarray)
         assert values.shape == (4,)
         assert np.all((0.0 <= values) & (values <= 1.0))
+
+
+def test_dataloader_preserves_repeated_numeric_scale(
+    experiment_config: Config,
+    model_config: ScikitSGDModelConfig,
+) -> None:
+    settings = experiment_config.experiment.models.scikit_sgd.dataloaders.validation
+    baseline_config = ScikitSGDDataLoaderConfig.from_config(experiment_config, "validation")
+    baseline = next(iter(create_dataloader(baseline_config, model_config)))
+    settings.transforms.append(
+        {"name": "numeric_scale", "params": {"factors": {"previous_yield": 2}}}
+    )
+
+    changed_config = ScikitSGDDataLoaderConfig.from_config(experiment_config, "validation")
+    batch = next(iter(create_dataloader(changed_config, model_config)))
+
+    np.testing.assert_allclose(
+        batch["features"]["previous_yield"], baseline["features"]["previous_yield"] / 2
+    )
+    np.testing.assert_array_equal(batch["labels"], baseline["labels"])

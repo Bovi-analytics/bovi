@@ -48,7 +48,7 @@ def test_model_runtime_is_assembled_through_provider_injection(monkeypatch, tmp_
     model_config = MagicMock(name="model_config")
     model = MagicMock(name="model")
     predictor = MagicMock(name="predictor")
-    transforms = {"example": MagicMock()}
+    transforms = [MagicMock()]
     provider = MagicMock()
     provider.load_artifact.return_value = model
     provider_factory = MagicMock(return_value=provider)
@@ -87,3 +87,24 @@ def test_model_runtime_is_assembled_through_provider_injection(monkeypatch, tmp_
     transform_factory.assert_called_once_with(
         config.experiment.models.autoencoder.dataloaders.inference.transforms
     )
+
+
+def test_build_transforms_preserves_repeated_steps_when_overriding_imputation():
+    first = main.ImputationTransform(method="forward_fill", fields=["milk"])
+    second = main.ImputationTransform(method="forward_fill", fields=["weight"])
+    other = MagicMock()
+    transforms = [first, other, second]
+
+    defaults = main._build_transforms("forward_fill", transforms)
+    assert defaults == transforms
+    assert defaults is not transforms
+
+    swapped = main._build_transforms("linear", transforms)
+    assert len(swapped) == 3
+    assert swapped[1] is other
+    assert isinstance(swapped[0], main.ImputationTransform)
+    assert isinstance(swapped[2], main.ImputationTransform)
+    assert swapped[0].fields == first.fields
+    assert swapped[2].fields == second.fields
+    assert swapped[0].method == swapped[2].method == "linear"
+    assert first.method == second.method == "forward_fill"

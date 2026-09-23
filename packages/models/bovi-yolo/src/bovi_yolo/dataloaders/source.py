@@ -1,38 +1,17 @@
-"""YOLO source construction from experiment configuration."""
+"""YOLO source construction from typed source settings."""
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import TYPE_CHECKING
+from bovi_core.ml.dataloaders.sources import LocalFileSource
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
-from bovi_core.ml.dataloaders.sources import BlobImageSource, LocalFileSource
-
-if TYPE_CHECKING:
-    from bovi_core.config import Config
-    from bovi_core.ml.dataloaders.base import DataSource
+from .config import YOLOSourceSettings
 
 
-def create_source(config: Config, split: str) -> DataSource[bytes]:
-    """Create the configured local or blob image source for one split."""
-    source_config = getattr(config.experiment.models.yolo.dataloaders, split).source
-
-    if source_config.type == "local":
-        root_dir = Path(source_config.root_dir)
-        if not root_dir.is_absolute():
-            root_dir = Path(config.project.project_root) / root_dir
-        return LocalFileSource(
-            root_dir=root_dir,
-            file_pattern=getattr(source_config, "file_pattern", "*.jp*g"),
-            recursive=bool(getattr(source_config, "recursive", True)),
-        )
-
-    if source_config.type == "blob":
-        return BlobImageSource(
-            config=config,
-            prefix=getattr(source_config, "prefix", ""),
-            substring=getattr(source_config, "substring", ""),
-        )
-
-    raise ValueError(
-        f"Unsupported YOLO source type: {source_config.type!r}. Expected 'local' or 'blob'."
+def create_source(source_config: YOLOSourceSettings) -> DataSource[bytes]:
+    """Create a local image source from validated settings."""
+    return LocalFileSource(
+        root_dir=source_config.root_dir,
+        file_pattern=source_config.file_pattern,
+        recursive=source_config.recursive,
     )
