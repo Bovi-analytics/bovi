@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Generic, Mapping, TypeVar
 
-from bovi_core.ml.dataloaders.base import AbstractDataLoader
+from bovi_core.ml.dataloaders.loaders.base_loader import AbstractDataLoader
 from bovi_core.ml.models.model import Model
 
 from .config import TrainingConfig
@@ -10,7 +10,7 @@ from .results import TrainingResult
 
 ConfigT = TypeVar("ConfigT", bound=TrainingConfig)
 # A concrete Bovi Model subtype, not the wrapped native framework model.
-ModelT = TypeVar("ModelT", bound=Model[Any])
+ModelT = TypeVar("ModelT", bound=Model[Any, Any])
 
 
 class Trainer(ABC, Generic[ModelT, ConfigT]):

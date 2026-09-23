@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, FiniteFloat, model_validator
 
+from bovi_core.ml.models import CheckpointReference
+
 from .issues import Issue
 
 
@@ -40,19 +42,6 @@ class EpochResult(BaseModel):
     )
 
 
-class CheckpointReference(BaseModel):
-    """Reference to checkpoint data stored outside the training manifest."""
-
-    model_config = ConfigDict(
-        frozen=True,
-        extra="forbid",
-    )
-
-    uri: str = Field(min_length=1)
-    format: str = Field(min_length=1)
-    checksum: str | None = Field(default=None, min_length=1)
-
-
 class TrainingResult(BaseModel):
     """Immutable manifest describing one local training attempt."""
 
@@ -66,6 +55,21 @@ class TrainingResult(BaseModel):
     stop_reason: TrainingStopReason
     started_at: AwareDatetime
     completed_at: AwareDatetime
+    num_examples: int | None = Field(
+        default=None,
+        ge=0,
+        strict=True,
+        description="Number of records in the training split, not batches or epoch exposures. "
+        "None means unknown; zero means a known empty training split.",
+    )
+    num_examples_processed: int | None = Field(
+        default=None,
+        ge=0,
+        strict=True,
+        description="Training examples consumed by successful training steps in this attempt, "
+        "including partial epochs and repeated exposures. Excludes evaluation, metrics-only "
+        "passes, prefetched unused records, and previous attempts. None means unknown.",
+    )
     epochs: tuple[EpochResult, ...] = ()
     issues: tuple[Issue, ...] = ()
     best_epoch: int | None = Field(default=None, ge=1)

@@ -1,4 +1,4 @@
-"""Tests for YOLO predictor."""
+"""Tests for the YOLO predictor."""
 
 from __future__ import annotations
 
@@ -13,37 +13,23 @@ if TYPE_CHECKING:
     from bovi_core.config import Config
 
 
+def _create_model(native_model: MagicMock):
+    from bovi_yolo.models import YOLOModel, YOLOModelConfig
+
+    return YOLOModel(
+        native_model=native_model,
+        config=YOLOModelConfig(framework="pytorch"),
+    )
+
+
 class TestYOLOPredictorInitialization:
-    def test_initialization(self, yolo_config: Config) -> None:
-        """Test predictor can be initialized."""
+    def test_model_is_injected(self, yolo_config: Config) -> None:
         from bovi_yolo.predictors import YOLOPredictor
 
-        predictor = YOLOPredictor(config=yolo_config)
-        assert predictor.model_instance is None
+        model = _create_model(MagicMock())
+        predictor = YOLOPredictor(model=model, config=yolo_config)
 
-    def test_model_instance_not_set_raises(self, yolo_config: Config) -> None:
-        """Test predict raises when model not set."""
-        from bovi_yolo.predictors import PredictionError, YOLOPredictor
-
-        predictor = YOLOPredictor(config=yolo_config)
-
-        with pytest.raises(PredictionError, match="Model instance not set"):
-            predictor.predict(
-                np.zeros((100, 100, 3), dtype=np.uint8),
-                return_format="raw",
-            )
-
-
-class TestYOLOPredictorSetModel:
-    def test_set_model_instance(self, yolo_config: Config) -> None:
-        """Test set_model_instance stores model."""
-        from bovi_yolo.predictors import YOLOPredictor
-
-        predictor = YOLOPredictor(config=yolo_config)
-
-        mock_model = MagicMock()
-        predictor.set_model_instance(mock_model)
-        assert predictor.model_instance is mock_model
+        assert predictor.model is model
 
 
 class TestYOLOPredictorPredict:
@@ -52,47 +38,37 @@ class TestYOLOPredictorPredict:
         yolo_config: Config,
         sample_image: npt.NDArray[np.uint8],
     ) -> None:
-        """Test raw return format returns model output directly."""
         from bovi_yolo.predictors import YOLOPredictor
 
-        predictor = YOLOPredictor(config=yolo_config)
-
-        mock_model = MagicMock()
-        mock_results = [MagicMock()]
-        mock_model.return_value = mock_results
-        predictor.set_model_instance(mock_model)
+        native_model = MagicMock(return_value=[MagicMock()])
+        predictor = YOLOPredictor(model=_create_model(native_model), config=yolo_config)
 
         result = predictor.predict(sample_image, return_format="raw")
-        assert result == mock_results
+
+        assert result == native_model.return_value
 
     def test_rich_return_format(
         self,
         yolo_config: Config,
         sample_image: npt.NDArray[np.uint8],
     ) -> None:
-        """Test rich return format returns YoloPredictionResult."""
         from bovi_yolo.predictors import YOLOPredictor
         from bovi_yolo.predictors.results import YoloPredictionResult
 
-        predictor = YOLOPredictor(config=yolo_config)
-
-        # Create mock ultralytics result
         mock_result = MagicMock()
         mock_result.orig_img = sample_image
-        mock_boxes = MagicMock()
-        mock_boxes.xyxy.cpu().numpy.return_value = np.array([[10, 10, 100, 100]])
-        mock_boxes.cls.cpu().numpy.return_value = np.array([0])
-        mock_boxes.conf.cpu().numpy.return_value = np.array([0.95])
-        mock_result.boxes = mock_boxes
+        mock_result.boxes.xyxy.cpu().numpy.return_value = np.array([[10, 10, 100, 100]])
+        mock_result.boxes.cls.cpu().numpy.return_value = np.array([0])
+        mock_result.boxes.conf.cpu().numpy.return_value = np.array([0.95])
         mock_result.masks = None
         mock_result.names = {0: "cow"}
 
-        mock_model = MagicMock()
-        mock_model.return_value = [mock_result]
-        mock_model.names = {0: "cow"}
-        predictor.set_model_instance(mock_model)
+        native_model = MagicMock(return_value=[mock_result])
+        native_model.names = {0: "cow"}
+        predictor = YOLOPredictor(model=_create_model(native_model), config=yolo_config)
 
         result = predictor.predict(sample_image, return_format="rich")
+
         assert isinstance(result, YoloPredictionResult)
         assert result.num_predictions == 1
 
@@ -101,27 +77,22 @@ class TestYOLOPredictorPredict:
         yolo_config: Config,
         sample_image: npt.NDArray[np.uint8],
     ) -> None:
-        """Test base return format returns serializable dict."""
         from bovi_yolo.predictors import YOLOPredictor
-
-        predictor = YOLOPredictor(config=yolo_config)
 
         mock_result = MagicMock()
         mock_result.orig_img = sample_image
-        mock_boxes = MagicMock()
-        mock_boxes.xyxy.cpu().numpy.return_value = np.array([[10, 10, 100, 100]])
-        mock_boxes.cls.cpu().numpy.return_value = np.array([0])
-        mock_boxes.conf.cpu().numpy.return_value = np.array([0.95])
-        mock_result.boxes = mock_boxes
+        mock_result.boxes.xyxy.cpu().numpy.return_value = np.array([[10, 10, 100, 100]])
+        mock_result.boxes.cls.cpu().numpy.return_value = np.array([0])
+        mock_result.boxes.conf.cpu().numpy.return_value = np.array([0.95])
         mock_result.masks = None
         mock_result.names = {0: "cow"}
 
-        mock_model = MagicMock()
-        mock_model.return_value = [mock_result]
-        mock_model.names = {0: "cow"}
-        predictor.set_model_instance(mock_model)
+        native_model = MagicMock(return_value=[mock_result])
+        native_model.names = {0: "cow"}
+        predictor = YOLOPredictor(model=_create_model(native_model), config=yolo_config)
 
         result = predictor.predict(sample_image, return_format="base")
+
         assert isinstance(result, dict)
         assert "boxes_xyxy" in result
         assert "num_predictions" in result
@@ -131,14 +102,10 @@ class TestYOLOPredictorPredict:
         yolo_config: Config,
         sample_image: npt.NDArray[np.uint8],
     ) -> None:
-        """Test PredictionError wraps underlying exceptions."""
         from bovi_yolo.predictors import PredictionError, YOLOPredictor
 
-        predictor = YOLOPredictor(config=yolo_config)
-
-        mock_model = MagicMock()
-        mock_model.side_effect = RuntimeError("GPU error")
-        predictor.set_model_instance(mock_model)
+        native_model = MagicMock(side_effect=RuntimeError("GPU error"))
+        predictor = YOLOPredictor(model=_create_model(native_model), config=yolo_config)
 
         with pytest.raises(PredictionError, match="YOLO prediction failed"):
             predictor.predict(sample_image, return_format="raw")
@@ -146,7 +113,6 @@ class TestYOLOPredictorPredict:
 
 class TestPredictionError:
     def test_prediction_error_attributes(self) -> None:
-        """Test PredictionError stores model_name and original_exception."""
         from bovi_yolo.predictors import PredictionError
 
         original = RuntimeError("test")

@@ -5,14 +5,14 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, FiniteFloat, model_validator
 
-from bovi_core.ml.dataloaders.base import AbstractDataLoader
+from bovi_core.ml.dataloaders.loaders.base_loader import AbstractDataLoader
 from bovi_core.ml.models.model import Model
 
 from .config import EvaluationConfig
 from .context import EvaluationContext
 from .issues import Issue
 
-ModelT = TypeVar("ModelT", bound=Model[Any])
+ModelT = TypeVar("ModelT", bound=Model[Any, Any])
 ConfigT = TypeVar("ConfigT", bound=EvaluationConfig)
 
 

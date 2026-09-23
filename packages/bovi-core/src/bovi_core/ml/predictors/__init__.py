@@ -1,7 +1,6 @@
 """Base predictor classes and prediction result types."""
 
-from .prediction_interface import CallableModel, PredictionInterface
-from .predictor import Predictor
+from .prediction_interface import CallableModel, PredictionInterface, PredictorProtocol
 from .results import (
     BasePredictionResult,
     GenericPredictionResult,
@@ -14,7 +13,7 @@ __all__ = [
     # Interfaces
     "CallableModel",
     "PredictionInterface",
-    "Predictor",
+    "PredictorProtocol",
     # Result classes
     "BasePredictionResult",
     "HumanReadablePredictionResult",

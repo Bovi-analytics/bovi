@@ -1,7 +1,7 @@
 # YOLO Cow Detection Configuration
 experiment_name: yolo
 experiment_version: 1
-description: "YOLO cow detection - inference pipeline"
+description: "YOLO cow detection - training, evaluation, and inference pipeline"
 verbose: 1
 
 # --------------------------------------------------------------------------
@@ -17,49 +17,6 @@ path_templates:
   temp_weights:
     template: "/local_disk0/tmp/models/yolo/weights/{weights_file}"
     uses: weights_file
-
-# Data pipeline
-dataloaders:
-  train:
-    source:
-      type: local
-      root_dir: "data/experiments/yolo/input/train/images/"
-      file_pattern: "*.jp*g"
-
-    transforms:
-      - name: image_validation
-        params:
-          min_size: 32
-          max_size: 8192
-          required_channels: 3
-
-    framework: pytorch
-
-  validation:
-    source:
-      type: local
-      root_dir: "data/experiments/yolo/input/val/images/"
-      file_pattern: "*.jp*g"
-
-    transforms:
-      - name: image_validation
-
-    framework: pytorch
-
-  inference:
-    source:
-      type: local
-      root_dir: "data/experiments/yolo/input/test/images/"
-      file_pattern: "*.jp*g"
-
-    transforms:
-      - name: image_validation
-
-    framework: pytorch
-    dataloader:
-      batch_size: 1
-      shuffle: false
-      num_workers: 0
 
 # Model settings
 models:
@@ -77,12 +34,88 @@ models:
       iou: 0.45
       imgsz: 640
 
+    # Native Ultralytics owns detection labels, augmentation, batching and loss.
+    # This is deliberately separate from the inference-oriented Bovi dataloaders.
+    training:
+      dataset_yaml_path: "data/experiments/yolo/versions/v1/config/dataset.yaml"
+      epochs: 1
+      image_size: 64
+      batch_size: 1
+      device: cpu
+      workers: 0
+      patience: 10
+      optimizer: auto
+      initial_learning_rate: 0.01
+      seed: 0
+      deterministic: true
+      reuse_model_weights: true
+      resume: false
+      plots: false
+      verbose: false
+
+    evaluation:
+      dataset_yaml_path: "data/experiments/yolo/versions/v1/config/dataset.yaml"
+      split: val
+      image_size: 64
+      batch_size: 1
+      device: cpu
+      workers: 0
+      confidence_threshold: 0.001
+      iou_threshold: 0.7
+      metrics: [precision, recall, map50, map50_95]
+      plots: false
+      verbose: false
+
+    dataset:
+      return_metadata: true
+
+    dataloaders:
+      train:
+        source:
+          type: local
+          root_dir: "data/experiments/yolo/input/train/images/"
+          file_pattern: "*.jp*g"
+
+        transforms:
+          - name: image_validation
+            params:
+              min_size: 32
+              max_size: 8192
+              required_channels: 3
+
+      validation:
+        source:
+          type: local
+          root_dir: "data/experiments/yolo/input/val/images/"
+          file_pattern: "*.jp*g"
+
+        transforms:
+          - name: image_validation
+          - name: image_resize
+            params:
+              target_size: [640, 640]
+              keep_aspect_ratio: true
+
+      inference:
+        source:
+          type: local
+          root_dir: "data/experiments/yolo/input/test/images/"
+          file_pattern: "*.jp*g"
+
+        transforms:
+          - name: image_validation
+          - name: image_resize
+            params:
+              target_size: [640, 640]
+              keep_aspect_ratio: true
+
+        dataloader:
+          batch_size: 1
+          shuffle: false
+          num_workers: 0
+
 # Unity Catalog (for future)
 unity_catalog:
   catalog: "projects"
   schema: "bovi_core"
   model_name: "yolo_cow_detection"
-
-# Dataset settings
-dataset:
-  return_metadata: true

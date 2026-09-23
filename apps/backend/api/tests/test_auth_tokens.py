@@ -291,6 +291,54 @@ def test_ensure_local_user_uses_database_global_role_instead_of_token_roles():
     asyncio.run(_run())
 
 
+def test_admin_organization_context_preserves_direct_membership_roles():
+    async def _run() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(User.__table__.create)  # type: ignore[union-attr]
+                await conn.run_sync(Organization.__table__.create)  # type: ignore[union-attr]
+                await conn.run_sync(OrganizationMembership.__table__.create)  # type: ignore[union-attr]
+
+            async with session_factory() as session:
+                admin = User(
+                    id=1,
+                    entra_tenant_id="tenant-a",
+                    entra_oid="admin-oid",
+                    account_type="entra",
+                    email="admin@example.test",
+                    name="DB Admin",
+                    role="Admin",
+                )
+                session.add(admin)
+                session.add(Organization(id=1, name="External Organization"))
+                session.add(Organization(id=2, name="Own Organization"))
+                session.add(OrganizationMembership(user_id=1, organization_id=2, role="Owner"))
+                await session.commit()
+
+            async with session_factory() as session:
+                current_user = await auth._ensure_local_user(
+                    TokenIdentity(
+                        entra_tenant_id="tenant-a",
+                        entra_oid="admin-oid",
+                        account_type="entra",
+                        email="admin@example.test",
+                        name="DB Admin",
+                    ),
+                    session,
+                )
+
+                assert [(org.id, org.role) for org in current_user.organizations] == [
+                    (1, "Admin"),
+                    (2, "Owner"),
+                ]
+        finally:
+            await engine.dispose()
+
+    asyncio.run(_run())
+
+
 def test_ensure_local_user_new_user_defaults_to_user_role():
     async def _run() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")

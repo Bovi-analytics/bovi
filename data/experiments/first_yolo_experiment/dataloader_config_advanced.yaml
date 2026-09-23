@@ -2,7 +2,7 @@
 # ADVANCED Dataloader Configuration Example
 # ============================================================================
 # This shows a more complete setup with:
-# - Multiple splits (train/val/test)
+# - Multiple splits (train/validation/test)
 # - Data augmentation for training
 # - Different settings per split
 
@@ -12,6 +12,9 @@ description: "Advanced dataloader with augmentation and multiple splits"
 
 models:
   yolo:
+    dataset:
+      return_metadata: true
+
     dataloaders:
       # -----------------------------------------------------------------------
       # TRAINING SET - with data augmentation
@@ -46,7 +49,6 @@ models:
               mean: [0.485, 0.456, 0.406]
               std: [0.229, 0.224, 0.225]
 
-        framework: pytorch
         transform_backend: albumentations
 
         dataloader:
@@ -58,7 +60,7 @@ models:
       # -----------------------------------------------------------------------
       # VALIDATION SET - no augmentation
       # -----------------------------------------------------------------------
-      val:
+      validation:
         source:
           type: local
           root_dir: "data/images/val"                  # Val subfolder (relative to project root)
@@ -76,7 +78,6 @@ models:
               mean: [0.485, 0.456, 0.406]
               std: [0.229, 0.224, 0.225]
 
-        framework: pytorch
         transform_backend: albumentations
 
         dataloader:
@@ -104,7 +105,6 @@ models:
               mean: [0.485, 0.456, 0.406]
               std: [0.229, 0.224, 0.225]
 
-        framework: pytorch
         transform_backend: albumentations
 
         dataloader:

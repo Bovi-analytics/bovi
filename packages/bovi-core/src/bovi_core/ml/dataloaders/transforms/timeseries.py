@@ -14,7 +14,7 @@ from typing import Any
 
 import numpy as np
 
-from bovi_core.ml.dataloaders.base.universal_transform import UniversalTransform
+from bovi_core.ml.dataloaders.transforms.base_transform import UniversalTransform
 from bovi_core.ml.dataloaders.transforms.registry import TransformRegistry
 
 logger = logging.getLogger(__name__)

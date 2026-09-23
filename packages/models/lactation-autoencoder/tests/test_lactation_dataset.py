@@ -2,17 +2,18 @@
 
 import json
 import pickle
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 from bovi_core.ml.dataloaders.sources import DictSource, TransformedSource
-from lactation_autoencoder.dataloaders.datasets.lactation_dataset import (
+from lactation_autoencoder.dataloaders.dataset import (
     LactationDataset,
     periodic_records_in_horizon,
     project_periodic_records_to_daily,
 )
-from lactation_autoencoder.dataloaders.sources.lactation_pkl_source import LactationPKLSource
-from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
+from lactation_autoencoder.dataloaders.source import LactationJSONSource
+from lactation_autoencoder.dataloaders.transforms import (
     HerdStatsEnrichmentTransform,
 )
 
@@ -126,7 +127,7 @@ def json_data_dir(tmp_path):
 @pytest.fixture
 def source(json_data_dir, herd_stats_dir):
     """Create enriched source (raw source + herd stats enrichment transform)."""
-    raw_source = LactationPKLSource(json_root_dir=json_data_dir)
+    raw_source = LactationJSONSource(json_root_dir=json_data_dir)
     enrich = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
     return TransformedSource(raw_source, [enrich])
 
@@ -135,6 +136,23 @@ def source(json_data_dir, herd_stats_dir):
 def dataset(source):
     """Create LactationDataset."""
     return LactationDataset(source, max_days=304)
+
+
+def test_input_examples_preserve_all_lactation_samples(dataset):
+    record = dataset.source.load_item(0)
+    multiple = LactationDataset(DictSource([record, record]), max_days=304)
+    example = multiple.get_input_example(n_samples=2)
+    samples = multiple.get_input_example(n_samples=2, batch=False)
+
+    assert isinstance(example, dict)
+    assert isinstance(samples, list)
+    assert len(samples) == 2
+    assert set(example) == set(multiple[0]["features"])
+    for name, values in example.items():
+        assert isinstance(values, np.ndarray)
+        assert values.shape[0] == 2
+        np.testing.assert_array_equal(values[0], samples[0][name])
+        np.testing.assert_array_equal(values[1], samples[1][name])
 
 
 class TestLactationDatasetBasic:
@@ -229,6 +247,22 @@ class TestLactationDatasetBasic:
         assert "herd_id" in metadata
         assert "parity" in metadata
         assert metadata["animal_id"] == "cow_001"
+
+    @patch("mlflow.models.infer_signature")
+    def test_mlflow_signature_uses_injected_predictor(
+        self,
+        infer_signature: MagicMock,
+        dataset: LactationDataset,
+    ) -> None:
+        predictor = MagicMock()
+        predictor.predict.return_value = {"prediction": [0.25]}
+        infer_signature.return_value = MagicMock()
+
+        result = dataset.get_mlflow_signature(predictor=predictor)
+
+        predictor.predict.assert_called_once()
+        assert predictor.predict.call_args.kwargs["return_format"] == "base"
+        assert result is infer_signature.return_value
 
     def test_periodic_records_project_inside_autoencoder_horizon(self):
         """Raw periodic records can include DIM 0 and records after day 304."""
@@ -439,7 +473,7 @@ class TestLactationDatasetBatching:
             with open(json_dir / f"animal_{i:03d}.json", "w") as f:
                 json.dump(lactation, f)
 
-        raw_source = LactationPKLSource(json_root_dir=json_dir)
+        raw_source = LactationJSONSource(json_root_dir=json_dir)
         enrich = HerdStatsEnrichmentTransform(herd_stats_dir=herd_stats_dir)
         source = TransformedSource(raw_source, [enrich])
         dataset = LactationDataset(source)

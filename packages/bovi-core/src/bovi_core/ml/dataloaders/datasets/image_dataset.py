@@ -1,7 +1,7 @@
 """
 Image dataset implementation.
 
-Returns raw NumPy arrays - transforms are applied in DataLoaders.
+Returns raw NumPy arrays; wrap with TransformedDataset for image transforms.
 """
 
 from __future__ import annotations
@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from PIL import Image
 
-from ..base import Dataset, DataSource
+from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 if TYPE_CHECKING:
     from bovi_core.config import Config
@@ -26,7 +27,8 @@ class ImageDataset(Dataset):
     Dataset for image classification/detection tasks.
 
     Loads images from a DataSource and returns raw NumPy arrays.
-    Transforms are NOT applied here - they happen in DataLoaders.
+    Transforms are not applied here. Use TransformedDataset after decoding;
+    loaders then batch the prepared samples and convert them to tensors.
 
     Args:
         source: DataSource to load images from.

@@ -1,7 +1,17 @@
-"""Lactation dataloaders, datasets, sources, and transforms."""
+"""Lactation data-pipeline components."""
 
-from .datasets import LactationDataset, LactationFeatures, LactationItem, collate_lactation_batch
-from .sources import LactationPKLSource
+from lactation_autoencoder.types import LactationFeatures, LactationItem
+
+from .config import (
+    LactationAutoencoderDataLoaderConfig,
+    LactationDatasetSettings,
+    LactationJSONSourceSettings,
+    LactationLoaderSettings,
+    LactationTransformSettings,
+)
+from .dataset import LactationDataset, collate_lactation_batch
+from .factory import create_dataloader
+from .source import LactationJSONSource
 from .transforms import (
     EventTokenizationTransform,
     HerdStatsNormalizationTransform,
@@ -9,14 +19,17 @@ from .transforms import (
 )
 
 __all__ = [
-    # Datasets
     "LactationDataset",
+    "LactationAutoencoderDataLoaderConfig",
+    "LactationDatasetSettings",
     "LactationFeatures",
     "LactationItem",
     "collate_lactation_batch",
-    # Sources
-    "LactationPKLSource",
-    # Transforms
+    "create_dataloader",
+    "LactationJSONSource",
+    "LactationJSONSourceSettings",
+    "LactationLoaderSettings",
+    "LactationTransformSettings",
     "EventTokenizationTransform",
     "MilkNormalizationTransform",
     "HerdStatsNormalizationTransform",

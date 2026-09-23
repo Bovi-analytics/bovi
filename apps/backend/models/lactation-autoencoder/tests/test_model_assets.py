@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from model_assets import ModelAssetError, ensure_model_assets
-from settings import Settings
+from settings import Settings, _default_model_local_root
 
 
 class _FakeDownload:
@@ -101,10 +101,9 @@ def test_settings_accepts_legacy_model_cache_dir_alias(tmp_path):
 
 
 def test_settings_default_model_cache_dir_points_to_repo_root():
-    settings = Settings()
     repo_root = Path(__file__).resolve().parents[5]
 
-    assert settings.autoencoder_model_local_root == str(repo_root)
+    assert _default_model_local_root() == str(repo_root)
 
 
 def test_ensure_model_assets_downloads_prefix_to_cache(tmp_path):

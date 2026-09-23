@@ -18,49 +18,6 @@ path_templates:
     template: "/local_disk0/tmp/models/yolo/weights/{weights_file}"
     uses: weights_file
 
-# Data pipeline
-dataloaders:
-  train:
-    source:
-      type: local
-      root_dir: "data/experiments/yolo/input/train/images/"
-      file_pattern: "*.jp*g"
-
-    transforms:
-      - name: image_validation
-        params:
-          min_size: 32
-          max_size: 8192
-          required_channels: 3
-
-    framework: pytorch
-
-  validation:
-    source:
-      type: local
-      root_dir: "data/experiments/yolo/input/val/images/"
-      file_pattern: "*.jp*g"
-
-    transforms:
-      - name: image_validation
-
-    framework: pytorch
-
-  inference:
-    source:
-      type: local
-      root_dir: "data/experiments/yolo/input/test/images/"
-      file_pattern: "*.jp*g"
-
-    transforms:
-      - name: image_validation
-
-    framework: pytorch
-    dataloader:
-      batch_size: 1
-      shuffle: false
-      num_workers: 0
-
 # Model settings
 models:
   yolo:
@@ -77,12 +34,56 @@ models:
       iou: 0.45
       imgsz: 640
 
+    dataset:
+      return_metadata: true
+
+    dataloaders:
+      train:
+        source:
+          type: local
+          root_dir: "data/experiments/yolo/input/train/images/"
+          file_pattern: "*.jp*g"
+
+        transforms:
+          - name: image_validation
+            params:
+              min_size: 32
+              max_size: 8192
+              required_channels: 3
+
+      validation:
+        source:
+          type: local
+          root_dir: "data/experiments/yolo/input/val/images/"
+          file_pattern: "*.jp*g"
+
+        transforms:
+          - name: image_validation
+          - name: image_resize
+            params:
+              target_size: [640, 640]
+              keep_aspect_ratio: true
+
+      inference:
+        source:
+          type: local
+          root_dir: "data/experiments/yolo/input/test/images/"
+          file_pattern: "*.jp*g"
+
+        transforms:
+          - name: image_validation
+          - name: image_resize
+            params:
+              target_size: [640, 640]
+              keep_aspect_ratio: true
+
+        dataloader:
+          batch_size: 1
+          shuffle: false
+          num_workers: 0
+
 # Unity Catalog (for future)
 unity_catalog:
   catalog: "projects"
   schema: "bovi_core"
   model_name: "yolo_cow_detection"
-
-# Dataset settings
-dataset:
-  return_metadata: true

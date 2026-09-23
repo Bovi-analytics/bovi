@@ -41,6 +41,12 @@ class CallableModel(Protocol):
     def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
+class PredictorProtocol(Protocol):
+    """Minimal prediction capability consumed by datasets and publishers."""
+
+    def predict(self, data: Any, **kwargs: Any) -> Any: ...
+
+
 class PredictionInterface(ABC, Generic[InputT, ResultT, ModelT]):
     """Abstract interface that all predictors must implement.
 
@@ -75,28 +81,21 @@ class PredictionInterface(ABC, Generic[InputT, ResultT, ModelT]):
     # Subclasses should override this to specify their result class
     result_class: type[ResultT] | None = None
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, model: ModelT, config: Config) -> None:
         """Initialize predictor with configuration.
 
         Args:
+            model: Callable runtime model used for inference.
             config: Application configuration instance
         """
         self.config = config
-        self.model_instance: ModelT | None = None
+        self.model = model
         self.initialize()
 
     @abstractmethod
     def initialize(self) -> None:
         """Initialize predictor resources and configurations."""
         pass
-
-    def set_model_instance(self, model_instance: ModelT) -> None:
-        """Set the loaded model instance after model initialization.
-
-        Args:
-            model_instance: The loaded model (torch.nn.Module, YOLO, TF model, etc.)
-        """
-        self.model_instance = model_instance
 
     @abstractmethod
     def predict(

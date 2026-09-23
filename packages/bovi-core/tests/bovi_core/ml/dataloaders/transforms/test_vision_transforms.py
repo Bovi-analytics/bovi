@@ -6,6 +6,8 @@ as replacements for the old vision.py wrapper classes.
 
 import numpy as np
 import pytest
+from bovi_core.ml.dataloaders.datasets import TransformedDataset
+from bovi_core.ml.dataloaders.transforms import AlbumentationsTransform, ImagePreprocessing
 
 A = pytest.importorskip(
     "albumentations", reason="Albumentations is required for vision transform tests"
@@ -341,7 +343,7 @@ class TestCrossFrameworkConsistency:
 
     pytestmark = [pytest.mark.slow, pytest.mark.torch, pytest.mark.tensorflow]
 
-    def test_resize_same_output_pytorch_tensorflow(self, image_source, mock_dataloader_config):
+    def test_resize_same_output_pytorch_tensorflow(self, image_source):
         """Same resize transform produces same results across frameworks."""
         import torch
         from bovi_core.ml.dataloaders.datasets import ImageDataset
@@ -355,12 +357,15 @@ class TestCrossFrameworkConsistency:
 
         # Get first sample from PyTorch loader
         pt_loader = PyTorchDataLoader(
-            dataset,
-            config=mock_dataloader_config,
-            model_name="test_model",
+            TransformedDataset(
+                dataset,
+                [
+                    AlbumentationsTransform(transform),
+                    ImagePreprocessing(normalize=True, channels_first=True),
+                ],
+            ),
             split="train",
             batch_size=1,
-            transform=transform,
             shuffle=False,
         )
         pt_batch = next(iter(pt_loader))
@@ -370,12 +375,11 @@ class TestCrossFrameworkConsistency:
 
         # Get first sample from TensorFlow loader
         tf_loader = TensorFlowDataLoader(
-            dataset,
-            config=mock_dataloader_config,
-            model_name="test_model",
+            TransformedDataset(
+                dataset, [AlbumentationsTransform(transform), ImagePreprocessing(normalize=True)]
+            ),
             split="train",
             batch_size=1,
-            transform=transform,
             shuffle=False,
         )
         tf_batch = next(iter(tf_loader))
@@ -393,7 +397,7 @@ class TestCrossFrameworkConsistency:
         # Values should be very close (may differ slightly due to float conversion)
         np.testing.assert_allclose(pt_image_hwc, tf_image_hwc, rtol=1e-4, atol=1e-4)
 
-    def test_normalize_same_output_pytorch_tensorflow(self, image_source, mock_dataloader_config):
+    def test_normalize_same_output_pytorch_tensorflow(self, image_source):
         """Normalize transform produces consistent results across frameworks."""
         import torch
         from bovi_core.ml.dataloaders.datasets import ImageDataset
@@ -412,14 +416,16 @@ class TestCrossFrameworkConsistency:
 
         # PyTorch loader
         pt_loader = PyTorchDataLoader(
-            dataset,
-            config=mock_dataloader_config,
-            model_name="test_model",
+            TransformedDataset(
+                dataset,
+                [
+                    AlbumentationsTransform(transform),
+                    ImagePreprocessing(normalize=True, channels_first=True),
+                ],
+            ),
             split="train",
             batch_size=1,
-            transform=transform,
             shuffle=False,
-            auto_normalize=False,  # Don't double-normalize
         )
         pt_batch = next(iter(pt_loader))
         pt_image = pt_batch["image"]
@@ -428,12 +434,11 @@ class TestCrossFrameworkConsistency:
 
         # TensorFlow loader
         tf_loader = TensorFlowDataLoader(
-            dataset,
-            config=mock_dataloader_config,
-            model_name="test_model",
+            TransformedDataset(
+                dataset, [AlbumentationsTransform(transform), ImagePreprocessing(normalize=True)]
+            ),
             split="train",
             batch_size=1,
-            transform=transform,
             shuffle=False,
         )
         tf_batch = next(iter(tf_loader))

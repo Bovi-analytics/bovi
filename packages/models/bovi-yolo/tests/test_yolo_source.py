@@ -1,89 +1,77 @@
-"""Tests for YOLO image source factory."""
+"""Tests for YOLO source and dataloader construction."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
+from bovi_core.config import Config
+from bovi_core.ml import DataLoaderFactoryRegistry
+from bovi_core.ml import create_dataloader as dispatch_dataloader
+from bovi_core.ml.dataloaders import PyTorchDataLoader
+from bovi_core.ml.dataloaders.datasets import TransformedDataset
 from bovi_core.ml.dataloaders.sources import LocalFileSource
+from bovi_yolo.dataloaders import (
+    YOLODataLoaderConfig,
+    YOLODatasetSettings,
+    YOLOLocalSourceSettings,
+    create_dataloader,
+    create_source,
+)
+from bovi_yolo.models import YOLOModelConfig
+from pydantic import ValidationError
 
 
-class TestYOLOImageSourceFromLocal:
-    def test_creates_local_file_source(self, temp_image_dir: Path) -> None:
-        """Test from_local creates a LocalFileSource."""
-        from bovi_yolo.dataloaders.sources import YOLOImageSource
+def test_dataloader_factory_is_discovered_from_package_entry_point() -> None:
+    DataLoaderFactoryRegistry.clear()
 
-        source = YOLOImageSource.from_local(temp_image_dir / "train" / "images")
-        assert isinstance(source, LocalFileSource)
+    assert DataLoaderFactoryRegistry.get("yolo") is create_dataloader
 
-    def test_source_length_matches_images(self, temp_image_dir: Path) -> None:
-        """Test source length matches number of images."""
-        from bovi_yolo.dataloaders.sources import YOLOImageSource
 
-        source = YOLOImageSource.from_local(temp_image_dir / "train" / "images")
-        assert len(source) == 1
+def test_create_source_from_config(yolo_config: Config) -> None:
+    data_config = YOLODataLoaderConfig.from_config(yolo_config, split="inference")
+    source = create_source(data_config.source)
 
-    def test_load_item_returns_bytes(self, temp_image_dir: Path) -> None:
-        """Test load_item returns image bytes."""
-        from bovi_yolo.dataloaders.sources import YOLOImageSource
+    assert isinstance(source, LocalFileSource)
+    assert len(source) >= 1
 
-        source = YOLOImageSource.from_local(temp_image_dir / "train" / "images")
-        item = source.load_item(0)
-        assert item is not None
 
-    def test_get_metadata_returns_expected_keys(self, temp_image_dir: Path) -> None:
-        """Test get_metadata returns path and filename."""
-        from bovi_yolo.dataloaders.sources import YOLOImageSource
+def test_create_dataloader_composes_pipeline(yolo_config: Config) -> None:
+    data_config = YOLODataLoaderConfig.from_config(yolo_config, split="inference")
+    model_config = YOLOModelConfig.from_config(yolo_config)
+    loader = dispatch_dataloader(
+        "yolo",
+        data_config,
+        model_config,
+    )
 
-        source = YOLOImageSource.from_local(temp_image_dir / "train" / "images")
-        metadata = source.get_metadata(0)
-        assert "path" in metadata
-        assert "filename" in metadata
+    batch = next(iter(loader))
 
-    def test_file_pattern_filtering(self, temp_image_dir: Path) -> None:
-        """Test file pattern correctly filters files."""
-        from bovi_yolo.dataloaders.sources import YOLOImageSource
+    assert isinstance(loader, PyTorchDataLoader)
+    assert isinstance(loader.dataset, TransformedDataset)
+    assert tuple(batch["image"].shape) == (1, 3, 640, 640)
+    assert batch["image"].is_floating_point()
+    assert batch["image"].min() >= 0
+    assert batch["image"].max() <= 1
 
-        # Only .jpeg files
-        source = YOLOImageSource.from_local(
-            temp_image_dir / "train" / "images", file_pattern="*.jpeg"
+
+def test_data_config_supports_direct_construction(tmp_path: Path) -> None:
+    data_config = YOLODataLoaderConfig(
+        split="calibration",
+        dataset=YOLODatasetSettings(),
+        source=YOLOLocalSourceSettings(type="local", root_dir=tmp_path),
+    )
+
+    assert data_config.split == "calibration"
+    assert data_config.source.root_dir == tmp_path
+
+
+def test_data_config_rejects_unsupported_source_type() -> None:
+    with pytest.raises(ValidationError, match="literal_error"):
+        YOLODataLoaderConfig.model_validate(
+            {
+                "split": "train",
+                "dataset": {"return_metadata": True},
+                "source": {"type": "s3", "root_dir": "/tmp"},
+            }
         )
-        assert len(source) == 1
-
-        # Non-matching pattern
-        source_empty = YOLOImageSource.from_local(
-            temp_image_dir / "train" / "images", file_pattern="*.png"
-        )
-        assert len(source_empty) == 0
-
-    def test_custom_file_pattern(self, temp_image_dir: Path) -> None:
-        """Test custom file pattern works."""
-        from bovi_yolo.dataloaders.sources import YOLOImageSource
-
-        source = YOLOImageSource.from_local(
-            temp_image_dir / "test" / "images", file_pattern="*.jpg"
-        )
-        assert len(source) == 1
-
-    def test_empty_directory(self, tmp_path: Path) -> None:
-        """Test handling of empty directory."""
-        from bovi_yolo.dataloaders.sources import YOLOImageSource
-
-        empty_dir = tmp_path / "empty"
-        empty_dir.mkdir()
-        source = YOLOImageSource.from_local(empty_dir)
-        assert len(source) == 0
-
-
-class TestYOLOImageSourceFromConfig:
-    def test_unsupported_source_type_raises(self) -> None:
-        """Test that unsupported source type raises ValueError."""
-        from unittest.mock import MagicMock
-
-        from bovi_yolo.dataloaders.sources import YOLOImageSource
-
-        config = MagicMock()
-        config.experiment.dataloaders.train.source.type = "s3"
-
-        with pytest.raises(ValueError, match="Unsupported source type"):
-            YOLOImageSource.from_config(config, split="train")

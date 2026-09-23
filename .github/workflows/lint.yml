@@ -24,10 +24,10 @@ jobs:
         run: uv sync --all-packages
 
       - name: Ruff check
-        run: uv run ruff check
+        run: uv run ruff check --exclude "*.md"
 
       - name: Ruff format check
-        run: uv run ruff format --check
+        run: uv run ruff format --check --exclude "*.md"
 
       - name: Basedpyright
         run: uv run basedpyright

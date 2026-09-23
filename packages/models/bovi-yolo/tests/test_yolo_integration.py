@@ -27,7 +27,7 @@ def _weights_available() -> bool:
 class TestSourceToDatasetPipeline:
     def test_source_to_dataset(self, temp_image_dir: Path) -> None:
         """Test creating dataset from source."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -44,7 +44,7 @@ class TestSourceToDatasetPipeline:
 
     def test_multiple_splits(self, temp_image_dir: Path) -> None:
         """Test loading from multiple data splits."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         for split, pattern in [
             ("train", "*.jpeg"),
@@ -62,7 +62,7 @@ class TestSourceToDatasetPipeline:
 class TestTransformPipeline:
     def test_validation_on_dataset_output(self, temp_image_dir: Path) -> None:
         """Test ImageValidationTransform works on dataset output."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
         from bovi_yolo.dataloaders.transforms import (
             ImageValidationTransform,
         )
@@ -75,12 +75,12 @@ class TestTransformPipeline:
         item = dataset[0]
 
         transform = ImageValidationTransform()
-        validated = transform(item)
+        validated = transform(**item)
         assert np.array_equal(validated["image"], item["image"])
 
     def test_resize_on_dataset_output(self, temp_image_dir: Path) -> None:
         """Test ImageResizeTransform works on dataset output."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
         from bovi_yolo.dataloaders.transforms import ImageResizeTransform
 
         source = LocalFileSource(
@@ -91,16 +91,17 @@ class TestTransformPipeline:
         item = dataset[0]
 
         transform = ImageResizeTransform(target_size=(320, 320))
-        resized = transform(item)
+        resized = transform(**item)
         assert resized["image"].shape[:2] == (320, 320)
 
 
 class TestConfigDrivenPipeline:
     def test_source_from_config(self, yolo_config: Config) -> None:
         """Test creating source from config."""
-        from bovi_yolo.dataloaders.sources import YOLOImageSource
+        from bovi_yolo.dataloaders import YOLODataLoaderConfig, create_source
 
-        source = YOLOImageSource.from_config(yolo_config, split="inference")
+        data_config = YOLODataLoaderConfig.from_config(yolo_config, split="inference")
+        source = create_source(data_config.source)
         assert len(source) >= 1
 
     def test_transforms_from_config(self, yolo_config: Config) -> None:
@@ -108,12 +109,31 @@ class TestConfigDrivenPipeline:
         from bovi_core.ml.dataloaders.transforms.registry import (
             TransformRegistry,
         )
+        from bovi_yolo.dataloaders.transforms import ImageValidationTransform
 
         transforms = TransformRegistry.from_config(
-            yolo_config.experiment.dataloaders.inference.transforms
+            yolo_config.experiment.models.yolo.dataloaders.inference.transforms
         )
         assert len(transforms) >= 1
-        assert "image_validation" in transforms
+        assert isinstance(transforms, list)
+        assert isinstance(transforms[0], ImageValidationTransform)
+
+    def test_configured_transforms_run_in_vision_pipeline(
+        self,
+        yolo_config: Config,
+        sample_image: np.ndarray,
+    ) -> None:
+        """YOLO transforms compose through the loader's Albumentations contract."""
+        from bovi_core.ml.dataloaders.transforms import build_vision_pipeline
+
+        pipeline = build_vision_pipeline(
+            yolo_config.experiment.models.yolo.dataloaders.inference.transforms
+        )
+
+        result = pipeline(image=sample_image)
+
+        assert result["image"].shape == (640, 640, 3)
+        assert result["image"].dtype == sample_image.dtype
 
 
 @pytest.mark.skipif(
@@ -123,7 +143,9 @@ class TestConfigDrivenPipeline:
 class TestEndToEndPipeline:
     def test_full_pipeline(self, yolo_config: Config, temp_image_dir: Path) -> None:
         """Test full pipeline: source -> dataset -> model -> predict."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_core.ml import ResolvedModelArtifact
+        from bovi_yolo.dataloaders.dataset import YOLODataset
+        from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
         from bovi_yolo.predictors import YOLOPredictor
         from bovi_yolo.predictors.results import YoloPredictionResult
 
@@ -134,14 +156,15 @@ class TestEndToEndPipeline:
         )
         dataset = YOLODataset(source=source)
 
-        # Predictor with real config
-        predictor = YOLOPredictor(config=yolo_config)
-
-        # Load model directly via ultralytics
-        from ultralytics import YOLO  # type: ignore[reportPrivateImportUsage]
-
-        yolo_model = YOLO(str(WEIGHTS_PATH))
-        predictor.set_model_instance(yolo_model)
+        model = YOLOModelProvider().load_artifact(
+            YOLOModelConfig.from_config(yolo_config),
+            ResolvedModelArtifact[object](
+                format="ultralytics-pt",
+                source_uri=WEIGHTS_PATH.resolve().as_uri(),
+                local_path=WEIGHTS_PATH,
+            ),
+        )
+        predictor = YOLOPredictor(model=model, config=yolo_config)
 
         # Predict
         image = dataset[0]["image"]
@@ -152,7 +175,9 @@ class TestEndToEndPipeline:
 
     def test_three_level_returns(self, yolo_config: Config, temp_image_dir: Path) -> None:
         """Test all three return formats work."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_core.ml import ResolvedModelArtifact
+        from bovi_yolo.dataloaders.dataset import YOLODataset
+        from bovi_yolo.models import YOLOModelConfig, YOLOModelProvider
         from bovi_yolo.predictors import YOLOPredictor
         from bovi_yolo.predictors.results import YoloPredictionResult
 
@@ -163,12 +188,15 @@ class TestEndToEndPipeline:
         dataset = YOLODataset(source=source)
         image = dataset[0]["image"]
 
-        predictor = YOLOPredictor(config=yolo_config)
-
-        from ultralytics import YOLO  # type: ignore[reportPrivateImportUsage]
-
-        yolo_model = YOLO(str(WEIGHTS_PATH))
-        predictor.set_model_instance(yolo_model)
+        model = YOLOModelProvider().load_artifact(
+            YOLOModelConfig.from_config(yolo_config),
+            ResolvedModelArtifact[object](
+                format="ultralytics-pt",
+                source_uri=WEIGHTS_PATH.resolve().as_uri(),
+                local_path=WEIGHTS_PATH,
+            ),
+        )
+        predictor = YOLOPredictor(model=model, config=yolo_config)
 
         raw = predictor.predict(image, return_format="raw")
         assert raw is not None

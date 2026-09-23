@@ -1,6 +1,6 @@
 """Tests for DataSource ABC."""
 
-from bovi_core.ml.dataloaders.base import DataSource
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 
 class MockDataSource(DataSource):

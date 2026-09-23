@@ -16,6 +16,7 @@ FAST_TARGETS = [
     "packages/bovi-core/tests",
     "packages/models/lactationcurve/tests",
     "packages/models/bestpred/tests",
+    "packages/models/scikit-sgd/tests",
     "apps/backend/api/tests",
     "apps/backend/models/lactation-curves/tests",
     "apps/backend/models/lactation-autoencoder/tests/test_schemas.py",
@@ -123,6 +124,20 @@ def select_tests(paths: set[str]) -> tuple[set[str], bool, bool, list[str]]:
 
         if path.startswith("packages/models/bestpred/"):
             add_target(targets, "packages/models/bestpred/tests")
+            continue
+
+        if path.startswith("packages/models/scikit-sgd/"):
+            add_target(targets, "packages/models/scikit-sgd/tests")
+            continue
+
+        if path.startswith("packages/models/pytorch-linear/"):
+            allow_torch = True
+            add_target(targets, "packages/models/pytorch-linear/tests")
+            continue
+
+        if path.startswith("packages/models/tensorflow-linear/"):
+            allow_tensorflow = True
+            add_target(targets, "packages/models/tensorflow-linear/tests")
             continue
 
         if path.startswith("packages/models/lactation-autoencoder/"):
@@ -278,6 +293,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--dry-run", action="store_true", help="print the selected pytest command")
     parser.add_argument("--fast", action="store_true", help="run the standard fast Python subset")
+    parser.add_argument(
+        "--all-tests",
+        action="store_true",
+        help="run all Python test targets while isolating framework-specific groups",
+    )
     parser.add_argument("--include-slow", action="store_true", help="include tests marked slow")
     parser.add_argument("--include-azure", action="store_true", help="include tests marked azure")
     parser.add_argument(
@@ -297,15 +317,18 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
 
-    if args.fast:
+    if args.all_tests:
+        paths = git_lines(["ls-files"])
+        targets, _allow_torch, _allow_tensorflow, notes = select_tests(paths)
+    elif args.fast:
         targets = set(FAST_TARGETS)
-        notes: list[str] = []
-        paths: set[str] = set()
+        notes = []
+        paths = set()
     else:
         paths = set(args.changed_path) if args.changed_path else changed_paths(args.base)
         targets, _allow_torch, _allow_tensorflow, notes = select_tests(paths)
 
-    for note in notes:
+    for note in dict.fromkeys(notes):
         print(f"note: {note}", file=sys.stderr)
 
     if not targets:
