@@ -11,7 +11,7 @@ from bovi_core.ml.dataloaders.sources import LocalFileSource
 class TestYOLODataset:
     def test_dataset_length(self, temp_image_dir: Path) -> None:
         """Test dataset length matches source."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -22,7 +22,7 @@ class TestYOLODataset:
 
     def test_getitem_returns_dict(self, temp_image_dir: Path) -> None:
         """Test __getitem__ returns dict with expected keys."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -37,7 +37,7 @@ class TestYOLODataset:
 
     def test_image_is_numpy_uint8(self, temp_image_dir: Path) -> None:
         """Test image is numpy array with correct dtype."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -53,7 +53,7 @@ class TestYOLODataset:
 
     def test_image_shape_hwc(self, temp_image_dir: Path) -> None:
         """Test image shape is (H, W, C)."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -68,7 +68,7 @@ class TestYOLODataset:
 
     def test_metadata_always_present(self, temp_image_dir: Path) -> None:
         """Test metadata is always returned (return_metadata=True)."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -84,7 +84,7 @@ class TestYOLODataset:
 
     def test_get_image_paths(self, temp_image_dir: Path) -> None:
         """Test get_image_paths returns list of paths."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -99,7 +99,7 @@ class TestYOLODataset:
 
     def test_get_image_sizes(self, temp_image_dir: Path) -> None:
         """Test get_image_sizes returns (height, width) tuples."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -115,7 +115,7 @@ class TestYOLODataset:
 
     def test_label_is_split_name(self, temp_image_dir: Path) -> None:
         """Test label uses split directory name, not 'images'."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         for split in ("train", "val", "test"):
             pattern = "*.jpeg" if split == "train" else "*.jpg"
@@ -131,7 +131,7 @@ class TestYOLODataset:
         """Test modified field is an ISO timestamp string, not a raw float."""
         from datetime import datetime
 
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -149,7 +149,7 @@ class TestYOLODataset:
 
     def test_metadata_contains_image_dimensions(self, temp_image_dir: Path) -> None:
         """Test metadata includes height and width from the loaded image."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "train" / "images",
@@ -166,7 +166,7 @@ class TestYOLODataset:
 
     def test_iteration(self, temp_image_dir: Path) -> None:
         """Test dataset can be iterated."""
-        from bovi_yolo.dataloaders.datasets import YOLODataset
+        from bovi_yolo.dataloaders.dataset import YOLODataset
 
         source = LocalFileSource(
             root_dir=temp_image_dir / "test" / "images",

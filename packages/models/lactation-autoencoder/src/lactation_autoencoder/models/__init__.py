@@ -1,9 +1,11 @@
 """Lactation models."""
 
-from .lactation_model import LactationAutoencoderModel
-from .lactation_unity_catalog import LactationSavedModelWrapper
+from .config import LactationAutoencoderModelConfig
+from .model import LactationAutoencoderModel
+from .provider import LactationAutoencoderModelProvider
 
 __all__ = [
     "LactationAutoencoderModel",
-    "LactationSavedModelWrapper",
+    "LactationAutoencoderModelConfig",
+    "LactationAutoencoderModelProvider",
 ]

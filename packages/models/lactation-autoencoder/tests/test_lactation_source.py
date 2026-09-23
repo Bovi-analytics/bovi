@@ -1,9 +1,9 @@
-"""Tests for LactationPKLSource."""
+"""Tests for LactationJSONSource."""
 
 import json
 
 import pytest
-from lactation_autoencoder.dataloaders.sources.lactation_pkl_source import LactationPKLSource
+from lactation_autoencoder.dataloaders.source import LactationJSONSource
 
 
 @pytest.fixture
@@ -50,12 +50,12 @@ def json_data_dir(tmp_path):
     return json_dir
 
 
-class TestLactationPKLSourceInitialization:
-    """Test LactationPKLSource initialization."""
+class TestLactationJSONSourceInitialization:
+    """Test LactationJSONSource initialization."""
 
     def test_source_initialization(self, json_data_dir):
         """Test source initializes correctly."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         assert len(source) == 3
         assert source.json_root_dir == json_data_dir
@@ -63,21 +63,21 @@ class TestLactationPKLSourceInitialization:
     def test_missing_json_directory(self):
         """Test error when JSON directory doesn't exist."""
         with pytest.raises(ValueError, match="JSON directory not found"):
-            LactationPKLSource(json_root_dir="/nonexistent/path")
+            LactationJSONSource(json_root_dir="/nonexistent/path")
 
 
-class TestLactationPKLSourceBasic:
-    """Test basic LactationPKLSource functionality."""
+class TestLactationJSONSourceBasic:
+    """Test basic LactationJSONSource functionality."""
 
     def test_source_length(self, json_data_dir):
         """Test source returns correct length."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         assert len(source) == 3
 
     def test_load_item_basic(self, json_data_dir):
         """Test load_item returns data."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         item = source.load_item(0)
         assert isinstance(item, dict)
@@ -87,7 +87,7 @@ class TestLactationPKLSourceBasic:
 
     def test_load_item_has_milk_data(self, json_data_dir):
         """Test load_item includes milk data."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         item = source.load_item(0)
         assert "milk" in item
@@ -95,7 +95,7 @@ class TestLactationPKLSourceBasic:
 
     def test_load_item_has_events(self, json_data_dir):
         """Test load_item includes events."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         item = source.load_item(0)
         assert "events" in item
@@ -103,21 +103,21 @@ class TestLactationPKLSourceBasic:
 
     def test_load_item_no_herd_stats(self, json_data_dir):
         """Test load_item does NOT include herd_stats (enrichment is a transform now)."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         item = source.load_item(0)
         assert "herd_stats" not in item
 
     def test_load_item_no_event_to_idx(self, json_data_dir):
         """Test load_item does NOT include event_to_idx (tokenization is a transform now)."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         item = source.load_item(0)
         assert "event_to_idx" not in item
 
     def test_iteration(self, json_data_dir):
         """Test iterating over source."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         items = list(source)
         assert len(items) == 3
@@ -127,12 +127,12 @@ class TestLactationPKLSourceBasic:
             assert "herd_stats" not in item
 
 
-class TestLactationPKLSourceMemoryManagement:
+class TestLactationJSONSourceMemoryManagement:
     """Test memory management options."""
 
     def test_keep_in_memory_true(self, json_data_dir):
         """Test with keep_in_memory=True."""
-        source = LactationPKLSource(
+        source = LactationJSONSource(
             json_root_dir=json_data_dir,
             keep_in_memory=True,
         )
@@ -141,7 +141,7 @@ class TestLactationPKLSourceMemoryManagement:
 
     def test_keep_in_memory_false(self, json_data_dir):
         """Test with keep_in_memory=False."""
-        source = LactationPKLSource(
+        source = LactationJSONSource(
             json_root_dir=json_data_dir,
             keep_in_memory=False,
         )
@@ -150,12 +150,12 @@ class TestLactationPKLSourceMemoryManagement:
 
     def test_consistent_access_with_and_without_cache(self, json_data_dir):
         """Test that cached and non-cached access return same data."""
-        source_cached = LactationPKLSource(
+        source_cached = LactationJSONSource(
             json_root_dir=json_data_dir,
             keep_in_memory=True,
         )
 
-        source_uncached = LactationPKLSource(
+        source_uncached = LactationJSONSource(
             json_root_dir=json_data_dir,
             keep_in_memory=False,
         )
@@ -167,26 +167,26 @@ class TestLactationPKLSourceMemoryManagement:
         assert item_cached["milk"] == item_uncached["milk"]
 
 
-class TestLactationPKLSourceLoadItem:
+class TestLactationJSONSourceLoadItem:
     """Test load_item behavior."""
 
     def test_first_item(self, json_data_dir):
         """Test accessing first item."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         item = source.load_item(0)
         assert item["animal_id"] == "cow_001"
 
     def test_last_item(self, json_data_dir):
         """Test accessing last item via index calculation."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         item = source.load_item(len(source) - 1)
         assert item["animal_id"] == "cow_003"
 
     def test_out_of_bounds(self, json_data_dir):
         """Test out of bounds indexing."""
-        source = LactationPKLSource(json_root_dir=json_data_dir)
+        source = LactationJSONSource(json_root_dir=json_data_dir)
 
         with pytest.raises((IndexError, KeyError)):
             source.load_item(100)

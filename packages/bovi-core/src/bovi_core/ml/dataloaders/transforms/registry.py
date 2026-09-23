@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import inspect
 import logging
-from collections import OrderedDict
 from collections.abc import Callable
 from typing import Any, TypeVar
 
@@ -271,13 +270,13 @@ class TransformRegistry:
         return A.Compose(transforms, **compose_kwargs)
 
     @classmethod
-    def from_config(cls, transform_specs: list[dict[str, object]]) -> OrderedDict[str, object]:
+    def from_config(cls, transform_specs: list[dict[str, object]]) -> list[object]:
         """
-        Build an ordered dict of transforms from configuration specifications.
+        Build an ordered sequence of transforms from configuration specifications.
 
         This is a convenience method for creating multiple transforms from
-        a config file's transform list. Returns an OrderedDict so transforms
-        can be accessed by name or iterated in order.
+        a config file's transform list. Every specification creates a separate
+        instance, including repeated transform names, in configuration order.
 
         Args:
             transform_specs: List of transform specifications, each containing:
@@ -285,7 +284,10 @@ class TransformRegistry:
                 - params: Optional dict of parameters for the transform
 
         Returns:
-            OrderedDict mapping transform names to instantiated transform objects
+            List of instantiated transform objects in configuration order.
+
+        Raises:
+            TypeError: A transform's params is not a dictionary.
 
         Example:
             >>> # In config.yaml:
@@ -296,25 +298,22 @@ class TransformRegistry:
             >>> #   - name: milk_normalization
             >>>
             >>> transforms = TransformRegistry.from_config(
-            ...     config.experiment.dataloaders.train.transforms
+            ...     config.experiment.models.yolo.dataloaders.train.transforms
             ... )
-            >>> # Access by name:
-            >>> transforms['imputation']
             >>> # Iterate in order:
-            >>> for name, transform in transforms.items():
+            >>> for transform in transforms:
             ...     data = transform(data)
-            >>> # Convert to list:
-            >>> list(transforms.values())
 
         """
-        transforms: OrderedDict[str, object] = OrderedDict()
+        transforms: list[object] = []
 
         for spec in transform_specs:
             name = str(spec["name"])
             params_value = spec.get("params", {})
-            params: dict[str, object] = params_value if isinstance(params_value, dict) else {}
-            transform = cls.create(name, **params)
-            transforms[name] = transform
+            if not isinstance(params_value, dict):
+                raise TypeError(f"Transform {name!r} params must be a dictionary")
+            transform = cls.create(name, **params_value)
+            transforms.append(transform)
 
         return transforms
 

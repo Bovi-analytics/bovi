@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from bovi_core.ml.dataloaders.base.data_source import DataSource
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 
 class DictSource(DataSource[dict[str, Any]]):

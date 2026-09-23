@@ -1,26 +1,11 @@
-"""YOLO models."""
+"""YOLO runtime model and provider."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-from .yolo_model import YOLOModel
-
-if TYPE_CHECKING:
-    from .yolo_unity_catalog import YOLOModelWrapper
-
-
-def __getattr__(name: str) -> type:
-    """Lazy import for YOLOModelWrapper to avoid requiring mlflow at import time."""
-    if name == "YOLOModelWrapper":
-        from .yolo_unity_catalog import YOLOModelWrapper
-
-        return YOLOModelWrapper
-    msg = f"module {__name__!r} has no attribute {name!r}"
-    raise AttributeError(msg)
-
+from .config import YOLOModelConfig
+from .model import YOLOModel
+from .provider import YOLOModelProvider
 
 __all__ = [
     "YOLOModel",
-    "YOLOModelWrapper",
+    "YOLOModelConfig",
+    "YOLOModelProvider",
 ]

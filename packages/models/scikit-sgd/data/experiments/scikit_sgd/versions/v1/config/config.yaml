@@ -1,0 +1,74 @@
+experiment_name: scikit_sgd
+experiment_version: 1
+description: "Minimal CPU regression training example for Bovi Core"
+verbose: 1
+
+models:
+  scikit_sgd:
+    type: scikit_sgd
+    framework: sklearn
+
+    architecture:
+      feature_names: [days_in_milk, parity, previous_yield]
+      fit_intercept: true
+      random_state: 42
+
+    dataset:
+      target_name: milk_yield
+
+    dataloaders:
+      train:
+        source:
+          type: json_records
+          path: "data/experiments/scikit_sgd/input/train.json"
+        transforms:
+          - name: numeric_clip
+            params:
+              ranges:
+                days_in_milk: [1, 305]
+                parity: [1, 5]
+                previous_yield: [0, 60]
+          - name: numeric_scale
+            params:
+              factors:
+                days_in_milk: 305
+                parity: 5
+                previous_yield: 60
+        dataloader:
+          batch_size: 4
+          shuffle: true
+
+      validation:
+        source:
+          type: json_records
+          path: "data/experiments/scikit_sgd/input/validation.json"
+        transforms:
+          - name: numeric_clip
+            params:
+              ranges:
+                days_in_milk: [1, 305]
+                parity: [1, 5]
+                previous_yield: [0, 60]
+          - name: numeric_scale
+            params:
+              factors:
+                days_in_milk: 305
+                parity: 5
+                previous_yield: 60
+        dataloader:
+          batch_size: 3
+          shuffle: false
+
+    training:
+      epochs: 40
+      learning_rate: 0.05
+      learning_rate_schedule: constant
+      loss: squared_error
+      penalty: l2
+      alpha: 0.0001
+      average: false
+      early_stopping_patience: 8
+      min_delta: 0.0001
+
+    evaluation:
+      metrics: [mse, mae, r2]

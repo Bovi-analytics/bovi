@@ -4,7 +4,7 @@ import pickle
 
 import numpy as np
 import pytest
-from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
+from lactation_autoencoder.dataloaders.transforms import (
     EventTokenizationTransform,
     HerdStatsEnrichmentTransform,
     HerdStatsNormalizationTransform,
@@ -697,7 +697,7 @@ class TestLactationTransformsEdgeCases:
 
 def test_herd_stats_range_normalization_midpoint():
     """Value at range midpoint normalizes to 0.5."""
-    from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
+    from lactation_autoencoder.dataloaders.transforms import (
         HerdStatsRangeNormalizationTransform,
     )
 
@@ -733,7 +733,7 @@ def test_herd_stats_range_normalization_midpoint():
 
 def test_herd_stats_range_normalization_clamps():
     """Values outside range are clamped to [0, 1]."""
-    from lactation_autoencoder.dataloaders.transforms.lactation_transforms import (
+    from lactation_autoencoder.dataloaders.transforms import (
         HerdStatsRangeNormalizationTransform,
     )
 

@@ -188,6 +188,61 @@ def test_admin_overview_returns_all_categories_without_raw_payloads(client, mult
     assert "actual_yields" not in encoded
 
 
+def test_admin_overview_explains_warning_details(client, multi_org_auth):
+    _seed_admin_items(client)
+    override = client.app.dependency_overrides[get_session]
+
+    async def _add_challenge_warning() -> None:
+        async for session in override():
+            challenge = await session.get(Challenge, 101)
+            assert challenge is not None
+            challenge.ingest_status = "warning"
+            challenge.ingest_warnings = ["One lactation was excluded from the challenge."]
+            session.add(challenge)
+            await session.commit()
+            break
+
+    asyncio.run(_add_challenge_warning())
+    multi_org_auth.as_user("admin")
+
+    response = client.get("/admin/submissions-overview?organization_id=all")
+
+    assert response.status_code == 200
+    items = response.json()["items"]
+
+    submission = next(item for item in items if item["item_type"] == "benchmark_submission")
+    assert submission["status"] == "warning"
+    assert submission["issues"] == [
+        {
+            "severity": "warning",
+            "title": "Invalid result rows excluded",
+            "message": (
+                "1 cow had a missing or unparseable lactation yield and was excluded "
+                "from the benchmark statistics."
+            ),
+            "affected_count": 1,
+            "sample_ids": ["cow-bad"],
+        }
+    ]
+
+    challenge = next(
+        item for item in items if item["item_type"] == "benchmark_challenge" and item["id"] == "101"
+    )
+    assert challenge["failed_count"] == 1
+    assert challenge["issues"][0]["message"] == ("One lactation was excluded from the challenge.")
+
+    upload = next(item for item in items if item["item_type"] == "herd_dataset_upload")
+    assert upload["issues"] == [
+        {
+            "severity": "warning",
+            "title": "Upload data warning",
+            "message": "Missing optional parity column.",
+            "affected_count": None,
+            "sample_ids": [],
+        }
+    ]
+
+
 def test_admin_overview_retains_archived_uploaded_datasets(client, multi_org_auth):
     _seed_admin_items(client)
     override = client.app.dependency_overrides[get_session]

@@ -24,6 +24,10 @@ import {
   setDevAccessToken,
 } from "./service";
 import type { AuthContextValue, AuthUser } from "./types";
+import {
+  getInitialOrganizationSelection,
+  requiresExternalOrganizationConfirmation,
+} from "./organization-selection";
 import { getSafePostLoginRedirect, POST_LOGIN_REDIRECT_KEY } from "./post-login-redirect";
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -88,19 +92,7 @@ function AuthProvider({ children }: { readonly children: ReactNode }) {
         const currentUser = await fetchMe(token);
         setUser(currentUser);
         const saved = window.localStorage.getItem(SELECTED_ORG_KEY);
-        const savedSelection =
-          saved === "all" && currentUser.is_admin
-            ? "all"
-            : saved
-              ? Number.parseInt(saved, 10)
-              : null;
-        const isValidSavedSelection =
-          savedSelection === "all" ||
-          (typeof savedSelection === "number" &&
-            currentUser.organizations.some((org) => org.id === savedSelection));
-        setSelectedOrganizationIdState(
-          isValidSavedSelection ? savedSelection : (currentUser.organizations[0]?.id ?? null)
-        );
+        setSelectedOrganizationIdState(getInitialOrganizationSelection(currentUser, saved));
         setAuthMarker(true);
         const redirectPath = getSafePostLoginRedirect(
           window.sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY)
@@ -132,14 +124,30 @@ function AuthProvider({ children }: { readonly children: ReactNode }) {
     });
   }, [instance]);
 
-  const setSelectedOrganizationId = useCallback((organizationId: number | "all" | null) => {
-    if (organizationId === null) {
-      window.localStorage.removeItem(SELECTED_ORG_KEY);
-    } else {
-      window.localStorage.setItem(SELECTED_ORG_KEY, String(organizationId));
-    }
-    setSelectedOrganizationIdState(organizationId);
-  }, []);
+  const setSelectedOrganizationId = useCallback(
+    (organizationId: number | "all" | null) => {
+      if (
+        user &&
+        typeof organizationId === "number" &&
+        requiresExternalOrganizationConfirmation(user, organizationId)
+      ) {
+        const organization = user.organizations.find((item) => item.id === organizationId);
+        const confirmed = window.confirm(
+          `You are not a member of ${organization?.name ?? "this organization"}. ` +
+            "Any data you create will be saved there. Continue?"
+        );
+        if (!confirmed) return;
+      }
+
+      if (organizationId === null) {
+        window.localStorage.removeItem(SELECTED_ORG_KEY);
+      } else {
+        window.localStorage.setItem(SELECTED_ORG_KEY, String(organizationId));
+      }
+      setSelectedOrganizationIdState(organizationId);
+    },
+    [user]
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({

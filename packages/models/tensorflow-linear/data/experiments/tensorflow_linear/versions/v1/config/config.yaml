@@ -1,0 +1,33 @@
+experiment_name: tensorflow_linear
+experiment_version: 1
+description: "CPU hello world: y = 2x + 1"
+models:
+  tensorflow_linear:
+    type: tensorflow_linear
+    framework: tensorflow
+    architecture:
+      feature_names: [x]
+    dataset:
+      target_name: y
+    dataloaders:
+      train:
+        source:
+          type: json_records
+          path: data/experiments/tensorflow_linear/input/train.json
+        transforms: []
+        dataloader:
+          batch_size: 4
+          shuffle: false
+      validation:
+        source:
+          type: json_records
+          path: data/experiments/tensorflow_linear/input/validation.json
+        transforms: []
+        dataloader:
+          batch_size: 4
+          shuffle: false
+    training:
+      epochs: 40
+      learning_rate: 0.1
+    evaluation:
+      metrics: [mse, mae]

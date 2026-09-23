@@ -14,7 +14,8 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 from bovi_core.ml.dataloaders import ImageDataset
-from bovi_core.ml.dataloaders.base import Dataset, DataSource
+from bovi_core.ml.dataloaders.datasets.base_dataset import Dataset
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 
 class MockImageSource(DataSource[bytes]):
@@ -198,8 +199,8 @@ class TestBatchSamples:
         batched = mock_dataset._batch_samples(samples)
 
         assert batched["data"].shape == (3, 2)
-        # Optional field with mixed None and int values becomes object array
-        assert batched["optional"].dtype == object
+        # Follow NumPy loader collation without discarding sample positions.
+        assert batched["optional"] == [None, 1, None]
 
     def test_batch_all_none(self, mock_dataset):
         """Test batching all None values"""
@@ -207,7 +208,7 @@ class TestBatchSamples:
 
         batched = mock_dataset._batch_samples(samples)
 
-        assert batched["field"] is None
+        assert batched["field"] == [None, None, None]
 
     def test_batch_empty_list(self, mock_dataset):
         """Test batching empty list"""
@@ -223,7 +224,7 @@ class TestGetMLflowSignature:
     )
     def test_input_only_signature(self, mock_dataset):
         """Test generating input-only signature"""
-        signature = mock_dataset.get_mlflow_signature(model=None, n_samples=5)
+        signature = mock_dataset.get_mlflow_signature(predictor=None, n_samples=5)
 
         assert signature is not None
         assert signature.inputs is not None
@@ -233,18 +234,16 @@ class TestGetMLflowSignature:
     @pytest.mark.skipif(
         pytest.importorskip("mlflow", minversion=None) is None, reason="mlflow not installed"
     )
-    def test_signature_with_model(self, mock_dataset):
-        """Test generating signature with model predictions"""
-        # Mock model
-        mock_model = Mock()
-        mock_model.predict.return_value = np.random.rand(5, 10)
+    def test_signature_with_predictor(self, mock_dataset):
+        """Test generating signature with predictor output."""
+        predictor = Mock()
+        predictor.predict.return_value = np.random.rand(5, 10)
 
-        signature = mock_dataset.get_mlflow_signature(model=mock_model, n_samples=5)
+        signature = mock_dataset.get_mlflow_signature(predictor=predictor, n_samples=5)
 
         assert signature is not None
         assert signature.inputs is not None
-        # Model should have been called
-        mock_model.predict.assert_called_once()
+        predictor.predict.assert_called_once()
 
     def test_signature_missing_mlflow(self, mock_dataset):
         """Test error when mlflow not installed"""
@@ -317,3 +316,90 @@ class TestIntegration:
         # If batched into array, check shape
         if hasattr(example["image"], "shape"):
             assert example["image"].shape[0] == 3  # batch size
+
+
+@pytest.mark.parametrize("n_samples", [0, -1])
+def test_input_example_rejects_nonpositive_sample_count(mock_dataset, n_samples):
+    with pytest.raises(ValueError, match="n_samples must be positive"):
+        mock_dataset.get_input_example(n_samples=n_samples)
+
+
+def test_input_example_rejects_empty_indices(mock_dataset):
+    with pytest.raises(ValueError, match="indices must not be empty"):
+        mock_dataset.get_input_example(indices=[])
+
+
+def test_input_example_uses_actual_selected_count(mock_dataset):
+    example = mock_dataset.get_input_example(n_samples=5, indices=[3], batch=False)
+    assert example["index"] == 3
+
+
+def test_batch_samples_collates_deep_features_and_preserves_metadata(mock_dataset):
+    samples = [
+        {"features": {"nested": {"x": np.float32(i)}}, "metadata": {"id": str(i)}} for i in range(2)
+    ]
+    result = mock_dataset._batch_samples(samples)
+    np.testing.assert_array_equal(result["features"]["nested"]["x"], [0, 1])
+    assert result["metadata"] == [{"id": "0"}, {"id": "1"}]
+
+
+def test_serving_example_excludes_labels_and_supports_explicit_fields(mock_dataset):
+    from bovi_core.ml.publishing import get_serving_input_example
+
+    example = get_serving_input_example(mock_dataset, n_samples=2)
+    assert isinstance(example, dict)
+    assert set(example) == {"data"}
+    assert example["data"].shape[0] == 2
+    selected = get_serving_input_example(mock_dataset, input_fields=("data", "index"))
+    assert set(selected) == {"data", "index"}
+    assert "label" in mock_dataset.get_input_example()
+    with pytest.raises(KeyError, match="missing"):
+        get_serving_input_example(mock_dataset, input_fields=("missing",))
+
+
+@patch("mlflow.models.infer_signature")
+def test_publishing_signature_passes_only_serving_fields(infer_signature, mock_dataset):
+    from bovi_core.ml.publishing import infer_dataset_signature
+
+    predictor = Mock()
+    predictor.predict.return_value = np.array([1.0, 2.0])
+    result = infer_dataset_signature(
+        mock_dataset, predictor=predictor, n_samples=2, predict_kwargs={"threshold": 0.5}
+    )
+    assert result is infer_signature.return_value
+    inputs, outputs = infer_signature.call_args.args
+    assert set(inputs) == {"data"}
+    assert predictor.predict.call_args.args[0] is inputs
+    assert predictor.predict.call_args.kwargs == {"return_format": "base", "threshold": 0.5}
+    assert outputs["predictions"] == [1.0, 2.0]
+    assert outputs["num_predictions"] == 2
+
+
+@patch("mlflow.models.infer_signature")
+def test_publishing_signature_falls_back_on_prediction_failure(infer_signature, mock_dataset):
+    from bovi_core.ml.publishing import infer_dataset_signature
+
+    predictor = Mock()
+    predictor.predict.side_effect = RuntimeError("prediction unavailable")
+    infer_dataset_signature(mock_dataset, predictor=predictor)
+    assert infer_signature.call_args.args[1] is None
+
+
+def test_publisher_selects_serving_fields_from_dataset(mock_dataset):
+    from bovi_core.ml.publishing import UnityCatalogPublisher
+
+    mlflow = Mock()
+    predictor = Mock()
+    predictor.predict.return_value = {"prediction": 1.0}
+    example, signature = UnityCatalogPublisher._resolve_signature(
+        mlflow=mlflow,
+        predictor=predictor,
+        dataset=mock_dataset,
+        input_example=None,
+        signature=None,
+        n_samples=2,
+    )
+    assert set(example) == {"data"}
+    assert example["data"].shape[0] == 2
+    predictor.predict.assert_called_once_with(example, return_format="base")
+    assert signature is mlflow.models.infer_signature.return_value

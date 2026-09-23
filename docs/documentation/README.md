@@ -16,8 +16,8 @@ detail.
 4. Read the root [README](../../README.md) and
    [CLAUDE.md](../../CLAUDE.md) in <code>bovi</code> for the current monorepo,
    local commands, and architecture rules.
-5. Then choose the package or application documentation that matches the task
-   at hand.
+5. Read the [Bovi Core package guide](bovi-core-package.md) for the shared ML
+   concepts, then choose the relevant model or application documentation.
 
 The short version is:
 
@@ -63,6 +63,7 @@ or current dependencies.
 | Contribution and operations | [Way of working](way-of-working.md) | Branches, pull requests, CI, deployment, releases, or ownership |
 | Monorepo and local work | [root README](../../README.md), [CLAUDE.md](../../CLAUDE.md) | Always |
 | Shared ML framework | <code>packages/bovi-core/</code> and its package configuration | Working on the registry, configuration, storage, or model foundations |
+| Trainer module | [trainer module](trainer-module.md) | Training contracts, configuration, checkpoints, evaluation, logging, or federated boundaries |
 | Classical curves and ICAR | [lactationcurve README](../../packages/models/lactationcurve/README.md) | Curve fitting, LCCs, or 305-day yield |
 | BESTPRED port | [BESTPRED documentation index](../../packages/models/bestpred/docs/README.md) | Fortran parity, FDD, or best prediction |
 | Dashboard | [dashboard README](../../apps/frontend/dashboard/README.md) | Local UI work or API proxy behaviour |

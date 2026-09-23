@@ -73,9 +73,7 @@ function renderEditableHerdStatsForm() {
   function Wrapper() {
     const [values, setValues] = useState<number[]>([...DEFAULT_HERD_STATS]);
 
-    return (
-      <HerdStatsForm values={values} onChange={setValues} showBoth />
-    );
+    return <HerdStatsForm values={values} onChange={setValues} showBoth />;
   }
 
   return render(<Wrapper />);

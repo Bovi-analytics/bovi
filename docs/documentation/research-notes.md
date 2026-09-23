@@ -21,10 +21,12 @@ tooling documentation.
   belong to model packages, not to <code>packages/bovi-core</code>.
 - The dashboard boundary runs through the central API. Browser code uses the
   <code>/api/bovi</code> dashboard proxy, not a direct model-app endpoint.
-- The current registry discovers models and predictors through the
-  <code>bovi.models</code> and <code>bovi.predictors</code> entry-point groups.
-  This replaces the former assumption that a consumer must manually import
-  every model package.
+- The current registries discover model-family providers and predictors through
+  the <code>bovi.model_providers</code> and <code>bovi.predictors</code>
+  entry-point groups. Providers own runtime construction and framework-specific
+  loading; predictors receive the resulting model through constructor
+  injection. This replaces the former assumption that a consumer must manually
+  import every model package.
 - <code>bovi-models-template</code> preserves the useful three-layer intent: a
   generic core, domain-specific models and experiments, and a clear project
   structure.

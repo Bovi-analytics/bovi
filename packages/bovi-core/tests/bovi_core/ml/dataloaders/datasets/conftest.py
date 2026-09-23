@@ -2,8 +2,8 @@
 
 import numpy as np
 import pytest
-from bovi_core.ml.dataloaders.base import DataSource
 from bovi_core.ml.dataloaders.datasets.image_dataset import ImageDataset
+from bovi_core.ml.dataloaders.sources.base_source import DataSource
 
 
 @pytest.fixture

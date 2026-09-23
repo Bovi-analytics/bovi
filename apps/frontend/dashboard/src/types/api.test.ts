@@ -171,6 +171,15 @@ describe("api schemas", () => {
           row_count: 100,
           cow_count: 25,
           failed_count: 1,
+          issues: [
+            {
+              severity: "warning",
+              title: "Invalid result rows excluded",
+              message: "One result row was excluded.",
+              affected_count: 1,
+              sample_ids: ["cow-42"],
+            },
+          ],
           primary_metric_label: "RMSE",
           primary_metric_value: 12.3,
         },
@@ -178,7 +187,22 @@ describe("api schemas", () => {
     });
 
     expect(parsed.items[0]?.item_type).toBe("benchmark_submission");
+    expect(parsed.items[0]?.issues[0]?.sample_ids).toEqual(["cow-42"]);
     expect(parsed.kpis.failed_items).toBe(1);
+  });
+
+  test("defaults missing admin issues for rolling deployments", () => {
+    const item = AdminOverviewResponseSchema.shape.items.element.parse({
+      item_type: "herd_profile",
+      item_type_label: "Herd profiles",
+      id: "1",
+      title: "Example profile",
+      created_at: null,
+      status: "ready",
+      failed_count: 0,
+    });
+
+    expect(item.issues).toEqual([]);
   });
 
   test("accepts batch characteristic requests and responses", () => {

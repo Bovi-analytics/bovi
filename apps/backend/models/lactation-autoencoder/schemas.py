@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from typing import Literal, Self, cast
 
-from lactation_autoencoder.dataloaders.datasets.lactation_dataset import (
+from lactation_autoencoder.dataloaders.dataset import (
     AUTOENCODER_INPUT_DAYS,
     periodic_records_in_horizon,
     project_periodic_records_to_daily,

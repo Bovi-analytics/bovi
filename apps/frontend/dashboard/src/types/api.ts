@@ -520,6 +520,15 @@ export const AdminDataCategorySchema = z.enum([
 ]);
 export type AdminDataCategory = z.infer<typeof AdminDataCategorySchema>;
 
+export const AdminOverviewIssueSchema = z.object({
+  severity: z.enum(["info", "warning", "error"]),
+  title: z.string(),
+  message: z.string(),
+  affected_count: z.number().nullable().optional(),
+  sample_ids: z.array(z.string()).default([]),
+});
+export type AdminOverviewIssue = z.infer<typeof AdminOverviewIssueSchema>;
+
 export const AdminOverviewItemSchema = z.object({
   item_type: AdminDataCategorySchema,
   item_type_label: z.string(),
@@ -540,6 +549,7 @@ export const AdminOverviewItemSchema = z.object({
   row_count: z.number().nullable().optional(),
   cow_count: z.number().nullable().optional(),
   failed_count: z.number(),
+  issues: z.array(AdminOverviewIssueSchema).default([]),
   primary_metric_label: z.string().nullable().optional(),
   primary_metric_value: z.number().nullable().optional(),
 });

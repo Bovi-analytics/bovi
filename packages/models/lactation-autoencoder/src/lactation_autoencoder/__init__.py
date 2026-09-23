@@ -3,6 +3,10 @@
 from typing import TYPE_CHECKING, Any
 
 # Import transforms to trigger TransformRegistry registration
+from lactation_autoencoder.dataloaders import (
+    LactationAutoencoderDataLoaderConfig,
+    create_dataloader,
+)
 from lactation_autoencoder.dataloaders.transforms import (
     EventTokenizationTransform,
     HerdStatsEnrichmentTransform,
@@ -11,7 +15,11 @@ from lactation_autoencoder.dataloaders.transforms import (
 )
 
 if TYPE_CHECKING:
-    from lactation_autoencoder.models import LactationAutoencoderModel
+    from lactation_autoencoder.models import (
+        LactationAutoencoderModel,
+        LactationAutoencoderModelConfig,
+        LactationAutoencoderModelProvider,
+    )
     from lactation_autoencoder.predictors import LactationPredictionResult, LactationPredictor
 
 __all__ = [
@@ -19,17 +27,33 @@ __all__ = [
     "HerdStatsEnrichmentTransform",
     "MilkNormalizationTransform",
     "HerdStatsNormalizationTransform",
+    "create_dataloader",
+    "LactationAutoencoderDataLoaderConfig",
     "LactationAutoencoderModel",
+    "LactationAutoencoderModelConfig",
+    "LactationAutoencoderModelProvider",
     "LactationPredictor",
     "LactationPredictionResult",
 ]
 
 
 def __getattr__(name: str) -> Any:
-    if name == "LactationAutoencoderModel":
-        from lactation_autoencoder.models import LactationAutoencoderModel
+    if name in {
+        "LactationAutoencoderModel",
+        "LactationAutoencoderModelConfig",
+        "LactationAutoencoderModelProvider",
+    }:
+        from lactation_autoencoder.models import (
+            LactationAutoencoderModel,
+            LactationAutoencoderModelConfig,
+            LactationAutoencoderModelProvider,
+        )
 
-        return LactationAutoencoderModel
+        return {
+            "LactationAutoencoderModel": LactationAutoencoderModel,
+            "LactationAutoencoderModelConfig": LactationAutoencoderModelConfig,
+            "LactationAutoencoderModelProvider": LactationAutoencoderModelProvider,
+        }[name]
     if name in {"LactationPredictor", "LactationPredictionResult"}:
         from lactation_autoencoder.predictors import LactationPredictionResult, LactationPredictor
 
