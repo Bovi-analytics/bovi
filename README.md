@@ -31,7 +31,8 @@ start with the [handover and documentation map](docs/documentation/README.md).
 
 ```bash
 just sync        # Install dependencies + set up pre-commit hooks
-just test        # Run all tests
+just test        # Run tests affected by the current Git changes
+just test-all    # Run the full Python test suite when deliberately needed
 just dev         # Start all services (API, models, dashboard)
 ```
 
