@@ -5,7 +5,7 @@ license = "AGPL-3.0-or-later"
 license-files = ["PACKAGE_LICENSE"]
 description = "Lactation curve fitting and analysis library"
 readme = "README.md"
-requires-python = ">= 3.12, < 3.13"
+requires-python = ">= 3.12, < 3.14"
 classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
