@@ -392,6 +392,7 @@ def standardize_lactation_columns(
     days_in_milk_col: str | None = None,
     milking_yield_col: str | None = None,
     test_id_col: str | None = None,
+    test_calender_date_col: str | None = None,
     default_test_id=0,
     max_dim: int | str = 305,
 ) -> pd.DataFrame:

@@ -17,7 +17,7 @@ using the **ICAR guideline**.
 
 > **Initial authored:** 2025‑08‑12
 
-> **Updated:** 2026-06-03
+> **Updated:** 2026-10-15
 
 ---
 
@@ -131,15 +131,13 @@ characteristics (LCC) derivations:
 - **Lactation Curve Characteristics** — symbolic + numeric:
   - time_to_peak, peak_yield, cumulative_milk_yield, persistency
 - **ICAR procedures cumulative milk yield:**
-  - Test Interval Method
+  - Test Interval Method (also called the Fleischmann method)
+  - Centering Date Method
   - Interpolation Standard Lactation Curve (ISLC) Method
   - Best Predict Method
 - Input validation/normalization via `validate_and_prepare_inputs`
-- Caching of symbolic expressions for performance
 
 ---
-
-## API Overview
 
 The package is organized into three main modules:
 
@@ -165,11 +163,13 @@ The package is organized into three main modules:
 
 | `calculate_characteristic` | float (LCC value) |
 
-| `test_interval_method` | DataFrame with 305‑day totals per TestId |
+| `test_interval_method` | DataFrame with lactation cumulative milk yield per TestId |
 
-| `ISLC_method` | DataFrame with 305‑day totals per TestId  |
+| `centering_date_method` | DataFrame with lactation cumulative milk yield totals per TestId |
 
-| `best_predict_method` | DataFrame with 305‑day totals per TestId |
+| `ISLC_method` | DataFrame with lactation cumulative milk yield totals per TestId  |
+
+| `best_predict_method` | DataFrame with lactation cumulative milk yield totals per TestId |
 
 ---
 
@@ -286,6 +286,11 @@ Test Interval Method:
 Test interval method of calculating Dairy Herd Improvement Association records.
 Journal of dairy science, 51-170.*
 
+Centering Date Method:
+*U.S. Department of Agriculture, Bureau of Dairying. (1925).
+Cow Testing Association Letter No. 1. Washington, DC.
+
+
 ---
 
 ## License
@@ -380,5 +385,6 @@ __all__ = ["fitting", "characteristics", "preprocessing"]
 #     "persistency_milkbot",
 #     "persistency_wood",
 #     "test_interval_method",
+#     "centering_date_method",
 #     "build_prior",
 # ]
