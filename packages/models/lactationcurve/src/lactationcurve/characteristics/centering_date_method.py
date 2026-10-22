@@ -136,6 +136,8 @@ Date: 07-31-2025
 Last update: 22-May-2026
 """
 
+from typing import cast
+
 import numpy as np
 import pandas as pd
 
@@ -171,7 +173,7 @@ def centering_date_method_single_lactation(
 
     # One yield per calendar month (if a month has several tests, take their mean)
     month = df["TestCalendarDate"].dt.to_period("M")
-    y = df.groupby(month)["MilkingYield"].mean()
+    y = cast(pd.Series, df.groupby(month)["MilkingYield"].mean())
 
     # Full monthly range from first to last test; missing months become NaN
     full_range = pd.period_range(y.index.min(), y.index.max(), freq="M")
