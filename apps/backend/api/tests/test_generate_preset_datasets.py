@@ -5,6 +5,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pandas as pd
+
 _SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "generate_preset_datasets.py"
 _SPEC = importlib.util.spec_from_file_location("generate_preset_datasets", _SCRIPT_PATH)
 assert _SPEC is not None
@@ -62,3 +64,21 @@ def test_generator_writes_presets_to_canonical_blob_prefix(monkeypatch):
     assert "data/datasets/presets/sunnyside/large_mixed.json" in uploaded
     assert "data/datasets/presets/icar/full.json" in uploaded
     assert not any(path.startswith("preset-datasets/") for path in uploaded)
+
+
+def test_build_lactations_handles_missing_latest_date_for_period_filter():
+    df = pd.DataFrame(
+        {
+            "ID": ["A1", "A1"],
+            "LACT": [1, 1],
+            "DIM": [10, 20],
+            "MILK": [10.0, 12.0],
+            "TestDate": ["invalid", None],
+            "BDAT": [None, None],
+        }
+    )
+
+    lactations = generator._build_lactations(df, generator.DATASET_CONFIGS["aurora"], "recent")
+
+    assert len(lactations) == 1
+    assert lactations[0]["cow_id"] == "A1_1"

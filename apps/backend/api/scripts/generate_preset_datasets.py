@@ -183,12 +183,15 @@ def _build_lactations(
     for group_key, group in df.groupby(["_id", "_parity"], sort=False):
         cow_id, parity_val = cast(tuple[str, object], group_key)
         group_sorted = group.sort_values(dim_col)
-        latest_date = group_sorted["_date"].max()
+        latest_date_raw = group_sorted["_date"].max()
+        latest_date: pd.Timestamp | None = (
+            latest_date_raw if isinstance(latest_date_raw, pd.Timestamp) else None
+        )
         # Period filter
         low, high = period_bounds
-        if low and not bool(pd.isna(latest_date)) and latest_date < pd.Timestamp(low):
+        if low and latest_date is not None and latest_date < pd.Timestamp(low):
             continue
-        if high and not bool(pd.isna(latest_date)) and latest_date > pd.Timestamp(high):
+        if high and latest_date is not None and latest_date > pd.Timestamp(high):
             continue
 
         parity_int: int | None = (
