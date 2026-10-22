@@ -75,7 +75,7 @@ Notes
 - ``interpolation_standard_lc`` requires a standard lactation curve.
     You can fit one with the ``lactationcurve`` package
     or use the default lactation curve.
-- The methods can be applied to lactations without any measurements,
+- The method can be applied to lactations without any measurements,
     in which case the result will be the population mean from the standard curve.
 - Predicted milk yields have less variance than true milk yields. With TIM,
     estimated yields have more variance than true yields. The reason is that predicted yields are

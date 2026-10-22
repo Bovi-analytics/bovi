@@ -131,6 +131,25 @@ def test_single_lactation_uses_centered_month_weights() -> None:
     assert result == pytest.approx(3240.0)
 
 
+def test_single_lactation_applies_start_grace_period() -> None:
+    """Exclude the configured number of early-lactation days from the first interval."""
+    df = pd.DataFrame(
+        {
+            "TestCalendarDate": pd.to_datetime(["2024-01-10", "2024-02-10", "2024-03-10"]),
+            "DaysInMilk": [10, 41, 69],
+            "MilkingYield": [20.0, 30.0, 40.0],
+        }
+    )
+
+    result = centering_date_method_single_lactation(
+        df,
+        lactation_length=100,
+        lactation_start_grace_period=5,
+    )
+
+    assert result == pytest.approx(3140.0)
+
+
 def test_single_lactation_interpolates_missing_months() -> None:
     """Estimate a missing month from the nearest recorded months."""
     df = pd.DataFrame(
@@ -187,6 +206,23 @@ def test_centering_date_method_groups_lactations_and_filters_dim() -> None:
     assert np.allclose(result["LactationMilkYield"], [2715.0, 990.0])
 
 
+def test_centering_date_method_skips_lactations_with_fewer_than_two_measurements() -> None:
+    """Skip lactations that do not have enough measurements for interpolation."""
+    df = pd.DataFrame(
+        {
+            "TestCalendarDate": pd.to_datetime(["2024-01-10", "2024-02-10", "2024-03-10"]),
+            "DaysInMilk": [10, 41, 72],
+            "MilkingYield": [20.0, 30.0, 40.0],
+            "TestId": [1, 1, 2],
+        }
+    )
+
+    result = centering_date_method(df, lactation_length=100)
+
+    assert result["TestId"].tolist() == [1]
+    assert result["LactationMilkYield"].iloc[0] == pytest.approx(2715.0)
+
+
 def test_centering_date_method_supports_aliases_and_default_test_id() -> None:
     """Resolve common aliases and create the requested default identifier."""
     df = pd.DataFrame(
@@ -202,6 +238,26 @@ def test_centering_date_method_supports_aliases_and_default_test_id() -> None:
     assert list(result.columns) == ["TestId", "LactationMilkYield"]
     assert result["TestId"].tolist() == [7]
     assert result["LactationMilkYield"].iloc[0] == pytest.approx(2715.0)
+
+
+def test_centering_date_method_forwards_start_grace_period() -> None:
+    """Apply the start grace period through the grouped public API."""
+    df = pd.DataFrame(
+        {
+            "DIM": [10, 41],
+            "Yield": [20.0, 30.0],
+            "TestCalendarDate": ["2024-01-10", "2024-02-10"],
+        }
+    )
+
+    result = centering_date_method(
+        df,
+        default_test_id=7,
+        lactation_length=100,
+        lactation_start_grace_period=5,
+    )
+
+    assert result["LactationMilkYield"].iloc[0] == pytest.approx(2615.0)
 
 
 def test_centering_date_method_rejects_multiple_tests_in_one_month() -> None:

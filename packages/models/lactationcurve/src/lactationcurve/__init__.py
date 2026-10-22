@@ -186,6 +186,36 @@ and will create a `TestId` column with all values set to 0.
 
 ---
 
+## Minimum number of records per lactation needed per method
+
+
+There are many different testing schemes and data collection protocols in the dairy industry,
+which can result in varying numbers of milk yield records per lactation. Furthermore,
+somethimes records are missing or excluded due to quality control,
+which can lead to incomplete lactation data.
+Or the other option is that the lactation is still ongoing and not all records are available yet.
+The minimum number of records needed to technically be able to calculate the 305-day yield
+depends on the method used:
+- Test Interval Method: At least 2 records
+- Centering Date Method: At least 2 records
+- ISLC Method: The method can be applied to lactations without any measurements,
+    in which case the result will be the population mean from the standard curve.
+- Best Predict Method: The method can be applied to lactations without any measurements,
+    in which case the result will be the population mean from the standard curve.
+- Lactation curve models:
+In general you need at least one record more than the number of parameters in the model
+ to be able to fit the model. So Wood and Fischer (3 parameters) need at least 4 records,
+ Wilmink and MilkBot (4 parameters) need at least 5 records, Ali & Schaeffer (5 parameters)
+ needs at least 6 records.
+
+
+However, in practice it is recommended to have more records than the minimum
+to ensure a reliable fit and avoid overfitting.
+Ideally, the records should be well-distributed across the lactation
+period to capture the curve's shape accurately.
+
+---
+
 ## Often used abreviations
 
 - **DIM**: Days in Milk (the days since calving in the current lactation)

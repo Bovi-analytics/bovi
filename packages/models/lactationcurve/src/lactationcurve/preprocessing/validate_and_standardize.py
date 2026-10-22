@@ -395,6 +395,7 @@ def standardize_lactation_columns(
     test_calender_date_col: str | None = None,
     default_test_id=0,
     max_dim: int | str = 305,
+    lactation_start_grace_period: int = 0,
 ) -> pd.DataFrame:
     """
     Standardize column names and structure for lactation data.

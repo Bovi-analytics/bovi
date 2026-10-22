@@ -70,11 +70,28 @@ Notes
     output stays in the same unit as the input.
 - Records with ``DIM > lactation_length`` are excluded before computation.
 - This method's main strength is its ease of use and simplicity.
-- Its main disadvantage is that it does not account for the shape of the
-    lactation curve, which can lead to underestimation of total yield,
+- Its main disadvantages are that it does not account for the shape of the
+    lactation curve, which can lead to overestimation or underestimation
+    of total yield,
     especially for lactations with few test days or irregular patterns.
     Outliers in test-day records can also have a large influence on the final
     result.
+- This deviation is most prevalent at the beginning and end of the lactation
+    as it ignores the increase in milk yield at the start of lactation
+    and the decrease at the end of lactation.
+    Everett et al. (1968) has proposed correction factors to account for this,
+    but they are not implemented in this method.
+    The ICAR guideline allows for adjustment of the first recorded value when
+    computing the accumulated record.
+    If the first recording occurs within 14 days from calving,
+    then no adjustment is required to the first recorded value when computing
+    the accumulated record. If the first recording occurs 15 to 95 days from
+    calving, then an adjustment procedure may be applied.
+- Months are of inequal length so the cummulative milk yield is biased
+    by when the cow freshens, e.g. a cow that has her peak yield in January
+    will likely have a higher cumulative milk yield.
+    according to this method than a cow that has her peak yield in February,
+    even if they have the same total milk yield over the lactation.
 - Because the method assumes a once per month testing scheme,
     you cannot use it with a testing scheme that has multiple tests per month.
 - This method works best with a very consistent once per month testing scheme.
@@ -84,11 +101,11 @@ Notes
     of the nearest test before and the nearest test after.
 - If the first test day is missing, the second test day is used to estimate
 the milk yield for the first month.
-- Months are of inequal length so the cummulative milk yield is biased
-    by when the cow freshens, e.g. a cow that has her peak yield in January
-    will likely have a higher cumulative milk yield.
-    according to this method than a cow that has her peak yield in February,
-    even if they have the same total milk yield over the lactation.
+- This method can also be applied to bimonthly or trimonthly testing schemes,
+    but the accuracy rapidly decreases as the number of test days per lactation
+    decreases.
+    This has been shown by Everett et al. (1968) reporting errors up to 28%
+    and is also true for the test interval method.
 -The code takes into account leap years if dates include years.
     The milk yield of February will than be multiplied by 29 instead of 28.
 - This method is different from the test interval method **only**
@@ -97,12 +114,23 @@ instead of the actual number of days between test days.
 Otherwise they mathematically yield the same result.
 
 
+
 Reference
 ---------
 U.S. Department of Agriculture, Bureau of Dairying. (1925).
 Cow Testing Association Letter No. 1. Washington, DC.
 
+R.W. Everett, B.T. McDaniel, H.W. Carter,
+Accuracy of Monthly, Bimonthly, and Trimonthly Dairy Herd Improvement Association Records,
+Journal of Dairy Science,
+Volume 51, Issue 7,
+1968,
+Pages 1051-1058,
+ISSN 0022-0302,
+https://doi.org/10.3168/jds.S0022-0302(68)87123-1.
 
+
+---------
 Author: Meike van Leerdam
 Date: 07-31-2025
 Last update: 22-May-2026
@@ -117,6 +145,7 @@ from lactationcurve.preprocessing import standardize_lactation_columns
 def centering_date_method_single_lactation(
     lactation_df: pd.DataFrame,
     lactation_length: int = 305,
+    lactation_start_grace_period: int = 0,
 ) -> float:
     """Compute total lactation milk yield using the centering date method.
 
@@ -130,6 +159,9 @@ def centering_date_method_single_lactation(
             Records with DIM > lactation_length are excluded.
             If dry dates are known it is recommended to use the actual lactation
             length instead of the default 305 days.
+        lactation_start_grace_period (int): Number of days after calving that
+            are not considered for cumulative yield becuase the colostrum is
+            not representative for the lactation. The default is 0 days.
 
     Returns:
         float: The computed total milk yield over the lactation for a single cow.
@@ -150,7 +182,7 @@ def centering_date_method_single_lactation(
 
     # Weights: days in each month, with the first and last month adjusted
     w = np.array([period.days_in_month for period in full_range], dtype=float)
-    d_first = df["DaysInMilk"].iloc[0]
+    d_first = df["DaysInMilk"].iloc[0] - lactation_start_grace_period
     d_last = df["DaysInMilk"].iloc[-1]
     w[0] = d_first + w[0] / 2
     w[-1] = lactation_length - d_last + w[-1] / 2
@@ -167,6 +199,7 @@ def centering_date_method(
     test_calender_date_col: str | None = None,
     default_test_id: int = 0,
     lactation_length: int = 305,
+    lactation_start_grace_period: int = 0,
 ) -> pd.DataFrame:
     """Compute total lactation milk yield using the centering date method for each test id.
 
@@ -189,6 +222,9 @@ def centering_date_method(
         lactation_length (int): Lactation length used to calculate cumulative
             production. The default is 305 days.
             Records with DIM > lactation_length are excluded.
+        lactation_start_grace_period (int): Number of days after calving that
+            are not considered for cumulative yield becuase the colostrum is
+            not representative for the lactation. The default is 0 days.
 
     Returns:
         pd.DataFrame: Two-column DataFrame with
@@ -199,7 +235,7 @@ def centering_date_method(
     Raises:
         ValueError: If required columns (DaysInMilk or MilkingYield) cannot be found.
         ValueError: If there are multiple measurements in the same calendar month.
-        ValueError: If there are fewer than nine data points per TestId.
+        ValueError: If there are fewer than two data points per TestId.
 
     """
 
@@ -212,6 +248,7 @@ def centering_date_method(
         test_calender_date_col=test_calender_date_col,
         default_test_id=default_test_id,
         max_dim=lactation_length,
+        lactation_start_grace_period=lactation_start_grace_period,
     )
 
     result = []
@@ -219,6 +256,10 @@ def centering_date_method(
     # Iterate over each lactation
     for lactation in df["TestId"].unique():
         lactation_df = pd.DataFrame(df[df["TestId"] == lactation])
+
+        if len(lactation_df) < 2:
+            print(f"Skipping TestId {lactation}: not enough data points for interpolation.")
+            continue
 
         # Check that the date column is datetime and convert it if needed.
         if not pd.api.types.is_datetime64_any_dtype(lactation_df["TestCalendarDate"]):
@@ -239,6 +280,7 @@ def centering_date_method(
         # Calculate total milk yield for this lactation
         total_milk_yield = centering_date_method_single_lactation(
             lactation_df,
+            lactation_start_grace_period=lactation_start_grace_period,
             lactation_length=lactation_length,
         )
 
