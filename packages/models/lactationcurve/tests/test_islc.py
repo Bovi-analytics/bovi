@@ -33,6 +33,7 @@ Author:
 """
 
 from importlib import import_module
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -201,8 +202,8 @@ def test_linear_interpd_closest_to_grid_returns_subset_of_grid_days() -> None:
 
     assert isinstance(result, pd.DataFrame)
     assert result is not None
-    assert result["GridDay"].min() >= 45
-    assert result["GridDay"].max() <= 115
+    assert cast(bool, result["GridDay"].ge(45).all())
+    assert cast(bool, result["GridDay"].le(115).all())
     assert set(result["TestId"].tolist()) == {2}
 
 

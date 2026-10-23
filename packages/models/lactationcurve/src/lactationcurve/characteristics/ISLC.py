@@ -906,8 +906,9 @@ def linear_interpd_closest_to_grid(
     group = group.sort_values(days_in_milk_col).drop_duplicates(subset=days_in_milk_col)
 
     # Find the range of interpolatable DIM
-    min_dim = group[days_in_milk_col].min()
-    max_dim = group[days_in_milk_col].max()
+    dim_values = cast(pd.Series, group[days_in_milk_col])
+    min_dim = float(dim_values.min())
+    max_dim = float(dim_values.max())
     grid_in_range = [g for g in grid if min_dim <= g <= max_dim]
 
     # apply linear interpolation
