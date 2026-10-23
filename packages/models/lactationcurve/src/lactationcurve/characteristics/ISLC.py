@@ -75,7 +75,7 @@ Notes
 - ``interpolation_standard_lc`` requires a standard lactation curve.
     You can fit one with the ``lactationcurve`` package
     or use the default lactation curve.
-- The methods can be applied to lactations without any measurements,
+- The method can be applied to lactations without any measurements,
     in which case the result will be the population mean from the standard curve.
 - Predicted milk yields have less variance than true milk yields. With TIM,
     estimated yields have more variance than true yields. The reason is that predicted yields are
@@ -906,8 +906,8 @@ def linear_interpd_closest_to_grid(
     group = group.sort_values(days_in_milk_col).drop_duplicates(subset=days_in_milk_col)
 
     # Find the range of interpolatable DIM
-    min_dim = group[days_in_milk_col].min()
-    max_dim = group[days_in_milk_col].max()
+    min_dim = group[days_in_milk_col].min().item()
+    max_dim = group[days_in_milk_col].max().item()
     grid_in_range = [g for g in grid if min_dim <= g <= max_dim]
 
     # apply linear interpolation

@@ -68,6 +68,8 @@ Notes
 - When a full lactation is known (i.e., test days up to DIM 305),
 this method will give a higher cumulative milk yield then the sum off all test days,
 because of the way the start and end contributions are calculated.
+- This method gives the same result as the Fleischmann method,
+which is formulated differently but mathematically equivalent.
 
 Reference
 ---------

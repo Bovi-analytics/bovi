@@ -17,7 +17,7 @@ using the **ICAR guideline**.
 
 > **Initial authored:** 2025‑08‑12
 
-> **Updated:** 2026-06-03
+> **Updated:** 2026-10-15
 
 ---
 
@@ -131,15 +131,13 @@ characteristics (LCC) derivations:
 - **Lactation Curve Characteristics** — symbolic + numeric:
   - time_to_peak, peak_yield, cumulative_milk_yield, persistency
 - **ICAR procedures cumulative milk yield:**
-  - Test Interval Method
+  - Test Interval Method (also called the Fleischmann method)
+  - Centering Date Method
   - Interpolation Standard Lactation Curve (ISLC) Method
   - Best Predict Method
 - Input validation/normalization via `validate_and_prepare_inputs`
-- Caching of symbolic expressions for performance
 
 ---
-
-## API Overview
 
 The package is organized into three main modules:
 
@@ -165,11 +163,13 @@ The package is organized into three main modules:
 
 | `calculate_characteristic` | float (LCC value) |
 
-| `test_interval_method` | DataFrame with 305‑day totals per TestId |
+| `test_interval_method` | DataFrame with lactation cumulative milk yield per TestId |
 
-| `ISLC_method` | DataFrame with 305‑day totals per TestId  |
+| `centering_date_method` | DataFrame with lactation cumulative milk yield totals per TestId |
 
-| `best_predict_method` | DataFrame with 305‑day totals per TestId |
+| `ISLC_method` | DataFrame with lactation cumulative milk yield totals per TestId  |
+
+| `best_predict_method` | DataFrame with lactation cumulative milk yield totals per TestId |
 
 ---
 
@@ -183,6 +183,36 @@ It is not the same as a cow ID, as a cow can have multiple lactations
 If a `TestId` column is not provided,
 the package will assume all records belong to a single lactation
 and will create a `TestId` column with all values set to 0.
+
+---
+
+## Minimum number of records per lactation needed per method
+
+
+There are many different testing schemes and data collection protocols in the dairy industry,
+which can result in varying numbers of milk yield records per lactation. Furthermore,
+somethimes records are missing or excluded due to quality control,
+which can lead to incomplete lactation data.
+Or the other option is that the lactation is still ongoing and not all records are available yet.
+The minimum number of records needed to technically be able to calculate the 305-day yield
+depends on the method used:
+- Test Interval Method: At least 2 records
+- Centering Date Method: At least 2 records
+- ISLC Method: The method can be applied to lactations without any measurements,
+    in which case the result will be the population mean from the standard curve.
+- Best Predict Method: The method can be applied to lactations without any measurements,
+    in which case the result will be the population mean from the standard curve.
+- Lactation curve models:
+In general you need at least one record more than the number of parameters in the model
+ to be able to fit the model. So Wood and Fischer (3 parameters) need at least 4 records,
+ Wilmink and MilkBot (4 parameters) need at least 5 records, Ali & Schaeffer (5 parameters)
+ needs at least 6 records.
+
+
+However, in practice it is recommended to have more records than the minimum
+to ensure a reliable fit and avoid overfitting.
+Ideally, the records should be well-distributed across the lactation
+period to capture the curve's shape accurately.
 
 ---
 
@@ -286,6 +316,11 @@ Test Interval Method:
 Test interval method of calculating Dairy Herd Improvement Association records.
 Journal of dairy science, 51-170.*
 
+Centering Date Method:
+*U.S. Department of Agriculture, Bureau of Dairying. (1925).
+Cow Testing Association Letter No. 1. Washington, DC.
+
+
 ---
 
 ## License
@@ -380,5 +415,6 @@ __all__ = ["fitting", "characteristics", "preprocessing"]
 #     "persistency_milkbot",
 #     "persistency_wood",
 #     "test_interval_method",
+#     "centering_date_method",
 #     "build_prior",
 # ]

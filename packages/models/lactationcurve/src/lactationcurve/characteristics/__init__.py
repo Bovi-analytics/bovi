@@ -9,6 +9,7 @@ from .best_predict import (
     pivot_milk_recordings_to_matrix,
     preprocess_measured_data,
 )
+from .centering_date_method import centering_date_method, centering_date_method_single_lactation
 from .ISLC import (
     ISLC,
     ISLC_method,
@@ -42,6 +43,8 @@ __all__ = [
     "build_covariance_matrix",
     "calculate_characteristic",
     "center_lactation_data",
+    "centering_date_method",
+    "centering_date_method_single_lactation",
     "create_standard_lc_representation",
     "fit_autocorrelation_matrix",
     "fit_standard_lc",
