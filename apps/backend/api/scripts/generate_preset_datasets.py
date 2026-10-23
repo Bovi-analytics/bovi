@@ -186,9 +186,10 @@ def _build_lactations(
         latest_date = group_sorted["_date"].max()
         # Period filter
         low, high = period_bounds
-        if low is not None and not bool(pd.isna(latest_date)) and latest_date < pd.Timestamp(low):
+        latest_date_is_valid = isinstance(latest_date, pd.Timestamp) and latest_date is not pd.NaT
+        if low is not None and latest_date_is_valid and latest_date < pd.Timestamp(low):
             continue
-        if high is not None and not bool(pd.isna(latest_date)) and latest_date > pd.Timestamp(high):
+        if high is not None and latest_date_is_valid and latest_date > pd.Timestamp(high):
             continue
 
         parity_int: int | None = (
