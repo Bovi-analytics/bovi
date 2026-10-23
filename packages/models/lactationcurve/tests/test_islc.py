@@ -201,8 +201,8 @@ def test_linear_interpd_closest_to_grid_returns_subset_of_grid_days() -> None:
 
     assert isinstance(result, pd.DataFrame)
     assert result is not None
-    assert result["GridDay"].min() >= 45
-    assert result["GridDay"].max() <= 115
+    assert result["GridDay"].min().item() >= 45
+    assert result["GridDay"].max().item() <= 115
     assert set(result["TestId"].tolist()) == {2}
 
 

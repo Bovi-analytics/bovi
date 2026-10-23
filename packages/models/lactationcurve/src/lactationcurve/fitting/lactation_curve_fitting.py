@@ -75,6 +75,14 @@ Notes
   parity, continent, and custom priors.
 - For information on the fitting API see https://api.milkbot.com/
   or contact Jim Ehrlich, DVM: jehrlich@MilkBot.com
+- In general you need at least one record more than the number of parameters in the model
+ to be able to fit the model. So Wood and Fischer (3 parameters) need at least 4 records,
+ Wilmink and MilkBot (4 parameters) need at least 5 records, Ali & Schaeffer (5 parameters)
+ needs at least 6 records,
+ However, in practice it is recommended to have more records than the minimum to ensure a
+ reliable fit and avoid overfitting.
+ Additionally, the records should be well-distributed across the lactation
+ period to capture the curve's shape accurately.
 """
 
 # packages
