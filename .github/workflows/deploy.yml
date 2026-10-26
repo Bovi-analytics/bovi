@@ -57,7 +57,7 @@ env:
 
 jobs:
   resolve-deployment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       environment: ${{ steps.resolve.outputs.environment }}
       pulumi-stack: ${{ steps.resolve.outputs.pulumi-stack }}
@@ -85,7 +85,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   detect-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       infra: ${{ steps.filter.outputs.infra }}
       api: ${{ steps.filter.outputs.api }}
@@ -150,7 +150,7 @@ jobs:
     if: |
       needs.detect-changes.outputs.api == 'true' ||
       (github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       image: ${{ steps.build.outputs.image }}
     steps:
@@ -173,7 +173,7 @@ jobs:
     if: |
       needs.detect-changes.outputs.dashboard == 'true' ||
       (github.event_name == 'workflow_dispatch' && (inputs.target == 'dashboard' || inputs.target == 'all'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       image: ${{ steps.build.outputs.image }}
     steps:
@@ -202,7 +202,7 @@ jobs:
       (needs.detect-changes.outputs.dashboard != 'true' || needs.build-dashboard-image.result == 'success') &&
       (!(github.event_name == 'workflow_dispatch' && (inputs.target == 'api' || inputs.target == 'all')) || needs.build-api-image.result == 'success') &&
       (!(github.event_name == 'workflow_dispatch' && (inputs.target == 'dashboard' || inputs.target == 'all')) || needs.build-dashboard-image.result == 'success')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: ${{ needs.resolve-deployment.outputs.environment }}
     env:
       PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
@@ -275,7 +275,7 @@ jobs:
       ) &&
       needs.build-api-image.result == 'success' &&
       needs.infra.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: ${{ needs.resolve-deployment.outputs.environment }}
     env:
       PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
@@ -315,7 +315,7 @@ jobs:
       ) &&
       needs.build-api-image.result == 'success' &&
       needs.migrate-api.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: ${{ needs.resolve-deployment.outputs.environment }}
     env:
       PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
@@ -393,7 +393,7 @@ jobs:
         ) ||
         needs.rollout-api.result == 'success'
       )
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: ${{ needs.resolve-deployment.outputs.environment }}
     env:
       PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
@@ -471,7 +471,7 @@ jobs:
         ) ||
         needs.rollout-api.result == 'success'
       )
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: ${{ needs.resolve-deployment.outputs.environment }}
     env:
       PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
@@ -530,7 +530,7 @@ jobs:
         ) ||
         needs.rollout-api.result == 'success'
       )
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: ${{ needs.resolve-deployment.outputs.environment }}
     env:
       PULUMI_STACK: ${{ needs.resolve-deployment.outputs.pulumi-stack }}
