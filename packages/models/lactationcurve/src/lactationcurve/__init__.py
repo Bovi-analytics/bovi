@@ -17,7 +17,7 @@ using the **ICAR guideline**.
 
 > **Initial authored:** 2025‑08‑12
 
-> **Updated:** 2026-10-15
+> **Updated:** 2026-10-26
 
 ---
   Lactation curves are widely used in dairy science to model milk production
