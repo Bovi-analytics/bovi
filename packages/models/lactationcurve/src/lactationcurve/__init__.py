@@ -20,11 +20,17 @@ using the **ICAR guideline**.
 > **Updated:** 2026-10-15
 
 ---
+  Lactation curves are widely used in dairy science to model milk production
+  over time. They provide insights into the lactation performance of individual
+  animals and herds, enabling better management decisions and genetic evaluations.
+  The 305-day yield is a standard metric for assessing milk production,
+  and accurate estimation of this yield is crucial for dairy farmers, researchers,
+  and breeding programs.
 
-  The 305 day yield for milk, fat, and protein is a widely used metric
-  in dairy production, and the International Committee for Animal
+  The International Committee for Animal
   Recording (ICAR) provides guidelines outlining approved methods for
-  its calculation. However, a global survey of milk recording
+  the 305 day yield for milk, fat, and protein calculation.
+  However, a global survey of milk recording
   organizations revealed substantial variation in how these methods are
   implemented. The Test Interval Method is used by 74% of the
   organizations, reflecting a preference for methodological simplicity,
