@@ -1,4 +1,5 @@
-"""Tests for the centering date method."""
+"""Tests for the centering date method.
+Includes scenarios with different start months, partial months, and leap years."""
 
 import numpy as np
 import pandas as pd
