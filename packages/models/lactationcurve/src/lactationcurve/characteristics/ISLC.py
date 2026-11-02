@@ -24,15 +24,15 @@ lactation curves combined with correlation-based deviation corrections.
 Method Summary
 --------------
 ISLC methods estimate total lactation yield by first interpolating test-day
-yields onto a predefined DIM grid, then integrating the resulting days with
+yields onto a predefined dim grid, then integrating the resulting days with
 a test-interval style summation.
 
 Key Entry Points
 ----------------
-- ``ISLC_method``: compute a single lactation's estimated 305-d yield from
+- ``ISLC_method_single_lactation``: compute a single lactation's estimated 305-d yield from
     interpolated grid measurements.
-- ``ISLC``: apply ``ISLC_method`` per ``TestId`` in a pandas DataFrame.
-- ``ISLC_original_method``: compute a single lactation's estimated
+- ``ISLC_method``: apply ``ISLC_method`` per ``TestId`` in a pandas DataFrame.
+- ``ISLC_original_method_single_lactation``: compute a single lactation's estimated
     305-d yield using the technique described in the original paper.
     Wilmink et al. (1987)
     "Comparison of different methods of predicting 305-day milk yield
@@ -40,7 +40,7 @@ Key Entry Points
 - ``ISLC_original``: apply ``ISLC_original_method`` per ``TestId``
     in a pandas DataFrame.
 - ``interpolation_standard_lc``: interpolate measured test-day yields onto
-    the DIM grid using the standard lactation curve to guide slopes.
+    the dim grid using the standard lactation curve to guide slopes.
 - ``linear_interpd_all_to_grid`` and ``linear_interpd_closest_to_grid``:
   Linear interpolation alternatives.
 
@@ -67,7 +67,7 @@ Defaults
 
 Notes
 -----
-- Milk samples are often recorded on non-grid DIM values.
+- Milk samples are often recorded on non-grid dim values.
     Interpolation is therefore used to map measurements to grid days.
 - Three interpolation variants are implemented.
     ``interpolation_standard_lc`` is recommended because it is the most
@@ -145,13 +145,23 @@ from lactationcurve.preprocessing import standardize_lactation_columns
 DATA_DIR = Path(__file__).resolve().parent / "data"
 GRID_DAYS = [10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290]
 
-# get the standard lactation curve ingredients back from the data storage:
+"""ISLC takes information from a standard lactation curve.
+Ideally this lactation curve is fitted to the same population as the data to be scored.
+To make sure this method can be used out of the box,
+we provide a default standard lactation curve, correlation matrix and standard deviations
+per grid day that were fitted on a group of cows in the Benelux.
+They are stored in the data directory and can be retrieved using the following code:"""
 CORR_MATRIX = cast(pd.DataFrame, pd.read_pickle(DATA_DIR / "corr_matrix.pkl"))
 STDs = np.load(DATA_DIR / "std_per_grid_day.npy")
 STANDARD_CURVE = np.load(DATA_DIR / "standard_lc_grid.npy")
 
 # add a day zero (that equals day 1) to the standard curve to prevent an index shift
 STANDARD_CURVE = np.insert(STANDARD_CURVE, 0, STANDARD_CURVE[0])
+
+
+""" The following functions are mostly internal functions that are used by the ISLC method.
+They are not meant to be used directly by the user,
+but they can be useful for understanding the method and for debugging."""
 
 
 class _DocDefault:
@@ -177,7 +187,7 @@ def _curve_to_series(curve: pd.Series | npt.NDArray[np.float64]) -> pd.Series:
 
 
 def _curve_value(curve: pd.Series, day: int) -> float:
-    """Return curve value for a DIM, supporting both label and positional indexing."""
+    """Return curve value for a day in milk, supporting both label and positional indexing."""
     if day in curve.index:
         return float(curve.loc[day])
     return float(curve.iloc[day])
@@ -187,7 +197,7 @@ class InterpolationMethod(Protocol):
     """Protocol for milk-yield interpolation methods.
 
     Defines the signature expected by functions that interpolate test-day
-    yields onto a predefined DIM grid.
+    yields onto a predefined dim grid.
     """
 
     def __call__(
@@ -195,14 +205,14 @@ class InterpolationMethod(Protocol):
         group: pd.DataFrame,
         days_in_milk_col: str,
         milking_yield_col: str,
-        standard_lc: pd.Series | None = None,
+        standard_lc: pd.Series | npt.NDArray[np.float64] | None = None,
         small_grid: bool = False,
     ) -> pd.DataFrame:
-        """Interpolate yields for a single lactation onto the DIM grid.
+        """Interpolate yields for a single lactation onto the dim grid.
 
         Args:
             group: Test-day records for a single animal.
-            days_in_milk_col: Column name containing days in milk (DIM).
+            days_in_milk_col: Column name containing days in milk (dim).
             milking_yield_col: Column name containing milk yields.
             standard_lc: Optional standard lactation curve to guide
                 interpolation (method-dependent).
@@ -216,7 +226,13 @@ class InterpolationMethod(Protocol):
         ...
 
 
-def ISLC(
+""" This is the function that is called by the user to apply the ISLC method
+to a dataframe with test-day records.
+It groups the dataframe by TestId and applies the ISLC_method to each group.
+It returns a dataframe with the estimated lactation milk yield for each TestId."""
+
+
+def ISLC_method(
     df: pd.DataFrame,
     days_in_milk_col: str | None = None,
     milking_yield_col: str | None = None,
@@ -241,15 +257,15 @@ def ISLC(
 
     Args:
         df: Input test-day records.
-        days_in_milk_col: Name of DIM column in ``df``.
+        days_in_milk_col: Name of dim column in ``df``.
         milking_yield_col: Name of milk-yield column in ``df``.
         test_id_col: Name of lactation identifier column in ``df``.
         default_test_id: Fallback TestId value when ``test_id_col`` is absent.
         standard_lc_305: Standard lactation curve values used by ISLC.
         correlation_matrix: Correlation matrix aligned with ISLC grid.
         std_per_grid_day: Standard deviations aligned with ISLC grid.
-        max_dim: Maximum DIM to include
-            (or ``"max"`` so highest test day DIM is considered the final lactation day).
+        max_dim: Maximum dim to include
+            (or ``"max"`` so highest test day dim is considered the final lactation day).
         fit_standard_lc_from_data: If True, fit representation from ``reference_df``.
         reference_df: Reference records used when fitting curve and covariance.
 
@@ -259,7 +275,7 @@ def ISLC(
     Raises:
         ValueError: If required columns are missing or fit mode has no reference data.
     """
-    # Standardize columns and filter DIM <= 305
+    # Standardize columns and filter dim <= 305
     df = standardize_lactation_columns(
         df,
         days_in_milk_col=days_in_milk_col,
@@ -316,13 +332,14 @@ def ISLC(
             continue
 
         try:
-            cumulative_yield = ISLC_method(
+            cumulative_yield = ISLC_method_single_lactation(
                 df=group,
                 standard_lc=standard_lc_305,
                 correlation_matrix=correlation_matrix,
                 std_per_grid_day=std_per_grid_day,
                 days_in_milk_col="DaysInMilk",
                 milking_yield_col="MilkingYield",
+                max_dim=max_dim,
             )
         except ValueError:
             cumulative_yield = np.nan
@@ -332,13 +349,19 @@ def ISLC(
     return pd.DataFrame(rows, columns=pd.Index(["TestId", "LactationMilkYield"]))
 
 
-def ISLC_method(
+""" This is the core function taht implements the ISLC method for a single lactation.
+It predicts missing grid-day yields using the ICAR-style relation and integrates
+the complete grid profile to estimate total lactation yield. """
+
+
+def ISLC_method_single_lactation(
     df: pd.DataFrame,
     standard_lc: pd.Series | npt.NDArray[np.float64],
     correlation_matrix: pd.DataFrame,
     std_per_grid_day: npt.NDArray[np.float64],
     days_in_milk_col: str = "DaysInMilk",
     milking_yield_col: str = "MilkingYield",
+    max_dim: int | str = 305,
 ) -> float:
     """Estimate total lactation yield by predicting missing grid days, then integrating.
 
@@ -353,13 +376,20 @@ def ISLC_method(
 
     Notes:
         The integration is performed over the days present after merging
-        measured and predicted points. If the input contains DIM beyond 305,
-        total yield can reflect that extended horizon.
+        measured and predicted points. If the input contains dim beyond 305,
+        total yield can reflect that extended horizon if ``max_dim`` is set accordingly.
     """
-    # add zero and 305 to the grid
-    grid = [0] + GRID_DAYS + [305]
     dim_col = days_in_milk_col
     yield_col = milking_yield_col
+
+    # Use the requested horizon, or the last observed day for ``"max"``.
+    if max_dim == "max":
+        observed_dim = df[dim_col].to_numpy(dtype=float)
+        calculation_end = int(np.max(observed_dim))
+    else:
+        calculation_end = int(max_dim)
+
+    grid = [0] + [day for day in GRID_DAYS if day < calculation_end] + [calculation_end]
 
     standard_lc_series = _curve_to_series(standard_lc)
 
@@ -459,7 +489,11 @@ def ISLC_method(
     return total_yield
 
 
-def ISLC_original_method(
+""" This method implements the original ISLC method as
+described in the paper by Wilmink et al. (1987). """
+
+
+def ISLC_original_method_single_lactation(
     df: pd.DataFrame,
     standard_lc: pd.Series | npt.NDArray[np.float64],
     correlation_matrix: pd.DataFrame,
@@ -510,7 +544,7 @@ def ISLC_original_method(
     # --- Validate that all measurements lie on the expected grid -------
     measured_days = df["GridDay"].values
     if any(day not in grid for day in measured_days):
-        raise ValueError("At least one DIM in the input df is not part of the grid.")
+        raise ValueError("At least one dim in the input df is not part of the grid.")
 
     # --- Prepare basic components -------------------------------------
     df = df.sort_values("GridDay")
@@ -572,7 +606,7 @@ def ISLC_original_method(
     return float(final_milk_yield)
 
 
-def ISLC_original(
+def ISLC_original_method(
     df: pd.DataFrame,
     days_in_milk_col: str | None = None,
     milking_yield_col: str | None = None,
@@ -591,8 +625,8 @@ def ISLC_original(
     fixed GRID_DAYS grid, and applies :func:`ISLC_original_method` per lactation.
 
     Args:
-       df: Input records with DIM and milk yield columns.
-       days_in_milk_col: Name of DIM column in ``df``.
+       df: Input records with dim and milk yield columns.
+       days_in_milk_col: Name of dim column in ``df``.
        milking_yield_col: Name of milk-yield column in ``df``.
        test_id_col: Name of lactation identifier column in ``df``.
        default_test_id: Fallback TestId when ``test_id_col`` is absent.
@@ -616,9 +650,9 @@ def ISLC_original(
             ``reference_df`` is not provided.
 
     Notes:
-        Records with DIM > 305 are dropped before interpolation and scoring.
+        Records with dim > 305 are dropped before interpolation and scoring.
     """
-    # Standardize columns and filter DIM <= 305
+    # Standardize columns and filter dim <= 305
     df = standardize_lactation_columns(
         df,
         days_in_milk_col=days_in_milk_col,
@@ -678,7 +712,7 @@ def ISLC_original(
             rows.append({"TestId": test_id, "305_milk_yield": np.nan})
             continue
 
-        cumulative_yield = ISLC_original_method(
+        cumulative_yield = ISLC_original_method_single_lactation(
             df=lactation,
             standard_lc=standard_lc_305,
             correlation_matrix=correlation_matrix,
@@ -706,11 +740,11 @@ def interpolation_standard_lc(
     standard_lc: pd.Series | npt.NDArray[np.float64] | None = None,
     small_grid: bool = False,
 ) -> pd.DataFrame:
-    """Interpolate a single lactation onto the DIM grid guided by a standard curve.
+    """Interpolate a single lactation onto the dim grid guided by a standard curve.
 
     The function interpolates measured yields for one animal onto the
-    predefined grid of DIM values. When a grid day coincides with a measured
-    DIM the observed yield is used; otherwise the interpolation adjusts the
+    predefined grid of dim values. When a grid day coincides with a measured
+    dim the observed yield is used; otherwise the interpolation adjusts the
     linear slope between neighboring measurements by the difference in the
     standard curve, inspired by the CRV E2 approach.
 
@@ -724,9 +758,9 @@ def interpolation_standard_lc(
         group: DataFrame with test-day records for a single animal. Must
             contain columns named by ``days_in_milk_col`` and
             ``milking_yield_col``.
-        days_in_milk_col: Name of the DIM column in ``group``.
+        days_in_milk_col: Name of the dim column in ``group``.
         milking_yield_col: Name of the milk-yield column in ``group``.
-        standard_lc: A Series indexed by DIM providing the expected yield on
+        standard_lc: A Series indexed by dim providing the expected yield on
             each grid day; used to guide the interpolation shape.
         small_grid: If True, interpolate on GRID_DAYS only; otherwise include
             day 0 and day 305 in the interpolation target grid.
@@ -738,10 +772,10 @@ def interpolation_standard_lc(
 
     Notes:
         - No interpolation is performed outside the range bounded by the
-          first and last measured DIM for the lactation (those grid days are
+          first and last measured dim for the lactation (those grid days are
           skipped).
                 - No interpolation is performed for grid days where the right
-                    neighboring measured DIM is >= 305, because this lies outside the
+                    neighboring measured dim is >= 305, because this lies outside the
                     intended standard-curve support.
         - The implementation defines a local default ``grid`` of
           [10, 30, ..., 290].
@@ -759,7 +793,7 @@ def interpolation_standard_lc(
 
     standard_lc_series = _curve_to_series(standard_lc)
 
-    # Sort and ensure unique DIMs
+    # Sort and ensure unique dims
     group = group.sort_values(days_in_milk_col).drop_duplicates(days_in_milk_col)
     dims = group[days_in_milk_col].tolist()
 
@@ -783,7 +817,7 @@ def interpolation_standard_lc(
         before = before_df.tail(1)
         after = after_df.head(1)
 
-        # CASE 3 No interpolation if grid day is outside the range of measured DIM
+        # CASE 3 No interpolation if grid day is outside the range of measured dim
         if before.empty or after.empty:
             continue
 
@@ -833,9 +867,9 @@ def linear_interpd_all_to_grid(
     lies between measured observations.
 
     Args:
-        group: DataFrame containing measured DIM and yield values for one
+        group: DataFrame containing measured dim and yield values for one
             lactation.
-        days_in_milk_col: Name of the DIM column.
+        days_in_milk_col: Name of the dim column.
         milking_yield_col: Name of the milk-yield column.
         small_grid: If True, interpolate on GRID_DAYS only; otherwise include
             day 0 and day 305.
@@ -882,12 +916,12 @@ def linear_interpd_closest_to_grid(
     """Linearly interpolate grid days between measured observations.
 
     This helper returns interpolated yields only for grid days that lie
-    between the first and last measured DIM for the lactation. If no grid
+    between the first and last measured dim for the lactation. If no grid
     days fall within the measured range the function returns ``None``.
 
     Args:
         group: DataFrame for a single lactation.
-        days_in_milk_col: Name of the DIM column.
+        days_in_milk_col: Name of the dim column.
         milking_yield_col: Name of the milk-yield column.
         small_grid: If True, use GRID_DAYS only; otherwise include
             day 0 and day 305.
@@ -905,7 +939,7 @@ def linear_interpd_closest_to_grid(
 
     group = group.sort_values(days_in_milk_col).drop_duplicates(subset=days_in_milk_col)
 
-    # Find the range of interpolatable DIM
+    # Find the range of interpolatable dim
     min_dim = group[days_in_milk_col].min().item()
     max_dim = group[days_in_milk_col].max().item()
     grid_in_range = [g for g in grid if min_dim <= g <= max_dim]
@@ -960,7 +994,7 @@ def create_standard_lc_representation(
         standard_lactation_curve: A Series providing a reference lactation
             curve (e.g., the fitted Wilmink curve on which to base
             interpolation).
-        days_in_milk_col: Name of the column in ``df`` containing days in milk (DIM).
+        days_in_milk_col: Name of the column in ``df`` containing days in milk (dim).
         milking_yield_col: Name of the column in ``df`` containing measured
             milk yields.
         interpolation_method: An interpolation method conforming to
@@ -976,7 +1010,7 @@ def create_standard_lc_representation(
         - std_per_grid_day (np.ndarray): Standard deviations of standardized
           yields per grid day.
         - standard_lactation_curve_grid (pd.Series): Refitted Wilmink model
-          indexed by DIM (1–305).
+          indexed by dim (1–305).
 
     Notes:
         - Expects ``df`` to have a ``TestId`` column to group lactations.
@@ -1062,7 +1096,7 @@ def _set_doc_signatures() -> None:
         "std_per_grid_day": _DOC_STDS,
     }
 
-    for func in (ISLC, ISLC_original):
+    for func in (ISLC_method, ISLC_original_method):
         signature = inspect.signature(func)
         params = [
             param.replace(default=doc_defaults[param.name]) if param.name in doc_defaults else param
