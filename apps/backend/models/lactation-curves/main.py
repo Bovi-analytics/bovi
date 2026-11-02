@@ -14,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from lactationcurve.characteristics import (
-    ISLC,
+    ISLC_method,
     best_predict_method,
     calculate_characteristic,
     test_interval_method,
@@ -643,7 +643,7 @@ async def islc(
     }
     if request.test_ids is not None:
         data["TestId"] = request.test_ids
-    result_df = ISLC(pd.DataFrame(data))
+    result_df = ISLC_method(pd.DataFrame(data))
     return {
         "results": [
             {

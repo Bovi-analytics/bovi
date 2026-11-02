@@ -425,7 +425,7 @@ def preprocess_measured_data(lactation: pd.DataFrame, standard_lc: np.ndarray) -
     return corrected_series
 
 
-def best_predict_method_single_lac(
+def best_predict_method_single_lactation(
     lactation: pd.DataFrame,
     standard_lc: np.ndarray = STANDARD_CURVE,
     covariance_matrix: np.ndarray = COV_MATRIX,
@@ -582,7 +582,7 @@ def best_predict_method(
     results = []
 
     for test_id, lactation in df.groupby("TestId"):
-        pred = best_predict_method_single_lac(
+        pred = best_predict_method_single_lactation(
             lactation,
             standard_lc,
             covariance_matrix_array,
@@ -622,7 +622,7 @@ def _set_doc_signatures() -> None:
         "covariance_matrix": _DOC_COV_MATRIX,
     }
 
-    for func in (best_predict_method_single_lac, best_predict_method):
+    for func in (best_predict_method_single_lactation, best_predict_method):
         signature = inspect.signature(func)
         params = [
             param.replace(default=doc_defaults[param.name]) if param.name in doc_defaults else param

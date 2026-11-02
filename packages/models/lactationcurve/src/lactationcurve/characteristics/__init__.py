@@ -1,7 +1,7 @@
 from . import best_predict, lactation_curve_characteristics, method_test_interval
 from .best_predict import (
     best_predict_method,
-    best_predict_method_single_lac,
+    best_predict_method_single_lactation,
     build_covariance_matrix,
     center_lactation_data,
     fit_autocorrelation_matrix,
@@ -11,10 +11,10 @@ from .best_predict import (
 )
 from .centering_date_method import centering_date_method, centering_date_method_single_lactation
 from .ISLC import (
-    ISLC,
     ISLC_method,
-    ISLC_original,
+    ISLC_method_single_lactation,
     ISLC_original_method,
+    ISLC_original_method_single_lactation,
     create_standard_lc_representation,
     interpolation_standard_lc,
     linear_interpd_all_to_grid,
@@ -33,13 +33,13 @@ from .lactation_curve_characteristics import (
 from .method_test_interval import test_interval_method
 
 __all__ = [
-    "ISLC",
     "ISLC_method",
-    "ISLC_original",
+    "ISLC_method_single_lactation",
     "ISLC_original_method",
+    "ISLC_original_method_single_lactation",
     "best_predict",
     "best_predict_method",
-    "best_predict_method_single_lac",
+    "best_predict_method_single_lactation",
     "build_covariance_matrix",
     "calculate_characteristic",
     "center_lactation_data",

@@ -1,9 +1,71 @@
 from importlib.metadata import PackageNotFoundError, version
 
+# import submodules to make them available at the package level
+from . import characteristics, fitting, preprocessing
+
+__all__ = ["fitting", "characteristics", "preprocessing"]
+
 try:
     __version__ = version("lactationcurve")
 except PackageNotFoundError:
     __version__ = "unknown"
+
+
+_core_functions_table = "\n".join(
+    [
+        "| Function | What it does | What it returns |",
+        "|---|---|---|",
+        (
+            "| `fit_lactation_curve` | Fits a mathematical curve to milk records "
+            "and predicts milk yield for each day of the lactation. | A NumPy "
+            "array of predicted daily yields. |"
+        ),
+        (
+            "| `get_lc_parameters` | Finds the numerical parameters that describe "
+            "a fitted lactation-curve model. | A tuple of model parameters. |"
+        ),
+        (
+            "| `bayesian_fit_milkbot_single_lactation` | Fits the MilkBot model to "
+            "one lactation using Bayesian statistics and prior knowledge. | A "
+            "dictionary containing the fitted MilkBot parameters. |"
+        ),
+        (
+            "| `lactation_curve_characteristic_function` | Prepares a function "
+            "for calculating a lactation-curve characteristic, such as peak "
+            "yield or time to peak. | A symbolic expression, parameter names, "
+            "and a callable function. |"
+        ),
+        (
+            "| `calculate_characteristic` | Calculates one lactation-curve "
+            "characteristic from milk records or a fitted curve. | One number, "
+            "such as peak yield, time to peak, or cumulative yield. |"
+        ),
+        (
+            "| `test_interval_method` | Estimates total milk yield by calculating "
+            "the area between consecutive test days. Use this for one or more "
+            "lactations in a dataframe. | A dataframe with one cumulative "
+            "milk-yield total per `TestId`. |"
+        ),
+        (
+            "| `centering_date_method` | Estimates total milk yield by treating "
+            "each monthly test-day yield as representative of a centered part of "
+            "that calendar month. | A dataframe with one cumulative milk-yield "
+            "total per `TestId`. |"
+        ),
+        (
+            "| `ISLC_method` | Estimates the total yield by using a standard "
+            "lactation curve to fill in missing test days from a predefined "
+            "grid. | A dataframe with one cumulative milk-yield total per "
+            "`TestId`. |"
+        ),
+        (
+            "| `best_predict_method` | Estimates the total yield by using a "
+            "standard lactation curve to fill in all missing test days. | A "
+            "dataframe with one cumulative milk-yield total per `TestId`. |"
+        ),
+    ]
+)
+
 
 __doc__ = f"""
 A package for fitting **dairy animal lactation curves**, evaluating
@@ -77,6 +139,27 @@ using the **ICAR guideline**.
   [GitHub issues page](https://github.com/Bovi-analytics/bovi/issues)
   or contact us directly via [email](mbv32@cornell.edu).
 
+---
+
+## What can this package do?
+
+- **Frequentist fitting of lactation curve models** (numeric optimization):
+  - Wood, Wilmink, Ali & Schaeffer, Fischer, MilkBot
+- **Frequentist fitting of lactation curve models** (algebraic least squares):
+  - MilkBot
+- **Bayesian fitting of the MilkBot lactation curve model via MilkBot API**:
+  - MilkBot
+- **Calculate Lactation Curve Characteristics** — symbolic + numeric:
+  - time_to_peak, peak_yield, cumulative_milk_yield, persistency
+- **Calculate cumulative milk yield over a lactation period**:
+  - Test Interval Method (also called the Fleischmann method)
+  - Centering Date Method
+  - Interpolation Standard Lactation Curve (ISLC) Method
+  - Best Predict Method
+- **Data quality control for lactation curves**:
+  - Input validation/normalization via `validate_and_prepare_inputs`
+
+---
 
 ## Main Lactation curve models implemented:
 
@@ -126,24 +209,7 @@ characteristics (LCC) derivations:
 
 ---
 
-## Features
-
-- **Frequentist fitting** (numeric optimization):
-  - Wood, Wilmink, Ali & Schaeffer, Fischer, MilkBot
-- **Frequentist fitting** (algebraic least squares):
-  - MilkBot
-- **Bayesian fitting via MilkBot API**:
-  - MilkBot
-- **Lactation Curve Characteristics** — symbolic + numeric:
-  - time_to_peak, peak_yield, cumulative_milk_yield, persistency
-- **ICAR procedures cumulative milk yield:**
-  - Test Interval Method (also called the Fleischmann method)
-  - Centering Date Method
-  - Interpolation Standard Lactation Curve (ISLC) Method
-  - Best Predict Method
-- Input validation/normalization via `validate_and_prepare_inputs`
-
----
+## Package Structure
 
 The package is organized into three main modules:
 
@@ -153,29 +219,18 @@ The package is organized into three main modules:
 
 ---
 
-## Output Types Summary Of Most Important Functions
+## Core functions
 
-| Function | Output |
+The functions below are the main tools most users need. A **lactation** means
+the milk records belonging to one cow after one calving. A **TestId** is the
+label used to keep each lactation separate.
 
-|---------|--------|
+{_core_functions_table}
 
-| `fit_lactation_curve` | Predicted yields (np.ndarray) |
-
-| `get_lc_parameters` | Tuple of numerical parameters |
-
-| `bayesian_fit_milkbot_single_lactation` | Dict of MilkBot parameters |
-
-| `lactation_curve_characteristic_function` | (expr, params, func) |
-
-| `calculate_characteristic` | float (LCC value) |
-
-| `test_interval_method` | DataFrame with lactation cumulative milk yield per TestId |
-
-| `centering_date_method` | DataFrame with lactation cumulative milk yield totals per TestId |
-
-| `ISLC_method` | DataFrame with lactation cumulative milk yield totals per TestId  |
-
-| `best_predict_method` | DataFrame with lactation cumulative milk yield totals per TestId |
+For the dataframe-based methods, the result usually has two columns:
+`TestId` identifies the lactation, and `LactationMilkYield` contains the
+estimated cumulative milk yield. The yield uses the same unit as the input
+records, such as kilograms or pounds.
 
 ---
 
@@ -286,6 +341,7 @@ The tutorials will guide you through how to work with the package,
 including how to import the package, fit lactation curves,
 calculate 305-day yields, and derive lactation curve characteristics.
 
+
 ---
 ## Citing the lactationcurve package
 
@@ -340,87 +396,3 @@ Cow Testing Association Letter No. 1. Washington, DC.
 {__version__}
 
 """
-
-
-# import submodules to make them available at the package level
-
-from . import characteristics, fitting, preprocessing
-
-__all__ = ["fitting", "characteristics", "preprocessing"]
-# from .characteristics import (
-#     calculate_characteristic,
-#     lactation_curve_characteristic_function,
-#     numeric_cumulative_yield,
-#     numeric_peak_yield,
-#     numeric_time_to_peak,
-#     persistency_fitted_curve,
-#     persistency_milkbot,
-#     persistency_wood,
-#     test_interval_method,
-# )
-# from .fitting import (
-#     ali_schaeffer_model,
-#     bayesian_fit_milkbot_single_lactation,
-#     brody_model,
-#     dhanoa_model,
-#     dijkstra_model,
-#     emmans_model,
-#     fischer_model,
-#     fit_lactation_curve,
-#     get_chen_priors,
-#     get_lc_parameters,
-#     get_lc_parameters_least_squares,
-#     hayashi_model,
-#     milkbot_model,
-#     nelder_model,
-#     prasad_model,
-#     rook_model,
-#     sikka_model,
-#     wilmink_model,
-#     wood_model,
-#     build_prior,
-# )
-# from .preprocessing import (
-#     PreparedInputs,
-#     standardize_lactation_columns,
-#     validate_and_prepare_inputs,
-# )
-
-# __all__ = [
-#     # Preprocessing
-#     "PreparedInputs",
-#     "standardize_lactation_columns",
-#     "validate_and_prepare_inputs",
-#     # Fitting
-#     "ali_schaeffer_model",
-#     "bayesian_fit_milkbot_single_lactation",
-#     "brody_model",
-#     "dhanoa_model",
-#     "dijkstra_model",
-#     "emmans_model",
-#     "fischer_model",
-#     "fit_lactation_curve",
-#     "get_chen_priors",
-#     "get_lc_parameters",
-#     "get_lc_parameters_least_squares",
-#     "hayashi_model",
-#     "milkbot_model",
-#     "nelder_model",
-#     "prasad_model",
-#     "rook_model",
-#     "sikka_model",
-#     "wilmink_model",
-#     "wood_model",
-#     # Characteristics
-#     "calculate_characteristic",
-#     "lactation_curve_characteristic_function",
-#     "numeric_cumulative_yield",
-#     "numeric_peak_yield",
-#     "numeric_time_to_peak",
-#     "persistency_fitted_curve",
-#     "persistency_milkbot",
-#     "persistency_wood",
-#     "test_interval_method",
-#     "centering_date_method",
-#     "build_prior",
-# ]

@@ -28,7 +28,7 @@ import pytest
 
 from lactationcurve.characteristics.best_predict import (
     best_predict_method,
-    best_predict_method_single_lac,
+    best_predict_method_single_lactation,
     build_covariance_matrix,
     pivot_milk_recordings_to_matrix,
     preprocess_measured_data,
@@ -156,7 +156,7 @@ class TestUtilityFunctions:
 class TestPredictionFunctions:
     """Test prediction behavior for single and multiple lactations."""
 
-    def test_best_predict_method_single_lac_uses_cumulative_sum_adjustment(
+    def test_best_predict_method_single_lactation_uses_cumulative_sum_adjustment(
         self, standard_curve, identity_covariance
     ):
         """One positive residual with identity covariance should shift total by 1."""
@@ -167,7 +167,7 @@ class TestPredictionFunctions:
             }
         )
 
-        predicted = best_predict_method_single_lac(
+        predicted = best_predict_method_single_lactation(
             lactation,
             standard_curve,
             identity_covariance,
@@ -175,7 +175,7 @@ class TestPredictionFunctions:
 
         assert predicted == 3051.0
 
-    def test_best_predict_method_single_lac_empty_returns_standard_curve_sum(
+    def test_best_predict_method_single_lactation_empty_returns_standard_curve_sum(
         self, standard_curve, identity_covariance
     ):
         """If no valid DIM in 1..305 exists, prediction should equal baseline sum."""
@@ -186,7 +186,7 @@ class TestPredictionFunctions:
             }
         )
 
-        predicted = best_predict_method_single_lac(
+        predicted = best_predict_method_single_lactation(
             lactation,
             standard_curve,
             identity_covariance,
@@ -194,7 +194,7 @@ class TestPredictionFunctions:
 
         assert predicted == pytest.approx(float(np.sum(standard_curve)))
 
-    def test_best_predict_method_single_lac_duplicate_days_keep_last(
+    def test_best_predict_method_single_lactation_duplicate_days_keep_last(
         self, standard_curve, identity_covariance
     ):
         """Duplicate DIM records should use the last value before prediction."""
@@ -205,7 +205,7 @@ class TestPredictionFunctions:
             }
         )
 
-        predicted = best_predict_method_single_lac(
+        predicted = best_predict_method_single_lactation(
             lactation,
             standard_curve,
             identity_covariance,
