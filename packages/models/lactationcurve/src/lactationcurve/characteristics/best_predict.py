@@ -1,8 +1,8 @@
-"""Best prediction for cumulative 305-day milk yield.
+"""Best predict for cumulative 305-day milk yield.
 
 Purpose
 -------
-The Best Prediction (BP) method estimates 305-day lactation yield from
+The Best Predict (BP) method estimates 305-day lactation yield from
 intermittent test-day records by predicting deviations from an expected
 lactation curve at **all** unobserved days in milk. The method uses standard
 lactation curves that represent the expected course of lactation for
@@ -22,7 +22,7 @@ Method Summary
 --------------
 Adapted from the Best Predict Manual by Cole and VanRaden (2015)
 
-Best prediction combines a population-level standard lactation curve with
+The Best Predict method combines a population-level standard lactation curve with
 correlation-based corrections derived from observed test-day deviations.
 The method projects observed deviations onto the full 305-day curve using a
 covariance structure estimated from reference data.
