@@ -29,10 +29,10 @@ a test-interval style summation.
 
 Key Entry Points
 ----------------
-- ``ISLC_method``: compute a single lactation's estimated 305-d yield from
+- ``ISLC_method_single_lactation``: compute a single lactation's estimated 305-d yield from
     interpolated grid measurements.
-- ``ISLC``: apply ``ISLC_method`` per ``TestId`` in a pandas DataFrame.
-- ``ISLC_original_method``: compute a single lactation's estimated
+- ``ISLC_method``: apply ``ISLC_method`` per ``TestId`` in a pandas DataFrame.
+- ``ISLC_original_method_single_lactation``: compute a single lactation's estimated
     305-d yield using the technique described in the original paper.
     Wilmink et al. (1987)
     "Comparison of different methods of predicting 305-day milk yield
@@ -232,7 +232,7 @@ It groups the dataframe by TestId and applies the ISLC_method to each group.
 It returns a dataframe with the estimated lactation milk yield for each TestId."""
 
 
-def ISLC(
+def ISLC_method(
     df: pd.DataFrame,
     days_in_milk_col: str | None = None,
     milking_yield_col: str | None = None,
@@ -332,7 +332,7 @@ def ISLC(
             continue
 
         try:
-            cumulative_yield = ISLC_method(
+            cumulative_yield = ISLC_method_single_lactation(
                 df=group,
                 standard_lc=standard_lc_305,
                 correlation_matrix=correlation_matrix,
@@ -354,7 +354,7 @@ It predicts missing grid-day yields using the ICAR-style relation and integrates
 the complete grid profile to estimate total lactation yield. """
 
 
-def ISLC_method(
+def ISLC_method_single_lactation(
     df: pd.DataFrame,
     standard_lc: pd.Series | npt.NDArray[np.float64],
     correlation_matrix: pd.DataFrame,
@@ -384,7 +384,8 @@ def ISLC_method(
 
     # Use the requested horizon, or the last observed day for ``"max"``.
     if max_dim == "max":
-        calculation_end = int(df[dim_col].max())
+        observed_dim = df[dim_col].to_numpy(dtype=float)
+        calculation_end = int(np.max(observed_dim))
     else:
         calculation_end = int(max_dim)
 
@@ -492,7 +493,7 @@ def ISLC_method(
 described in the paper by Wilmink et al. (1987). """
 
 
-def ISLC_original_method(
+def ISLC_original_method_single_lactation(
     df: pd.DataFrame,
     standard_lc: pd.Series | npt.NDArray[np.float64],
     correlation_matrix: pd.DataFrame,
@@ -605,7 +606,7 @@ def ISLC_original_method(
     return float(final_milk_yield)
 
 
-def ISLC_original(
+def ISLC_original_method(
     df: pd.DataFrame,
     days_in_milk_col: str | None = None,
     milking_yield_col: str | None = None,
@@ -711,7 +712,7 @@ def ISLC_original(
             rows.append({"TestId": test_id, "305_milk_yield": np.nan})
             continue
 
-        cumulative_yield = ISLC_original_method(
+        cumulative_yield = ISLC_original_method_single_lactation(
             df=lactation,
             standard_lc=standard_lc_305,
             correlation_matrix=correlation_matrix,
@@ -1095,7 +1096,7 @@ def _set_doc_signatures() -> None:
         "std_per_grid_day": _DOC_STDS,
     }
 
-    for func in (ISLC, ISLC_original):
+    for func in (ISLC_method, ISLC_original_method):
         signature = inspect.signature(func)
         params = [
             param.replace(default=doc_defaults[param.name]) if param.name in doc_defaults else param

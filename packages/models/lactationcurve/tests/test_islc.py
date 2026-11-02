@@ -7,7 +7,8 @@ calculation, and standard-curve representation generation.
 
 Test Categories:
     - Curve helpers: Conversion and lookup helper behavior
-    - ISLC method core: Validation and branch coverage for ``ISLC_method``
+    - ISLC method core: Validation and branch coverage for
+      ``ISLC_method_single_lactation``
     - Interpolation methods: ``interpolation_standard_lc`` and linear helpers
     - ISLC orchestration: Grouping, filtering, and per-lactation output
     - ISLC original orchestration: Grouping, filtering, and per-lactation output
@@ -93,18 +94,18 @@ def test_curve_value_prefers_label_then_fallback_positional() -> None:
 
 @pytest.mark.islc_method
 def test_islc_method_handles_non_grid_day_input() -> None:
-    """ISLC_method still produces a finite value when input DIMs are off-grid."""
+    """ISLC_method_single_lactation handles off-grid input."""
     corr, std = _identity_corr_and_std()
     lactation = pd.DataFrame({"DaysInMilk": [11, 30], "MilkingYield": [30.0, 28.0]})
 
-    value = islc_mod.ISLC_method(lactation, _standard_curve_series(), corr, std)
+    value = islc_mod.ISLC_method_single_lactation(lactation, _standard_curve_series(), corr, std)
     assert isinstance(value, float)
     assert np.isfinite(value)
 
 
 @pytest.mark.islc_method
 def test_islc_method_returns_float_when_day_290_present() -> None:
-    """ISLC_method produces finite float when day 290 branch is used."""
+    """ISLC_method_single_lactation handles the day 290 branch."""
     corr, std = _identity_corr_and_std()
     lactation = pd.DataFrame(
         {
@@ -113,7 +114,7 @@ def test_islc_method_returns_float_when_day_290_present() -> None:
         }
     )
 
-    value = islc_mod.ISLC_method(lactation, _standard_curve_series(), corr, std)
+    value = islc_mod.ISLC_method_single_lactation(lactation, _standard_curve_series(), corr, std)
     assert isinstance(value, float)
     assert np.isfinite(value)
 
@@ -212,7 +213,7 @@ def test_islc_adds_default_testid_when_missing() -> None:
     df = pd.DataFrame({"DaysInMilk": [10, 30, 50], "MilkingYield": [32.0, 31.0, 30.0]})
     corr, std = _identity_corr_and_std()
 
-    result = islc_mod.ISLC(
+    result = islc_mod.ISLC_method(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -239,7 +240,7 @@ def test_islc_processes_multiple_lactations() -> None:
     )
     corr, std = _identity_corr_and_std()
 
-    result = islc_mod.ISLC(
+    result = islc_mod.ISLC_method(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -264,7 +265,7 @@ def test_islc_filters_days_over_305() -> None:
     )
     corr, std = _identity_corr_and_std_original()
 
-    result = islc_mod.ISLC_original(
+    result = islc_mod.ISLC_original_method(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -290,7 +291,7 @@ def test_islc_returns_nan_for_non_interpolable_lactation() -> None:
     )
     corr, std = _identity_corr_and_std()
 
-    result = islc_mod.ISLC(
+    result = islc_mod.ISLC_method(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -316,7 +317,7 @@ def test_islc_filters_days_over_max_dim_by_default() -> None:
     )
     corr, std = _identity_corr_and_std()
 
-    result = islc_mod.ISLC(
+    result = islc_mod.ISLC_method(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -342,13 +343,13 @@ def test_islc_default_horizon_is_305_days() -> None:
     )
     corr, std = _identity_corr_and_std()
 
-    result_default = islc_mod.ISLC(
+    result_default = islc_mod.ISLC_method(
         df=df,
         standard_lc_305=_standard_curve_series(),
         correlation_matrix=corr,
         std_per_grid_day=std,
     )
-    result_305 = islc_mod.ISLC(
+    result_305 = islc_mod.ISLC_method(
         df=df,
         standard_lc_305=_standard_curve_series(),
         correlation_matrix=corr,
@@ -373,7 +374,7 @@ def test_islc_allows_extended_horizon_with_max_dim_max() -> None:
     )
     corr, std = _identity_corr_and_std()
 
-    result_305 = islc_mod.ISLC(
+    result_305 = islc_mod.ISLC_method(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -382,7 +383,7 @@ def test_islc_allows_extended_horizon_with_max_dim_max() -> None:
         std_per_grid_day=std,
         max_dim=305,
     )
-    result_max = islc_mod.ISLC(
+    result_max = islc_mod.ISLC_method(
         df=df,
         days_in_milk_col="DaysInMilk",
         milking_yield_col="MilkingYield",
@@ -411,14 +412,14 @@ def test_islc_numeric_max_dim_sets_calculation_endpoint() -> None:
     )
     corr, std = _identity_corr_and_std()
 
-    result_250 = islc_mod.ISLC(
+    result_250 = islc_mod.ISLC_method(
         df=df,
         standard_lc_305=_standard_curve_series(),
         correlation_matrix=corr,
         std_per_grid_day=std,
         max_dim=250,
     )
-    result_max = islc_mod.ISLC(
+    result_max = islc_mod.ISLC_method(
         df=df,
         standard_lc_305=_standard_curve_series(),
         correlation_matrix=corr,
@@ -445,14 +446,14 @@ def test_islc_max_dim_max_uses_last_observed_day() -> None:
     )
     corr, std = _identity_corr_and_std()
 
-    result_max = islc_mod.ISLC(
+    result_max = islc_mod.ISLC_method(
         df=df,
         standard_lc_305=_standard_curve_series(),
         correlation_matrix=corr,
         std_per_grid_day=std,
         max_dim="max",
     )
-    result_231 = islc_mod.ISLC(
+    result_231 = islc_mod.ISLC_method(
         df=df,
         standard_lc_305=_standard_curve_series(),
         correlation_matrix=corr,
@@ -597,7 +598,7 @@ class TestIntegration:
         """Real-file prediction with provided covariance should be finite and stable."""
         full_lac_single = pd.read_csv(test_data_dir / "l2_anim2_herd654.csv")
 
-        result = islc_mod.ISLC(
+        result = islc_mod.ISLC_method(
             full_lac_single,
             days_in_milk_col="DaysInMilk",
             milking_yield_col="TestDayMilkYield",
@@ -621,7 +622,7 @@ class TestIntegration:
             ValueError,
             match="Provide reference_df to fit your own standard lactation curve",
         ):
-            islc_mod.ISLC_original(
+            islc_mod.ISLC_original_method(
                 target_data,
                 days_in_milk_col="DaysInMilk",
                 milking_yield_col="MilkingYield",
@@ -637,7 +638,7 @@ class TestIntegration:
         training_data = test_day_df.loc[test_day_df["TestId"] != 1].copy()
         target_data = test_day_df.loc[test_day_df["TestId"] == 1].copy()
 
-        result_cov = islc_mod.ISLC_original(
+        result_cov = islc_mod.ISLC_original_method(
             target_data,
             days_in_milk_col="DaysInMilk",
             milking_yield_col="MilkingYield",
