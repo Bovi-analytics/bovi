@@ -161,7 +161,7 @@ using the **ICAR guideline**.
 
 ---
 
-## Main Lactation curve models implemented:
+## Main Lactation curve models implemented
 
 **Fischer**:
 A combination of an exponential and a linear component, characterized by an

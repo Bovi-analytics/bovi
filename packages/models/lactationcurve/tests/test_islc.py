@@ -39,7 +39,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-islc_mod = import_module("lactationcurve.characteristics.ISLC")
+islc_mod = import_module(
+    "lactationcurve.characteristics.interpolation_using_standard_lactation_curves"
+)
 
 
 def _standard_curve_series() -> pd.Series:
