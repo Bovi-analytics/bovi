@@ -93,7 +93,8 @@ Notes
     according to this method than a cow that has her peak yield in February,
     even if they have the same total milk yield over the lactation.
 - Because the method assumes a once per month testing scheme,
-    you cannot use it with a testing scheme that has multiple tests per month.
+    multiple measurements in the same month
+    will be averaged and treated as one measurement.
 - This method works best with a very consistent once per month testing scheme.
     For instance always take the first day of the month so that the interval
     length is always the same.
@@ -236,7 +237,6 @@ def centering_date_method(
 
     Raises:
         ValueError: If required columns (DaysInMilk or MilkingYield) cannot be found.
-        ValueError: If there are multiple measurements in the same calendar month.
         ValueError: If there are fewer than two data points per TestId.
 
     """
@@ -266,18 +266,6 @@ def centering_date_method(
         # Check that the date column is datetime and convert it if needed.
         if not pd.api.types.is_datetime64_any_dtype(lactation_df["TestCalendarDate"]):
             lactation_df["TestCalendarDate"] = pd.to_datetime(lactation_df["TestCalendarDate"])
-
-        # Check that there is no more than one test per calendar month
-        month_counts = lactation_df["TestCalendarDate"].dt.to_period("M").value_counts()
-
-        if (month_counts > 1).any():
-            duplicated_months = month_counts[month_counts > 1].index.tolist()
-
-            raise ValueError(
-                f"TestId {lactation}: multiple measurements found in "
-                f"calendar month(s) {duplicated_months}. "
-                "The McDowell centering date method requires maximum one test per calendar month."
-            )
 
         # Calculate total milk yield for this lactation
         total_milk_yield = centering_date_method_single_lactation(
