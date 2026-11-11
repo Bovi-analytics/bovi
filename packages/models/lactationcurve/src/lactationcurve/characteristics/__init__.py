@@ -1,4 +1,9 @@
-from . import best_predict, lactation_curve_characteristics, method_test_interval
+from . import (
+    best_predict,
+    interpolation_using_standard_lactation_curves,
+    lactation_curve_characteristics,
+    method_test_interval,
+)
 from .best_predict import (
     best_predict_method,
     best_predict_method_single_lactation,
@@ -10,7 +15,7 @@ from .best_predict import (
     preprocess_measured_data,
 )
 from .centering_date_method import centering_date_method, centering_date_method_single_lactation
-from .ISLC import (
+from .interpolation_using_standard_lactation_curves import (
     ISLC_method,
     ISLC_method_single_lactation,
     ISLC_original_method,
@@ -33,6 +38,7 @@ from .lactation_curve_characteristics import (
 from .method_test_interval import test_interval_method
 
 __all__ = [
+    "interpolation_using_standard_lactation_curves",
     "ISLC_method",
     "ISLC_method_single_lactation",
     "ISLC_original_method",

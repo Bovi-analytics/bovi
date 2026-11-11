@@ -261,8 +261,8 @@ def test_centering_date_method_forwards_start_grace_period() -> None:
     assert result["LactationMilkYield"].iloc[0] == pytest.approx(2615.0)
 
 
-def test_centering_date_method_rejects_multiple_tests_in_one_month() -> None:
-    """The centering date method requires at most one test per month."""
+def test_centering_date_method_averages_multiple_tests_in_one_month() -> None:
+    """The centering date method averages multiple tests in one month."""
     df = pd.DataFrame(
         {
             "TestCalendarDate": pd.to_datetime(["2024-01-10", "2024-01-20"]),
@@ -272,5 +272,7 @@ def test_centering_date_method_rejects_multiple_tests_in_one_month() -> None:
         }
     )
 
-    with pytest.raises(ValueError, match="multiple measurements"):
-        centering_date_method(df)
+    result = centering_date_method(df)
+
+    assert result["TestId"].tolist() == [1]
+    assert result["LactationMilkYield"].iloc[0] == pytest.approx(7443.75)

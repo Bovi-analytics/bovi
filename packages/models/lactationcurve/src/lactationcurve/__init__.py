@@ -161,7 +161,7 @@ using the **ICAR guideline**.
 
 ---
 
-## Main Lactation curve models implemented:
+## Main Lactation curve models implemented
 
 **Fischer**:
 A combination of an exponential and a linear component, characterized by an
@@ -340,6 +340,25 @@ Hands-on programming example notebooks are available through
 The tutorials will guide you through how to work with the package,
 including how to import the package, fit lactation curves,
 calculate 305-day yields, and derive lactation curve characteristics.
+
+Available tutorials:
+
+- [`lactationcurve_pip_tutorial.ipynb`](https://github.com/Bovi-analytics/bovi/blob/main/packages/models/lactationcurve/notebooks/lactationcurve_pip_tutorial.ipynb):
+  install the package, fit lactation curves, calculate characteristics,
+  and apply the Test Interval Method.
+- [`test_interval_method_tutorial.ipynb`](https://github.com/Bovi-analytics/bovi/blob/main/packages/models/lactationcurve/notebooks/test_interval_method_tutorial.ipynb):
+  calculate cumulative yield with the Test Interval Method and explore
+  its settings.
+- [`centering_date_method_tutorial.ipynb`](https://github.com/Bovi-analytics/bovi/blob/main/packages/models/lactationcurve/notebooks/centering_date_method_tutorial.ipynb):
+  calculate cumulative yield with the Centering Date Method for monthly
+  test-day records.
+- [`interpolation_using_standard_lactation_curve_tutorial.ipynb`](https://github.com/Bovi-analytics/bovi/blob/main/packages/models/lactationcurve/notebooks/interpolation_using_standard_lactation_curve_tutorial.ipynb):
+  calculate cumulative yield with the Interpolation Using Standard Lactation Curves method,
+  fill gaps with standard lactation curves, compare interpolation methods,
+  and use the method with your own data.
+- [`best_predict_tutorial.ipynb`](https://github.com/Bovi-analytics/bovi/blob/main/packages/models/lactationcurve/notebooks/best_predict_tutorial.ipynb):
+  calculate cumulative yield with the best predict method, explore settings,
+  and use the method with your own data.
 
 
 ---
