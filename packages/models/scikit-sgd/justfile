@@ -1,3 +1,0 @@
-# scikit-sgd
-test:
-    uv run pytest tests/ -v

@@ -1,0 +1,22 @@
+name: PR title
+
+# PRs are squash-merged, so the PR title becomes the commit message on main,
+# and the release workflow reads it to decide the next version:
+#   feat: ...  -> minor release     fix: / perf: ...  -> patch release
+#   feat!: ... or a "BREAKING CHANGE:" footer -> major (minor while on 0.x)
+#   docs: / chore: / ci: / test: / refactor: / build: / style: -> no release
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
