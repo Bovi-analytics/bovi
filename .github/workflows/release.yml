@@ -1,0 +1,177 @@
+name: Release
+
+# On every push to main: run CI, work out the next version from the
+# Conventional Commit messages since the last tag. If there is one, build,
+# smoke-test, publish to PyPI, then tag lactationcurve-vX.Y.Z, create a GitHub
+# Release (archived by Zenodo) and update the documentation site.
+# Nothing is committed to main, so branch protection stays as it is.
+#
+# Run manually (Actions -> Release -> Run workflow) to:
+#   - publish a dev build of the next version to TestPyPI (target=testpypi)
+#   - force a patch/minor/major release to PyPI (target=pypi, bump=...)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Where to publish
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
+      bump:
+        description: Version bump (auto = from commit messages)
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  PSR: uvx --from python-semantic-release==10.7.0 semantic-release
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit # MILKBOT_KEY for the MilkBot API tests
+
+  plan:
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      target: ${{ steps.plan.outputs.target }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - id: plan
+        env:
+          TARGET: ${{ inputs.target || 'pypi' }}
+          BUMP: ${{ inputs.bump || 'auto' }}
+        run: |
+          # semantic-release writes its own step outputs when it detects
+          # GitHub Actions; keep those out of ours.
+          psr() { GITHUB_OUTPUT=/dev/null $PSR "$@"; }
+
+          force=""
+          if [[ "$BUMP" != "auto" ]]; then force="--$BUMP"; fi
+          last=$(psr version --print-last-released || true)
+          if [[ -z "$last" ]]; then
+            echo "::error::No lactationcurve-vX.Y.Z tag found; is the checkout missing tags?"
+            exit 1
+          fi
+          next=$(psr version $force --print)
+          echo "Last release: ${last:-none}, next version: $next"
+
+          if [[ "$TARGET" == "testpypi" ]]; then
+            # A dev build sorts before the release it leads up to.
+            if [[ "$next" == "$last" ]]; then next=$(psr version --patch --print); fi
+            version="${next}.dev${GITHUB_RUN_NUMBER}"
+          elif [[ "$next" != "$last" ]]; then
+            version="$next"
+          else
+            echo "No release-worthy commits since $last; nothing to publish."
+            TARGET="none"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "### Release plan: \`${version:-none}\` → ${TARGET}" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.target != 'none'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - name: Build
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.plan.outputs.version }}
+        run: uv build
+      - name: Check
+        run: |
+          uvx twine check --strict dist/*
+          ls dist/lactationcurve-${{ needs.plan.outputs.version }}-py3-none-any.whl
+      - name: Smoke-test the wheel (data files included, fitting works)
+        run: uv run --isolated --no-project --with dist/*.whl python .github/scripts/smoke_test.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-testpypi:
+    needs: [plan, build]
+    if: needs.plan.outputs.target == 'testpypi'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/lactationcurve/${{ needs.plan.outputs.version }}/
+    permissions:
+      id-token: write # Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    needs: [plan, build]
+    if: needs.plan.outputs.target == 'pypi'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/lactationcurve/${{ needs.plan.outputs.version }}/
+    permissions:
+      id-token: write # Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: [plan, publish-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the tag and create the release
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Tag and create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          # Tag exactly the commit that was built and published.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          TAG="lactationcurve-v$VERSION"
+          git tag -a "$TAG" -m "$TAG" "$GITHUB_SHA"
+          git push origin "$TAG"
+          # Release notes list the merged PRs since the previous tag.
+          gh release create "$TAG" dist/* --title "$TAG" --generate-notes --verify-tag
+
+  docs:
+    needs: github-release
+    permissions:
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/docs.yml

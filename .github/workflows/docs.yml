@@ -1,71 +1,50 @@
-name: Deploy Documentation (lactationcurve)
+name: Docs
+
+# Builds the pdoc site and deploys it to GitHub Pages
+# (https://bovi-analytics.github.io/bovi/lactationcurve.html).
+# Runs after every release (called by release.yml) or manually.
 
 on:
-  workflow_run:
-    workflows: ["Version Bump"]
-    types:
-      - completed
-  pull_request:
-    branches:
-      - main
-    paths:
-      - packages/models/lactationcurve/**
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  build-docs:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
-          fetch-depth: ${{ github.event_name == 'workflow_run' && 0 || 1 }}
-          fetch-tags: ${{ github.event_name == 'workflow_run' }}
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8.1.0
-
-      - name: Set up Python 3.12 (via uv)
-        run: uv python install 3.12
-
-      - name: Install project with uv
-        working-directory: packages/models/lactationcurve
-        run: uv sync
-
-      - name: Generate documentation with pdoc
-        working-directory: packages/models/lactationcurve
-        run: |
-          uv run pdoc lactationcurve \
-            --output-dir site \
-            --docformat google \
-            --logo https://raw.githubusercontent.com/Bovi-analytics/bovi/main/packages/models/lactationcurve/site/logo.png \
-            --logo-link https://bovi-analytics.org \
-            --footer-text "Lactation Curve Package – Bovi-Analytics lab" \
-            --template-directory templates
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+          fetch-depth: 0 # the docs show the version, which comes from git tags
+      - uses: astral-sh/setup-uv@v6
+      - name: Build documentation
+        run: >
+          uv run --with pdoc pdoc lactationcurve
+          --output-dir site
+          --docformat google
+          --logo https://raw.githubusercontent.com/Bovi-analytics/bovi/main/docs/logo.png
+          --logo-link https://bovi-analytics.org
+          --footer-text "Lactation Curve Package – Bovi-Analytics lab"
+          --template-directory docs
+      - uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/models/lactationcurve/site
+          path: site
 
   deploy:
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
-    needs: build-docs
+    needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4

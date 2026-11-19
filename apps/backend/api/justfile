@@ -1,6 +1,0 @@
-# Central API
-test:
-    uv run pytest tests/ -v
-
-run:
-    uv run python -m uvicorn bovi_api.app:app --reload

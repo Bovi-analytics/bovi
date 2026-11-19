@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_call: # run by release.yml before every release
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uvx ruff check --output-format=github .
+      - run: uvx ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # MilkBot API tests are skipped when the key is not available
+      # (e.g. pull requests from forks).
+      milkbot_key: ${{ secrets.MILKBOT_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # version comes from git tags
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - run: uv run pytest -q
+
+  citation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: uvx cffconvert --validate
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - name: Build documentation (not deployed)
+        run: uv run --with pdoc pdoc lactationcurve --output-dir site --docformat google --template-directory docs
+
+  # Single check to mark as required in branch protection, so the jobs
+  # can change without updating the protection rules.
+  ci-ok:
+    if: always()
+    needs: [lint, test, citation, docs]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All CI jobs passed
+        run: |
+          [[ "${{ needs.lint.result }}" == "success" && \
+             "${{ needs.test.result }}" == "success" && \
+             "${{ needs.citation.result }}" == "success" && \
+             "${{ needs.docs.result }}" == "success" ]]
