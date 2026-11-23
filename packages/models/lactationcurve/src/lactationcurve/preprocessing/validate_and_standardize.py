@@ -427,6 +427,9 @@ def standardize_lactation_columns(
         - TestCalendarDate (if provided)
     """
 
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("df must be a pandas DataFrame.")
+
     df = df.copy()
     mapping = resolve_lactation_column_mapping(
         [str(col) for col in df.columns],

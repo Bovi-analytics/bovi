@@ -22,6 +22,8 @@ Author:
     Meike van Leerdam and copilot
 """
 
+from typing import cast
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -286,6 +288,22 @@ class TestPredictionFunctions:
             ValueError, match="Provide reference_df to fit your own standard lactation curve."
         ):
             best_predict_method(df, fit_standard_lc_from_data=True)
+
+    def test_best_predict_method_rejects_string_reference_df(self):
+        """Fit-from-reference mode should require an actual pandas DataFrame."""
+        df = pd.DataFrame(
+            {
+                "DaysInMilk": [1, 2],
+                "MilkingYield": [11.0, 12.0],
+            }
+        )
+
+        with pytest.raises(TypeError, match="reference_df must be a pandas DataFrame"):
+            best_predict_method(
+                df,
+                fit_standard_lc_from_data=True,
+                reference_df=cast(pd.DataFrame, "data"),
+            )
 
 
 class TestIntegration:

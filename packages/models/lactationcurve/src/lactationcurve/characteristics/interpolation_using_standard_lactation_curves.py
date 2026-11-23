@@ -193,6 +193,14 @@ def _curve_value(curve: pd.Series, day: int) -> float:
     return float(curve.iloc[day])
 
 
+def _calculation_grid(calculation_end: int) -> list[int]:
+    """Build the unique ISLC calculation grid for an integration endpoint."""
+    grid = [0] + [day for day in GRID_DAYS if day < calculation_end]
+    if calculation_end not in grid:
+        grid.append(calculation_end)
+    return grid
+
+
 class InterpolationMethod(Protocol):
     """Protocol for milk-yield interpolation methods.
 
@@ -389,7 +397,22 @@ def ISLC_method_single_lactation(
     else:
         calculation_end = int(max_dim)
 
-    grid = [0] + [day for day in GRID_DAYS if day < calculation_end] + [calculation_end]
+    grid = _calculation_grid(calculation_end)
+    required_asset_size = len(grid)
+    std_size = np.asarray(std_per_grid_day).shape[0]
+    if std_size < required_asset_size:
+        raise ValueError(
+            "std_per_grid_day must contain one value per calculation-grid position "
+            f"(expected at least {required_asset_size}, got {std_size})."
+        )
+    if (
+        correlation_matrix.shape[0] < required_asset_size
+        or correlation_matrix.shape[1] < required_asset_size
+    ):
+        raise ValueError(
+            "correlation_matrix must contain one row and column per calculation-grid position "
+            f"(expected at least {required_asset_size}, got {correlation_matrix.shape})."
+        )
 
     standard_lc_series = _curve_to_series(standard_lc)
 
@@ -1062,6 +1085,8 @@ def create_standard_lc_representation(
     # pivot df to make GridDay the columns
     # Z should be the unscaled pivot table (TestId × GridDay)
     Z = df_grid.pivot(index="TestId", columns="GridDay", values="MilkYieldInterp")
+    representation_grid = GRID_DAYS if small_grid else [0] + GRID_DAYS + [305]
+    Z = Z.reindex(columns=representation_grid)
 
     # Standardize records per cow (so each row has mean=0, std=1)
     Z_std = (Z.sub(Z.mean(axis=1), axis=0)).div(Z.std(axis=1), axis=0)
@@ -1071,9 +1096,18 @@ def create_standard_lc_representation(
 
     # calculate correlation matrix
     corr = pd.DataFrame(Znp, columns=Z.columns).corr()
+    corr = corr.reindex(index=Z.columns, columns=Z.columns)
+    corr_values = np.nan_to_num(corr.to_numpy(dtype=float), nan=0.0)
+    np.fill_diagonal(corr_values, 1.0)
+    corr = pd.DataFrame(corr_values, index=Z.columns, columns=Z.columns)
 
     # calculate standard deviations for each grid day from the Znp matrix
-    std_per_grid_day = np.nanstd(Znp, axis=0)  # ignores NaN
+    std_per_grid_day = np.nan_to_num(
+        np.nanstd(Znp, axis=0),
+        nan=0.0,
+        posinf=0.0,
+        neginf=0.0,
+    )
 
     # fit Wilmink model to get mean values and std for each cow
     standard_lactation_curve_grid = pd.Series(
