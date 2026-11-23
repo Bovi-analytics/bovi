@@ -9,6 +9,9 @@ from lactationcurve.characteristics.centering_date_method import (
     centering_date_method,
     centering_date_method_single_lactation,
 )
+from lactationcurve.characteristics.method_test_interval import (
+    test_interval_method as calculate_test_interval_method,
+)
 
 
 def _scenario_data(
@@ -241,6 +244,90 @@ def test_centering_date_method_supports_aliases_and_default_test_id() -> None:
     assert result["LactationMilkYield"].iloc[0] == pytest.approx(2715.0)
 
 
+def test_centering_date_method_supports_date_alias() -> None:
+    """Resolve an optional date alias to the canonical centering-date column."""
+    df = pd.DataFrame(
+        {
+            "DIM": [10, 41],
+            "Yield": [20.0, 30.0],
+            "TestDate": ["2024-01-10", "2024-02-10"],
+        }
+    )
+
+    result = centering_date_method(df, lactation_length=100)
+
+    assert result["TestId"].tolist() == [0]
+    assert result["LactationMilkYield"].iloc[0] == pytest.approx(2715.0)
+
+
+def test_centering_date_method_supports_mapped_aliases_for_all_input_columns() -> None:
+    """Resolve non-default DIM, yield, and date headers from the alias map."""
+    df = pd.DataFrame(
+        {
+            "Days in Milk": [10, 41],
+            "Milk Yield (kg)": [20.0, 30.0],
+            "Test Date": ["2024-01-10", "2024-02-10"],
+        }
+    )
+
+    result = centering_date_method(df, lactation_length=100)
+
+    assert result["TestId"].tolist() == [0]
+    assert result["LactationMilkYield"].iloc[0] == pytest.approx(2715.0)
+
+
+def test_centering_date_method_rejects_unmapped_required_column() -> None:
+    """Raise a clear error when a required input header has no mapped alias."""
+    df = pd.DataFrame(
+        {
+            "Days Since Calving": [10, 41],
+            "Yield": [20.0, 30.0],
+            "Test Date": ["2024-01-10", "2024-02-10"],
+        }
+    )
+
+    with pytest.raises(ValueError, match="No lactation column found for: DaysInMilk"):
+        centering_date_method(df, lactation_length=100)
+
+
+def test_centering_date_method_supports_explicit_input_column_names() -> None:
+    """Use caller-supplied names for DIM, yield, and test date columns."""
+    df = pd.DataFrame(
+        {
+            "dim_custom": [10, 41],
+            "yield_custom": [20.0, 30.0],
+            "date_custom": ["2024-01-10", "2024-02-10"],
+        }
+    )
+
+    result = centering_date_method(
+        df,
+        days_in_milk_col="dim_custom",
+        milking_yield_col="yield_custom",
+        test_calender_date_col="date_custom",
+        lactation_length=100,
+    )
+
+    assert result["TestId"].tolist() == [0]
+    assert result["LactationMilkYield"].iloc[0] == pytest.approx(2715.0)
+
+
+def test_test_interval_method_ignores_optional_date_alias() -> None:
+    """The Test Interval Method remains independent of optional test dates."""
+    df = pd.DataFrame(
+        {
+            "DIM": [10, 41],
+            "Yield": [20.0, 30.0],
+            "TestDate": ["2024-01-10", "2024-02-10"],
+        }
+    )
+
+    result = calculate_test_interval_method(df)
+
+    assert result["TestId"].tolist() == [0]
+    assert result["LactationMilkYield"].iloc[0] == pytest.approx(8925.0)
+
+
 def test_centering_date_method_forwards_start_grace_period() -> None:
     """Apply the start grace period through the grouped public API."""
     df = pd.DataFrame(
@@ -276,3 +363,22 @@ def test_centering_date_method_averages_multiple_tests_in_one_month() -> None:
 
     assert result["TestId"].tolist() == [1]
     assert result["LactationMilkYield"].iloc[0] == pytest.approx(7443.75)
+
+
+def test_centering_date_method_averages_duplicate_month_before_weighting() -> None:
+    """Average duplicate monthly tests before applying centered month weights."""
+    df = pd.DataFrame(
+        {
+            "TestCalendarDate": pd.to_datetime(
+                ["2024-01-10", "2024-01-20", "2024-02-10", "2024-03-10"]
+            ),
+            "DaysInMilk": [10, 20, 41, 70],
+            "MilkingYield": [20.0, 30.0, 40.0, 50.0],
+            "TestId": [1, 1, 1, 1],
+        }
+    )
+
+    result = centering_date_method(df, lactation_length=100)
+
+    assert result["TestId"].tolist() == [1]
+    assert result["LactationMilkYield"].iloc[0] == pytest.approx(4072.5)
