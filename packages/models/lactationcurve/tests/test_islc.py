@@ -121,6 +121,43 @@ def test_islc_method_returns_float_when_day_290_present() -> None:
     assert np.isfinite(value)
 
 
+@pytest.mark.islc_method
+def test_islc_method_rejects_std_array_mismatched_to_grid() -> None:
+    """A too-short standard-deviation asset raises a clear ValueError."""
+    corr, _ = _identity_corr_and_std()
+    lactation = pd.DataFrame(
+        {"DaysInMilk": [10, 30, 50, 290], "MilkingYield": [30.0, 29.0, 28.0, 20.0]}
+    )
+
+    with pytest.raises(ValueError, match="std_per_grid_day"):
+        islc_mod.ISLC_method_single_lactation(
+            lactation,
+            _standard_curve_series(),
+            corr,
+            np.ones(16),
+        )
+
+
+@pytest.mark.islc_method
+@pytest.mark.parametrize(
+    ("calculation_end", "expected_grid"),
+    [
+        (250, [0, 10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250]),
+        (290, [0, 10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290]),
+        (
+            305,
+            [0, 10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 305],
+        ),
+    ],
+)
+def test_calculation_grid_is_unique_and_matches_horizon(
+    calculation_end: int,
+    expected_grid: list[int],
+) -> None:
+    """The calculation grid contains no duplicate endpoint and follows the horizon."""
+    assert islc_mod._calculation_grid(calculation_end) == expected_grid
+
+
 @pytest.mark.interpolation
 def test_interpolation_standard_lc_raises_without_standard_curve() -> None:
     """Interpolation requires a standard lactation curve input."""
@@ -169,6 +206,39 @@ def test_interpolation_standard_lc_returns_empty_with_expected_columns() -> None
 
     assert result.empty
     assert set(["TestId", "GridDay", "MilkYieldInterp"]).issubset(result.columns)
+
+
+@pytest.mark.interpolation
+@pytest.mark.parametrize(
+    ("small_grid", "expected_grid"),
+    [
+        (False, [0, *islc_mod.GRID_DAYS, 305]),
+        (True, islc_mod.GRID_DAYS),
+    ],
+)
+def test_interpolation_standard_lc_picks_correct_grid(
+    small_grid: bool,
+    expected_grid: list[int],
+) -> None:
+    """Full and small-grid interpolation both produce exactly their intended grid."""
+    all_grid_days = [0, *islc_mod.GRID_DAYS, 305]
+    group = pd.DataFrame(
+        {
+            "DaysInMilk": all_grid_days,
+            "MilkingYield": [30.0 - day / 20.0 for day in all_grid_days],
+            "TestId": [42] * len(all_grid_days),
+        }
+    )
+
+    result = islc_mod.interpolation_standard_lc(
+        group,
+        days_in_milk_col="DaysInMilk",
+        milking_yield_col="MilkingYield",
+        standard_lc=_standard_curve_series(),
+        small_grid=small_grid,
+    )
+
+    assert result["GridDay"].tolist() == expected_grid
 
 
 @pytest.mark.interpolation
@@ -542,6 +612,78 @@ def test_create_standard_lc_representation_happy_path(monkeypatch: pytest.Monkey
     assert std_per_grid_day.shape[0] == corr.shape[0]
     assert isinstance(curve_grid, pd.Series)
     assert len(curve_grid) == 305
+
+
+@pytest.mark.representation
+def test_create_standard_lc_representation_full_grid_has_fixed_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Missing endpoint observations are padded without changing the asset dimensions."""
+    df = pd.DataFrame(
+        {
+            "TestId": [1, 1, 2, 2],
+            "DaysInMilk": [10, 50, 10, 50],
+            "MilkingYield": [30.0, 26.0, 28.0, 24.0],
+        }
+    )
+    monkeypatch.setattr(
+        islc_mod,
+        "fit_lactation_curve",
+        lambda *args, **kwargs: np.linspace(10.0, 20.0, 305),
+    )
+
+    corr, std_per_grid_day, _ = islc_mod.create_standard_lc_representation(
+        df,
+        _standard_curve_series(),
+        "DaysInMilk",
+        "MilkingYield",
+        small_grid=False,
+    )
+
+    expected_grid = [0] + islc_mod.GRID_DAYS + [305]
+    assert corr.shape == (17, 17)
+    assert corr.index.tolist() == expected_grid
+    assert corr.columns.tolist() == expected_grid
+    assert std_per_grid_day.shape == (17,)
+
+
+@pytest.mark.representation
+@pytest.mark.parametrize(
+    ("small_grid", "expected_shape"),
+    [(False, (17, 17)), (True, (15, 15))],
+)
+def test_create_standard_lc_representation_picks_matching_asset_grid(
+    monkeypatch: pytest.MonkeyPatch,
+    small_grid: bool,
+    expected_shape: tuple[int, int],
+) -> None:
+    """Full and small-grid representations use matching correlation and STD grids."""
+    df = pd.DataFrame(
+        {
+            "TestId": [1, 1, 2, 2],
+            "DaysInMilk": [10, 50, 10, 50],
+            "MilkingYield": [30.0, 26.0, 28.0, 24.0],
+        }
+    )
+    monkeypatch.setattr(
+        islc_mod,
+        "fit_lactation_curve",
+        lambda *args, **kwargs: np.linspace(10.0, 20.0, 305),
+    )
+
+    corr, std_per_grid_day, _ = islc_mod.create_standard_lc_representation(
+        df,
+        _standard_curve_series(),
+        "DaysInMilk",
+        "MilkingYield",
+        small_grid=small_grid,
+    )
+
+    expected_grid = islc_mod.GRID_DAYS if small_grid else [0, *islc_mod.GRID_DAYS, 305]
+    assert corr.shape == expected_shape
+    assert std_per_grid_day.shape == (expected_shape[0],)
+    assert corr.index.tolist() == expected_grid
+    assert corr.columns.tolist() == expected_grid
 
 
 @pytest.mark.representation
