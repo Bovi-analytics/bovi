@@ -117,6 +117,21 @@ LACTATION_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
         "ID",
         "Id",
     ),
+    "TestCalendarDate": (
+        "TestCalendarDate",
+        "Test Calendar Date",
+        "Test_Calendar_Date",
+        "TestCalenderDate",
+        "Test Calender Date",
+        "Test_Calender_Date",
+        "TestDate",
+        "Test Date",
+        "Test_Date",
+        "Date",
+        "CalenderDate",
+        "Calender Date",
+        "Calender_Date",
+    ),
 }
 
 
@@ -142,6 +157,7 @@ def resolve_lactation_column_mapping(
     days_in_milk_col: str | None = None,
     milking_yield_col: str | None = None,
     test_id_col: str | None = None,
+    test_calender_date_col: str | None = None,
     require_test_id: bool = False,
 ) -> dict[str, str]:
     """Resolve flexible lactation-data headers to canonical column names.
@@ -163,6 +179,7 @@ def resolve_lactation_column_mapping(
         "DaysInMilk": days_in_milk_col,
         "MilkingYield": milking_yield_col,
         "TestId": test_id_col,
+        "TestCalendarDate": test_calender_date_col,
     }
 
     for canonical, requested in requested_columns.items():
@@ -407,7 +424,11 @@ def standardize_lactation_columns(
         - DaysInMilk
         - MilkingYield
         - TestId
+        - TestCalendarDate (if provided)
     """
+
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("df must be a pandas DataFrame.")
 
     df = df.copy()
     mapping = resolve_lactation_column_mapping(
@@ -415,10 +436,12 @@ def standardize_lactation_columns(
         days_in_milk_col=days_in_milk_col,
         milking_yield_col=milking_yield_col,
         test_id_col=test_id_col,
+        test_calender_date_col=test_calender_date_col,
     )
     dim_col = mapping["DaysInMilk"]
     yield_col = mapping["MilkingYield"]
     id_col = mapping.get("TestId")
+    test_calender_date_col = mapping.get("TestCalendarDate")
 
     # Create TestId if missing
     if not id_col:
@@ -431,6 +454,7 @@ def standardize_lactation_columns(
             dim_col: "DaysInMilk",
             yield_col: "MilkingYield",
             id_col: "TestId",
+            test_calender_date_col: "TestCalendarDate" if test_calender_date_col else None,
         }
     )
 

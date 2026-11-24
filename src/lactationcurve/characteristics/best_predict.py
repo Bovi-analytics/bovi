@@ -563,6 +563,8 @@ def best_predict_method(
     if fit_standard_lc_from_data:
         if reference_df is None:
             raise ValueError("Provide reference_df to fit your own standard lactation curve.")
+        if not isinstance(reference_df, pd.DataFrame):
+            raise TypeError("reference_df must be a pandas DataFrame.")
         reference_df = standardize_lactation_columns(
             reference_df,
             days_in_milk_col=days_in_milk_col,
