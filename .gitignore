@@ -1,88 +1,26 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
 *.egg-info/
-*.egg
 dist/
 build/
-.eggs/
 
-# Virtual environments
+# Environments
 .venv/
-venv/
-
-# uv
+.env
 uv.lock
 
-# Testing
+# Tools
 .pytest_cache/
-.coverage
-htmlcov/
-
-# Ruff
 .ruff_cache/
+.coverage
 
-# Type checking
-.basedpyright/
+# Generated docs (pdoc)
+site/
 
-# Playwright
-.playwright-mcp
-
-# IDE
+# Editors / OS
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# Local git worktrees
-.worktrees/
-
-# Environment
-.env
-.env.*
-!.env.example
-!.env.dev.example
-!.env.local.example
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Node (dashboard)
-node_modules/
-.next/
-bun.lock
-!apps/frontend/dashboard/bun.lock
-*.tsbuildinfo
-
-# Azure Functions
-local.settings.json
-.python_packages/
-
-# Model weights — never commit
-*.pb
-*.h5
-*.pt
-*.pth
-*.onnx
-*.pkl
-*.pickle
-variables/
-# pdoc generated output (ignore contents but not the directory, so logo.png can be kept)
-packages/models/*/site/*
-packages/models/*/docs/*
-
-# Pulumi
-.pulumi/
-
-# SQLite databases
-*.db
-*.db-shm
-*.db-wal
-
-# Data
-data/cow_data
-data/datasets/presets/
-data/raw
-data/raw/
