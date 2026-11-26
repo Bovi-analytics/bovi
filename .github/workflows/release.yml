@@ -172,6 +172,7 @@ jobs:
   docs:
     needs: github-release
     permissions:
+      contents: read # docs.yml checks out the code
       pages: write
       id-token: write
     uses: ./.github/workflows/docs.yml
